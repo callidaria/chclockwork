@@ -1,0 +1,9 @@
+# debug
+callgrind*
+gmon.out
+.gdb_history
+
+# core
+client/core/include/*
+client/lib/*
+*.o
