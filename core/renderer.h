@@ -106,10 +106,10 @@ class Mesh
 {
 public:
 	Mesh(const char* path);
-	static inline Mesh sphere() { return Mesh("./res/low_sphere.obj"); }
-	static inline Mesh sphere_high_resolution() { return Mesh("./res/sphere.obj"); };
-	static inline Mesh cube() { return Mesh("./res/cube.obj"); }
-	static inline Mesh triangle() { return Mesh("./res/triangle.obj"); }
+	static inline Mesh sphere_lowres() { return Mesh("./res/primitive/low_sphere.obj"); }
+	static inline Mesh sphere() { return Mesh("./res/primitive/sphere.obj"); };
+	static inline Mesh cube() { return Mesh("./res/primitive/cube.obj"); }
+	static inline Mesh ape() { return Mesh("./res/primitive/ape.obj"); }
 
 public:
 	vector<Vertex> vertices;
