@@ -3,7 +3,7 @@ CC = g++
 SDST_CORE = core/
 SDST_SCRIPT = script/
 LDST = lib/
-TARGET = build
+TARGET = chcw
 
 INCLUDE = -I/usr/include/freetype2 -I/usr/include/libpng16
 LINKER = -lGL -lGLEW -lSDL2 -lpthread -lfreetype
