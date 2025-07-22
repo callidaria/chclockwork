@@ -33,7 +33,7 @@ chcw_setup()
 
 	# exotic people know whats next - setup yourself i don't know your ways
 	else
-		echo "ERROR: distro not natively supported. please install libs on your own."
+		echo "ERROR: distro not natively supported. please install libs on your own & submit what's missing."
 	fi
 
 	# texture headers
@@ -43,6 +43,19 @@ chcw_setup()
 
 	# script finished
 	echo "done."
+}
+
+
+chcw_help()
+{
+	printf "C. Hanson's Clockwork Environment Helpdesk:\n\n"
+	printf "%-15s - %s\n" "chcw_setup" "project setup for build & development purposes"
+	printf "%-15s - %s\n" "chcw_help" "i didn't need to tell you that for recursive reasons"
+	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
+	printf "%-15s - %s\n" "da" "build debug, force build all libs"
+	printf "%-15s - %s\n" "r" "build release (only outdated libs). WARNING: will not override debug versions!"
+	printf "%-15s - %s\n" "ra" "build release, force build all libs"
+	printf "%-15s - %s\n" "e" "execute engine binary"
 }
 
 
