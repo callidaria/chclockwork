@@ -4,6 +4,6 @@ gmon.out
 .gdb_history
 
 # core
-client/core/include/*
-client/lib/*
+core/include/*
+lib/*
 *.o
