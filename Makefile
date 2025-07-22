@@ -6,7 +6,7 @@ LDST = lib/
 TARGET = chcw
 
 INCLUDE = -I/usr/include/freetype2 -I/usr/include/libpng16
-LINKER = -lGL -lGLEW -lSDL2 -lpthread -lfreetype
+LINKER = -lpthread -lGL -lGLEW -lSDL2 -lassimp -lfreetype
 
 DEBUG_SUFFIX = -pg -g -O0 -DDEBUG
 RELEASE_SUFFIX = -O3 -fno-gcse

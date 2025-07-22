@@ -6,7 +6,7 @@
 
 // engine
 #ifdef DEBUG
-#include "script/camera_control.h"
+#include "script/clockwork.h"
 #endif
 
 
@@ -16,7 +16,7 @@ s32 main(s32 argc,char** argv)
 
 	// engine components
 #ifdef DEBUG
-	CameraController __CamControl = CameraController(__Ubuntu);
+	Clockwork __Clockwork = Clockwork(__Ubuntu);
 #endif
 
 	bool running = true;

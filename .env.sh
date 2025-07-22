@@ -13,6 +13,7 @@ chcw_setup()
 			 libglew-dev \
 			 libsdl2-dev \
 			 libglm-dev \
+			 libassimp-dev \
 			 libfreetype-dev
 
 	# i use arch & packman btw
@@ -22,6 +23,7 @@ chcw_setup()
 			 glew \
 			 sdl2 \
 			 glm \
+			 assimp \
 			 freetype
 
 	# for my loved nix weirdos
