@@ -161,6 +161,10 @@ class AnimatedMesh
 {
 public:
 	AnimatedMesh(const char* path);
+	void update();
+
+private:
+	void _rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform);
 
 public:
 	vector<AnimationVertex> vertices;

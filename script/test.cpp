@@ -7,7 +7,6 @@
 TestScene::TestScene()
 {
 	// resources
-	AnimatedMesh __Dude = AnimatedMesh("./res/test/dude.dae");
 	vector<Texture*> __DudeTexture = {
 		g_Renderer.register_texture("./res/test/dude_colour.png",TEXTURE_FORMAT_SRGB)
 	};
@@ -20,8 +19,9 @@ TestScene::TestScene()
 
 	// animation batch
 	lptr<GeometryBatch> __AnimationBatch = g_Renderer.register_geometry_batch(__AnimationShader);
-	__AnimationBatch->add_geometry(__Dude,__DudeTexture);
+	u32 __DudeID = __AnimationBatch->add_geometry(m_Dude,__DudeTexture);
 	__AnimationBatch->load();
+	__AnimationBatch->object[__DudeID].transform.rotate_x(-90.f);
 
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-50,100),vec3(1),1.f);
@@ -35,5 +35,5 @@ TestScene::TestScene()
  */
 void TestScene::update()
 {
-	// TODO
+	m_Dude.update();
 }

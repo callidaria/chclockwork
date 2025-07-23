@@ -396,6 +396,73 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 // FIXME do a resize and then overwrite instead of push back after reserve?
 
+/**
+ *	update active animation
+ */
+f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
+{
+	while (durations[crr+1]<progress) crr++;
+	crr *= crr<durations.size()&&durations[crr]<progress;
+	return (progress-durations[crr])/(durations[crr+1]-durations[crr]);
+}
+
+void AnimatedMesh::update()
+{
+	Animation& p_Animation = animations[current_animation];
+
+	// interpolation delta
+	progress += .1f;  // TODO use a delta time that SHOULD HAVE BEEN PROVIDED BY BLITTER, but SOMEONE was lazy
+	progress = fmod(progress,p_Animation.duration);
+
+	// iterate joints for location animation transformations
+	for (AnimationJoint& p_Joint : p_Animation.joints)
+	{
+		// determine transformation keyframes
+		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
+		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
+		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+
+		// interpolation between keyframes
+		// translations
+		vec3 __TranslateInterpolation = glm::mix(
+				p_Joint.position_keys[p_Joint.crr_position],
+				p_Joint.position_keys[p_Joint.crr_position+1],
+				__TransformProgress
+			);
+
+		// scaling
+		vec3 __ScaleInterpolation = glm::mix(
+				p_Joint.scaling_keys[p_Joint.crr_scale],
+				p_Joint.scaling_keys[p_Joint.crr_scale+1],
+				__ScalingProgress
+			);
+
+		// rotation
+		quat __RotateInterpolation = glm::slerp(
+				p_Joint.rotation_keys[p_Joint.crr_rotation],
+				p_Joint.rotation_keys[p_Joint.crr_rotation+1],
+				__RotationProgress
+			);
+
+		// transformation
+		joints[p_Joint.id].transform = glm::translate(mat4(1.f),__TranslateInterpolation)
+				* glm::scale(mat4(1.f),__ScaleInterpolation)
+				* glm::toMat4(__RotateInterpolation);
+	}
+
+	// calculate transform after parent influence
+	mat4 __Parent = mat4(1.f);
+	_rc_transform_interpolation(joints[0],__Parent);
+	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
+}
+
+void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
+{
+	mat4 __LocalTransform = parent_transform*joint.transform;
+	joint.recursive_transform = __LocalTransform*joint.offset;
+	for (u16 child : joint.children) _rc_transform_interpolation(joints[child],__LocalTransform);
+}
+
 
 // ----------------------------------------------------------------------------------------------------
 // Geometry Batching
@@ -419,7 +486,10 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  */
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
 {
-	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),mesh.elements,tex);
+	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),mesh.elements,tex);
+	for (MeshJoint& p_Joint : mesh.joints)
+		attach_uniform(id,p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	return id;
 }
 
 /**
@@ -512,6 +582,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,f32* var)
 			.data = var
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec2* var)
 {
 	object[gid].uploads.push_back({
@@ -520,6 +591,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec2* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec3* var)
 {
 	object[gid].uploads.push_back({
@@ -528,6 +600,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec3* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec4* var)
 {
 	object[gid].uploads.push_back({
@@ -536,6 +609,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec4* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,mat4* var)
 {
 	object[gid].uploads.push_back({

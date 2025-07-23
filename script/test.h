@@ -15,6 +15,8 @@ public:
 	void update();
 
 private:
+
+	AnimatedMesh m_Dude = AnimatedMesh("./res/test/dude.dae");
 };
 
 
