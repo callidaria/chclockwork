@@ -15,13 +15,9 @@ Clockwork::Clockwork(Font* font)
  */
 void Clockwork::update()
 {
-	// zoom input & boundaries
+	// zoom input
 	m_ZoomMomentum += g_Input.mouse.wheel*CLOCKWORK_ZOOM_ACCELLERATION;
 	f32 __Pred = g_Camera.distance+m_ZoomMomentum;
-	/*
-	m_ZoomMomentum *= ((__Pred<CLOCKWORK_ZOOM_MINDIST&&m_ZoomMomentum<.0f)
-					   ||(__Pred>CLOCKWORK_ZOOM_MAXDIST&&m_ZoomMomentum>.0f)) ? CLOCKWORK_ZOOM_EASE : 1.f;
-	*/
 
 	// camera rotational orbit
 	m_RotMomentum.x += (g_Input.keyboard.keys[SDL_SCANCODE_E]-g_Input.keyboard.keys[SDL_SCANCODE_Q])

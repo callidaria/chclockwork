@@ -99,7 +99,7 @@ u32 Text::intersection(f32 pos)
 
 
 // ----------------------------------------------------------------------------------------------------
-// Mesh Component
+// Geometry Loading
 
 /**
  *	load mesh geometry from .obj file
@@ -202,6 +202,201 @@ Mesh::Mesh(const char* path)
 		for (u8 j=0;j<3;j++) vertices[i+j].tangent = __Tangent;
 	}
 }
+
+/**
+ *	TODO
+ */
+u16 rc_get_joint_count(aiNode* root)
+{
+	u16 __Result = 1;
+	for (u16 i=0;i<root->mNumChildren;i++) __Result += rc_get_joint_count(root->mChildren[i]);
+	return __Result;
+}
+
+void rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
+{
+	// root joint translation
+	u16 __MemoryID = joints.size();
+	MeshJoint __Joint = {
+		.id = root->mName.C_Str(),
+		.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
+		.transform = to_mat4(root->mTransformation),
+		.children = vector<u16>(root->mNumChildren)
+	};
+	joints.push_back(__Joint);
+
+	// recursively process children
+	for (u16 i=0;i<root->mNumChildren;i++)
+	{
+		joints[__MemoryID].children[i] = joints.size();
+		rc_assemble_joint_hierarchy(joints,root->mChildren[i]);
+	}
+}
+
+u16 get_joint_id(vector<MeshJoint>& joints,string id)
+{
+	u16 i = 0;
+	while (id!=joints[i].id) i++;
+	return i;
+}
+
+AnimatedMesh::AnimatedMesh(const char* path)
+{
+	Assimp::Importer __Importer;
+	const aiScene* __File = __Importer.ReadFile(
+			path,
+			aiProcess_CalcTangentSpace|aiProcess_Triangulate|aiProcess_JoinIdenticalVertices
+		);
+
+	// extract joints
+	u16 __JointCount = rc_get_joint_count(__File->mRootNode);
+	joints.reserve(__JointCount);
+	rc_assemble_joint_hierarchy(joints,__File->mRootNode);
+
+	// load mesh
+	// extract bone armature offset
+	aiMesh* __Mesh = __File->mMeshes[0];
+	u16 __RootOffset = get_joint_id(joints,__Mesh->mBones[0]->mName.C_Str());
+	// TODO allow the loader to pull all existing meshes in the scene, not just the first one
+
+	// extract bone influence weights
+	// memory allocation
+	u8 __WriteCount[__Mesh->mNumVertices] = { 0 };
+	f32 __BoneIndices[__Mesh->mNumVertices][RENDERER_ANIMATION_INFLUENCE_RANGE] = { 0 };
+	f32 __Weights[__Mesh->mNumVertices][RENDERER_ANIMATION_INFLUENCE_RANGE] = { 0 };
+	// TODO maybe handle these in their own datastructure
+
+	// iterate extraction
+	for (u16 i=0;i<__Mesh->mNumBones;i++)
+	{
+		aiBone* __Bone = __Mesh->mBones[i];
+		u16 __JointIndex = __RootOffset+i;
+		joints[__JointIndex].offset = to_mat4(__Bone->mOffsetMatrix);
+		// FIXME questionable placement for offset extraction
+
+		// map bone weights onto vertices
+		for (u32 j=0;j<__Bone->mNumWeights;j++)
+		{
+			aiVertexWeight& __Weight = __Bone->mWeights[j];
+
+			// store indices & weights until overflow
+			if (__WriteCount[__Weight.mVertexId]<RENDERER_ANIMATION_INFLUENCE_RANGE)
+			{
+				u8 k = __WriteCount[__Weight.mVertexId]++;
+				__BoneIndices[__Weight.mVertexId][k] = __JointIndex;
+				__Weights[__Weight.mVertexId][k] = __Weight.mWeight;
+			}
+
+			// priority store in case of weight overflow
+			else
+			{
+				u8 __ProcIndex = 0;
+				f32 __ProcWeight = __Weights[__Weight.mVertexId][0];  // TODO remove
+
+				// iterate to fine least influential weight
+				for (u8 k=1;k<RENDERER_ANIMATION_INFLUENCE_RANGE;k++)
+				{
+					if (__ProcWeight>__Weights[__Weight.mVertexId][k])
+					{
+						__ProcIndex = k;
+						__ProcWeight = __Weights[__Weight.mVertexId][k];
+					}
+				}
+
+				// overwrite most insignificant weight if current weight is important enough
+				if (__Weight.mWeight>__Weights[__Weight.mVertexId][__ProcIndex])
+					__Weights[__Weight.mVertexId][__ProcIndex] = __Weight.mWeight;
+			}
+		}
+	}
+
+	// compose vertex data
+	// assemble vertex array
+	vertices.reserve(__Mesh->mNumVertices);
+	for (u64 i=0;i<__Mesh->mNumVertices;i++)
+	{
+		vertices.push_back({
+				.position = to_vec3(__Mesh->mVertices[i]),
+				.uv = to_vec2(__Mesh->mTextureCoords[0][i]),
+				.normal = to_vec3(__Mesh->mNormals[i]),
+				.tangent = to_vec3(__Mesh->mTangents[i]),
+				.bone_index = vec4(__BoneIndices[i][0],__BoneIndices[i][1],
+								   __BoneIndices[i][2],__BoneIndices[i][3]),
+				.bone_weight = vec4(__Weights[i][0],__Weights[i][1],__Weights[i][2],__Weights[i][3])
+			});
+		// TODO be careful with the static 0 when expanding the loader
+	}
+
+	// allocate memory for element array
+	for (u32 i=0;i<__Mesh->mNumFaces;i++) index_count += __Mesh->mFaces[i].mNumIndices;
+	elements.reserve(index_count);
+
+	// assemble element array
+	for (u32 i=0;i<__Mesh->mNumFaces;i++)
+	{
+		for (u32 j=0;j<__Mesh->mFaces[i].mNumIndices;j++)
+			elements.push_back(__Mesh->mFaces[i].mIndices[j]);
+	}
+
+	// extract animations
+	// allocate memory & iterate animations
+	animations.reserve(__File->mNumAnimations);
+	for (u32 i=0;i<__File->mNumAnimations;i++)
+	{
+		aiAnimation* __Animation = __File->mAnimations[i];
+		f64 __TPSinv = 1./__Animation->mTicksPerSecond;
+
+		// register new animation
+		animations.push_back({
+				.joints = vector<AnimationJoint>(__Animation->mNumChannels),
+				.duration = __Animation->mDuration*__TPSinv
+			});
+
+		// process animation channels
+		for (u32 j=0;j<__Animation->mNumChannels;j++)
+		{
+			aiNodeAnim* __Node = __Animation->mChannels[j];
+			AnimationJoint& __Joint = animations.back().joints[j];
+
+			// process channel keys for related joint
+			__Joint = {
+				.id = get_joint_id(joints,__Node->mNodeName.C_Str()),
+				.position_keys = vector<vec3>(__Node->mNumPositionKeys),
+				.scaling_keys = vector<vec3>(__Node->mNumScalingKeys),
+				.rotation_keys = vector<quat>(__Node->mNumRotationKeys),
+				.position_durations = vector<f64>(__Node->mNumPositionKeys),
+				.scaling_durations = vector<f64>(__Node->mNumScalingKeys),
+				.rotation_durations = vector<f64>(__Node->mNumRotationKeys)
+			};
+			// FIXME what happens to memory during this loop is truly gruesome
+
+			// extract position keys
+			for (u32 k=0;k<__Node->mNumPositionKeys;k++)
+			{
+				__Joint.position_keys[k] = to_vec3(__Node->mPositionKeys[k].mValue);
+				__Joint.position_durations[k] = __Node->mPositionKeys[k].mTime*__TPSinv;
+			}
+
+			// extract scaling keys
+			for (u32 k=0;k<__Node->mNumScalingKeys;k++)
+			{
+				__Joint.scaling_keys[k] = to_vec3(__Node->mScalingKeys[k].mValue);
+				__Joint.scaling_durations[k] = __Node->mScalingKeys[k].mTime*__TPSinv;
+			}
+
+			// extract rotation keys
+			for (u32 k=0;k<__Node->mNumRotationKeys;k++)
+			{
+				__Joint.rotation_keys[k] = to_quat(__Node->mRotationKeys[k].mValue);
+				__Joint.rotation_durations[k] = __Node->mRotationKeys[k].mTime*__TPSinv;
+			}
+		}
+	}
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Geometry Batching
 
 /**
  *	setup batch by mesh geometry
