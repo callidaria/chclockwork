@@ -204,16 +204,17 @@ Mesh::Mesh(const char* path)
 }
 
 /**
- *	TODO
+ *	load animation & mesh information from collada file
+ *	\param path: path to .dae collada file
  */
-u16 rc_get_joint_count(aiNode* root)
+u16 _rc_get_joint_count(aiNode* root)
 {
 	u16 __Result = 1;
-	for (u16 i=0;i<root->mNumChildren;i++) __Result += rc_get_joint_count(root->mChildren[i]);
+	for (u16 i=0;i<root->mNumChildren;i++) __Result += _rc_get_joint_count(root->mChildren[i]);
 	return __Result;
 }
 
-void rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
+void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 {
 	// root joint translation
 	u16 __MemoryID = joints.size();
@@ -229,11 +230,11 @@ void rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	for (u16 i=0;i<root->mNumChildren;i++)
 	{
 		joints[__MemoryID].children[i] = joints.size();
-		rc_assemble_joint_hierarchy(joints,root->mChildren[i]);
+		_rc_assemble_joint_hierarchy(joints,root->mChildren[i]);
 	}
 }
 
-u16 get_joint_id(vector<MeshJoint>& joints,string id)
+u16 _get_joint_id(vector<MeshJoint>& joints,string id)
 {
 	u16 i = 0;
 	while (id!=joints[i].id) i++;
@@ -249,14 +250,14 @@ AnimatedMesh::AnimatedMesh(const char* path)
 		);
 
 	// extract joints
-	u16 __JointCount = rc_get_joint_count(__File->mRootNode);
+	u16 __JointCount = _rc_get_joint_count(__File->mRootNode);
 	joints.reserve(__JointCount);
-	rc_assemble_joint_hierarchy(joints,__File->mRootNode);
+	_rc_assemble_joint_hierarchy(joints,__File->mRootNode);
 
 	// load mesh
 	// extract bone armature offset
 	aiMesh* __Mesh = __File->mMeshes[0];
-	u16 __RootOffset = get_joint_id(joints,__Mesh->mBones[0]->mName.C_Str());
+	u16 __RootOffset = _get_joint_id(joints,__Mesh->mBones[0]->mName.C_Str());
 	// TODO allow the loader to pull all existing meshes in the scene, not just the first one
 
 	// extract bone influence weights
@@ -360,7 +361,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 
 			// process channel keys for related joint
 			__Joint = {
-				.id = get_joint_id(joints,__Node->mNodeName.C_Str()),
+				.id = _get_joint_id(joints,__Node->mNodeName.C_Str()),
 				.position_keys = vector<vec3>(__Node->mNumPositionKeys),
 				.scaling_keys = vector<vec3>(__Node->mNumScalingKeys),
 				.rotation_keys = vector<quat>(__Node->mNumRotationKeys),
@@ -393,13 +394,14 @@ AnimatedMesh::AnimatedMesh(const char* path)
 		}
 	}
 }
+// FIXME do a resize and then overwrite instead of push back after reserve?
 
 
 // ----------------------------------------------------------------------------------------------------
 // Geometry Batching
 
 /**
- *	setup batch by mesh geometry
+ *	add mesh geometry to batch
  *	\param mesh: loaded mesh for explicit geometry information
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
@@ -410,7 +412,18 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
 }
 
 /**
- *	upload load batch geometry to gpu
+ *	add animated mesh geometry to batch
+ *	\param mesh: animated mesh for explicit geometry information
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
+{
+	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),mesh.elements,tex);
+}
+
+/**
+ *	load geometry into batch
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
@@ -419,7 +432,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  */
 u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex)
 {
-	COMM_LOG("uploading geometry batch to gpu");
+	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
 	size_t __Size = __MemSize/sizeof(f32);
 	geometry.resize(geometry_cursor+__Size);
@@ -437,6 +450,40 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Tex
 }
 
 /**
+ *	load geometry into batch
+ *	\param verts: single precision floats, explicitly defining geometry
+ *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
+ *	\param ssize: upload dimension !in memory width!
+ *	\param elems: element array vector
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<u32>& elems,vector<Texture*>& tex)
+{
+	COMM_LOG("uploading geometry to batch");
+	size_t __MemSize = vsize*ssize;
+	size_t __Size = __MemSize/sizeof(f32);
+	geometry.resize(geometry_cursor+__Size);
+	memcpy(&geometry[geometry_cursor],verts,__MemSize);
+
+	// copy element array vector
+	elements.resize(element_cursor+elems.size());
+	for (size_t i=0;i<elems.size();i++) elements[i] = elems[element_cursor+i];
+
+	// store geometry information
+	object.push_back({
+			.offset = offset_cursor,
+			.vertex_count = elems.size(),
+			.textures = tex
+		});
+	offset_cursor += elems.size();
+	geometry_cursor += __Size;
+	element_cursor += elems.size();
+	return object.size()-1;
+}
+// FIXME a lot of codecopy is happening here
+
+/**
  *	upload batch geometry to gpu & automap shader pipeline
  */
 void GeometryBatch::load()
@@ -445,8 +492,11 @@ void GeometryBatch::load()
 	vao.bind();
 	vbo.bind();
 	vbo.upload_vertices(geometry);
+	ebo.bind_elements();
+	ebo.upload_elements(elements);
 	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 }
+// FIXME elements stay bound... segfault if this is not the case? doesn't really make sense
 
 /**
  *	attach variable in ram to auto update uniform in vram
@@ -1178,7 +1228,9 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 			// upload standard values & call gpu
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			p_Batch.shader->upload("texel",p_Tuple.texel);
-			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+			//glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+			glDrawElements(GL_TRIANGLES,p_Tuple.vertex_count,
+						   GL_UNSIGNED_INT,(void*)(p_Tuple.offset*sizeof(u32)));
 		}
 	}
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
@@ -1210,7 +1262,9 @@ void Renderer::_update_shadows(list<lptr<GeometryBatch>>& gb,list<lptr<ParticleB
 		{
 			// TODO geometry uniform upload, this will only be applicable if dynamic shading pipeline is working
 			m_GeometryShadowPipeline->upload("model",p_Tuple.transform.model);
-			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+			//glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+			glDrawElements(GL_TRIANGLES,p_Tuple.vertex_count,
+						   GL_UNSIGNED_INT,(void*)(p_Tuple.offset*sizeof(u32)));
 		}
 	}
 

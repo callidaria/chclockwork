@@ -206,7 +206,9 @@ struct GeometryBatch
 	// utility
 	// batch geometry loading
 	u32 add_geometry(Mesh& mesh,vector<Texture*>& tex);
+	u32 add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex);
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
+	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<u32>& elems,vector<Texture*>& tex);
 	void load();
 
 	// auto uniform upload
@@ -219,12 +221,16 @@ struct GeometryBatch
 	// data
 	VertexArray vao;
 	VertexBuffer vbo;
+	VertexBuffer ebo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> object;
 	vector<float> geometry;
+	vector<u32> elements;
 	u32 geometry_cursor = 0;
+	u32 element_cursor = 0;
 	u32 offset_cursor = 0;
 };
+// TODO element buffer test with simple mesh geometry
 
 struct ParticleBatch
 {

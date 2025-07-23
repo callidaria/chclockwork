@@ -9,6 +9,8 @@
 #include "script/clockwork.h"
 #endif
 
+#include "script/test.h"
+
 
 s32 main(s32 argc,char** argv)
 {
@@ -18,6 +20,8 @@ s32 main(s32 argc,char** argv)
 #ifdef DEBUG
 	Clockwork __Clockwork = Clockwork(__Ubuntu);
 #endif
+
+	TestScene __Test = TestScene();
 
 	bool running = true;
 	while (running)
