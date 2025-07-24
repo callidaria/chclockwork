@@ -12,13 +12,10 @@
 constexpr f32 CLOCKWORK_MVMT_ACCELERATION = 25;
 constexpr f32 CLOCKWORK_MVMT_FLOATFACTOR = .1f;
 
-// zoom
-constexpr f32 CLOCKWORK_ZOOM_ACCELLERATION = -25;
-constexpr f32 CLOCKWORK_ZOOM_FLOATFACTOR = .0005f;
-
-// yaw
-constexpr f32 CLOCKWORK_ROT_MOUSEACC = -10;
-constexpr f32 CLOCKWORK_ROT_FLOATFACTOR = .0001f;
+// rotation
+constexpr f32 CLOCKWORK_ZOOM_ACCELLERATION = -5;
+constexpr f32 CLOCKWORK_ROTATION_MOUSEACC = -.5f;
+constexpr f32 CLOCKWORK_ROTATION_FLOATFACTOR = .1f;
 
 
 class Clockwork
@@ -31,8 +28,8 @@ public:
 private:
 
 	TargetMomentumSnap m_CameraPosition = TargetMomentumSnap(CLOCKWORK_MVMT_FLOATFACTOR);
-	f32 m_ZoomMomentum = .0f;
-	vec2 m_RotMomentum = vec2(0);
+	TargetMomentumSnap m_CameraRotation = TargetMomentumSnap(CLOCKWORK_ROTATION_FLOATFACTOR);
+	vec3 m_TargetingVector;
 
 	// measurements
 	lptr<Text> m_FPS;

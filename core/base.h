@@ -407,7 +407,7 @@ private:
 	f32 m_Ratio;
 };
 
-inline Camera3D g_Camera = Camera3D(vec3(0),1,0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
+inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -427,12 +427,6 @@ private:
 	f32 m_Stiff;
 	f32 m_Damp;
 };
-// target momentum snap
-constexpr f32 target_momentum_omega(f32 ff) { return 2.f/ff; }
-constexpr f32 target_momentum_stiff(f32 o) { return o*o; }
-constexpr f32 target_momentum_damp(f32 o) { return 2.f*o; }
-void target_momentum(vec3& t,vec3& p,vec3& v,f32 stiff,f32 dt);
-void target_momentum_attenuate(vec3& v,f32 damp,f32 dt);
 
 
 // ----------------------------------------------------------------------------------------------------
