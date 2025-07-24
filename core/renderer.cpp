@@ -292,16 +292,14 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			else
 			{
 				u8 __ProcIndex = 0;
-				f32 __ProcWeight = __Weights[__Weight.mVertexId][0];  // TODO remove
+				f32 __ProcWeight = __Weights[__Weight.mVertexId][0];
 
 				// iterate to fine least influential weight
 				for (u8 k=1;k<RENDERER_ANIMATION_INFLUENCE_RANGE;k++)
 				{
-					if (__ProcWeight>__Weights[__Weight.mVertexId][k])
-					{
-						__ProcIndex = k;
-						__ProcWeight = __Weights[__Weight.mVertexId][k];
-					}
+					if (__ProcWeight<=__Weights[__Weight.mVertexId][k]) continue;
+					__ProcIndex = k;
+					__ProcWeight = __Weights[__Weight.mVertexId][k];
 				}
 
 				// overwrite most insignificant weight if current weight is important enough
@@ -313,18 +311,18 @@ AnimatedMesh::AnimatedMesh(const char* path)
 
 	// compose vertex data
 	// assemble vertex array
-	vertices.reserve(__Mesh->mNumVertices);
+	vertices.resize(__Mesh->mNumVertices);
 	for (u64 i=0;i<__Mesh->mNumVertices;i++)
 	{
-		vertices.push_back({
-				.position = to_vec3(__Mesh->mVertices[i]),
-				.uv = to_vec2(__Mesh->mTextureCoords[0][i]),
-				.normal = to_vec3(__Mesh->mNormals[i]),
-				.tangent = to_vec3(__Mesh->mTangents[i]),
-				.bone_index = vec4(__BoneIndices[i][0],__BoneIndices[i][1],
-								   __BoneIndices[i][2],__BoneIndices[i][3]),
-				.bone_weight = vec4(__Weights[i][0],__Weights[i][1],__Weights[i][2],__Weights[i][3])
-			});
+		vertices[i] = {
+			.position = to_vec3(__Mesh->mVertices[i]),
+			.uv = to_vec2(__Mesh->mTextureCoords[0][i]),
+			.normal = to_vec3(__Mesh->mNormals[i]),
+			.tangent = to_vec3(__Mesh->mTangents[i]),
+			.bone_index = vec4(__BoneIndices[i][0],__BoneIndices[i][1],
+							   __BoneIndices[i][2],__BoneIndices[i][3]),
+			.bone_weight = vec4(__Weights[i][0],__Weights[i][1],__Weights[i][2],__Weights[i][3])
+		};
 		// TODO be careful with the static 0 when expanding the loader
 	}
 
@@ -341,23 +339,23 @@ AnimatedMesh::AnimatedMesh(const char* path)
 
 	// extract animations
 	// allocate memory & iterate animations
-	animations.reserve(__File->mNumAnimations);
+	animations.resize(__File->mNumAnimations);
 	for (u32 i=0;i<__File->mNumAnimations;i++)
 	{
 		aiAnimation* __Animation = __File->mAnimations[i];
 		f64 __TPSinv = 1./__Animation->mTicksPerSecond;
 
 		// register new animation
-		animations.push_back({
-				.joints = vector<AnimationJoint>(__Animation->mNumChannels),
-				.duration = __Animation->mDuration*__TPSinv
-			});
+		animations[i] = {
+			.joints = vector<AnimationJoint>(__Animation->mNumChannels),
+			.duration = __Animation->mDuration*__TPSinv
+		};
 
 		// process animation channels
 		for (u32 j=0;j<__Animation->mNumChannels;j++)
 		{
 			aiNodeAnim* __Node = __Animation->mChannels[j];
-			AnimationJoint& __Joint = animations.back().joints[j];
+			AnimationJoint& __Joint = animations[i].joints[j];
 
 			// process channel keys for related joint
 			__Joint = {
@@ -394,7 +392,6 @@ AnimatedMesh::AnimatedMesh(const char* path)
 		}
 	}
 }
-// FIXME do a resize and then overwrite instead of push back after reserve?
 
 /**
  *	update active animation
