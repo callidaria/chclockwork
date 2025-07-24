@@ -411,7 +411,7 @@ void AnimatedMesh::update()
 	Animation& p_Animation = animations[current_animation];
 
 	// interpolation delta
-	progress += .1f;  // TODO use a delta time that SHOULD HAVE BEEN PROVIDED BY BLITTER, but SOMEONE was lazy
+	progress += g_Frame.delta_time;
 	progress = fmod(progress,p_Animation.duration);
 
 	// iterate joints for location animation transformations

@@ -89,6 +89,14 @@ void Frame::clear()
 void Frame::update()
 {
 	SDL_GL_SwapWindow(m_Frame);
+
+	// calculate delta time
+	m_LastFrameTime = m_CurrentFrameTime;
+	m_CurrentFrameTime = std::chrono::steady_clock::now();
+	delta_time_real = (m_CurrentFrameTime-m_LastFrameTime).count()*MATH_CONVERSION_SC;
+	delta_time = delta_time_real*time_factor;
+
+	// fps counter
 #ifdef DEBUG
 	f64 __LFrameUpdate = (std::chrono::steady_clock::now()-m_LastFrameUpdate).count()*MATH_CONVERSION_MS;
 	if (__LFrameUpdate>1000)

@@ -392,3 +392,29 @@ void Camera3D::roll(f32 r)
 {
 	up = glm::rotate(glm::mat4(1.f),glm::radians(r),target-position)*vec4(COORDINATE_SYSTEM_ORIENTATION,.0f);
 }
+
+
+// ----------------------------------------------------------------------------------------------------
+// Physics Utility Section
+
+/**
+ *	create intertia effected target position that updates a linear applied vectorial position
+ *	\param ffactor: amount of time in seconds the momentum takes to snap to target position
+ */
+TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
+{
+	f32 __Omega = 2.f/ffactor;
+	m_Stiff = __Omega*__Omega;
+	m_Damp = 2.f*__Omega;
+}
+
+/**
+ *	update momentum based position to snap to given target position
+ *	\param pos: reference to current position, that should be transformed towards target
+ *	\param dt: delta time to apply to integration steps
+ */
+void TargetMomentumSnap::update(vec3& pos,f32 dt)
+{
+	m_Momentum += ((target-pos)*m_Stiff-m_Momentum*m_Damp)*dt;
+	pos += m_Momentum*dt;
+}

@@ -110,6 +110,7 @@ constexpr f32 MATH_CENTER_Y = MATH_CARTESIAN_YRANGE*.5f;
 constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
 constexpr f64 MATH_CONVERSION_MS = .000001;
+constexpr f64 MATH_CONVERSION_SC = .000000001;
 
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
@@ -407,6 +408,31 @@ private:
 };
 
 inline Camera3D g_Camera = Camera3D(vec3(0),1,0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
+
+
+// ----------------------------------------------------------------------------------------------------
+// Physics Utility Section
+
+class TargetMomentumSnap
+{
+public:
+	TargetMomentumSnap(f32 ffactor);
+	void update(vec3& pos,f32 dt);
+
+public:
+	vec3 target = vec3(0);
+
+private:
+	vec3 m_Momentum = vec3(0);
+	f32 m_Stiff;
+	f32 m_Damp;
+};
+// target momentum snap
+constexpr f32 target_momentum_omega(f32 ff) { return 2.f/ff; }
+constexpr f32 target_momentum_stiff(f32 o) { return o*o; }
+constexpr f32 target_momentum_damp(f32 o) { return 2.f*o; }
+void target_momentum(vec3& t,vec3& p,vec3& v,f32 stiff,f32 dt);
+void target_momentum_attenuate(vec3& v,f32 damp,f32 dt);
 
 
 // ----------------------------------------------------------------------------------------------------
