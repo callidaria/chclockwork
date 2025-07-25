@@ -24,19 +24,24 @@ TestScene::TestScene()
 
 	// shaders
 	VertexShader __AnimationVertexShader = VertexShader("./core/shader/animation.vert");
+	VertexShader __AnimationShadowShader = VertexShader("./core/shader/animation_shadow.vert");
 	FragmentShader __AnimationFragmentShader = FragmentShader("./core/shader/gpass.frag");
+	FragmentShader __ShadowShader = FragmentShader("./core/shader/shadow.frag");
 	lptr<ShaderPipeline> __AnimationShader = g_Renderer.register_pipeline(__AnimationVertexShader,
 																		  __AnimationFragmentShader);
+	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(__AnimationShadowShader,
+																				  __ShadowShader);
 
 	// animation batch
 	lptr<GeometryBatch> __AnimationBatch = g_Renderer.register_deferred_geometry_batch(__AnimationShader);
 	u32 __DudeID = __AnimationBatch->add_geometry(m_Dude,__DudeTexture);
 	__AnimationBatch->load();
-	g_Renderer.register_shadow_batch(__AnimationBatch);
+	g_Renderer.register_shadow_batch(__AnimationBatch,__AnimationShadowPipeline);
 
 	// geometry batch
 	lptr<GeometryBatch> __PhysicalBatch = g_Renderer.register_deferred_geometry_batch();
 	u32 __FloorID = __PhysicalBatch->add_geometry(__Cube,__FloorTexture);
+	u32 __BoxID = __PhysicalBatch->add_geometry(__Cube,__FloorTexture);
 	__PhysicalBatch->load();
 	g_Renderer.register_shadow_batch(__PhysicalBatch);
 
@@ -44,12 +49,12 @@ TestScene::TestScene()
 	__PhysicalBatch->object[__FloorID].transform.scale(glm::vec3(10,10,.1f));
 	__PhysicalBatch->object[__FloorID].transform.translate(glm::vec3(0,0,-.1f));
 	__PhysicalBatch->object[__FloorID].texel = 10.f;
+	__PhysicalBatch->object[__BoxID].transform.translate(glm::vec3(4,4,1));
 
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),4.f);
 	g_Renderer.add_shadow(vec3(75,-150,100));
 	g_Renderer.upload_lighting();
-	// TODO add an animation shadow pass. it is necessary to register custom shadow passes for this feature
 	// FIXME it seems like not adding a shadow results in everything being shadowed
 	// FIXME the sunlight emission is coming from a left handed coordinate system somehow (y-axis flip)
 

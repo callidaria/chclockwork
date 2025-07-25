@@ -279,6 +279,18 @@ struct Lighting
 	Camera3D shadow_projection;
 };
 
+struct ShadowGeometryBatch
+{
+	lptr<GeometryBatch> batch;
+	lptr<ShaderPipeline> shader;
+};
+
+struct ShadowParticleBatch
+{
+	lptr<ParticleBatch> batch;
+	lptr<ShaderPipeline> shader;
+};
+
 
 // ----------------------------------------------------------------------------------------------------
 // Renderer Component
@@ -318,7 +330,9 @@ public:
 
 	// shadow projection
 	void register_shadow_batch(lptr<GeometryBatch> b);
+	void register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline);
 	void register_shadow_batch(lptr<ParticleBatch> b);
+	void register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline);
 
 	// lighting
 	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity);
@@ -337,7 +351,7 @@ private:
 	void _update_text();
 	void _update_canvas();
 	static void _update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb);
-	void _update_shadows(list<lptr<GeometryBatch>>& gb,list<lptr<ParticleBatch>>& pb);
+	void _update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb);
 	void _gpu_upload();
 
 	// background procedures
@@ -405,8 +419,8 @@ private:
 	list<ParticleBatch> m_ParticleBatches;
 	list<GeometryBatch> m_DeferredGeometryBatches;
 	list<ParticleBatch> m_DeferredParticleBatches;
-	list<lptr<GeometryBatch>> m_ShadowGeometryBatches;
-	list<lptr<ParticleBatch>> m_ShadowParticleBatches;
+	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
+	list<ShadowParticleBatch> m_ShadowParticleBatches;
 
 	// lighting
 	lptr<ShaderPipeline> m_GeometryPassPipeline;

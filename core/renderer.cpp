@@ -1044,7 +1044,23 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
  */
 void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 {
-	m_ShadowGeometryBatches.push_back(b);
+	m_ShadowGeometryBatches.push_back({
+			.batch = b,
+			.shader = m_GeometryShadowPipeline,
+		});
+}
+
+/**
+ *	allow a geometry batch to cast shadows onto the scene
+ *	\param b: pointer to casting geometry batch
+ *	\param pipeline: pointer to custom shadow pass shader pipeline
+ */
+void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline)
+{
+	m_ShadowGeometryBatches.push_back({
+			.batch = b,
+			.shader = pipeline,
+		});
 }
 
 /**
@@ -1053,7 +1069,23 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
  */
 void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
 {
-	m_ShadowParticleBatches.push_back(b);
+	m_ShadowParticleBatches.push_back({
+			.batch = b,
+			.shader = m_ParticleShadowPipeline,
+		});
+}
+
+/**
+ *	allow a particle batch to cast shadows onto the scene
+ *	\param b: pointer to casting particle batch
+ *	\param pipeline: pointer to custom shadow pass shader pipeline
+ */
+void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline)
+{
+	m_ShadowParticleBatches.push_back({
+			.batch = b,
+			.shader = pipeline,
+		});
 }
 
 /**
@@ -1270,29 +1302,33 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
  *	\param gb: casting geometry batches for shadow projection
  *	\param pb: casting particle batches for shadow projection
  */
-void Renderer::_update_shadows(list<lptr<GeometryBatch>>& gb,list<lptr<ParticleBatch>>& pb)
+void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb)
 {
 	// iterate static geometry
-	for (lptr<GeometryBatch> p_Batch : gb)
+	for (ShadowGeometryBatch& p_Batch : gb)
 	{
-		m_GeometryShadowPipeline->enable();  // TODO make this dynamic
-		m_GeometryShadowPipeline->upload_camera(m_Lighting.shadow_projection);
-		p_Batch->vao.bind();
-		for (GeometryTuple& p_Tuple : p_Batch->object)
+		p_Batch.shader->enable();
+		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
+		p_Batch.batch->vao.bind();
+		for (GeometryTuple& p_Tuple : p_Batch.batch->object)
 		{
-			// TODO geometry uniform upload, this will only be applicable if dynamic shading pipeline is working
-			m_GeometryShadowPipeline->upload("model",p_Tuple.transform.model);
+			// upload attached uniform value pointers
+			for (GeometryUniformUpload& p_Upload : p_Tuple.uploads)
+				p_Batch.shader->upload(p_Upload.uloc,p_Upload.udim,p_Upload.data);
+
+			// upload standard values & call gpu
+			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}
 	}
 
 	// iterate particle geometry
-	for (lptr<ParticleBatch> p_Batch : pb)
+	for (ShadowParticleBatch& p_Batch : pb)
 	{
-		m_ParticleShadowPipeline->enable();  // TODO same here as with m_GeometryShadowPipeline
-		m_ParticleShadowPipeline->upload_camera(m_Lighting.shadow_projection);
-		p_Batch->vao.bind();
-		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch->vertex_count,p_Batch->active_particles);
+		p_Batch.shader->enable();
+		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
+		p_Batch.batch->vao.bind();
+		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
 	}
 }
 
