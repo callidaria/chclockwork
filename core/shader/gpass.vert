@@ -2,12 +2,12 @@
 
 
 in vec3 position;
-in vec2 edge_coordinates;
+in vec2 uv;
 in vec3 normals;
 in vec3 tangent;
 
 out vec3 Position;
-out vec2 EdgeCoordinates;
+out vec2 UV;
 out mat3 TBN;
 
 uniform mat4 view;
@@ -24,7 +24,7 @@ void main()
 	gl_Position = proj*view*world_position;
 
 	// calculate texture coordinates
-	EdgeCoordinates = edge_coordinates*texel;
+	UV = uv*texel;
 
 	// gram-schmidt orthogonalization
 	vec3 Tangent = normalize((model*vec4(tangent,0)).xyz);

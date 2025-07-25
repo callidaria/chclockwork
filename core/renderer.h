@@ -121,6 +121,7 @@ public:
 	static inline Mesh sphere() { return Mesh("./res/primitive/sphere.obj"); };
 	static inline Mesh cube() { return Mesh("./res/primitive/cube.obj"); }
 	static inline Mesh ape() { return Mesh("./res/primitive/ape.obj"); }
+	// TODO pre-store geometry and copy, this will always reload from disc when new primitive is created
 
 public:
 	vector<Vertex> vertices;
