@@ -39,22 +39,6 @@ VertexBuffer::VertexBuffer()
 }
 
 /**
- *	bind vertex buffer
- */
-void VertexBuffer::bind()
-{
-	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
-}
-
-/**
- *	unbind all vertex buffers
- */
-void VertexBuffer::unbind()
-{
-	glBindBuffer(GL_ARRAY_BUFFER,0);
-}
-
-/**
  *	upload elements from array into buffer
  *	\param elements: array of optional element indices, mapping the vertex order
  *	\param size: size of array, holding the element indices

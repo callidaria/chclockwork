@@ -27,8 +27,10 @@ class VertexBuffer
 public:
 	VertexBuffer();
 
-	void bind();
-	static void unbind();
+	inline void bind() { glBindBuffer(GL_ARRAY_BUFFER,m_VBO); }
+	inline void bind_elements() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO); }
+	static inline void unbind() { glBindBuffer(GL_ARRAY_BUFFER,0); }
+	static inline void unbind_elements() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0); }
 
 	/**
 	 *	template inline for dynamic vertex struct uploads

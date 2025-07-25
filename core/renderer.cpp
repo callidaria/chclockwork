@@ -99,7 +99,7 @@ u32 Text::intersection(f32 pos)
 
 
 // ----------------------------------------------------------------------------------------------------
-// Mesh Component
+// Geometry Loading
 
 /**
  *	load mesh geometry from .obj file
@@ -204,7 +204,266 @@ Mesh::Mesh(const char* path)
 }
 
 /**
- *	setup batch by mesh geometry
+ *	load animation & mesh information from collada file
+ *	\param path: path to .dae collada file
+ */
+u16 _rc_get_joint_count(aiNode* root)
+{
+	u16 __Result = 1;
+	for (u16 i=0;i<root->mNumChildren;i++) __Result += _rc_get_joint_count(root->mChildren[i]);
+	return __Result;
+}
+
+void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
+{
+	// root joint translation
+	u16 __MemoryID = joints.size();
+	MeshJoint __Joint = {
+		.id = root->mName.C_Str(),
+		.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
+		.transform = to_mat4(root->mTransformation),
+		.children = vector<u16>(root->mNumChildren)
+	};
+	joints.push_back(__Joint);
+
+	// recursively process children
+	for (u16 i=0;i<root->mNumChildren;i++)
+	{
+		joints[__MemoryID].children[i] = joints.size();
+		_rc_assemble_joint_hierarchy(joints,root->mChildren[i]);
+	}
+}
+
+u16 _get_joint_id(vector<MeshJoint>& joints,string id)
+{
+	u16 i = 0;
+	while (id!=joints[i].id) i++;
+	return i;
+}
+
+AnimatedMesh::AnimatedMesh(const char* path)
+{
+	Assimp::Importer __Importer;
+	const aiScene* __File = __Importer.ReadFile(
+			path,
+			aiProcess_CalcTangentSpace|aiProcess_Triangulate|aiProcess_JoinIdenticalVertices
+		);
+
+	// extract joints
+	u16 __JointCount = _rc_get_joint_count(__File->mRootNode);
+	joints.reserve(__JointCount);
+	_rc_assemble_joint_hierarchy(joints,__File->mRootNode);
+
+	// load mesh
+	// extract bone armature offset
+	aiMesh* __Mesh = __File->mMeshes[0];
+	u16 __RootOffset = _get_joint_id(joints,__Mesh->mBones[0]->mName.C_Str());
+	// TODO allow the loader to pull all existing meshes in the scene, not just the first one
+
+	// extract bone influence weights
+	// memory allocation
+	u8 __WriteCount[__Mesh->mNumVertices] = { 0 };
+	f32 __BoneIndices[__Mesh->mNumVertices][RENDERER_ANIMATION_INFLUENCE_RANGE] = { 0 };
+	f32 __Weights[__Mesh->mNumVertices][RENDERER_ANIMATION_INFLUENCE_RANGE] = { 0 };
+	// TODO maybe handle these in their own datastructure
+
+	// iterate extraction
+	for (u16 i=0;i<__Mesh->mNumBones;i++)
+	{
+		aiBone* __Bone = __Mesh->mBones[i];
+		u16 __JointIndex = __RootOffset+i;
+		joints[__JointIndex].offset = to_mat4(__Bone->mOffsetMatrix);
+		// FIXME questionable placement for offset extraction
+
+		// map bone weights onto vertices
+		for (u32 j=0;j<__Bone->mNumWeights;j++)
+		{
+			aiVertexWeight& __Weight = __Bone->mWeights[j];
+
+			// store indices & weights until overflow
+			if (__WriteCount[__Weight.mVertexId]<RENDERER_ANIMATION_INFLUENCE_RANGE)
+			{
+				u8 k = __WriteCount[__Weight.mVertexId]++;
+				__BoneIndices[__Weight.mVertexId][k] = __JointIndex;
+				__Weights[__Weight.mVertexId][k] = __Weight.mWeight;
+			}
+
+			// priority store in case of weight overflow
+			else
+			{
+				u8 __ProcIndex = 0;
+				f32 __ProcWeight = __Weights[__Weight.mVertexId][0];
+
+				// iterate to fine least influential weight
+				for (u8 k=1;k<RENDERER_ANIMATION_INFLUENCE_RANGE;k++)
+				{
+					if (__ProcWeight<=__Weights[__Weight.mVertexId][k]) continue;
+					__ProcIndex = k;
+					__ProcWeight = __Weights[__Weight.mVertexId][k];
+				}
+
+				// overwrite most insignificant weight if current weight is important enough
+				if (__Weight.mWeight>__Weights[__Weight.mVertexId][__ProcIndex])
+					__Weights[__Weight.mVertexId][__ProcIndex] = __Weight.mWeight;
+			}
+		}
+	}
+
+	// compose vertex data
+	// assemble vertex array
+	vector<AnimationVertex> __Vertices = vector<AnimationVertex>(__Mesh->mNumVertices);
+	for (u64 i=0;i<__Mesh->mNumVertices;i++)
+	{
+		__Vertices[i] = {
+			.position = to_vec3(__Mesh->mVertices[i]),
+			.uv = to_vec2(__Mesh->mTextureCoords[0][i]),
+			.normal = to_vec3(__Mesh->mNormals[i]),
+			.tangent = to_vec3(__Mesh->mTangents[i]),
+			.bone_index = vec4(__BoneIndices[i][0],__BoneIndices[i][1],
+							   __BoneIndices[i][2],__BoneIndices[i][3]),
+			.bone_weight = vec4(__Weights[i][0],__Weights[i][1],__Weights[i][2],__Weights[i][3])
+		};
+		// TODO be careful with the static 0 when expanding the loader
+	}
+
+	// using element array to store correct vertex order
+	for (u32 i=0;i<__Mesh->mNumFaces;i++) index_count += __Mesh->mFaces[i].mNumIndices;
+	vertices.reserve(index_count);
+	for (u32 i=0;i<__Mesh->mNumFaces;i++)
+	{
+		for (u32 j=0;j<__Mesh->mFaces[i].mNumIndices;j++)
+			vertices.push_back(__Vertices[__Mesh->mFaces[i].mIndices[j]]);
+	}
+
+	// extract animations
+	// allocate memory & iterate animations
+	animations.resize(__File->mNumAnimations);
+	for (u32 i=0;i<__File->mNumAnimations;i++)
+	{
+		aiAnimation* __Animation = __File->mAnimations[i];
+		f64 __TPSinv = 1./__Animation->mTicksPerSecond;
+
+		// register new animation
+		animations[i] = {
+			.joints = vector<AnimationJoint>(__Animation->mNumChannels),
+			.duration = __Animation->mDuration*__TPSinv
+		};
+
+		// process animation channels
+		for (u32 j=0;j<__Animation->mNumChannels;j++)
+		{
+			aiNodeAnim* __Node = __Animation->mChannels[j];
+			AnimationJoint& __Joint = animations[i].joints[j];
+
+			// process channel keys for related joint
+			__Joint = {
+				.id = _get_joint_id(joints,__Node->mNodeName.C_Str()),
+				.position_keys = vector<vec3>(__Node->mNumPositionKeys),
+				.scaling_keys = vector<vec3>(__Node->mNumScalingKeys),
+				.rotation_keys = vector<quat>(__Node->mNumRotationKeys),
+				.position_durations = vector<f64>(__Node->mNumPositionKeys),
+				.scaling_durations = vector<f64>(__Node->mNumScalingKeys),
+				.rotation_durations = vector<f64>(__Node->mNumRotationKeys)
+			};
+			// FIXME what happens to memory during this loop is truly gruesome
+
+			// extract position keys
+			for (u32 k=0;k<__Node->mNumPositionKeys;k++)
+			{
+				__Joint.position_keys[k] = to_vec3(__Node->mPositionKeys[k].mValue);
+				__Joint.position_durations[k] = __Node->mPositionKeys[k].mTime*__TPSinv;
+			}
+
+			// extract scaling keys
+			for (u32 k=0;k<__Node->mNumScalingKeys;k++)
+			{
+				__Joint.scaling_keys[k] = to_vec3(__Node->mScalingKeys[k].mValue);
+				__Joint.scaling_durations[k] = __Node->mScalingKeys[k].mTime*__TPSinv;
+			}
+
+			// extract rotation keys
+			for (u32 k=0;k<__Node->mNumRotationKeys;k++)
+			{
+				__Joint.rotation_keys[k] = to_quat(__Node->mRotationKeys[k].mValue);
+				__Joint.rotation_durations[k] = __Node->mRotationKeys[k].mTime*__TPSinv;
+			}
+		}
+	}
+}
+
+/**
+ *	update active animation
+ */
+f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
+{
+	while (durations[crr+1]<progress) crr++;
+	crr *= crr<durations.size()&&durations[crr]<progress;
+	return (progress-durations[crr])/(durations[crr+1]-durations[crr]);
+}
+
+void AnimatedMesh::update()
+{
+	Animation& p_Animation = animations[current_animation];
+
+	// interpolation delta
+	progress += g_Frame.delta_time;
+	progress = fmod(progress,p_Animation.duration);
+
+	// iterate joints for location animation transformations
+	for (AnimationJoint& p_Joint : p_Animation.joints)
+	{
+		// determine transformation keyframes
+		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
+		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
+		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+
+		// interpolation between keyframes
+		// translations
+		vec3 __TranslateInterpolation = glm::mix(
+				p_Joint.position_keys[p_Joint.crr_position],
+				p_Joint.position_keys[p_Joint.crr_position+1],
+				__TransformProgress
+			);
+
+		// scaling
+		vec3 __ScaleInterpolation = glm::mix(
+				p_Joint.scaling_keys[p_Joint.crr_scale],
+				p_Joint.scaling_keys[p_Joint.crr_scale+1],
+				__ScalingProgress
+			);
+
+		// rotation
+		quat __RotateInterpolation = glm::slerp(
+				p_Joint.rotation_keys[p_Joint.crr_rotation],
+				p_Joint.rotation_keys[p_Joint.crr_rotation+1],
+				__RotationProgress
+			);
+
+		// transformation
+		joints[p_Joint.id].transform = glm::translate(mat4(1.f),__TranslateInterpolation)
+				* glm::scale(mat4(1.f),__ScaleInterpolation)
+				* glm::toMat4(__RotateInterpolation);
+	}
+
+	// calculate transform after parent influence
+	mat4 __Parent = mat4(1.f);
+	_rc_transform_interpolation(joints[0],__Parent);
+	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
+}
+
+void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
+{
+	mat4 __LocalTransform = parent_transform*joint.transform;
+	joint.recursive_transform = __LocalTransform*joint.offset;
+	for (u16 child : joint.children) _rc_transform_interpolation(joints[child],__LocalTransform);
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Geometry Batching
+
+/**
+ *	add mesh geometry to batch
  *	\param mesh: loaded mesh for explicit geometry information
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
@@ -215,7 +474,21 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
 }
 
 /**
- *	upload load batch geometry to gpu
+ *	add animated mesh geometry to batch
+ *	\param mesh: animated mesh for explicit geometry information
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
+{
+	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
+	for (MeshJoint& p_Joint : mesh.joints)
+		attach_uniform(id,p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	return id;
+}
+
+/**
+ *	load geometry into batch
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
@@ -224,7 +497,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  */
 u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex)
 {
-	COMM_LOG("uploading geometry batch to gpu");
+	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
 	size_t __Size = __MemSize/sizeof(f32);
 	geometry.resize(geometry_cursor+__Size);
@@ -267,6 +540,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,f32* var)
 			.data = var
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec2* var)
 {
 	object[gid].uploads.push_back({
@@ -275,6 +549,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec2* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec3* var)
 {
 	object[gid].uploads.push_back({
@@ -283,6 +558,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec3* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,vec4* var)
 {
 	object[gid].uploads.push_back({
@@ -291,6 +567,7 @@ void GeometryBatch::attach_uniform(u32 gid,const char* name,vec4* var)
 			.data = &var->x
 		});
 }
+
 void GeometryBatch::attach_uniform(u32 gid,const char* name,mat4* var)
 {
 	object[gid].uploads.push_back({
@@ -768,11 +1045,6 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 {
 	m_ShadowGeometryBatches.push_back(b);
-	/*
-	b->vao.bind();
-	b->vbo.bind();
-	m_GeometryShadowPipeline->map(RENDERER_TEXTURE_UNMAPPED,&b->vbo);
-	*/
 }
 
 /**
@@ -782,11 +1054,6 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
 {
 	m_ShadowParticleBatches.push_back(b);
-	/*
-	b->vao.bind();
-	b->vbo.bind();
-	m_ParticleShadowPipeline->map(RENDERER_TEXTURE_UNMAPPED,&b->vbo,&b->ibo);
-	*/
 }
 
 /**

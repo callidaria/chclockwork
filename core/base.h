@@ -47,6 +47,11 @@
 #include "include/stb_image.h"
 #endif
 
+// geometry
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 // font
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -84,6 +89,7 @@ typedef std::thread thread;
 #define clock std::chrono::steady_clock
 #define time std::chrono::steady_clock::time_point
 */
+// TODO after the horrible cpr has been expelled from the build this can and should be used again!
 template<typename T> using vector = std::vector<T>;
 template<typename T> using list = std::list<T>;
 template<typename T> using queue = std::queue<T>;
@@ -104,6 +110,7 @@ constexpr f32 MATH_CENTER_Y = MATH_CARTESIAN_YRANGE*.5f;
 constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
 constexpr f64 MATH_CONVERSION_MS = .000001;
+constexpr f64 MATH_CONVERSION_SC = .000000001;
 
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
@@ -217,13 +224,23 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 #endif
 
+
+// system utility
 bool check_file_exists(const char* path);
 void split_words(vector<string>& words,string& line);
 inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 {
 	return (std::chrono::steady_clock::now()-t).count()*MATH_CONVERSION_MS;
 }
+
+// math
 vec3 halfway(vec3 a,vec3 b);
+
+// assimp conversion
+static inline vec2 to_vec2(aiVector3D& v) { return vec2(v.x,v.y); }
+static inline vec3 to_vec3(aiVector3D& v) { return vec3(v.x,v.y,v.z); }
+static inline quat to_quat(aiQuaternion& q) { return quat(q.w,q.x,q.y,q.z); }
+static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat4(&m.a1)); }
 
 
 class BitwiseWords
@@ -390,7 +407,26 @@ private:
 	f32 m_Ratio;
 };
 
-inline Camera3D g_Camera = Camera3D(vec3(0),1,0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
+inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
+
+
+// ----------------------------------------------------------------------------------------------------
+// Physics Utility Section
+
+class TargetMomentumSnap
+{
+public:
+	TargetMomentumSnap(f32 ffactor);
+	void update(vec3& pos,f32 dt);
+
+public:
+	vec3 target = vec3(0);
+
+private:
+	vec3 m_Momentum = vec3(0);
+	f32 m_Stiff;
+	f32 m_Damp;
+};
 
 
 // ----------------------------------------------------------------------------------------------------

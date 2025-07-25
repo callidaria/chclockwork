@@ -7,6 +7,7 @@
 
 
 constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1247.f;
+constexpr u8 RENDERER_ANIMATION_INFLUENCE_RANGE = 4;
 
 enum TextureChannelMap : u16
 {
@@ -79,6 +80,16 @@ struct Vertex
 	vec3 tangent;
 };
 
+struct AnimationVertex
+{
+	vec3 position;
+	vec2 uv;
+	vec3 normal;
+	vec3 tangent;
+	vec4 bone_index;
+	vec4 bone_weight;
+};
+
 
 // ----------------------------------------------------------------------------------------------------
 // Entity Data
@@ -110,10 +121,63 @@ public:
 	static inline Mesh sphere() { return Mesh("./res/primitive/sphere.obj"); };
 	static inline Mesh cube() { return Mesh("./res/primitive/cube.obj"); }
 	static inline Mesh ape() { return Mesh("./res/primitive/ape.obj"); }
+	// TODO pre-store geometry and copy, this will always reload from disc when new primitive is created
 
 public:
 	vector<Vertex> vertices;
 };
+// TODO element draw requires an element array instead of raw vertex store (also for AnimatedMesh)
+
+struct MeshJoint
+{
+	string id;
+	string uniform_location;
+	mat4 offset;
+	mat4 transform = mat4(1.f);
+	mat4 recursive_transform = mat4(1.f);
+	vector<u16> children;
+};
+
+struct AnimationJoint
+{
+	u16 id;
+	u16 crr_position = 0;
+	u16 crr_scale = 0;
+	u16 crr_rotation = 0;
+	vector<vec3> position_keys;
+	vector<vec3> scaling_keys;
+	vector<quat> rotation_keys;
+	vector<f64> position_durations;
+	vector<f64> scaling_durations;
+	vector<f64> rotation_durations;
+};
+// TODO maybe join duration & keys?
+
+struct Animation
+{
+	vector<AnimationJoint> joints;
+	f64 duration;
+};
+
+class AnimatedMesh
+{
+public:
+	AnimatedMesh(const char* path);
+	void update();
+
+private:
+	void _rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform);
+
+public:
+	vector<AnimationVertex> vertices;
+	vector<MeshJoint> joints;
+	vector<Animation> animations;
+	u16 index_count = 0;
+	u16 current_animation = 0;
+	f64 progress = .0;
+};
+// TODO do not load this into it's own animation mesh, rather than extract animations and attach to mesh later
+//		then again this can be done later, the related mesh probably will always be attached (weighing)
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -147,6 +211,7 @@ struct GeometryBatch
 	// utility
 	// batch geometry loading
 	u32 add_geometry(Mesh& mesh,vector<Texture*>& tex);
+	u32 add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex);
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
 	void load();
 
@@ -163,9 +228,12 @@ struct GeometryBatch
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> object;
 	vector<float> geometry;
+	vector<u32> elements;
 	u32 geometry_cursor = 0;
+	u32 element_cursor = 0;
 	u32 offset_cursor = 0;
 };
+// TODO utilize an element buffer later, careful when restructuring! anim geometry is straightforward though
 
 struct ParticleBatch
 {
