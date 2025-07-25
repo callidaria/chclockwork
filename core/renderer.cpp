@@ -1045,11 +1045,6 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 {
 	m_ShadowGeometryBatches.push_back(b);
-	/*
-	b->vao.bind();
-	b->vbo.bind();
-	m_GeometryShadowPipeline->map(RENDERER_TEXTURE_UNMAPPED,&b->vbo);
-	*/
 }
 
 /**
@@ -1059,11 +1054,6 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
 {
 	m_ShadowParticleBatches.push_back(b);
-	/*
-	b->vao.bind();
-	b->vbo.bind();
-	m_ParticleShadowPipeline->map(RENDERER_TEXTURE_UNMAPPED,&b->vbo,&b->ibo);
-	*/
 }
 
 /**
