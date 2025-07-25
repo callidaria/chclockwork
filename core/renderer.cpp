@@ -311,10 +311,10 @@ AnimatedMesh::AnimatedMesh(const char* path)
 
 	// compose vertex data
 	// assemble vertex array
-	vertices.resize(__Mesh->mNumVertices);
+	vector<AnimationVertex> __Vertices = vector<AnimationVertex>(__Mesh->mNumVertices);
 	for (u64 i=0;i<__Mesh->mNumVertices;i++)
 	{
-		vertices[i] = {
+		__Vertices[i] = {
 			.position = to_vec3(__Mesh->mVertices[i]),
 			.uv = to_vec2(__Mesh->mTextureCoords[0][i]),
 			.normal = to_vec3(__Mesh->mNormals[i]),
@@ -326,15 +326,13 @@ AnimatedMesh::AnimatedMesh(const char* path)
 		// TODO be careful with the static 0 when expanding the loader
 	}
 
-	// allocate memory for element array
+	// using element array to store correct vertex order
 	for (u32 i=0;i<__Mesh->mNumFaces;i++) index_count += __Mesh->mFaces[i].mNumIndices;
-	elements.reserve(index_count);
-
-	// assemble element array
+	vertices.reserve(index_count);
 	for (u32 i=0;i<__Mesh->mNumFaces;i++)
 	{
 		for (u32 j=0;j<__Mesh->mFaces[i].mNumIndices;j++)
-			elements.push_back(__Mesh->mFaces[i].mIndices[j]);
+			vertices.push_back(__Vertices[__Mesh->mFaces[i].mIndices[j]]);
 	}
 
 	// extract animations
@@ -483,7 +481,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  */
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
 {
-	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),mesh.elements,tex);
+	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
 	for (MeshJoint& p_Joint : mesh.joints)
 		attach_uniform(id,p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
 	return id;
@@ -517,40 +515,6 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Tex
 }
 
 /**
- *	load geometry into batch
- *	\param verts: single precision floats, explicitly defining geometry
- *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
- *	\param ssize: upload dimension !in memory width!
- *	\param elems: element array vector
- *	\param tex: multichannel texture data to upload
- *	\returns geometry id
- */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<u32>& elems,vector<Texture*>& tex)
-{
-	COMM_LOG("uploading geometry to batch");
-	size_t __MemSize = vsize*ssize;
-	size_t __Size = __MemSize/sizeof(f32);
-	geometry.resize(geometry_cursor+__Size);
-	memcpy(&geometry[geometry_cursor],verts,__MemSize);
-
-	// copy element array vector
-	elements.resize(element_cursor+elems.size());
-	for (size_t i=0;i<elems.size();i++) elements[i] = elems[element_cursor+i];
-
-	// store geometry information
-	object.push_back({
-			.offset = offset_cursor,
-			.vertex_count = elems.size(),
-			.textures = tex
-		});
-	offset_cursor += elems.size();
-	geometry_cursor += __Size;
-	element_cursor += elems.size();
-	return object.size()-1;
-}
-// FIXME a lot of codecopy is happening here
-
-/**
  *	upload batch geometry to gpu & automap shader pipeline
  */
 void GeometryBatch::load()
@@ -559,11 +523,8 @@ void GeometryBatch::load()
 	vao.bind();
 	vbo.bind();
 	vbo.upload_vertices(geometry);
-	ebo.bind_elements();
-	ebo.upload_elements(elements);
 	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 }
-// FIXME elements stay bound... segfault if this is not the case? doesn't really make sense
 
 /**
  *	attach variable in ram to auto update uniform in vram
@@ -1299,9 +1260,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 			// upload standard values & call gpu
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			p_Batch.shader->upload("texel",p_Tuple.texel);
-			//glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
-			glDrawElements(GL_TRIANGLES,p_Tuple.vertex_count,
-						   GL_UNSIGNED_INT,(void*)(p_Tuple.offset*sizeof(u32)));
+			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}
 	}
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
@@ -1333,9 +1292,7 @@ void Renderer::_update_shadows(list<lptr<GeometryBatch>>& gb,list<lptr<ParticleB
 		{
 			// TODO geometry uniform upload, this will only be applicable if dynamic shading pipeline is working
 			m_GeometryShadowPipeline->upload("model",p_Tuple.transform.model);
-			//glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
-			glDrawElements(GL_TRIANGLES,p_Tuple.vertex_count,
-						   GL_UNSIGNED_INT,(void*)(p_Tuple.offset*sizeof(u32)));
+			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}
 	}
 

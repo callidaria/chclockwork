@@ -125,7 +125,7 @@ public:
 public:
 	vector<Vertex> vertices;
 };
-// TODO element draw requires an element array instead of raw vertex store
+// TODO element draw requires an element array instead of raw vertex store (also for AnimatedMesh)
 
 struct MeshJoint
 {
@@ -146,10 +146,11 @@ struct AnimationJoint
 	vector<vec3> position_keys;
 	vector<vec3> scaling_keys;
 	vector<quat> rotation_keys;
-	vector<f64> position_durations;  // TODO maybe join duration & keys?
+	vector<f64> position_durations;
 	vector<f64> scaling_durations;
 	vector<f64> rotation_durations;
 };
+// TODO maybe join duration & keys?
 
 struct Animation
 {
@@ -168,7 +169,6 @@ private:
 
 public:
 	vector<AnimationVertex> vertices;
-	vector<u32> elements;
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
 	u16 index_count = 0;
@@ -212,7 +212,6 @@ struct GeometryBatch
 	u32 add_geometry(Mesh& mesh,vector<Texture*>& tex);
 	u32 add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex);
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
-	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<u32>& elems,vector<Texture*>& tex);
 	void load();
 
 	// auto uniform upload
@@ -225,7 +224,6 @@ struct GeometryBatch
 	// data
 	VertexArray vao;
 	VertexBuffer vbo;
-	VertexBuffer ebo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> object;
 	vector<float> geometry;
@@ -234,7 +232,7 @@ struct GeometryBatch
 	u32 element_cursor = 0;
 	u32 offset_cursor = 0;
 };
-// TODO element buffer test with simple mesh geometry
+// TODO utilize an element buffer later, careful when restructuring! anim geometry is straightforward though
 
 struct ParticleBatch
 {
