@@ -8,7 +8,9 @@ in vec3 tangent;
 in vec4 bone_index;
 in vec4 bone_weight;
 
-out vec3 DMP;
+out vec3 Normal;
+out vec2 UV;
+out vec3 Tangent;
 
 // projection
 uniform mat4 view;
@@ -29,5 +31,7 @@ void main()
 	gl_Position = proj*view*model*anim_transform*vec4(position,1.);
 
 	// optimizer satisfaction pass to keep upload structure
-	DMP = tangent+normal+vec3(uv,0);
+	Normal = normal;
+	UV = uv;
+	Tangent = tangent;
 }

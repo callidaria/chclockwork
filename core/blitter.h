@@ -18,6 +18,10 @@ public:
 	void update();
 	void close();
 
+	// settings
+	static void set_clear_colour(vec3 colour);
+	static void set_clear_depth(f32 depth);
+
 	// framerate
 	void gpu_vsync_on();
 	void gpu_vsync_off();

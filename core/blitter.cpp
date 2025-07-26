@@ -70,7 +70,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	else gpu_vsync_off();
 
 	// standard settings
-	glClearColor(BLITTER_CLEAR_COLOUR.r,BLITTER_CLEAR_COLOUR.g,BLITTER_CLEAR_COLOUR.b,0);
+	set_clear_colour(BLITTER_CLEAR_COLOUR);
 
 	COMM_SCC("blitter ready.");
 }
@@ -120,6 +120,24 @@ void Frame::close()
 	SDL_Quit();
 
 	COMM_SCC("goodbye.");
+}
+
+/**
+ *	set frame background colour
+ *	\param colour: rgb background colour value
+ */
+void Frame::set_clear_colour(vec3 colour)
+{
+	glClearColor(colour.r,colour.g,colour.b,0);
+}
+
+/**
+ *	set depth buffer default value
+ *	\param depth: default depth
+ */
+void Frame::set_clear_depth(f32 depth)
+{
+	glClearDepth(depth);
 }
 
 /**
