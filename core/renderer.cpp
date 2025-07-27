@@ -1090,16 +1090,21 @@ void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> 
 
 /**
  *	create directional sunlight
+ *	if there is no explicitly defined shadow projection the first sunlight will automatically create one
  *	\param position: direction to sunlight, inverted direction will be direction of emission
  *	\param colour: colour of the emission
  *	\param intensity: emission intensity, multiplying the colour influence
  */
 SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity)
 {
+	// add sunlight
 	m_Lighting.sunlights[m_Lighting.sunlights_active] = {
 		.position = position,
 		.colour = colour*intensity,
 	};
+
+	// auto-set shadow projection
+	if (!m_Lighting.shadow_forced&&!m_Lighting.sunlights_active) add_shadow(position,false);
 	return &m_Lighting.sunlights[m_Lighting.sunlights_active++];
 }
 
@@ -1129,9 +1134,11 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,f32
 /**
  *	create a shadow projection source
  *	\param source: position of projection source
+ *	\param forced: (default true) true if this shadow projection overrides incoming lighting changes
  */
-void Renderer::add_shadow(vec3 source)
+void Renderer::add_shadow(vec3 source,bool forced)
 {
+	m_Lighting.shadow_forced = forced;
 	m_Lighting.shadow_projection = Camera3D(vec3(0),source,RENDERER_SHADOW_RANGE,RENDERER_SHADOW_RANGE,
 											.1f,1000.f);
 }

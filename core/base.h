@@ -371,7 +371,7 @@ constexpr vec3 COORDINATE_SYSTEM_ORIENTATION = vec3(0,0,1);
 class Camera3D
 {
 public:
-	Camera3D() {  }  // TODO remove this later
+	Camera3D() {  }
 	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov);
 	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f);
 	Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 n,f32 f);

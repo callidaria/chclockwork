@@ -53,9 +53,7 @@ TestScene::TestScene()
 
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),4.f);
-	//g_Renderer.add_shadow(vec3(75,-150,100));
 	g_Renderer.upload_lighting();
-	// FIXME it seems like not adding a shadow results in everything being shadowed
 	// FIXME the sunlight emission is coming from a left handed coordinate system somehow (y-axis flip)
 
 	g_Wheel.call(UpdateRoutine{ &TestScene::_update,(void*)this });

@@ -277,6 +277,7 @@ struct Lighting
 	u8 sunlights_active = 0;
 	u8 pointlights_active = 0;
 	Camera3D shadow_projection;
+	bool shadow_forced = false;
 };
 
 struct ShadowGeometryBatch
@@ -337,7 +338,7 @@ public:
 	// lighting
 	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity);
 	PointLight* add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,f32 linear,f32 quadratic);
-	void add_shadow(vec3 source);
+	void add_shadow(vec3 source,bool forced=true);
 	void upload_lighting();
 	void reset_lighting();
 
