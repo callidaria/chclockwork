@@ -189,20 +189,13 @@ struct TextureDataTuple
 	Texture* texture;
 };
 
-struct GeometryUniformUpload
-{
-	u32 uloc;
-	UniformDimension udim;
-	f32* data;
-};
-
 struct GeometryTuple
 {
 	size_t offset;
 	size_t vertex_count;
 	Transform3D transform;
 	vector<Texture*> textures;
-	vector<GeometryUniformUpload> uploads;
+	ShaderUniformUpload uniform;
 	f32 texel = 1.f;
 };
 
@@ -215,18 +208,11 @@ struct GeometryBatch
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
 	void load();
 
-	// auto uniform upload
-	void attach_uniform(u32 gid,const char* name,f32* var);
-	void attach_uniform(u32 gid,const char* name,vec2* var);
-	void attach_uniform(u32 gid,const char* name,vec3* var);
-	void attach_uniform(u32 gid,const char* name,vec4* var);
-	void attach_uniform(u32 gid,const char* name,mat4* var);
-
 	// data
 	VertexArray vao;
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
-	vector<GeometryTuple> object;
+	vector<GeometryTuple> objects;
 	vector<float> geometry;
 	vector<u32> elements;
 	u32 geometry_cursor = 0;

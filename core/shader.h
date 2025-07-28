@@ -61,6 +61,13 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_MAT44
 };
 
+struct ShaderUniformValue
+{
+	u32 uloc;
+	UniformDimension udim;
+	f32* data;
+};
+
 class ShaderPipeline
 {
 public:
@@ -75,7 +82,7 @@ public:
 
 	// upload
 	void upload(const char* varname,UniformDimension dim,f32* data);
-	void upload(u16 uloc,UniformDimension dim,f32* data);
+	void upload(ShaderUniformValue& uniform);
 	void upload(const char* varname,s32 value);
 	void upload(const char* varname,f32 value);
 	void upload(const char* varname,vec2 value);
@@ -102,6 +109,28 @@ private:
 	// working iteration
 	size_t m_VertexCursor = 0;
 	size_t m_IndexCursor = 0;
+};
+
+
+
+
+class ShaderUniformUpload
+{
+public:
+	ShaderUniformUpload(lptr<ShaderPipeline> shader);
+	void upload();
+
+	// unform attachments
+	void attach_uniform(const char* name,f32* var);
+	void attach_uniform(const char* name,vec2* var);
+	void attach_uniform(const char* name,vec3* var);
+	void attach_uniform(const char* name,vec4* var);
+	void attach_uniform(const char* name,mat4* var);
+	// TODO templating?
+
+private:
+	lptr<ShaderPipeline> m_Shader;
+	vector<ShaderUniformValue> m_Uploads;
 };
 
 

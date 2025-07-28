@@ -483,7 +483,7 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
 	for (MeshJoint& p_Joint : mesh.joints)
-		attach_uniform(id,p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
 	return id;
 }
 
@@ -504,14 +504,15 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Tex
 	memcpy(&geometry[geometry_cursor],verts,__MemSize);
 
 	// store geometry information
-	object.push_back({
+	objects.push_back({
 			.offset = offset_cursor,
 			.vertex_count = vsize,
-			.textures = tex
+			.textures = tex,
+			.uniform = ShaderUniformUpload(shader),
 		});
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
-	return object.size()-1;
+	return objects.size()-1;
 }
 
 /**
@@ -524,57 +525,6 @@ void GeometryBatch::load()
 	vbo.bind();
 	vbo.upload_vertices(geometry);
 	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
-}
-
-/**
- *	attach variable in ram to auto update uniform in vram
- *	\param gid: geometry id, returned when geometry was registered in batch
- *	\param name: uniform name in shader
- *	\param var: pointer to variable in memory, that will automatically be uploaded to gpu
- */
-void GeometryBatch::attach_uniform(u32 gid,const char* name,f32* var)
-{
-	object[gid].uploads.push_back({
-			.uloc = shader->get_uniform_location(name),
-			.udim = SHADER_UNIFORM_FLOAT,
-			.data = var
-		});
-}
-
-void GeometryBatch::attach_uniform(u32 gid,const char* name,vec2* var)
-{
-	object[gid].uploads.push_back({
-			.uloc = shader->get_uniform_location(name),
-			.udim = SHADER_UNIFORM_VEC2,
-			.data = &var->x
-		});
-}
-
-void GeometryBatch::attach_uniform(u32 gid,const char* name,vec3* var)
-{
-	object[gid].uploads.push_back({
-			.uloc = shader->get_uniform_location(name),
-			.udim = SHADER_UNIFORM_VEC3,
-			.data = &var->x
-		});
-}
-
-void GeometryBatch::attach_uniform(u32 gid,const char* name,vec4* var)
-{
-	object[gid].uploads.push_back({
-			.uloc = shader->get_uniform_location(name),
-			.udim = SHADER_UNIFORM_VEC4,
-			.data = &var->x
-		});
-}
-
-void GeometryBatch::attach_uniform(u32 gid,const char* name,mat4* var)
-{
-	object[gid].uploads.push_back({
-			.uloc = shader->get_uniform_location(name),
-			.udim = SHADER_UNIFORM_MAT44,
-			.data = glm::value_ptr(*var)
-		});
 }
 
 /**
@@ -1276,19 +1226,18 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
-		for (GeometryTuple& p_Tuple : p_Batch.object)
+		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
 			// texture upload
 			for (u8 i=0;i<p_Tuple.textures.size();i++) p_Tuple.textures[i]->bind(RENDERER_TEXTURE_UNMAPPED+i);
 
 			// upload attached uniform value pointers
 			p_Batch.shader->upload_camera();
-			for (GeometryUniformUpload& p_Upload : p_Tuple.uploads)
-				p_Batch.shader->upload(p_Upload.uloc,p_Upload.udim,p_Upload.data);
-
-			// upload standard values & call gpu
+			p_Tuple.uniform.upload();
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			p_Batch.shader->upload("texel",p_Tuple.texel);
+
+			// upload standard values & call gpu
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}
 	}
@@ -1317,13 +1266,9 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
 		p_Batch.batch->vao.bind();
-		for (GeometryTuple& p_Tuple : p_Batch.batch->object)
+		for (GeometryTuple& p_Tuple : p_Batch.batch->objects)
 		{
-			// upload attached uniform value pointers
-			for (GeometryUniformUpload& p_Upload : p_Tuple.uploads)
-				p_Batch.shader->upload(p_Upload.uloc,p_Upload.udim,p_Upload.data);
-
-			// upload standard values & call gpu
+			p_Tuple.uniform.upload();
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}

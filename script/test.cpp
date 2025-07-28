@@ -46,10 +46,10 @@ TestScene::TestScene()
 	g_Renderer.register_shadow_batch(__PhysicalBatch);
 
 	// environment scale
-	__PhysicalBatch->object[__FloorID].transform.scale(glm::vec3(10,10,.1f));
-	__PhysicalBatch->object[__FloorID].transform.translate(glm::vec3(0,0,-.1f));
-	__PhysicalBatch->object[__FloorID].texel = 10.f;
-	__PhysicalBatch->object[__BoxID].transform.translate(glm::vec3(4,4,1));
+	__PhysicalBatch->objects[__FloorID].transform.scale(glm::vec3(10,10,.1f));
+	__PhysicalBatch->objects[__FloorID].transform.translate(glm::vec3(0,0,-.1f));
+	__PhysicalBatch->objects[__FloorID].texel = 10.f;
+	__PhysicalBatch->objects[__BoxID].transform.translate(glm::vec3(4,4,1));
 
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),4.f);
