@@ -508,8 +508,8 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Tex
 			.offset = offset_cursor,
 			.vertex_count = vsize,
 			.textures = tex,
-			.uniform = ShaderUniformUpload(shader),
 		});
+	objects.back().uniform.shader = shader;
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
 	return objects.size()-1;
@@ -994,10 +994,19 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
  */
 void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 {
+	// register geometry batch
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
 			.shader = m_GeometryShadowPipeline,
+			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
 		});
+
+	// create uniform upload correlation
+	for (u32 i=0;i<b->objects.size();i++)
+	{
+		m_ShadowGeometryBatches.back().uniform[i].shader = m_GeometryShadowPipeline;
+		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+	}
 }
 
 /**
@@ -1007,10 +1016,19 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
  */
 void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline)
 {
+	// register geometry batch
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
 			.shader = pipeline,
+			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
 		});
+
+	// create uniform upload correlation
+	for (u32 i=0;i<b->objects.size();i++)
+	{
+		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
+		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+	}
 }
 
 /**
@@ -1023,6 +1041,8 @@ void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
 			.batch = b,
 			.shader = m_ParticleShadowPipeline,
 		});
+	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
+	// TODO expand the correlation when particle batch allows for uniform upload specification
 }
 
 /**
@@ -1036,6 +1056,7 @@ void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> 
 			.batch = b,
 			.shader = pipeline,
 		});
+	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
 }
 
 /**
@@ -1266,9 +1287,10 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
 		p_Batch.batch->vao.bind();
-		for (GeometryTuple& p_Tuple : p_Batch.batch->objects)
+		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
-			p_Tuple.uniform.upload();
+			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
+			p_Batch.uniform[i].upload();
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
 		}

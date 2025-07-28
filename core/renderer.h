@@ -270,6 +270,7 @@ struct ShadowGeometryBatch
 {
 	lptr<GeometryBatch> batch;
 	lptr<ShaderPipeline> shader;
+	vector<ShaderUniformUpload> uniform;
 };
 
 struct ShadowParticleBatch

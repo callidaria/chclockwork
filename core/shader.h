@@ -63,6 +63,7 @@ enum UniformDimension : u8
 
 struct ShaderUniformValue
 {
+	string name;
 	u32 uloc;
 	UniformDimension udim;
 	f32* data;
@@ -112,12 +113,9 @@ private:
 };
 
 
-
-
-class ShaderUniformUpload
+struct ShaderUniformUpload
 {
-public:
-	ShaderUniformUpload(lptr<ShaderPipeline> shader);
+	void correlate(ShaderUniformUpload& uniform);
 	void upload();
 
 	// unform attachments
@@ -126,11 +124,11 @@ public:
 	void attach_uniform(const char* name,vec3* var);
 	void attach_uniform(const char* name,vec4* var);
 	void attach_uniform(const char* name,mat4* var);
+	void attach_uniform(const char* name,UniformDimension dim,f32* var);
 	// TODO templating?
 
-private:
-	lptr<ShaderPipeline> m_Shader;
-	vector<ShaderUniformValue> m_Uploads;
+	lptr<ShaderPipeline> shader;
+	vector<ShaderUniformValue> uploads;
 };
 
 

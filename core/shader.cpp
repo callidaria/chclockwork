@@ -321,13 +321,24 @@ s32 ShaderPipeline::_handle_attribute_location_by_name(const char* varname)
 	return attribute;
 }
 
+/**
+ *	upload all attached uniform variables
+ */
+void ShaderUniformUpload::upload()
+{
+	for (ShaderUniformValue& p_Upload : uploads)
+		shader->upload(p_Upload);
+}
 
 /**
- *	create uniform variable attachment
- *	\param shader: related pipeline, that will be used for lookup and upload
+ *	cross-shader uniform variable correlation
+ *	\param uniform: source uniform variable structure
  */
-ShaderUniformUpload::ShaderUniformUpload(lptr<ShaderPipeline> shader)
-	: m_Shader(shader) {  }
+void ShaderUniformUpload::correlate(ShaderUniformUpload& uniform)
+{
+	for (ShaderUniformValue& p_Upload : uniform.uploads)
+		attach_uniform(p_Upload.name.c_str(),p_Upload.udim,p_Upload.data);
+}
 
 /**
  *	attach variable in ram to auto update uniform in vram
@@ -336,8 +347,9 @@ ShaderUniformUpload::ShaderUniformUpload(lptr<ShaderPipeline> shader)
  */
 void ShaderUniformUpload::attach_uniform(const char* name,f32* var)
 {
-	m_Uploads.push_back({
-			.uloc = m_Shader->get_uniform_location(name),
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
 			.udim = SHADER_UNIFORM_FLOAT,
 			.data = var
 		});
@@ -345,8 +357,9 @@ void ShaderUniformUpload::attach_uniform(const char* name,f32* var)
 
 void ShaderUniformUpload::attach_uniform(const char* name,vec2* var)
 {
-	m_Uploads.push_back({
-			.uloc = m_Shader->get_uniform_location(name),
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
 			.udim = SHADER_UNIFORM_VEC2,
 			.data = &var->x
 		});
@@ -354,8 +367,9 @@ void ShaderUniformUpload::attach_uniform(const char* name,vec2* var)
 
 void ShaderUniformUpload::attach_uniform(const char* name,vec3* var)
 {
-	m_Uploads.push_back({
-			.uloc = m_Shader->get_uniform_location(name),
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
 			.udim = SHADER_UNIFORM_VEC3,
 			.data = &var->x
 		});
@@ -363,8 +377,9 @@ void ShaderUniformUpload::attach_uniform(const char* name,vec3* var)
 
 void ShaderUniformUpload::attach_uniform(const char* name,vec4* var)
 {
-	m_Uploads.push_back({
-			.uloc = m_Shader->get_uniform_location(name),
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
 			.udim = SHADER_UNIFORM_VEC4,
 			.data = &var->x
 		});
@@ -372,18 +387,20 @@ void ShaderUniformUpload::attach_uniform(const char* name,vec4* var)
 
 void ShaderUniformUpload::attach_uniform(const char* name,mat4* var)
 {
-	m_Uploads.push_back({
-			.uloc = m_Shader->get_uniform_location(name),
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
 			.udim = SHADER_UNIFORM_MAT44,
 			.data = glm::value_ptr(*var)
 		});
 }
 
-/**
- *	upload all attached uniform variables
- */
-void ShaderUniformUpload::upload()
+void ShaderUniformUpload::attach_uniform(const char* name,UniformDimension dim,f32* var)
 {
-	for (ShaderUniformValue& p_Upload : m_Uploads)
-		m_Shader->upload(p_Upload);
+	uploads.push_back({
+			.name = name,
+			.uloc = shader->get_uniform_location(name),
+			.udim = dim,
+			.data = var
+		});
 }
