@@ -380,6 +380,12 @@ void ShaderUniformUpload::attach_uniform(const char* name,mat4* var)
 	u.data = glm::value_ptr(*var);
 }
 
+/**
+ *	attach variable in ram to auto update uniform in vram, forcing the variable dimension by caller
+ *	\param name: uniform name in shader
+ *	\param dim: forced variable dimension
+ *	\param var: pointer to variable in memory, the uniform state will be updated accordingly
+ */
 void ShaderUniformUpload::attach_uniform(const char* name,UniformDimension dim,f32* var)
 {
 	ShaderUniformValue& u = _attach_variable(name);
