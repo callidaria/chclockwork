@@ -127,6 +127,10 @@ struct ShaderUniformUpload
 	void attach_uniform(const char* name,UniformDimension dim,f32* var);
 	// TODO templating?
 
+private:
+	ShaderUniformValue& _attach_variable(const char* name);
+
+public:
 	lptr<ShaderPipeline> shader;
 	vector<ShaderUniformValue> uploads;
 };

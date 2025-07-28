@@ -123,24 +123,6 @@ void Frame::close()
 }
 
 /**
- *	set frame background colour
- *	\param colour: rgb background colour value
- */
-void Frame::set_clear_colour(vec3 colour)
-{
-	glClearColor(colour.r,colour.g,colour.b,0);
-}
-
-/**
- *	set depth buffer default value
- *	\param depth: default depth
- */
-void Frame::set_clear_depth(f32 depth)
-{
-	glClearDepth(depth);
-}
-
-/**
  *	enable gpu based vsync, adaptive if possible: fallback regular vsync
  */
 void Frame::gpu_vsync_on()

@@ -19,8 +19,8 @@ public:
 	void close();
 
 	// settings
-	static void set_clear_colour(vec3 colour);
-	static void set_clear_depth(f32 depth);
+	static inline void set_clear_colour(vec3 colour) { glClearColor(colour.r,colour.g,colour.b,0); }
+	static inline void set_clear_depth(f32 depth) { glClearDepth(depth); }
 
 	// framerate
 	void gpu_vsync_on();
