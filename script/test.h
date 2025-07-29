@@ -16,7 +16,8 @@ public:
 
 private:
 
-	AnimatedMesh m_Dude = AnimatedMesh("./res/test/dude.dae");
+	//AnimatedMesh m_Dude = AnimatedMesh("./res/test/dude.dae");
+	AnimatedMesh m_Dude = AnimatedMesh("./res/test/me.dae");
 };
 
 

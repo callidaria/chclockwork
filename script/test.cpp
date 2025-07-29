@@ -8,7 +8,7 @@ TestScene::TestScene()
 {
 	// resources
 	vector<Texture*> __DudeTexture = {
-		g_Renderer.register_texture("./res/test/dude_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/texmex.jpg",TEXTURE_FORMAT_SRGB),
 		g_Renderer.register_texture("./res/standard/normal.png"),
 		g_Renderer.register_texture("./res/standard/material.png"),
 	};
@@ -36,6 +36,7 @@ TestScene::TestScene()
 	lptr<GeometryBatch> __AnimationBatch = g_Renderer.register_deferred_geometry_batch(__AnimationShader);
 	u32 __DudeID = __AnimationBatch->add_geometry(m_Dude,__DudeTexture);
 	__AnimationBatch->load();
+	__AnimationBatch->objects[__DudeID].transform.rotate_x(90.f);
 	g_Renderer.register_shadow_batch(__AnimationBatch,__AnimationShadowPipeline);
 
 	// geometry batch
