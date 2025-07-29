@@ -337,6 +337,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 
 	// extract animations
 	// allocate memory & iterate animations
+	COMM_ERR("%u",__File->mNumAnimations);
 	animations.resize(__File->mNumAnimations);
 	for (u32 i=0;i<__File->mNumAnimations;i++)
 	{

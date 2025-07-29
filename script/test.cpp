@@ -65,5 +65,11 @@ TestScene::TestScene()
  */
 void TestScene::update()
 {
+	if (g_Input.keyboard.keys[SDL_SCANCODE_E]) m_Dude.current_animation = 0;
+	else if (g_Input.keyboard.keys[SDL_SCANCODE_R]) m_Dude.current_animation = 1;
+	else if (g_Input.keyboard.keys[SDL_SCANCODE_T]) m_Dude.current_animation = 2;
+	else if (g_Input.keyboard.keys[SDL_SCANCODE_Y]) m_Dude.current_animation = 3;
+	else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;
+	else if (g_Input.keyboard.keys[SDL_SCANCODE_I]) m_Dude.current_animation = 5;
 	m_Dude.update();
 }
