@@ -93,18 +93,19 @@ void TestScene::update()
 										   TEST_FIELD_DIMENSION.y-TEST_CHAR_DIMENSION.y);
 	m_PlayerMomentum.update(m_PlayerPosition,g_Frame.delta_time);
 	f32 __PlayerRotation = relationship_degrees(vec2(0,-1),vec2(__PosDelta.x,__PosDelta.y));
-
-	// normalization step
-	// TODO
+	vec3 __CenteredPosition = vec3(m_Dude.joints[2].transform[3]);
 
 	// camera
-	g_Camera.target = m_PlayerPosition+vec3(0,0,.75f);
+	g_Camera.target = m_PlayerPosition;
 
 	// player transformation
 	m_AnimationBatch->objects[m_DudeID].transform.reset();
 	m_AnimationBatch->objects[m_DudeID].transform.rotate_x(90.f);
-	m_AnimationBatch->objects[m_DudeID].transform.rotate_y(__PlayerRotation);
-	m_AnimationBatch->objects[m_DudeID].transform.translate(m_PlayerPosition);
+	m_AnimationBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
+	m_AnimationBatch->objects[m_DudeID].transform.model =
+			glm::translate(mat4(1.f),m_PlayerPosition)
+			* glm::rotate(mat4(1.f),glm::radians(__PlayerRotation),vec3(0,0,1))
+			* m_AnimationBatch->objects[m_DudeID].transform.model;
 
 	// switch animation state
 	if (glm::length(__PosDelta)>.0001f) m_Dude.current_animation = 2;

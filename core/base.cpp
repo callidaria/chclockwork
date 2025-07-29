@@ -286,6 +286,7 @@ void Transform3D::rotate(vec3 r,vec3 a)
 	rotate(r);
 	transform(position-a,__ScaleFactor,r);
 }
+// FIXME yes, this is actually broken unfortunately. what a surprise, scaling is the culprit
 
 /**
  *	TODO
