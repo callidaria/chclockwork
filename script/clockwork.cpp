@@ -22,6 +22,7 @@ Clockwork::Clockwork(Font* font)
 void Clockwork::update()
 {
 	// update camera position
+	/*
 	vec3 __Attitude = glm::normalize(vec3(g_Camera.target.x-g_Camera.position.x,
 										  g_Camera.target.y-g_Camera.position.y,0));
 	vec3 __OrthoAttitude = vec3(-__Attitude.y,__Attitude.x,0);
@@ -31,6 +32,7 @@ void Clockwork::update()
 								- g_Input.keyboard.keys[SDL_SCANCODE_D])*__OrthoAttitude)
 			* CLOCKWORK_MVMT_ACCELERATION*g_Frame.delta_time_real;
 	m_CameraPosition.update(g_Camera.target,g_Frame.delta_time_real);
+	*/
 
 	// rotation & zoom
 	vec2 __Rotation = vec2(g_Input.mouse.buttons[1]*CLOCKWORK_ROTATION_MOUSEACC)*g_Input.mouse.velocity;

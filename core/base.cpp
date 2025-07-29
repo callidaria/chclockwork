@@ -29,6 +29,14 @@ void split_words(vector<string>& words,string& line)
 }
 
 /**
+ *	TODO
+ */
+f32 relationship_degrees(vec2 a,vec2 b)
+{
+	return glm::degrees(atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y));
+}
+
+/**
  *	calculate halfway vector in-between the two given vectors
  *	\param a: first vector
  *	\param b: second vector
@@ -279,6 +287,16 @@ void Transform3D::rotate(vec3 r,vec3 a)
 	transform(position-a,__ScaleFactor,r);
 }
 
+/**
+ *	TODO
+ */
+void Transform3D::reset()
+{
+	position = vec3(.0f);
+	rotation = vec3(.0f);
+	model = mat4(1.f);
+}
+
 
 // ----------------------------------------------------------------------------------------------------
 // Coordinate System
@@ -415,6 +433,6 @@ TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
  */
 void TargetMomentumSnap::update(vec3& pos,f32 dt)
 {
-	m_Momentum += ((target-pos)*m_Stiff-m_Momentum*m_Damp)*dt;
-	pos += m_Momentum*dt;
+	momentum += ((target-pos)*m_Stiff-momentum*m_Damp)*dt;
+	pos += momentum*dt;
 }

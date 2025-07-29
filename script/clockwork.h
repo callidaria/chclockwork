@@ -29,7 +29,7 @@ private:
 
 	TargetMomentumSnap m_CameraPosition = TargetMomentumSnap(CLOCKWORK_MVMT_FLOATFACTOR);
 	TargetMomentumSnap m_CameraRotation = TargetMomentumSnap(CLOCKWORK_ROTATION_FLOATFACTOR);
-	vec3 m_TargetingVector;
+	vec3 m_TargetingVector = vec3(0,25.f,0);
 
 	// measurements
 	lptr<Text> m_FPS;

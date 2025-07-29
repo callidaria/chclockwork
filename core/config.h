@@ -20,7 +20,7 @@
 #define RENDERER_MAXIMUM_TEXTURE_COUNT 2048
 #define RENDERER_MAXIMUM_FONT_COUNT 2
 #define RENDERER_SHADOW_RESOLUTION 4096
-#define RENDERER_SHADOW_RANGE 150
+#define RENDERER_SHADOW_RANGE 25
 
 // TODO define in extern config file and store constants at runtime
 
