@@ -59,6 +59,7 @@ TestScene::TestScene()
 	// standard setup
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Frame.time_factor = 2.f;
+	m_Dude.standard_animation = 3;
 
 	g_Wheel.call(UpdateRoutine{ &TestScene::_update,(void*)this });
 }
@@ -70,21 +71,55 @@ void TestScene::update()
 {
 	// player input
 	/*
-	if (g_Input.keyboard.keys[SDL_SCANCODE_E]) m_Dude.current_animation = 0;		// jump
 	else if (g_Input.keyboard.keys[SDL_SCANCODE_R]) m_Dude.current_animation = 1;	// roll
 	else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;	// fall
 	else if (g_Input.keyboard.keys[SDL_SCANCODE_I]) m_Dude.current_animation = 5;	// dab
 	*/
+	// animation update
+	m_Dude.update();
+
+	// camera view geometry
+	vec3 __CenteredPosition = vec3(m_Dude.joints[2].transform[3]);
 	vec3 __Attitude = glm::normalize(vec3(g_Camera.target.x-g_Camera.position.x,
 										  g_Camera.target.y-g_Camera.position.y,0));
 	vec3 __OrthoAttitude = vec3(-__Attitude.y,__Attitude.x,0);
-	vec3 __PosDelta = (
-			f32(g_Input.keyboard.keys[SDL_SCANCODE_W]-g_Input.keyboard.keys[SDL_SCANCODE_S])*__Attitude
-			+f32(g_Input.keyboard.keys[SDL_SCANCODE_A]-g_Input.keyboard.keys[SDL_SCANCODE_D])*__OrthoAttitude
-		)*TEST_MOVEMENT_SPEED*g_Frame.delta_time;
+
+	switch (m_MoveState)
+	{
+	case MOVE_JUMPING:
+
+		// jumping movement
+		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
+				*vec3(m_Dude.get_progress()*(m_Dude.get_progress()<.9f)*TEST_JUMP_SPEED);
+		m_PosDelta.z = glm::sin((m_Dude.get_progress()-.5f)*2.5f*MATH_PI*2)
+				*(m_Dude.get_progress()<.9f&&m_Dude.get_progress()>.5f)*TEST_JUMP_HEIGHT;
+
+		// state machine flow
+		if (m_Dude.current_animation!=0) m_MoveState = MOVE_STANDARD;
+		break;
+	default:
+
+		// walking movement
+		m_PosDelta = (
+				f32(g_Input.keyboard.keys[SDL_SCANCODE_W]-g_Input.keyboard.keys[SDL_SCANCODE_S])*__Attitude
+				+f32(g_Input.keyboard.keys[SDL_SCANCODE_A]-g_Input.keyboard.keys[SDL_SCANCODE_D])*__OrthoAttitude
+			)*TEST_MOVEMENT_SPEED;
+		m_PlayerRotation = relationship_degrees(vec2(0,-1),vec2(m_PosDelta.x,m_PosDelta.y));
+
+		// switch animation state
+		m_Dude.current_animation = 3-(glm::length(m_PosDelta)>.0001f);
+
+		// state machine flow
+		if (g_Input.keyboard.keys[SDL_SCANCODE_SPACE])
+		{
+			m_MoveState = MOVE_JUMPING;
+			m_MoveDirection = m_PosDelta;
+			m_Dude.set_animation(0);
+		}
+	};
 
 	// linear interpretation of geometric request
-	m_PlayerMomentum.target += __PosDelta;
+	m_PlayerMomentum.target += m_PosDelta*g_Frame.delta_time;
 	m_PlayerMomentum.target.x = glm::clamp(m_PlayerMomentum.target.x,
 										   -TEST_FIELD_DIMENSION.x+TEST_CHAR_DIMENSION.x,
 										   TEST_FIELD_DIMENSION.x-TEST_CHAR_DIMENSION.x);
@@ -92,8 +127,6 @@ void TestScene::update()
 										   -TEST_FIELD_DIMENSION.y+TEST_CHAR_DIMENSION.y,
 										   TEST_FIELD_DIMENSION.y-TEST_CHAR_DIMENSION.y);
 	m_PlayerMomentum.update(m_PlayerPosition,g_Frame.delta_time);
-	f32 __PlayerRotation = relationship_degrees(vec2(0,-1),vec2(__PosDelta.x,__PosDelta.y));
-	vec3 __CenteredPosition = vec3(m_Dude.joints[2].transform[3]);
 
 	// camera
 	g_Camera.target = m_PlayerPosition;
@@ -104,13 +137,6 @@ void TestScene::update()
 	m_AnimationBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
 	m_AnimationBatch->objects[m_DudeID].transform.model =
 			glm::translate(mat4(1.f),m_PlayerPosition)
-			* glm::rotate(mat4(1.f),glm::radians(__PlayerRotation),vec3(0,0,1))
+			* glm::rotate(mat4(1.f),glm::radians(m_PlayerRotation),vec3(0,0,1))
 			* m_AnimationBatch->objects[m_DudeID].transform.model;
-
-	// switch animation state
-	if (glm::length(__PosDelta)>.0001f) m_Dude.current_animation = 2;
-	else m_Dude.current_animation = 3;
-
-	// animation update
-	m_Dude.update();
 }

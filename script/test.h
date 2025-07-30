@@ -13,6 +13,18 @@ constexpr vec2 TEST_CHAR_DIMENSION = vec2(.5f,.25f);
 
 // movement
 constexpr f32 TEST_MOVEMENT_SPEED = .75f;
+constexpr f32 TEST_JUMP_SPEED = 2;
+constexpr f32 TEST_JUMP_HEIGHT = 1.5f;
+
+
+enum MovementState : u8
+{
+	MOVE_STANDARD,
+	MOVE_JUMPING,
+	MOVE_ROLLING,
+	MOVE_FALLING,
+	MOVE_CELEBRATING,
+};
 
 
 class TestScene
@@ -24,12 +36,21 @@ public:
 
 private:
 
+	// rendering
 	lptr<GeometryBatch> m_AnimationBatch;
-	u32 m_DudeID;
 	//AnimatedMesh m_Dude = AnimatedMesh("./res/test/dude.dae");
 	AnimatedMesh m_Dude = AnimatedMesh("./res/test/me.dae");
+	u32 m_DudeID;
+
+	// state
+	MovementState m_MoveState = MOVE_STANDARD;
+
+	// movement
 	vec3 m_PlayerPosition = vec3(0,0,.8f);
-	TargetMomentumSnap m_PlayerMomentum = TargetMomentumSnap(.1f);
+	vec3 m_MoveDirection;
+	f32 m_PlayerRotation;
+	vec3 m_PosDelta = vec3(.0f);
+	TargetMomentumSnap m_PlayerMomentum = TargetMomentumSnap(.15f);
 };
 
 
