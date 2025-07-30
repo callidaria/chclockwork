@@ -17,6 +17,16 @@ TestScene::TestScene()
 		g_Renderer.register_texture("./res/test/floor_normal.png"),
 		g_Renderer.register_texture("./res/test/floor_material.png"),
 	};
+	vector<Texture*> __GoldTexture = {
+		g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/gold_normal.png"),
+		g_Renderer.register_texture("./res/test/gold_material.png"),
+	};
+	vector<Texture*> __FabricTexture = {
+		g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/fabric_normal.png"),
+		g_Renderer.register_texture("./res/test/fabric_material.png"),
+	};
 	// TODO pre-store standard texture fallbacks
 
 	// geometry
@@ -46,6 +56,8 @@ TestScene::TestScene()
 	lptr<GeometryBatch> __PhysicalBatch = g_Renderer.register_deferred_geometry_batch();
 	u32 __FloorID = __PhysicalBatch->add_geometry(__Cube,__FloorTexture);
 	u32 __BoxID = __PhysicalBatch->add_geometry(__Cube,__FloorTexture);
+	u32 __BoxID0 = __PhysicalBatch->add_geometry(__Cube,__GoldTexture);
+	u32 __BoxID1 = __PhysicalBatch->add_geometry(__Sphere,__FabricTexture);
 	__PhysicalBatch->load();
 	g_Renderer.register_shadow_batch(__PhysicalBatch);
 
@@ -53,18 +65,25 @@ TestScene::TestScene()
 	__PhysicalBatch->objects[__FloorID].transform.scale(glm::vec3(10,10,.1f));
 	__PhysicalBatch->objects[__FloorID].transform.translate(glm::vec3(0,0,-.1f));
 	__PhysicalBatch->objects[__FloorID].texel = 10.f;
-	__PhysicalBatch->objects[__BoxID].transform.translate(glm::vec3(4,4,1));
+	__PhysicalBatch->objects[__BoxID].transform.translate(glm::vec3(4,4,.75f));
+	__PhysicalBatch->objects[__BoxID].transform.scale(.75f);
+	__PhysicalBatch->objects[__BoxID0].transform.translate(glm::vec3(-4,4,1));
+	__PhysicalBatch->objects[__BoxID0].transform.scale(.5f);
+	__PhysicalBatch->objects[__BoxID0].texel = 4.f;
+	__PhysicalBatch->objects[__BoxID1].transform.translate(glm::vec3(0,-4,.5));
+	__PhysicalBatch->objects[__BoxID1].transform.scale(.5f);
+	__PhysicalBatch->objects[__BoxID1].texel = 2.f;
 
 	// lightbulbs
 	BallIndex __BulbIndices[] = {
 		{ vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) },
-		{ vec3(9,-9,.2f),.2f,vec3(1,1,0),vec2(0,.4f) },
-		{ vec3(-9,9,.2f),.2f,vec3(0,1,0),vec2(0,.4f) },
+		{ vec3(9,-9,.7f),.2f,vec3(1,1,0),vec2(0,.4f) },
+		{ vec3(-9,9,1.2f),.2f,vec3(0,1,0),vec2(0,.4f) },
 		{ vec3(-9,-9,.2f),.2f,vec3(0,1,1),vec2(0,.4f) },
-		{ vec3(5,9,.2f),.2f,vec3(0,0,1),vec2(0,.4f) },
-		{ vec3(5,-9,.2f),.2f,vec3(1,0,1),vec2(0,.4f) },
+		{ vec3(5,9,.7f),.2f,vec3(0,0,1),vec2(0,.4f) },
+		{ vec3(5,-9,1.2f),.2f,vec3(1,0,1),vec2(0,.4f) },
 		{ vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) },
-		{ vec3(-9,-5,.2f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
+		{ vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
 	};
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
 	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT);
@@ -91,11 +110,9 @@ TestScene::TestScene()
  */
 void TestScene::update()
 {
-	// player input
-	/*
-	else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;	// fall
-	else if (g_Input.keyboard.keys[SDL_SCANCODE_I]) m_Dude.current_animation = 5;	// dab
-	*/
+	// player input (former)
+	//else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;	// fall
+
 	// animation update
 	m_Dude.update();
 
@@ -127,6 +144,9 @@ void TestScene::update()
 		// state machine flow
 		if (m_Dude.current_animation!=1) m_MoveState = MOVE_STANDARD;
 		break;
+	case MOVE_CELEBRATING:
+		if (m_Dude.current_animation!=5) m_MoveState = MOVE_STANDARD;
+		break;
 	default:
 
 		// walking movement
@@ -151,6 +171,12 @@ void TestScene::update()
 		{
 			m_MoveState = MOVE_ROLLING;
 			m_Dude.set_animation(1);
+		}
+		else if (g_Input.keyboard.keys[SDL_SCANCODE_E])
+		{
+			m_MoveState = MOVE_CELEBRATING;
+			m_PosDelta = vec3(.0f);
+			m_Dude.set_animation(5);
 		}
 	};
 
