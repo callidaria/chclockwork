@@ -17,6 +17,9 @@ constexpr f32 TEST_JUMP_SPEED = 2;
 constexpr f32 TEST_JUMP_HEIGHT = 1.5f;
 constexpr f32 TEST_ROLL_SPEED = 1.5f;
 
+// environment
+constexpr u8 TEST_LIGHTBULB_COUNT = 8;
+
 
 enum MovementState : u8
 {
@@ -27,6 +30,13 @@ enum MovementState : u8
 	MOVE_CELEBRATING,
 };
 
+struct BallIndex
+{
+	vec3 position = vec3(0);
+	f32 scale = 1.f;
+	vec3 colour = vec3(1);
+	vec2 material = vec2(0,.4f);
+};
 
 class TestScene
 {

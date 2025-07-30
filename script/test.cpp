@@ -20,17 +20,21 @@ TestScene::TestScene()
 	// TODO pre-store standard texture fallbacks
 
 	// geometry
+	Mesh __Sphere = Mesh::sphere();
 	Mesh __Cube = Mesh::cube();
 
 	// shaders
 	VertexShader __AnimationVertexShader = VertexShader("./core/shader/animation.vert");
 	VertexShader __AnimationShadowShader = VertexShader("./core/shader/animation_shadow.vert");
+	VertexShader __BulbVertexShader = VertexShader("./core/shader/bulb.vert");
 	FragmentShader __AnimationFragmentShader = FragmentShader("./core/shader/gpass.frag");
 	FragmentShader __ShadowShader = FragmentShader("./core/shader/shadow.frag");
+	FragmentShader __BulbFragmentShader = FragmentShader("./core/shader/bulb.frag");
 	lptr<ShaderPipeline> __AnimationShader = g_Renderer.register_pipeline(__AnimationVertexShader,
 																		  __AnimationFragmentShader);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(__AnimationShadowShader,
 																				  __ShadowShader);
+	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(__BulbVertexShader,__BulbFragmentShader);
 
 	// animation batch
 	m_AnimationBatch = g_Renderer.register_deferred_geometry_batch(__AnimationShader);
@@ -51,8 +55,27 @@ TestScene::TestScene()
 	__PhysicalBatch->objects[__FloorID].texel = 10.f;
 	__PhysicalBatch->objects[__BoxID].transform.translate(glm::vec3(4,4,1));
 
+	// lightbulbs
+	BallIndex __BulbIndices[] = {
+		{ vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) },
+		{ vec3(9,-9,.2f),.2f,vec3(1,1,0),vec2(0,.4f) },
+		{ vec3(-9,9,.2f),.2f,vec3(0,1,0),vec2(0,.4f) },
+		{ vec3(-9,-9,.2f),.2f,vec3(0,1,1),vec2(0,.4f) },
+		{ vec3(5,9,.2f),.2f,vec3(0,0,1),vec2(0,.4f) },
+		{ vec3(5,-9,.2f),.2f,vec3(1,0,1),vec2(0,.4f) },
+		{ vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) },
+		{ vec3(-9,-5,.2f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
+	};
+	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
+	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT);
+	g_Renderer.register_shadow_batch(__BulbBatch);
+	__BulbBatch->ibo.bind();
+	__BulbBatch->ibo.upload_vertices(__BulbIndices,TEST_LIGHTBULB_COUNT,GL_DYNAMIC_DRAW);
+
 	// lighting
-	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),4.f);
+	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),.5f);
+	for (u8 i=0;i<TEST_LIGHTBULB_COUNT;i++)
+		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,10.f,1.f,.8f,.24f);
 	g_Renderer.upload_lighting();
 
 	// standard setup
