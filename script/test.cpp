@@ -54,7 +54,6 @@ TestScene::TestScene()
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),4.f);
 	g_Renderer.upload_lighting();
-	// FIXME the sunlight emission is coming from a left handed coordinate system somehow (y-axis flip)
 
 	// standard setup
 	m_PlayerMomentum.target = m_PlayerPosition;
@@ -71,7 +70,6 @@ void TestScene::update()
 {
 	// player input
 	/*
-	else if (g_Input.keyboard.keys[SDL_SCANCODE_R]) m_Dude.current_animation = 1;	// roll
 	else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;	// fall
 	else if (g_Input.keyboard.keys[SDL_SCANCODE_I]) m_Dude.current_animation = 5;	// dab
 	*/
@@ -97,24 +95,39 @@ void TestScene::update()
 		// state machine flow
 		if (m_Dude.current_animation!=0) m_MoveState = MOVE_STANDARD;
 		break;
+	case MOVE_ROLLING:
+
+		// rolling movement
+		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
+				*vec3((m_Dude.get_progress()<.65f&&m_Dude.get_progress()>.25f)*TEST_ROLL_SPEED);
+
+		// state machine flow
+		if (m_Dude.current_animation!=1) m_MoveState = MOVE_STANDARD;
+		break;
 	default:
 
 		// walking movement
-		m_PosDelta = (
+		m_PlayerAttitude.target = (
 				f32(g_Input.keyboard.keys[SDL_SCANCODE_W]-g_Input.keyboard.keys[SDL_SCANCODE_S])*__Attitude
 				+f32(g_Input.keyboard.keys[SDL_SCANCODE_A]-g_Input.keyboard.keys[SDL_SCANCODE_D])*__OrthoAttitude
 			)*TEST_MOVEMENT_SPEED;
+		m_PlayerAttitude.update(m_PosDelta,g_Frame.delta_time);
 		m_PlayerRotation = relationship_degrees(vec2(0,-1),vec2(m_PosDelta.x,m_PosDelta.y));
 
 		// switch animation state
-		m_Dude.current_animation = 3-(glm::length(m_PosDelta)>.0001f);
+		m_Dude.current_animation = 3-(glm::length(m_PosDelta)>.01f);
+		m_MoveDirection = m_PosDelta;
 
 		// state machine flow
 		if (g_Input.keyboard.keys[SDL_SCANCODE_SPACE])
 		{
 			m_MoveState = MOVE_JUMPING;
-			m_MoveDirection = m_PosDelta;
 			m_Dude.set_animation(0);
+		}
+		else if (g_Input.keyboard.keys[SDL_SCANCODE_LSHIFT])
+		{
+			m_MoveState = MOVE_ROLLING;
+			m_Dude.set_animation(1);
 		}
 	};
 

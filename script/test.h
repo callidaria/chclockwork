@@ -15,6 +15,7 @@ constexpr vec2 TEST_CHAR_DIMENSION = vec2(.5f,.25f);
 constexpr f32 TEST_MOVEMENT_SPEED = .75f;
 constexpr f32 TEST_JUMP_SPEED = 2;
 constexpr f32 TEST_JUMP_HEIGHT = 1.5f;
+constexpr f32 TEST_ROLL_SPEED = 1.5f;
 
 
 enum MovementState : u8
@@ -51,6 +52,7 @@ private:
 	f32 m_PlayerRotation;
 	vec3 m_PosDelta = vec3(.0f);
 	TargetMomentumSnap m_PlayerMomentum = TargetMomentumSnap(.15f);
+	TargetMomentumSnap m_PlayerAttitude = TargetMomentumSnap(.25f);
 };
 
 

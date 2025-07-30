@@ -397,7 +397,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
  */
 void AnimatedMesh::set_animation(u8 id)
 {
-	current_animation = 0;
+	current_animation = id;
 	progress = .0;
 }
 
