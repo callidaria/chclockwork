@@ -234,6 +234,7 @@ inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 }
 
 // math
+f32 relationship_degrees(vec2 a,vec2 b);
 vec3 halfway(vec3 a,vec3 b);
 
 // assimp conversion
@@ -345,6 +346,7 @@ struct Transform3D
 	void rotate_z(f32 z);
 	void rotate(vec3 r);
 	void rotate(vec3 r,vec3 a);
+	void reset();
 
 	// data
 	vec3 position = vec3(.0f);
@@ -421,9 +423,9 @@ public:
 
 public:
 	vec3 target = vec3(0);
+	vec3 momentum = vec3(0);
 
 private:
-	vec3 m_Momentum = vec3(0);
 	f32 m_Stiff;
 	f32 m_Damp;
 };

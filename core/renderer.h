@@ -157,12 +157,15 @@ struct Animation
 {
 	vector<AnimationJoint> joints;
 	f64 duration;
+	f64 duration_inv;
 };
 
 class AnimatedMesh
 {
 public:
 	AnimatedMesh(const char* path);
+	void set_animation(u8 id);
+	f64 get_progress();
 	void update();
 
 private:
@@ -173,6 +176,7 @@ public:
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
 	u16 index_count = 0;
+	u16 standard_animation = 0;
 	u16 current_animation = 0;
 	f64 progress = .0;
 };
