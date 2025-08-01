@@ -9,5 +9,7 @@ pkgs.mkShell {
         pkgs.glm
         pkgs.assimp
         pkgs.freetype
+        pkgs.valgrind
+        pkgs.kcachegrind
     ];
 }
