@@ -29,11 +29,14 @@ void split_words(vector<string>& words,string& line)
 }
 
 /**
- *	TODO
+ *	calculate the angular relationship between two vectors in radians
+ *	\param a: first vector
+ *	\param b: second vector
+ *	\returns angle between vectors in radians
  */
-f32 relationship_degrees(vec2 a,vec2 b)
+f32 angular_relationship(vec2 a,vec2 b)
 {
-	return glm::degrees(atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y));
+	return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y);
 }
 
 /**
@@ -289,7 +292,7 @@ void Transform3D::rotate(vec3 r,vec3 a)
 // FIXME yes, this is actually broken unfortunately. what a surprise, scaling is the culprit
 
 /**
- *	TODO
+ *	reset model transform values and model matrix
  */
 void Transform3D::reset()
 {

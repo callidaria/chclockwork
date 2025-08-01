@@ -393,7 +393,8 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 
 /**
- *	TODO
+ *	switch active animation by id
+ *	\param id: animation id
  */
 void AnimatedMesh::set_animation(u8 id)
 {
@@ -402,7 +403,8 @@ void AnimatedMesh::set_animation(u8 id)
 }
 
 /**
- *	TODO
+ *	aquire progress of current animation
+ *	\returns animation progress between 0 and 1
  */
 f64 AnimatedMesh::get_progress()
 {

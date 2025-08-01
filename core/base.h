@@ -234,7 +234,7 @@ inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 }
 
 // math
-f32 relationship_degrees(vec2 a,vec2 b);
+f32 angular_relationship(vec2 a,vec2 b);
 vec3 halfway(vec3 a,vec3 b);
 
 // assimp conversion

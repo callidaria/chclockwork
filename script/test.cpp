@@ -155,7 +155,7 @@ void TestScene::update()
 				+f32(g_Input.keyboard.keys[SDL_SCANCODE_A]-g_Input.keyboard.keys[SDL_SCANCODE_D])*__OrthoAttitude
 			)*TEST_MOVEMENT_SPEED;
 		m_PlayerAttitude.update(m_PosDelta,g_Frame.delta_time);
-		m_PlayerRotation = relationship_degrees(vec2(0,-1),vec2(m_PosDelta.x,m_PosDelta.y));
+		m_PlayerRotation = angular_relationship(vec2(0,-1),vec2(m_PosDelta.x,m_PosDelta.y));
 
 		// switch animation state
 		m_Dude.current_animation = 3-(glm::length(m_PosDelta)>.01f);
@@ -199,6 +199,6 @@ void TestScene::update()
 	m_AnimationBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
 	m_AnimationBatch->objects[m_DudeID].transform.model =
 			glm::translate(mat4(1.f),m_PlayerPosition)
-			* glm::rotate(mat4(1.f),glm::radians(m_PlayerRotation),vec3(0,0,1))
+			* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
 			* m_AnimationBatch->objects[m_DudeID].transform.model;
 }
