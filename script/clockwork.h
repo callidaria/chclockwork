@@ -1,5 +1,6 @@
 #ifndef SCRIPT_CLOCKWORK_HEADER
 #define SCRIPT_CLOCKWORK_HEADER
+#ifdef DEBUG
 
 
 #include "../core/blitter.h"
@@ -36,4 +37,5 @@ private:
 };
 
 
+#endif
 #endif

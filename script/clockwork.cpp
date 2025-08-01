@@ -1,4 +1,5 @@
 #include "clockwork.h"
+#ifdef DEBUG
 
 
 /**
@@ -50,3 +51,6 @@ void Clockwork::update()
 	m_FPS->align();
 	m_FPS->load_buffer();
 }
+
+
+#endif
