@@ -477,6 +477,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
 Framebuffer::Framebuffer(u8 compcount)
 {
 	glGenFramebuffers(1,&m_Buffer);
+	if (!compcount) return;
 	m_ColourComponents.resize(compcount);
 	glGenTextures(compcount,&m_ColourComponents[0]);
 }

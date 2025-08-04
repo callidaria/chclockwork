@@ -214,7 +214,7 @@ struct GeometryBatch
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
 	vector<float> geometry;
-	vector<u32> elements;
+//vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
 	u32 offset_cursor = 0;

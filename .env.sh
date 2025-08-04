@@ -77,4 +77,9 @@ alias d='make debug'
 alias da='make debug -B'
 alias r='make release'
 alias ra='make release -B'
-alias e="./chcw"
+
+if [ "$OS" == "Windows_NT" ]; then
+    alias e="./chcw.exe"
+else
+    alias e="./chcw"
+fi
