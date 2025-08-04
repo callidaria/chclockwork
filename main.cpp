@@ -21,6 +21,7 @@ s32 main(s32 argc,char** argv)
 	Clockwork __Clockwork = Clockwork(__Ubuntu);
 #endif
 
+	// scripts
 	TestScene __Test = TestScene();
 
 	bool running = true;

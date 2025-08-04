@@ -348,6 +348,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			.joints = vector<AnimationJoint>(__Animation->mNumChannels),
 			.duration = __Animation->mDuration*__TPSinv
 		};
+		animations[i].duration_inv = 1./animations[i].duration;
 
 		// process animation channels
 		for (u32 j=0;j<__Animation->mNumChannels;j++)
@@ -392,6 +393,25 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 
 /**
+ *	switch active animation by id
+ *	\param id: animation id
+ */
+void AnimatedMesh::set_animation(u8 id)
+{
+	current_animation = id;
+	progress = .0;
+}
+
+/**
+ *	aquire progress of current animation
+ *	\returns animation progress between 0 and 1
+ */
+f64 AnimatedMesh::get_progress()
+{
+	return progress*animations[current_animation].duration_inv;
+}
+
+/**
  *	update active animation
  */
 f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
@@ -405,9 +425,13 @@ void AnimatedMesh::update()
 {
 	Animation& p_Animation = animations[current_animation];
 
-	// interpolation delta
+	// interpolation delta & restore default animation after playback has finished
 	progress += g_Frame.delta_time;
-	progress = fmod(progress,p_Animation.duration);
+	if (progress>p_Animation.duration)
+	{
+		progress -= p_Animation.duration;
+		current_animation = standard_animation;
+	}
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
