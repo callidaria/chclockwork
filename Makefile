@@ -6,7 +6,7 @@ LDST = lib/
 
 ifeq ($(OS),Windows_NT)
 	INCLUDE = -I/mingw64/include -I/mingw64/include/freetype2 -I/mingw64/include/libpng16
-	LINKER = -lglew32 -lopengl32 -lSDL2main -lSDL2 -lassimp -lfreetype
+	LINKER = -lpthread -lglew32 -lopengl32 -lSDL2main -lSDL2 -lassimp -lfreetype
 	TARGET = chcw.exe
 else
 	INCLUDE = -I/usr/include/freetype2 -I/usr/include/libpng16

@@ -47,7 +47,8 @@ chcw_setup()
 
 	# exotic people know whats next - setup yourself i don't know your ways
 	else
-		echo "ERROR: distro not natively supported. please install libs on your own & submit what's missing."
+	    echo "ERROR: distro not natively supported!"
+	    echo "please install libs on your own & submit what's missing."
 	fi
 
 	# texture headers

@@ -5,5 +5,6 @@ gmon.out
 
 # core
 core/include/*
-lib/*
+lib/core/*
+lib/script/*
 *.o
