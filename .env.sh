@@ -33,6 +33,18 @@ chcw_setup()
 			 https://raw.githubusercontent.com/callidaria/chclockwork/refs/heads/sources/shell.nix
 		exec nix-shell
 
+	# windows library warnings
+	elif [ "$OS" == "Windows_NT" ]; then
+	        echo "WARNING: you are running the auto-setup on windows. Trying to auto-setup with MSYS2!"
+	        pacman -S --noconfirm \
+		       mingw-w64-x86_64-gcc \
+		       mingw-w64-x86_64-make \
+		       mingw-w64-x86_64-glew \
+		       mingw-w64-x86_64-SDL2 \
+		       mingw-w64-x86_64-glm \
+		       mingw-w64-x86_64-assimp \
+		       mingw-w64-x86_64-freetype
+
 	# exotic people know whats next - setup yourself i don't know your ways
 	else
 		echo "ERROR: distro not natively supported. please install libs on your own & submit what's missing."

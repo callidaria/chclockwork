@@ -30,6 +30,10 @@
 
 // ogl
 #include <GL/glew.h>
+#ifdef _WIN32
+#define SDL_MAIN_HANDLED
+#include <SDL2/SDL_main.h>
+#endif
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
