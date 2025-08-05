@@ -28,8 +28,14 @@
 #include <mutex>
 #include <condition_variable>
 
-// ogl
+// graphics
+//#ifdef VKBUILD
+#include <vulkan/vulkan.h>
+//#else
 #include <GL/glew.h>
+//#endif
+
+// handler
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL_main.h>

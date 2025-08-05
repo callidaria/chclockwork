@@ -16,7 +16,6 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 }
 
 
-
 // ----------------------------------------------------------------------------------------------------
 // Graphical Frame
 
@@ -32,8 +31,9 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #ifdef __SYSTEM_64BIT
 		"64-bit";
 #else
-		"32-bit";
+	"32-bit";
 #endif
+
 	COMM_MSG(LOG_YELLOW,"setup sdl version 3.3. %s",__BitWidth);
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE);
@@ -41,7 +41,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
 
-	COMM_MSG(LOG_CYAN,"opening window");
+#ifndef VKBUILD
+	COMM_MSG(LOG_CYAN,"opening OpenGL window");
 	m_Frame = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
 							   width,height,SDL_WINDOW_OPENGL);
 	m_Context = SDL_GL_CreateContext(m_Frame);
@@ -65,12 +66,48 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	glDebugMessageCallback(_gpu_error_callback,nullptr);
 #endif
 
+#else
+	COMM_MSG(LOG_CYAN,"opening Vulkan window");
+	m_Frame = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
+							   width,height,SDL_WINDOW_VULKAN);
+
+	// application info
+	VkApplicationInfo __ApplicationInfo = {
+		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+		.pApplicationName = title,
+		.applicationVersion = VK_MAKE_VERSION(0,0,1),
+		.pEngineName = "C. Hanson's Clockwork",
+		.engineVersion = VK_MAKE_VERSION(0,0,1),
+		.apiVersion = VK_API_VERSION_1_0,
+	};
+
+	// extensions
+	u32 __ExtensionCount;
+	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionsCount,nullptr);
+	vector<const char*> __Extensions(__ExtensionCount);
+	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionsCount,&__Extensions[0]);
+#ifdef DEBUG
+	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+
+	// vulkan instance
+	VkInstanceCreateInfo __CreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+		.pApplicationInfo = &__ApplicationInfo,
+		.enabledExtensionCount = __ExtensionCount,
+		.ppEnabledExtensionNames = &__Extensions[0],
+		.enableLayerCount = 0,
+	};
+	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&m_Instance);
+#endif
+
 	// vsync
 	if (vsync) gpu_vsync_on();
 	else gpu_vsync_off();
 
 	// standard settings
 	set_clear_colour(BLITTER_CLEAR_COLOUR);
+//#endif
 
 	COMM_SCC("blitter ready.");
 }
