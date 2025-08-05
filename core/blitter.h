@@ -37,7 +37,6 @@ private:
 
 	// hardware
 	SDL_Window* m_Frame;
-	SDL_GLContext m_Context;
 
 	// time
 	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
@@ -49,6 +48,12 @@ public:
 private:
 	std::chrono::steady_clock::time_point m_LastFrameUpdate = std::chrono::steady_clock::now();
 	u32 m_LFps;
+#endif
+
+#ifdef VKBUILD
+	VkInstance m_Instance;
+#else
+	SDL_GLContext m_Context;
 #endif
 };
 
