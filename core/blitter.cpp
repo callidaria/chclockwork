@@ -45,6 +45,56 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 
 
 // ----------------------------------------------------------------------------------------------------
+// Hardware Detection
+
+#ifdef VKBUILD
+
+/**
+ *	detect gpus
+ *	TODO
+ */
+void Hardware::detect(VkInstance& instance)
+{
+	COMM_LOG("detecting available GPUs");
+	u32 __GPUCount;
+	vkEnumeratePhysicalDevices(instance,&__GPUCount,nullptr);
+	COMM_ERR_COND(!__GPUCount,"no vulkan capable gpus found. use opengl version!")
+	COMM_SCC_FALLBACK("found %u vulkan capable graphics card%s",__GPUCount,(__GPUCount>1)?"s":"");
+	physical_gpus.resize(__GPUCount);
+	vkEnumeratePhysicalDevices(instance,&__GPUCount,&physical_gpus[0]);
+
+	// scanning available gpus for specifics
+	gpus.resize(__GPUCount);
+	for (u8 i=0;i<__GPUCount;i++)
+	{
+		VkPhysicalDevice& p_PhysicalGPU = physical_gpus[i];
+		GPU& p_GPU = gpus[i];
+
+		// get device specifics
+		vkGetPhysicalDeviceProperties(p_PhysicalGPU,&p_GPU.properties);
+		vkGetPhysicalDeviceFeatures(p_PhysicalGPU,&p_GPU.features);
+		// TODO later, read the capabilities of the selected device, allow to change it and change features
+		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
+
+		// get available queue families
+		u32 __QueueCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,nullptr);
+		vector<VkQueueFamilyProperties> __Queues(__QueueCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,&__Queues[0]);
+
+		// iterate queue families & extract ids
+		for (u32 j=0;j<__QueueCount;j++)
+		{
+			if (__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT)
+				p_GPU.graphical_queue = i;
+		}
+	}
+}
+
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
 // Graphical Frame
 
 /**
@@ -159,17 +209,17 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
 #endif
 
-	COMM_LOG("aquiring capable graphics cards");
-	u32 __GPUCount;
-	vkEnumeratePhysicalDevices(m_Instance,&__GPUCount,nullptr);
-	COMM_ERR_COND(!__GPUCount,"no vulkan capable graphical processors found. use opengl version!")
-	COMM_SCC_FALLBACK("found %u vulkan capable graphics cards",__GPUCount);
-	vector<VkPhysicalDevice> __GPUs(__GPUCount);
-	vkEnumeratePhysicalDevices(m_Instance,&__GPUCount,&__GPUs[0]);
-	// TODO later, use this check to determine if vulkan version should be selectable by user
-	// TODO later, read the capabilities of the selected device, allow to change it and change features
-	// TODO something something, queue families, tldr okok i will do this later, probably works on my system
-	VkPhysicalDevice __GPU = __GPUs[0];
+	// gpu setup
+	m_Hardware.detect(m_Instance);
+
+	COMM_LOG("setup logical device to communicate with selected gpu");
+	/*
+	VkDeviceQueueCreateInfo __DeviceQueueInfo = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.queueFamilyIndex = ,
+		.queueCount = 1,
+	};
+	*/
 #endif
 
 	// vsync
@@ -177,8 +227,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	else gpu_vsync_off();
 
 	// standard settings
-	set_clear_colour(BLITTER_CLEAR_COLOUR);
-//#endif
+	//set_clear_colour(BLITTER_CLEAR_COLOUR);
 
 	COMM_SCC("blitter ready.");
 }

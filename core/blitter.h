@@ -8,6 +8,26 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
+#ifdef VKBUILD
+struct GPU
+{
+	VkPhysicalDeviceProperties properties;
+	VkPhysicalDeviceFeatures features;
+	s64 graphical_queue = -1;
+};
+
+struct Hardware
+{
+	// utility
+	void detect(VkInstance& instance);
+
+	// data
+	vector<VkPhysicalDevice> physical_gpus;
+	vector<GPU> gpus;
+};
+#endif
+
+
 class Frame
 {
 public:
@@ -54,6 +74,8 @@ private:
 
 	// hardware
 	VkInstance m_Instance;
+	Hardware m_Hardware;
+	//VkDevice m_GPULogical;
 
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT m_DebugMessenger;
