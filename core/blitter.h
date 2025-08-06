@@ -20,6 +20,7 @@ struct Hardware
 {
 	// utility
 	void detect(VkInstance& instance);
+	VkDevice create_logical_gpu(u8 id);
 
 	// data
 	vector<VkPhysicalDevice> physical_gpus;
@@ -75,7 +76,7 @@ private:
 	// hardware
 	VkInstance m_Instance;
 	Hardware m_Hardware;
-	//VkDevice m_GPULogical;
+	VkDevice m_GPULogical;
 
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT m_DebugMessenger;

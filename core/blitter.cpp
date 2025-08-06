@@ -91,6 +91,49 @@ void Hardware::detect(VkInstance& instance)
 	}
 }
 
+/**
+ *	TODO
+ */
+VkDevice Hardware::create_logical_gpu(u8 id)
+{
+	COMM_LOG("interfacing with gpu %s",gpus[id].properties.deviceName);
+
+	// queue creation
+	COMM_ERR_COND(gpus[id].graphical_queue<0,"no graphical queue available on selected gpu");
+	f32 __QueuePriority = 1.f;
+	VkDeviceQueueCreateInfo __QueueInfo = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.queueFamilyIndex = (u32)gpus[id].graphical_queue,
+		.queueCount = 1,
+		.pQueuePriorities = &__QueuePriority,
+	};
+
+	// device features
+	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
+
+	// device creation specifics
+	VkDeviceCreateInfo __DeviceInfo = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.queueCreateInfoCount = 1,
+		.pQueueCreateInfos = &__QueueInfo,
+#ifdef DEBUG
+		.enabledLayerCount = (u32)_validation_layers.size(),
+		.ppEnabledLayerNames = &_validation_layers[0],
+#else
+		.enabledLayerCount = 0,
+#endif
+		.enabledExtensionCount = 0,
+		.pEnabledFeatures = &__DeviceFeatures,
+	};
+
+	// create device
+	VkDevice __LogicalGPU;
+	VkResult __Result = vkCreateDevice(physical_gpus[id],&__DeviceInfo,nullptr,&__LogicalGPU);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,
+				  "could not create logical interface for gpu %s",gpus[id].properties.deviceName);
+	return __LogicalGPU;
+}
+
 #endif
 
 
@@ -211,15 +254,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 
 	// gpu setup
 	m_Hardware.detect(m_Instance);
-
-	COMM_LOG("setup logical device to communicate with selected gpu");
-	/*
-	VkDeviceQueueCreateInfo __DeviceQueueInfo = {
-		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		.queueFamilyIndex = ,
-		.queueCount = 1,
-	};
-	*/
+	m_GPULogical = m_Hardware.create_logical_gpu(0);
+	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
 	// vsync
@@ -282,12 +318,14 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
+	vkDestroyDevice(m_GPULogical,nullptr);
 	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
 			= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
 																		  "vkDestroyDebugUtilsMessengerEXT");
 	__DestroyMessenger(m_Instance,m_DebugMessenger,nullptr);
 	vkDestroyInstance(m_Instance,nullptr);
 	// TODO test if unclean destruction of device and buffer leads to the validation layer complaining
+	//		it does not even if it normally should be, further investigation necessary. verbose & warning works.
 #else
 	SDL_GL_DeleteContext(m_Context);
 #endif
