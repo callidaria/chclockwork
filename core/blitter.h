@@ -51,7 +51,14 @@ private:
 #endif
 
 #ifdef VKBUILD
+
+	// hardware
 	VkInstance m_Instance;
+
+#ifdef DEBUG
+	VkDebugUtilsMessengerEXT m_DebugMessenger;
+#endif
+
 #else
 	SDL_GLContext m_Context;
 #endif

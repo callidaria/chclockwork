@@ -16,7 +16,7 @@ endif
 
 DEBUG_SUFFIX = -pg -g -O0 -DDEBUG
 RELEASE_SUFFIX = -O3 -fno-gcse
-GPUAPI_SUFFIX = -DVKDEBUG
+GPUAPI_SUFFIX = -DVKBUILD
 
 SRCS_CORE = $(wildcard $(SDST_CORE)*.cpp)
 SRCS_SCRIPT = $(wildcard $(SDST_SCRIPT)*.cpp)

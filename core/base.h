@@ -41,7 +41,11 @@
 #include <SDL2/SDL_main.h>
 #endif
 #include <SDL2/SDL.h>
+//#ifdef VKBUILD
+#include <SDL2/SDL_vulkan.h>
+//#else
 #include <SDL2/SDL_opengl.h>
+//#endif
 
 // math
 #define GLM_ENABLE_EXPERIMENTAL

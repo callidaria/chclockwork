@@ -5,6 +5,8 @@
 #include "input.h"
 #include "renderer.h"
 
+#ifndef VKBUILD
+
 
 constexpr f32 UI_TEXT_DOWNSCALE = .6f;
 constexpr f32 UI_TEXT_BORDER_X = .95f;
@@ -89,7 +91,9 @@ private:
 	f32 m_CursorAnim = .0f;
 };
 
-inline UI g_UI = UI("./res/ui/cursor.png");
+#endif
+
+//inline UI g_UI = UI("./res/ui/cursor.png");
 
 
 #endif
