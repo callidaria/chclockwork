@@ -158,6 +158,18 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	__Result = __CreateMessenger(m_Instance,&__DebugMessengerInfo,nullptr,&m_DebugMessenger);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
 #endif
+
+	COMM_LOG("aquiring capable graphics cards");
+	u32 __GPUCount;
+	vkEnumeratePhysicalDevices(m_Instance,&__GPUCount,nullptr);
+	COMM_ERR_COND(!__GPUCount,"no vulkan capable graphical processors found. use opengl version!")
+	COMM_SCC_FALLBACK("found %u vulkan capable graphics cards",__GPUCount);
+	vector<VkPhysicalDevice> __GPUs(__GPUCount);
+	vkEnumeratePhysicalDevices(m_Instance,&__GPUCount,&__GPUs[0]);
+	// TODO later, use this check to determine if vulkan version should be selectable by user
+	// TODO later, read the capabilities of the selected device, allow to change it and change features
+	// TODO something something, queue families, tldr okok i will do this later, probably works on my system
+	VkPhysicalDevice __GPU = __GPUs[0];
 #endif
 
 	// vsync
