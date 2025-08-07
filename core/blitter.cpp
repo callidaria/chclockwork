@@ -94,7 +94,7 @@ void Hardware::detect(VkInstance& instance)
 /**
  *	TODO
  */
-VkDevice Hardware::create_logical_gpu(u8 id)
+void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& queue,u8 id)
 {
 	COMM_LOG("interfacing with gpu %s",gpus[id].properties.deviceName);
 
@@ -127,11 +127,12 @@ VkDevice Hardware::create_logical_gpu(u8 id)
 	};
 
 	// create device
-	VkDevice __LogicalGPU;
-	VkResult __Result = vkCreateDevice(physical_gpus[id],&__DeviceInfo,nullptr,&__LogicalGPU);
+	VkResult __Result = vkCreateDevice(physical_gpus[id],&__DeviceInfo,nullptr,&logical_gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,
 				  "could not create logical interface for gpu %s",gpus[id].properties.deviceName);
-	return __LogicalGPU;
+
+	// initialize queue
+	vkGetDeviceQueue(logical_gpu,gpus[id].graphical_queue,0,&queue);
 }
 
 #endif
@@ -255,7 +256,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 
 	// gpu setup
 	m_Hardware.detect(m_Instance);
-	m_GPULogical = m_Hardware.create_logical_gpu(0);
+	m_Hardware.create_logical_gpu(m_GPULogical,m_GfxQueue,0);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
