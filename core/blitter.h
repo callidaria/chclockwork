@@ -75,6 +75,7 @@ private:
 
 	// hardware
 	VkInstance m_Instance;
+	VkSurfaceKHR m_Surface;
 	Hardware m_Hardware;
 	VkDevice m_GPULogical;
 	VkQueue m_GfxQueue;

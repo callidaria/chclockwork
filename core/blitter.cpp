@@ -254,6 +254,10 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
 #endif
 
+	COMM_LOG("setting up render surface");
+	bool __SurfaceResult = SDL_Vulkan_CreateSurface(m_Frame,m_Instance,&m_Surface);
+	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
+
 	// gpu setup
 	m_Hardware.detect(m_Instance);
 	m_Hardware.create_logical_gpu(m_GPULogical,m_GfxQueue,0);
@@ -321,6 +325,7 @@ void Frame::close()
 
 #ifdef VKBUILD
 	vkDestroyDevice(m_GPULogical,nullptr);
+	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
 	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
 			= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
