@@ -156,7 +156,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #endif
 
 	COMM_MSG(LOG_YELLOW,"setup sdl version 3.3. %s",__BitWidth);
-	SDL_Init(SDL_INIT_VIDEO);
+	u32 __InitSuccess = SDL_Init(SDL_INIT_VIDEO);
+	COMM_ERR_COND(!!__InitSuccess,"sdl initialization failed!");
 
 	// ----------------------------------------------------------------------------------------------------
 	// OpenGL Setup
@@ -319,10 +320,12 @@ void Frame::close()
 
 #ifdef VKBUILD
 	vkDestroyDevice(m_GPULogical,nullptr);
+#ifdef DEBUG
 	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
 			= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
 																		  "vkDestroyDebugUtilsMessengerEXT");
 	__DestroyMessenger(m_Instance,m_DebugMessenger,nullptr);
+#endif
 	vkDestroyInstance(m_Instance,nullptr);
 	// TODO test if unclean destruction of device and buffer leads to the validation layer complaining
 	//		it does not even if it normally should be, further investigation necessary. verbose & warning works.

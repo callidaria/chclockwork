@@ -1,0 +1,136 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:strlen
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkEnumerateInstanceExtensionProperties
+   fun:SDL_Vulkan_CreateInstanceExtensionsList
+   fun:X11_Vulkan_LoadLibrary
+   fun:SDL_Vulkan_LoadLibrary_REAL
+   fun:SDL_CreateWindow_REAL
+   fun:SDL_CreateWindow
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:strlen
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkEnumerateInstanceExtensionProperties
+   fun:SDL_Vulkan_CreateInstanceExtensionsList
+   fun:X11_Vulkan_LoadLibrary
+   fun:SDL_Vulkan_LoadLibrary_REAL
+   fun:SDL_CreateWindow_REAL
+   fun:SDL_CreateWindow
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:_IO_default_xsputn
+   fun:_IO_default_xsputn
+   fun:outstring_func
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkEnumerateInstanceExtensionProperties
+   fun:SDL_Vulkan_CreateInstanceExtensionsList
+   fun:X11_Vulkan_LoadLibrary
+   fun:SDL_Vulkan_LoadLibrary_REAL
+   fun:SDL_CreateWindow_REAL
+   fun:SDL_CreateWindow
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:ReallocZero
+   fun:realloc
+   obj:/usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:*
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:BadSize
+   fun:posix_memalign
+   obj:/usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.575.64.03
+   obj:*
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:strlen
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkCreateInstance
+   fun:_ZN5FrameC1EPKcttb
+   fun:_Z41__static_initialization_and_destruction_0ii
+   fun:_GLOBAL__sub_I_main
+   fun:call_init
+   fun:__libc_start_main@@GLIBC_2.34
+   fun:(below main)
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:strlen
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkCreateInstance
+   fun:_ZN5FrameC1EPKcttb
+   fun:_Z41__static_initialization_and_destruction_0ii
+   fun:_GLOBAL__sub_I_main
+   fun:call_init
+   fun:__libc_start_main@@GLIBC_2.34
+   fun:(below main)
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr1
+   fun:_IO_default_xsputn
+   fun:_IO_default_xsputn
+   fun:outstring_func
+   fun:__vfprintf_internal
+   fun:__vsnprintf_internal
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   obj:/usr/lib/x86_64-linux-gnu/libvulkan.so.1.3.204
+   fun:vkCreateInstance
+   fun:_ZN5FrameC1EPKcttb
+   fun:_Z41__static_initialization_and_destruction_0ii
+   fun:_GLOBAL__sub_I_main
+   fun:call_init
+   fun:__libc_start_main@@GLIBC_2.34
+   fun:(below main)
+}

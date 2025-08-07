@@ -83,4 +83,5 @@ if [ "$OS" == "Windows_NT" ]; then
 	alias e="./chcw.exe"
 else
 	alias e="./chcw"
+	alias ea="valgrind --suppressions=gfxapi.supp ./chcw"
 fi
