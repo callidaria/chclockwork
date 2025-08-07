@@ -13,14 +13,16 @@ struct GPU
 {
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures features;
+	vector<u32> queues;
 	s64 graphical_queue = -1;
+	s64 swap_queue = -1;
 };
 
 struct Hardware
 {
 	// utility
-	void detect(VkInstance& instance);
-	void create_logical_gpu(VkDevice& logical_gpu,VkQueue& queue,u8 id);
+	void detect(VkInstance instance,VkSurfaceKHR surface);
+	void create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& squeue,u8 id);
 
 	// data
 	vector<VkPhysicalDevice> physical_gpus;
@@ -79,6 +81,7 @@ private:
 	Hardware m_Hardware;
 	VkDevice m_GPULogical;
 	VkQueue m_GfxQueue;
+	VkQueue m_SwpQueue;
 
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT m_DebugMessenger;

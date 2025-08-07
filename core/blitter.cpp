@@ -53,7 +53,7 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
  *	detect gpus
  *	TODO
  */
-void Hardware::detect(VkInstance& instance)
+void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;
@@ -83,10 +83,15 @@ void Hardware::detect(VkInstance& instance)
 		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,&__Queues[0]);
 
 		// iterate queue families & extract ids
+		p_GPU.queues.reserve(2);
 		for (u32 j=0;j<__QueueCount;j++)
 		{
-			if (__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT)
-				p_GPU.graphical_queue = i;
+			bool __GraphicalQueue = __Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT;
+			VkBool32 __SupportsPresenting = false;
+			p_GPU.graphical_queue = (__GraphicalQueue) ? j : p_GPU.graphical_queue;
+			vkGetPhysicalDeviceSurfaceSupportKHR(p_PhysicalGPU,j,surface,&__SupportsPresenting);
+			p_GPU.swap_queue = (__SupportsPresenting) ? j : p_GPU.swap_queue;
+			if (__GraphicalQueue||__SupportsPresenting) p_GPU.queues.push_back(j);
 		}
 	}
 }
@@ -94,19 +99,24 @@ void Hardware::detect(VkInstance& instance)
 /**
  *	TODO
  */
-void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& queue,u8 id)
+void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& squeue,u8 id)
 {
 	COMM_LOG("interfacing with gpu %s",gpus[id].properties.deviceName);
 
 	// queue creation
 	COMM_ERR_COND(gpus[id].graphical_queue<0,"no graphical queue available on selected gpu");
+	COMM_ERR_COND(gpus[id].swap_queue<0,"no presentation queue available on selected gpu");
 	f32 __QueuePriority = 1.f;
-	VkDeviceQueueCreateInfo __QueueInfo = {
-		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		.queueFamilyIndex = (u32)gpus[id].graphical_queue,
-		.queueCount = 1,
-		.pQueuePriorities = &__QueuePriority,
-	};
+	vector<VkDeviceQueueCreateInfo> __QueueInfos = vector<VkDeviceQueueCreateInfo>(gpus[id].queues.size());
+	for (u32 i=0;i<__QueueInfos.size();i++)
+	{
+		__QueueInfos[i] = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = (u32)gpus[id].queues[i],
+			.queueCount = 1,
+			.pQueuePriorities = &__QueuePriority,
+		};
+	}
 
 	// device features
 	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
@@ -114,8 +124,8 @@ void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& queue,u8 id)
 	// device creation specifics
 	VkDeviceCreateInfo __DeviceInfo = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.queueCreateInfoCount = 1,
-		.pQueueCreateInfos = &__QueueInfo,
+		.queueCreateInfoCount = (u32)__QueueInfos.size(),
+		.pQueueCreateInfos = &__QueueInfos[0],
 #ifdef DEBUG
 		.enabledLayerCount = (u32)_validation_layers.size(),
 		.ppEnabledLayerNames = &_validation_layers[0],
@@ -131,8 +141,9 @@ void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& queue,u8 id)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,
 				  "could not create logical interface for gpu %s",gpus[id].properties.deviceName);
 
-	// initialize queue
-	vkGetDeviceQueue(logical_gpu,gpus[id].graphical_queue,0,&queue);
+	// initialize queues
+	vkGetDeviceQueue(logical_gpu,gpus[id].graphical_queue,0,&gqueue);
+	vkGetDeviceQueue(logical_gpu,gpus[id].swap_queue,0,&squeue);
 }
 
 #endif
@@ -259,8 +270,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
 
 	// gpu setup
-	m_Hardware.detect(m_Instance);
-	m_Hardware.create_logical_gpu(m_GPULogical,m_GfxQueue,0);
+	m_Hardware.detect(m_Instance,m_Surface);
+	m_Hardware.create_logical_gpu(m_GPULogical,m_GfxQueue,m_SwpQueue,0);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
