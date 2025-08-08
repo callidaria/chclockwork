@@ -9,20 +9,33 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
 #ifdef VKBUILD
+struct SwapChain
+{
+	// utility
+	VkSwapchainKHR select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
+						  u32 pqueue,vector<u32>& queues);
+
+	// data
+	VkSurfaceCapabilitiesKHR capabilities;
+	vector<VkSurfaceFormatKHR> formats;
+	vector<VkPresentModeKHR> modes;
+};
+
 struct GPU
 {
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures features;
+	SwapChain swap_chain;
 	vector<u32> queues;
 	s64 graphical_queue = -1;
-	s64 swap_queue = -1;
+	s64 presentation_queue = -1;
 };
 
 struct Hardware
 {
 	// utility
 	void detect(VkInstance instance,VkSurfaceKHR surface);
-	void create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& squeue,u8 id);
+	void select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id);
 
 	// data
 	vector<VkPhysicalDevice> physical_gpus;
@@ -78,10 +91,11 @@ private:
 	// hardware
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
+	VkSwapchainKHR m_SwapChain;
 	Hardware m_Hardware;
 	VkDevice m_GPULogical;
-	VkQueue m_GfxQueue;
-	VkQueue m_SwpQueue;
+	VkQueue m_GraphicsQueue;
+	VkQueue m_PresentationQueue;
 
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT m_DebugMessenger;

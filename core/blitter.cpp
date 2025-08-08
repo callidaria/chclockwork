@@ -7,6 +7,7 @@
 #ifdef DEBUG
 #ifdef VKBUILD
 
+vector<const char*> _gpu_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };
 const char* _gpu_error_types[] = { "General","Specifics","Performance" };
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
@@ -50,6 +51,102 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 #ifdef VKBUILD
 
 /**
+ *	TODO
+ */
+VkSwapchainKHR SwapChain::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
+								 u32 pqueue,vector<u32>& queues)
+{
+	COMM_LOG("running swap chain setup");
+
+	// format selection
+	VkSurfaceFormatKHR __Format;
+	for (VkSurfaceFormatKHR& p_Format : formats)
+	{
+		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		{
+			__Format = p_Format;
+			goto swap_chain_selection_presentation;
+		}
+	}
+	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
+	__Format = formats[0];
+
+	// presentation mode selection
+swap_chain_selection_presentation:
+	VkPresentModeKHR __Mode;
+	for (VkPresentModeKHR& p_Mode : modes)
+	{
+		if ((p_Mode==VK_PRESENT_MODE_MAILBOX_KHR&&FRAME_BLITTER_VSYNC)
+			||(p_Mode==VK_PRESENT_MODE_IMMEDIATE_KHR&&!FRAME_BLITTER_VSYNC))
+		{
+			__Mode = p_Mode;
+			goto swap_chain_selection_extent;
+		}
+	}
+	COMM_MSG(LOG_YELLOW,"WARNING: desired mode not available, falling back to fifo mode");
+	__Mode = VK_PRESENT_MODE_FIFO_KHR;
+
+	// swap extent selection
+swap_chain_selection_extent:
+	VkExtent2D __Extent;
+	s32 __Width,__Height;
+	if (capabilities.currentExtent.width!=UINT32_MAX)
+	{
+		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
+		__Extent = capabilities.currentExtent;
+		goto swap_chain_creation;
+	}
+	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
+	__Extent = {
+		.width = glm::clamp((u32)__Width,capabilities.minImageExtent.width,capabilities.maxImageExtent.width),
+		.height = glm::clamp((u32)__Height,
+							 capabilities.minImageExtent.height,capabilities.maxImageExtent.height),
+	};
+
+	// create swapchain
+swap_chain_creation:
+	u32 __ImageCount = capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
+	__ImageCount = (capabilities.maxImageCount>0&&__ImageCount>capabilities.maxImageCount)
+			? capabilities.maxImageCount : __ImageCount;
+
+	// swapchain definition
+	VkSwapchainCreateInfoKHR __SwapchainInfo = {
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.surface = surface,
+		.minImageCount = __ImageCount,
+		.imageFormat = __Format.format,
+		.imageColorSpace = __Format.colorSpace,
+		.imageExtent = __Extent,
+		.imageArrayLayers = 1,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,  // TODO change to TRANSFER_DST_BIT later
+		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.preTransform = capabilities.currentTransform,
+		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,  // TODO very, very interesting...
+		.presentMode = __Mode,
+		.clipped = VK_TRUE,
+		.oldSwapchain = VK_NULL_HANDLE,  // TODO geez this looks like a ton of work in the future
+	};
+
+	// in case of split graphics & presentation queue
+	if (gqueue!=pqueue)
+	{
+		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
+				 "concurrent mode could result in performance issues");
+		__SwapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		__SwapchainInfo.queueFamilyIndexCount = 2;
+		__SwapchainInfo.pQueueFamilyIndices = &queues[0];
+	}
+	// TODO optimize away concurrent mode in this case
+
+	// initialize swapchain
+	VkSwapchainKHR __SwapChain;
+	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
+	return __SwapChain;
+}
+// TODO make all those features selectable by the user
+
+/**
  *	detect gpus
  *	TODO
  */
@@ -75,6 +172,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceFeatures(p_PhysicalGPU,&p_GPU.features);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
+		// TODO another something, not only should the required qfs be available but also all needed extensions
 
 		// get available queue families
 		u32 __QueueCount = 0;
@@ -90,22 +188,42 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			VkBool32 __SupportsPresenting = false;
 			p_GPU.graphical_queue = (__GraphicalQueue) ? j : p_GPU.graphical_queue;
 			vkGetPhysicalDeviceSurfaceSupportKHR(p_PhysicalGPU,j,surface,&__SupportsPresenting);
-			p_GPU.swap_queue = (__SupportsPresenting) ? j : p_GPU.swap_queue;
+			p_GPU.presentation_queue = (__SupportsPresenting) ? j : p_GPU.presentation_queue;
 			if (__GraphicalQueue||__SupportsPresenting) p_GPU.queues.push_back(j);
 		}
+
+		// get swap chain capabilities
+		u32 __FormatCount,__ModeCount;
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_PhysicalGPU,surface,&p_GPU.swap_chain.capabilities);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,&__FormatCount,nullptr);
+		if (!!__FormatCount)
+		{
+			p_GPU.swap_chain.formats.resize(__FormatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,
+												 &__FormatCount,&p_GPU.swap_chain.formats[0]);
+		}
+		vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,&__ModeCount,nullptr);
+		if (!!__ModeCount)
+		{
+			p_GPU.swap_chain.modes.resize(__ModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,
+													  &__ModeCount,&p_GPU.swap_chain.modes[0]);
+		}
+		// TODO depending on the swap chain capabilities, rule out possible bad devices & increase safety
+		//		careful! if the gpu has no swap chain extension in the first place this can get ugly!
 	}
 }
 
 /**
  *	TODO
  */
-void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& squeue,u8 id)
+void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id)
 {
-	COMM_LOG("interfacing with gpu %s",gpus[id].properties.deviceName);
+	COMM_LOG("selecting gpu %s",gpus[id].properties.deviceName);
 
 	// queue creation
 	COMM_ERR_COND(gpus[id].graphical_queue<0,"no graphical queue available on selected gpu");
-	COMM_ERR_COND(gpus[id].swap_queue<0,"no presentation queue available on selected gpu");
+	COMM_ERR_COND(gpus[id].presentation_queue<0,"no presentation queue available on selected gpu");
 	f32 __QueuePriority = 1.f;
 	vector<VkDeviceQueueCreateInfo> __QueueInfos = vector<VkDeviceQueueCreateInfo>(gpus[id].queues.size());
 	for (u32 i=0;i<__QueueInfos.size();i++)
@@ -132,7 +250,8 @@ void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue&
 #else
 		.enabledLayerCount = 0,
 #endif
-		.enabledExtensionCount = 0,
+		.enabledExtensionCount = (u32)_gpu_extensions.size(),
+		.ppEnabledExtensionNames = &_gpu_extensions[0],
 		.pEnabledFeatures = &__DeviceFeatures,
 	};
 
@@ -143,7 +262,7 @@ void Hardware::create_logical_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue&
 
 	// initialize queues
 	vkGetDeviceQueue(logical_gpu,gpus[id].graphical_queue,0,&gqueue);
-	vkGetDeviceQueue(logical_gpu,gpus[id].swap_queue,0,&squeue);
+	vkGetDeviceQueue(logical_gpu,gpus[id].presentation_queue,0,&pqueue);
 }
 
 #endif
@@ -271,8 +390,13 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 
 	// gpu setup
 	m_Hardware.detect(m_Instance,m_Surface);
-	m_Hardware.create_logical_gpu(m_GPULogical,m_GfxQueue,m_SwpQueue,0);
+	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,0);
+	m_SwapChain = m_Hardware.gpus[0].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
+													   m_Hardware.gpus[0].graphical_queue,
+													   m_Hardware.gpus[0].presentation_queue,
+													   m_Hardware.gpus[0].queues);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
+	// FIXME architecture of those calls create barely survivable conditions for my future career
 #endif
 
 	// vsync
@@ -335,6 +459,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
+	vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
 	vkDestroyDevice(m_GPULogical,nullptr);
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
