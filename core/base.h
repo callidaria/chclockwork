@@ -22,6 +22,7 @@
 #include <vector>
 #include <list>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
@@ -107,6 +108,7 @@ typedef std::thread thread;
 template<typename T> using vector = std::vector<T>;
 template<typename T> using list = std::list<T>;
 template<typename T> using queue = std::queue<T>;
+template<typename T> using set = std::set<T>;
 template<typename T,typename U> using map = std::unordered_map<T,U>;
 template<typename T> using lptr = typename std::list<T>::iterator;
 

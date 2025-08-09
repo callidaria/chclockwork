@@ -199,7 +199,24 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		// interrupt gpu read should queue support not be sufficient
 		if (!p_GPU.supported)
 		{
-			COMM_ERR("interrupting GPU read at index %i due to insufficient support",i);
+			COMM_ERR("interrupting GPU read at index %i due to insufficient queue support",i);
+			continue;
+		}
+
+		// get available extensions
+		u32 __ExtensionCount,__FormatCount,__ModeCount;
+		vkEnumerateDeviceExtensionProperties(p_PhysicalGPU,nullptr,&__ExtensionCount,nullptr);
+		p_GPU.extensions.resize(__ExtensionCount);
+		vkEnumerateDeviceExtensionProperties(p_PhysicalGPU,nullptr,&__ExtensionCount,&p_GPU.extensions[0]);
+
+		// checking extension support
+		set<string> __RequiredExtensions = set<string>(_gpu_extensions.begin(),_gpu_extensions.end());
+		for (VkExtensionProperties& __Extension : p_GPU.extensions)
+			__RequiredExtensions.erase(__Extension.extensionName);
+		p_GPU.supported = __RequiredExtensions.empty();
+		if (!p_GPU.supported)
+		{
+			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);
 			continue;
 		}
 
@@ -212,7 +229,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		// TODO another something, not only should the required qfs be available but also all needed extensions
 
 		// get swap chain format capabilities
-		u32 __FormatCount,__ModeCount;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_PhysicalGPU,surface,&p_GPU.swap_chain.capabilities);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,&__FormatCount,nullptr);
 		if (!!__FormatCount)
@@ -234,9 +250,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",p_GPU.properties.deviceName);
 		// TODO depending on the swap chain capabilities, rule out possible bad devices & increase safety
 		//		careful! if the gpu has no swap chain extension in the first place this can get ugly!
-
-		// check extension capabilities
-		// TODO
 	}
 }
 

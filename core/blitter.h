@@ -25,11 +25,12 @@ struct GPU
 {
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures features;
+	vector<VkExtensionProperties> extensions;
 	SwapChain swap_chain;
 	vector<u32> queues;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
-	u8 supported = 0;
+	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
 };
 
 struct Hardware
