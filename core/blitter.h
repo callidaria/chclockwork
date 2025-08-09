@@ -29,6 +29,7 @@ struct GPU
 	vector<u32> queues;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
+	u8 supported = 0;
 };
 
 struct Hardware

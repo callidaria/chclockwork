@@ -119,7 +119,6 @@ swap_chain_creation:
 		.imageExtent = __Extent,
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,  // TODO change to TRANSFER_DST_BIT later
-		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.preTransform = capabilities.currentTransform,
 		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,  // TODO very, very interesting...
 		.presentMode = __Mode,
@@ -136,12 +135,16 @@ swap_chain_creation:
 		__SwapchainInfo.queueFamilyIndexCount = 2;
 		__SwapchainInfo.pQueueFamilyIndices = &queues[0];
 	}
+	else __SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
 	VkSwapchainKHR __SwapChain;
+	/*
 	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
+	TODO make this call not segfault somehow
+	*/
 	return __SwapChain;
 }
 // TODO make all those features selectable by the user
@@ -167,13 +170,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		VkPhysicalDevice& p_PhysicalGPU = physical_gpus[i];
 		GPU& p_GPU = gpus[i];
 
-		// get device specifics
-		vkGetPhysicalDeviceProperties(p_PhysicalGPU,&p_GPU.properties);
-		vkGetPhysicalDeviceFeatures(p_PhysicalGPU,&p_GPU.features);
-		// TODO later, read the capabilities of the selected device, allow to change it and change features
-		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
-		// TODO another something, not only should the required qfs be available but also all needed extensions
-
 		// get available queue families
 		u32 __QueueCount = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,nullptr);
@@ -184,15 +180,38 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		p_GPU.queues.reserve(2);
 		for (u32 j=0;j<__QueueCount;j++)
 		{
+			// relevant queue features
 			bool __GraphicalQueue = __Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT;
-			VkBool32 __SupportsPresenting = false;
-			p_GPU.graphical_queue = (__GraphicalQueue) ? j : p_GPU.graphical_queue;
-			vkGetPhysicalDeviceSurfaceSupportKHR(p_PhysicalGPU,j,surface,&__SupportsPresenting);
-			p_GPU.presentation_queue = (__SupportsPresenting) ? j : p_GPU.presentation_queue;
-			if (__GraphicalQueue||__SupportsPresenting) p_GPU.queues.push_back(j);
+			VkBool32 __PresentingQueue = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(p_PhysicalGPU,j,surface,&__PresentingQueue);
+
+			// store info & check for sufficient queue support
+			if (__GraphicalQueue) p_GPU.graphical_queue = j;
+			if (__PresentingQueue) p_GPU.presentation_queue = j;
+			if (__GraphicalQueue||__PresentingQueue) p_GPU.queues.push_back(j);
+			if (p_GPU.graphical_queue!=-1&&p_GPU.presentation_queue!=-1)
+			{
+				p_GPU.supported = true;
+				break;
+			}
 		}
 
-		// get swap chain capabilities
+		// interrupt gpu read should queue support not be sufficient
+		if (!p_GPU.supported)
+		{
+			COMM_ERR("interrupting GPU read at index %i due to insufficient support",i);
+			continue;
+		}
+
+		// get device specifics
+		vkGetPhysicalDeviceProperties(p_PhysicalGPU,&p_GPU.properties);
+		vkGetPhysicalDeviceFeatures(p_PhysicalGPU,&p_GPU.features);
+		COMM_SCC("found supported GPU %s",p_GPU.properties.deviceName);
+		// TODO later, read the capabilities of the selected device, allow to change it and change features
+		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
+		// TODO another something, not only should the required qfs be available but also all needed extensions
+
+		// get swap chain format capabilities
 		u32 __FormatCount,__ModeCount;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_PhysicalGPU,surface,&p_GPU.swap_chain.capabilities);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,&__FormatCount,nullptr);
@@ -202,6 +221,9 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,
 												 &__FormatCount,&p_GPU.swap_chain.formats[0]);
 		}
+		COMM_ERR_FALLBACK("no surface formats found for GPU %s",p_GPU.properties.deviceName);
+
+		// get swap chain mode capabilities
 		vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,&__ModeCount,nullptr);
 		if (!!__ModeCount)
 		{
@@ -209,8 +231,12 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,
 													  &__ModeCount,&p_GPU.swap_chain.modes[0]);
 		}
+		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",p_GPU.properties.deviceName);
 		// TODO depending on the swap chain capabilities, rule out possible bad devices & increase safety
 		//		careful! if the gpu has no swap chain extension in the first place this can get ugly!
+
+		// check extension capabilities
+		// TODO
 	}
 }
 
@@ -389,12 +415,13 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
 
 	// gpu setup
+	u8 did = 0;
 	m_Hardware.detect(m_Instance,m_Surface);
-	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,0);
-	m_SwapChain = m_Hardware.gpus[0].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
-													   m_Hardware.gpus[0].graphical_queue,
-													   m_Hardware.gpus[0].presentation_queue,
-													   m_Hardware.gpus[0].queues);
+	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,did);
+	m_SwapChain = m_Hardware.gpus[did].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
+														 m_Hardware.gpus[did].graphical_queue,
+														 m_Hardware.gpus[did].presentation_queue,
+														 m_Hardware.gpus[did].queues);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 	// FIXME architecture of those calls create barely survivable conditions for my future career
 #endif
@@ -459,7 +486,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
+	//vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
 	vkDestroyDevice(m_GPULogical,nullptr);
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
