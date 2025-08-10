@@ -4,10 +4,10 @@
 // ----------------------------------------------------------------------------------------------------
 // GPU Error Callbacks
 
-#ifdef DEBUG
 #ifdef VKBUILD
-
 vector<const char*> _gpu_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+#ifdef DEBUG
 vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };
 const char* _gpu_error_types[] = { "General","Specifics","Performance" };
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
@@ -54,7 +54,7 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
  *	TODO
  */
 VkSwapchainKHR SwapChain::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
-								 u32 pqueue,vector<u32>& queues)
+								 u32 pqueue,set<u32>& queues)
 {
 	COMM_LOG("running swap chain setup");
 
@@ -110,41 +110,38 @@ swap_chain_creation:
 			? capabilities.maxImageCount : __ImageCount;
 
 	// swapchain definition
-	VkSwapchainCreateInfoKHR __SwapchainInfo = {
-		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-		.surface = surface,
-		.minImageCount = __ImageCount,
-		.imageFormat = __Format.format,
-		.imageColorSpace = __Format.colorSpace,
-		.imageExtent = __Extent,
-		.imageArrayLayers = 1,
-		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,  // TODO change to TRANSFER_DST_BIT later
-		.preTransform = capabilities.currentTransform,
-		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,  // TODO very, very interesting...
-		.presentMode = __Mode,
-		.clipped = VK_TRUE,
-		.oldSwapchain = VK_NULL_HANDLE,  // TODO geez this looks like a ton of work in the future
-	};
+	VkSwapchainCreateInfoKHR __SwapchainInfo = {};
+	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	__SwapchainInfo.surface = surface;
+	__SwapchainInfo.minImageCount = __ImageCount;
+	__SwapchainInfo.imageFormat = __Format.format;
+	__SwapchainInfo.imageColorSpace = __Format.colorSpace;
+	__SwapchainInfo.imageExtent = __Extent;
+	__SwapchainInfo.imageArrayLayers = 1;
+	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
+	__SwapchainInfo.preTransform = capabilities.currentTransform;
+	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
+	__SwapchainInfo.presentMode = __Mode;
+	__SwapchainInfo.clipped = VK_TRUE;
+	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO geez this looks like a ton of work in the future
 
 	// in case of split graphics & presentation queue
+	vector<u32> __Queues = vector<u32>(queues.begin(),queues.end());
 	if (gqueue!=pqueue)
 	{
 		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
 				 "concurrent mode could result in performance issues");
 		__SwapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		__SwapchainInfo.queueFamilyIndexCount = 2;
-		__SwapchainInfo.pQueueFamilyIndices = &queues[0];
+		__SwapchainInfo.pQueueFamilyIndices = &__Queues[0];
 	}
 	else __SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
 	VkSwapchainKHR __SwapChain;
-	/*
 	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
-	TODO make this call not segfault somehow
-	*/
 	return __SwapChain;
 }
 // TODO make all those features selectable by the user
@@ -177,7 +174,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,&__Queues[0]);
 
 		// iterate queue families & extract ids
-		p_GPU.queues.reserve(2);
 		for (u32 j=0;j<__QueueCount;j++)
 		{
 			// relevant queue features
@@ -188,9 +184,9 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			// store info & check for sufficient queue support
 			if (__GraphicalQueue) p_GPU.graphical_queue = j;
 			if (__PresentingQueue) p_GPU.presentation_queue = j;
-			if (__GraphicalQueue||__PresentingQueue) p_GPU.queues.push_back(j);
 			if (p_GPU.graphical_queue!=-1&&p_GPU.presentation_queue!=-1)
 			{
+				p_GPU.queues = { (u32)p_GPU.graphical_queue,(u32)p_GPU.presentation_queue };
 				p_GPU.supported = true;
 				break;
 			}
@@ -259,40 +255,39 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id)
 {
 	COMM_LOG("selecting gpu %s",gpus[id].properties.deviceName);
+	COMM_ERR_COND(!gpus[id].supported,"selected gpu %u is not supported",id);
 
 	// queue creation
-	COMM_ERR_COND(gpus[id].graphical_queue<0,"no graphical queue available on selected gpu");
-	COMM_ERR_COND(gpus[id].presentation_queue<0,"no presentation queue available on selected gpu");
 	f32 __QueuePriority = 1.f;
-	vector<VkDeviceQueueCreateInfo> __QueueInfos = vector<VkDeviceQueueCreateInfo>(gpus[id].queues.size());
-	for (u32 i=0;i<__QueueInfos.size();i++)
+	vector<VkDeviceQueueCreateInfo> __QueueInfos;
+	__QueueInfos.reserve(gpus[id].queues.size());
+	for (u32 __QueueID : gpus[id].queues)
 	{
-		__QueueInfos[i] = {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.queueFamilyIndex = (u32)gpus[id].queues[i],
-			.queueCount = 1,
-			.pQueuePriorities = &__QueuePriority,
-		};
+		__QueueInfos.push_back({  });
+		__QueueInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		__QueueInfos.back().queueFamilyIndex = __QueueID;
+		__QueueInfos.back().queueCount = 1;
+		__QueueInfos.back().pQueuePriorities = &__QueuePriority;
 	}
 
 	// device features
 	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
 
 	// device creation specifics
-	VkDeviceCreateInfo __DeviceInfo = {
-		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.queueCreateInfoCount = (u32)__QueueInfos.size(),
-		.pQueueCreateInfos = &__QueueInfos[0],
+	VkDeviceCreateInfo __DeviceInfo = {};
+	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
+	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
+	__DeviceInfo.enabledLayerCount = 0;
+	__DeviceInfo.enabledExtensionCount = (u32)_gpu_extensions.size();
+	__DeviceInfo.ppEnabledExtensionNames = &_gpu_extensions[0];
+	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
+
+	// enable validation layers here as well for safety, even though it's deprecated
 #ifdef DEBUG
-		.enabledLayerCount = (u32)_validation_layers.size(),
-		.ppEnabledLayerNames = &_validation_layers[0],
-#else
-		.enabledLayerCount = 0,
+	__DeviceInfo.enabledLayerCount = (u32)_validation_layers.size();
+	__DeviceInfo.ppEnabledLayerNames = &_validation_layers[0];
 #endif
-		.enabledExtensionCount = (u32)_gpu_extensions.size(),
-		.ppEnabledExtensionNames = &_gpu_extensions[0],
-		.pEnabledFeatures = &__DeviceFeatures,
-	};
 
 	// create device
 	VkResult __Result = vkCreateDevice(physical_gpus[id],&__DeviceInfo,nullptr,&logical_gpu);
@@ -322,7 +317,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #ifdef __SYSTEM_64BIT
 		"64-bit";
 #else
-	"32-bit";
+		"32-bit";
 #endif
 
 	COMM_MSG(LOG_YELLOW,"setup sdl version 3.3. %s",__BitWidth);
@@ -369,14 +364,13 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 							   width,height,SDL_WINDOW_VULKAN);
 
 	// application info
-	VkApplicationInfo __ApplicationInfo = {
-		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-		.pApplicationName = title,
-		.applicationVersion = VK_MAKE_VERSION(0,0,1),
-		.pEngineName = "C. Hanson's Clockwork",
-		.engineVersion = VK_MAKE_VERSION(0,0,1),
-		.apiVersion = VK_API_VERSION_1_0,
-	};
+	VkApplicationInfo __ApplicationInfo = {};
+	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	__ApplicationInfo.pApplicationName = title;
+	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
 
 	// extensions
 	u32 __ExtensionCount;
@@ -384,33 +378,35 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	vector<const char*> __Extensions(__ExtensionCount);
 	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,&__Extensions[0]);
 #ifdef DEBUG
-	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo {
-		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-		.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-				|VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-				|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-				|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-		.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-				|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-				|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-		.pfnUserCallback = _gpu_error_callback,
-	};
+	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
+	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
 	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 
 	COMM_LOG("creating vulkan instance");
-	VkInstanceCreateInfo __CreateInfo = {
-		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-		.pApplicationInfo = &__ApplicationInfo,
-		.enabledLayerCount = 0,
-		.enabledExtensionCount = (u32)__Extensions.size(),
-		.ppEnabledExtensionNames = &__Extensions[0],
-	};
+	VkInstanceCreateInfo __CreateInfo = {};
+	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
+	__CreateInfo.enabledLayerCount = 0;
+	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
+	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
+
+	// setup validation layers for gpu auto-logging
 #ifdef DEBUG
 	__CreateInfo.enabledLayerCount = (u32)_validation_layers.size();
 	__CreateInfo.ppEnabledLayerNames = &_validation_layers[0];
 	__CreateInfo.pNext = &__DebugMessengerInfo;
 #endif
+
+	// creating vulkan instance
 	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&m_Instance);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
 

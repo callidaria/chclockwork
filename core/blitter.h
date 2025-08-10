@@ -13,7 +13,7 @@ struct SwapChain
 {
 	// utility
 	VkSwapchainKHR select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
-						  u32 pqueue,vector<u32>& queues);
+						  u32 pqueue,set<u32>& queues);
 
 	// data
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -27,7 +27,7 @@ struct GPU
 	VkPhysicalDeviceFeatures features;
 	vector<VkExtensionProperties> extensions;
 	SwapChain swap_chain;
-	vector<u32> queues;
+	set<u32> queues;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
 	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
