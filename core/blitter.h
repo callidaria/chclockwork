@@ -9,7 +9,7 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
 #ifdef VKBUILD
-struct SwapChain
+struct SwapChainCapabilities
 {
 	// utility
 	VkSwapchainKHR select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
@@ -23,10 +23,11 @@ struct SwapChain
 
 struct GPU
 {
+	VkPhysicalDevice gpu;
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures features;
 	vector<VkExtensionProperties> extensions;
-	SwapChain swap_chain;
+	SwapChainCapabilities swap_chain;
 	set<u32> queues;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
@@ -40,7 +41,6 @@ struct Hardware
 	void select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id);
 
 	// data
-	vector<VkPhysicalDevice> physical_gpus;
 	vector<GPU> gpus;
 };
 #endif
