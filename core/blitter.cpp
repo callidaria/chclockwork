@@ -9,21 +9,25 @@ vector<const char*> _gpu_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 #ifdef DEBUG
 vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };
-const char* _gpu_error_types[] = { "General","Specifics","Performance" };
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
 												   const VkDebugUtilsMessengerCallbackDataEXT* cb,
 												   void* udata)
 {
-	switch (sev)
-	{
-	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-		COMM_ERR("[GPU] %s!%s%s %s",LOG_BLUE,_gpu_error_types[type],LOG_RED,cb->pMessage);
-		break;
-	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-		COMM_MSG(LOG_YELLOW,"[GPU Warning] %s!%s%s %s",LOG_BLUE,_gpu_error_types[type],LOG_YELLOW,cb->pMessage);
-		break;
-	};
+	// error type recognition
+	string __ErrType = "";
+	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) ? "!General " : "";
+	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) ? "!Specifics " : "";
+	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) ? "!Performance " : "";
+	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT) ? "!Memory " : "";
+	// TODO enable VK_EXT_device_address_binding_report
+
+	// error logging
+	if (sev&VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+		COMM_ERR("[GPU] %s%s%s%s",LOG_BLUE,__ErrType.c_str(),LOG_RED,cb->pMessage)
+	else if (sev&VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+		COMM_MSG(LOG_YELLOW,"[GPU Warning] %s%s%s%s",LOG_BLUE,__ErrType.c_str(),LOG_YELLOW,cb->pMessage)
+	else COMM_LOG("[Vulkan] %s",cb->pMessage);
 	return VK_FALSE;
 }
 
@@ -380,8 +384,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #ifdef DEBUG
 	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
 	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+	__DebugMessengerInfo.messageSeverity = /*VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+			|*/VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
