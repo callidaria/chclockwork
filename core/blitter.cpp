@@ -144,8 +144,10 @@ swap_chain_creation:
 
 	// initialize swapchain
 	VkSwapchainKHR __SwapChain;
+	/*
 	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
+	*/
 	return __SwapChain;
 }
 // TODO make all those features selectable by the user
@@ -282,7 +284,6 @@ void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,
 	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
 	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
-	__DeviceInfo.enabledLayerCount = 0;
 	__DeviceInfo.enabledExtensionCount = (u32)_gpu_extensions.size();
 	__DeviceInfo.ppEnabledExtensionNames = &_gpu_extensions[0];
 	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
@@ -291,6 +292,8 @@ void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,
 #ifdef DEBUG
 	__DeviceInfo.enabledLayerCount = (u32)_validation_layers.size();
 	__DeviceInfo.ppEnabledLayerNames = &_validation_layers[0];
+#else
+	__DeviceInfo.enabledLayerCount = 0;
 #endif
 
 	// create device
@@ -390,7 +393,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
 	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
 	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
@@ -431,6 +435,9 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	u8 did = 0;
 	m_Hardware.detect(m_Instance,m_Surface);
 	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,did);
+	PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR
+			= (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(m_GPULogical,"vkCreateSwapchainKHR");
+	COMM_ERR_COND(vkCreateSwapchainKHR==nullptr,"no fp help!");
 	m_SwapChain = m_Hardware.gpus[did].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
 														 m_Hardware.gpus[did].graphical_queue,
 														 m_Hardware.gpus[did].presentation_queue,
