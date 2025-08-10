@@ -448,6 +448,12 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Additional Globals
 
+#ifdef VKBUILD
+inline vector<const char*> g_GPUExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+};
+#endif
+
 inline FT_Library g_FreetypeLibrary;
 
 

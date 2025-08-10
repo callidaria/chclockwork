@@ -4,10 +4,8 @@
 // ----------------------------------------------------------------------------------------------------
 // GPU Error Callbacks
 
-#ifdef VKBUILD
-vector<const char*> _gpu_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
 #ifdef DEBUG
+#ifdef VKBUILD
 vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
@@ -26,8 +24,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFl
 	if (sev&VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
 		COMM_ERR("[GPU] %s%s%s%s",LOG_BLUE,__ErrType.c_str(),LOG_RED,cb->pMessage)
 	else if (sev&VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-		COMM_MSG(LOG_YELLOW,"[GPU Warning] %s%s%s%s",LOG_BLUE,__ErrType.c_str(),LOG_YELLOW,cb->pMessage)
-	else COMM_LOG("[Vulkan] %s",cb->pMessage);
+		COMM_MSG(LOG_YELLOW,"[GPU Warning] %s%s%s%s",LOG_BLUE,__ErrType.c_str(),LOG_YELLOW,cb->pMessage);
 	return VK_FALSE;
 }
 
@@ -144,10 +141,8 @@ swap_chain_creation:
 
 	// initialize swapchain
 	VkSwapchainKHR __SwapChain;
-	/*
 	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
-	*/
 	return __SwapChain;
 }
 // TODO make all those features selectable by the user
@@ -170,14 +165,11 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 	gpus.resize(__GPUCount);
 	for (u8 i=0;i<__GPUCount;i++)
 	{
-		VkPhysicalDevice& p_PhysicalGPU = physical_gpus[i];
-		GPU& p_GPU = gpus[i];
-
 		// get available queue families
 		u32 __QueueCount = 0;
-		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,nullptr);
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_gpus[i],&__QueueCount,nullptr);
 		vector<VkQueueFamilyProperties> __Queues(__QueueCount);
-		vkGetPhysicalDeviceQueueFamilyProperties(p_PhysicalGPU,&__QueueCount,&__Queues[0]);
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_gpus[i],&__QueueCount,&__Queues[0]);
 
 		// iterate queue families & extract ids
 		for (u32 j=0;j<__QueueCount;j++)
@@ -185,21 +177,21 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			// relevant queue features
 			bool __GraphicalQueue = __Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT;
 			VkBool32 __PresentingQueue = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(p_PhysicalGPU,j,surface,&__PresentingQueue);
+			vkGetPhysicalDeviceSurfaceSupportKHR(physical_gpus[i],j,surface,&__PresentingQueue);
 
 			// store info & check for sufficient queue support
-			if (__GraphicalQueue) p_GPU.graphical_queue = j;
-			if (__PresentingQueue) p_GPU.presentation_queue = j;
-			if (p_GPU.graphical_queue!=-1&&p_GPU.presentation_queue!=-1)
+			if (__GraphicalQueue) gpus[i].graphical_queue = j;
+			if (__PresentingQueue) gpus[i].presentation_queue = j;
+			if (gpus[i].graphical_queue!=-1&&gpus[i].presentation_queue!=-1)
 			{
-				p_GPU.queues = { (u32)p_GPU.graphical_queue,(u32)p_GPU.presentation_queue };
-				p_GPU.supported = true;
+				gpus[i].queues = { (u32)gpus[i].graphical_queue,(u32)gpus[i].presentation_queue };
+				gpus[i].supported = true;
 				break;
 			}
 		}
 
 		// interrupt gpu read should queue support not be sufficient
-		if (!p_GPU.supported)
+		if (!gpus[i].supported)
 		{
 			COMM_ERR("interrupting GPU read at index %i due to insufficient queue support",i);
 			continue;
@@ -207,49 +199,49 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 
 		// get available extensions
 		u32 __ExtensionCount,__FormatCount,__ModeCount;
-		vkEnumerateDeviceExtensionProperties(p_PhysicalGPU,nullptr,&__ExtensionCount,nullptr);
-		p_GPU.extensions.resize(__ExtensionCount);
-		vkEnumerateDeviceExtensionProperties(p_PhysicalGPU,nullptr,&__ExtensionCount,&p_GPU.extensions[0]);
+		vkEnumerateDeviceExtensionProperties(physical_gpus[i],nullptr,&__ExtensionCount,nullptr);
+		gpus[i].extensions.resize(__ExtensionCount);
+		vkEnumerateDeviceExtensionProperties(physical_gpus[i],nullptr,&__ExtensionCount,&gpus[i].extensions[0]);
 
 		// checking extension support
-		set<string> __RequiredExtensions = set<string>(_gpu_extensions.begin(),_gpu_extensions.end());
-		for (VkExtensionProperties& __Extension : p_GPU.extensions)
+		set<string> __RequiredExtensions = set<string>(g_GPUExtensions.begin(),g_GPUExtensions.end());
+		for (VkExtensionProperties& __Extension : gpus[i].extensions)
 			__RequiredExtensions.erase(__Extension.extensionName);
-		p_GPU.supported = __RequiredExtensions.empty();
-		if (!p_GPU.supported)
+		gpus[i].supported = __RequiredExtensions.empty();
+		if (!gpus[i].supported)
 		{
 			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);
 			continue;
 		}
 
 		// get device specifics
-		vkGetPhysicalDeviceProperties(p_PhysicalGPU,&p_GPU.properties);
-		vkGetPhysicalDeviceFeatures(p_PhysicalGPU,&p_GPU.features);
-		COMM_SCC("found supported GPU %s",p_GPU.properties.deviceName);
+		vkGetPhysicalDeviceProperties(physical_gpus[i],&gpus[i].properties);
+		vkGetPhysicalDeviceFeatures(physical_gpus[i],&gpus[i].features);
+		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
 		// TODO another something, not only should the required qfs be available but also all needed extensions
 
 		// get swap chain format capabilities
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(p_PhysicalGPU,surface,&p_GPU.swap_chain.capabilities);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,&__FormatCount,nullptr);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_gpus[i],surface,&gpus[i].swap_chain.capabilities);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(physical_gpus[i],surface,&__FormatCount,nullptr);
 		if (!!__FormatCount)
 		{
-			p_GPU.swap_chain.formats.resize(__FormatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(p_PhysicalGPU,surface,
-												 &__FormatCount,&p_GPU.swap_chain.formats[0]);
+			gpus[i].swap_chain.formats.resize(__FormatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(physical_gpus[i],surface,
+												 &__FormatCount,&gpus[i].swap_chain.formats[0]);
 		}
-		COMM_ERR_FALLBACK("no surface formats found for GPU %s",p_GPU.properties.deviceName);
+		COMM_ERR_FALLBACK("no surface formats found for GPU %s",gpus[i].properties.deviceName);
 
 		// get swap chain mode capabilities
-		vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,&__ModeCount,nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physical_gpus[i],surface,&__ModeCount,nullptr);
 		if (!!__ModeCount)
 		{
-			p_GPU.swap_chain.modes.resize(__ModeCount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(p_PhysicalGPU,surface,
-													  &__ModeCount,&p_GPU.swap_chain.modes[0]);
+			gpus[i].swap_chain.modes.resize(__ModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_gpus[i],surface,
+													  &__ModeCount,&gpus[i].swap_chain.modes[0]);
 		}
-		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",p_GPU.properties.deviceName);
+		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
 		// TODO depending on the swap chain capabilities, rule out possible bad devices & increase safety
 		//		careful! if the gpu has no swap chain extension in the first place this can get ugly!
 	}
@@ -284,8 +276,8 @@ void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,
 	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
 	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
-	__DeviceInfo.enabledExtensionCount = (u32)_gpu_extensions.size();
-	__DeviceInfo.ppEnabledExtensionNames = &_gpu_extensions[0];
+	__DeviceInfo.enabledExtensionCount = (u32)g_GPUExtensions.size();
+	__DeviceInfo.ppEnabledExtensionNames = &g_GPUExtensions[0];
 	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
 
 	// enable validation layers here as well for safety, even though it's deprecated
@@ -387,8 +379,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #ifdef DEBUG
 	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
 	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	__DebugMessengerInfo.messageSeverity = /*VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-			|*/VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
@@ -435,9 +426,6 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	u8 did = 0;
 	m_Hardware.detect(m_Instance,m_Surface);
 	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,did);
-	PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR
-			= (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(m_GPULogical,"vkCreateSwapchainKHR");
-	COMM_ERR_COND(vkCreateSwapchainKHR==nullptr,"no fp help!");
 	m_SwapChain = m_Hardware.gpus[did].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
 														 m_Hardware.gpus[did].graphical_queue,
 														 m_Hardware.gpus[did].presentation_queue,
@@ -506,7 +494,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	//vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
+	vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
 	vkDestroyDevice(m_GPULogical,nullptr);
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
