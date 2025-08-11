@@ -6,7 +6,6 @@
 
 #ifdef DEBUG
 #ifdef VKBUILD
-vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };  // TODO consider this broken?
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
 												   const VkDebugUtilsMessengerCallbackDataEXT* cb,
@@ -87,8 +86,8 @@ void GPU::select(SDL_Window* frame,VkSurfaceKHR surface,
 
 	// enable validation layers here as well for safety, even though it's deprecated
 #ifdef DEBUG
-	__DeviceInfo.enabledLayerCount = (u32)_validation_layers.size();
-	__DeviceInfo.ppEnabledLayerNames = &_validation_layers[0];
+	__DeviceInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__DeviceInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
 #else
 	__DeviceInfo.enabledLayerCount = 0;
 #endif
@@ -396,8 +395,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 
 	// setup validation layers for gpu auto-logging
 #ifdef DEBUG
-	__CreateInfo.enabledLayerCount = (u32)_validation_layers.size();
-	__CreateInfo.ppEnabledLayerNames = &_validation_layers[0];
+	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
 	__CreateInfo.pNext = &__DebugMessengerInfo;
 #endif
 

@@ -452,6 +452,9 @@ private:
 inline vector<const char*> g_GPUExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
+inline vector<const char*> g_ValidationLayers = {
+	"VK_LAYER_KHRONOS_validation"
+};
 #endif
 
 inline FT_Library g_FreetypeLibrary;
