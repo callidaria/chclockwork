@@ -19,7 +19,8 @@ struct SwapChain
 struct GPU
 {
 	// utility
-	void select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,VkSwapchainKHR& swapchain);
+	void select(SDL_Window* frame,VkSurfaceKHR surface,
+				VkDevice& lgpu,VkQueue& gqueue,VkQueue& pqueue,VkSwapchainKHR& swapchain);
 
 	// data
 	VkPhysicalDevice gpu;
@@ -37,7 +38,6 @@ struct Hardware
 {
 	// utility
 	void detect(VkInstance instance,VkSurfaceKHR surface);
-	void select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id);
 
 	// data
 	vector<GPU> gpus;

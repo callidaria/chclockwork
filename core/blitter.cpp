@@ -6,7 +6,7 @@
 
 #ifdef DEBUG
 #ifdef VKBUILD
-vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };
+vector<const char*> _validation_layers = { "VK_LAYER_KHRONOS_validation" };  // TODO consider this broken?
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
 												   const VkDebugUtilsMessengerCallbackDataEXT* cb,
@@ -54,11 +54,55 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 /**
  *	TODO
  */
-void GPU::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,VkSwapchainKHR& swapchain)
+void GPU::select(SDL_Window* frame,VkSurfaceKHR surface,
+				 VkDevice& lgpu,VkQueue& gqueue,VkQueue& pqueue,VkSwapchainKHR& swapchain)
 {
-	COMM_LOG("running swap chain setup");
+	COMM_ERR_COND(!supported,"selected gpu is not supported");
+	COMM_LOG("selecting gpu %s",properties.deviceName);
+
+	// queue creation
+	f32 __QueuePriority = 1.f;
+	vector<VkDeviceQueueCreateInfo> __QueueInfos;
+	__QueueInfos.reserve(queues.size());
+	for (u32 __QueueID : queues)
+	{
+		__QueueInfos.push_back({  });
+		__QueueInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		__QueueInfos.back().queueFamilyIndex = __QueueID;
+		__QueueInfos.back().queueCount = 1;
+		__QueueInfos.back().pQueuePriorities = &__QueuePriority;
+	}
+
+	// device features
+	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
+
+	// device creation specifics
+	VkDeviceCreateInfo __DeviceInfo = {};
+	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
+	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
+	__DeviceInfo.enabledExtensionCount = (u32)g_GPUExtensions.size();
+	__DeviceInfo.ppEnabledExtensionNames = &g_GPUExtensions[0];
+	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
+
+	// enable validation layers here as well for safety, even though it's deprecated
+#ifdef DEBUG
+	__DeviceInfo.enabledLayerCount = (u32)_validation_layers.size();
+	__DeviceInfo.ppEnabledLayerNames = &_validation_layers[0];
+#else
+	__DeviceInfo.enabledLayerCount = 0;
+#endif
+
+	// create device
+	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&lgpu);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
+
+	// initialize queues
+	vkGetDeviceQueue(lgpu,graphical_queue,0,&gqueue);
+	vkGetDeviceQueue(lgpu,presentation_queue,0,&pqueue);
 
 	// format selection
+	COMM_LOG("running swap chain setup");
 	VkSurfaceFormatKHR __Format;
 	for (VkSurfaceFormatKHR& p_Format : swap_chain.formats)
 	{
@@ -142,7 +186,7 @@ swap_chain_creation:
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
-	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&swapchain);
+	__Result = vkCreateSwapchainKHR(lgpu,&__SwapchainInfo,nullptr,&swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
 }
 // TODO make all those features selectable by the user
@@ -247,60 +291,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 													  &__ModeCount,&gpus[i].swap_chain.modes[0]);
 		}
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
-		// TODO depending on the swap chain capabilities, rule out possible bad devices & increase safety
-		//		careful! if the gpu has no swap chain extension in the first place this can get ugly!
 	}
-}
-
-/**
- *	TODO
- */
-void Hardware::select_gpu(VkDevice& logical_gpu,VkQueue& gqueue,VkQueue& pqueue,u8 id)
-{
-	COMM_LOG("selecting gpu %s",gpus[id].properties.deviceName);
-	COMM_ERR_COND(!gpus[id].supported,"selected gpu %u is not supported",id);
-
-	// queue creation
-	f32 __QueuePriority = 1.f;
-	vector<VkDeviceQueueCreateInfo> __QueueInfos;
-	__QueueInfos.reserve(gpus[id].queues.size());
-	for (u32 __QueueID : gpus[id].queues)
-	{
-		__QueueInfos.push_back({  });
-		__QueueInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		__QueueInfos.back().queueFamilyIndex = __QueueID;
-		__QueueInfos.back().queueCount = 1;
-		__QueueInfos.back().pQueuePriorities = &__QueuePriority;
-	}
-
-	// device features
-	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
-
-	// device creation specifics
-	VkDeviceCreateInfo __DeviceInfo = {};
-	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
-	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
-	__DeviceInfo.enabledExtensionCount = (u32)g_GPUExtensions.size();
-	__DeviceInfo.ppEnabledExtensionNames = &g_GPUExtensions[0];
-	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
-
-	// enable validation layers here as well for safety, even though it's deprecated
-#ifdef DEBUG
-	__DeviceInfo.enabledLayerCount = (u32)_validation_layers.size();
-	__DeviceInfo.ppEnabledLayerNames = &_validation_layers[0];
-#else
-	__DeviceInfo.enabledLayerCount = 0;
-#endif
-
-	// create device
-	VkResult __Result = vkCreateDevice(gpus[id].gpu,&__DeviceInfo,nullptr,&logical_gpu);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,
-				  "could not create logical interface for gpu %s",gpus[id].properties.deviceName);
-
-	// initialize queues
-	vkGetDeviceQueue(logical_gpu,gpus[id].graphical_queue,0,&gqueue);
-	vkGetDeviceQueue(logical_gpu,gpus[id].presentation_queue,0,&pqueue);
 }
 
 #endif
@@ -430,10 +421,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	// gpu setup
 	u8 did = 0;
 	m_Hardware.detect(m_Instance,m_Surface);
-	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,did);
-	m_Hardware.gpus[did].select(m_Frame,m_GPULogical,m_Surface,m_SwapChain);
+	m_Hardware.gpus[did].select(m_Frame,m_Surface,m_GPULogical,m_GraphicsQueue,m_PresentationQueue,m_SwapChain);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
-	// FIXME architecture of those calls create barely survivable conditions for my future career
 #endif
 
 	// vsync
