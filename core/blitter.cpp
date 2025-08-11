@@ -54,14 +54,13 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 /**
  *	TODO
  */
-VkSwapchainKHR SwapChain::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,u32 gqueue,
-								 u32 pqueue,set<u32>& queues)
+void GPU::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR surface,VkSwapchainKHR& swapchain)
 {
 	COMM_LOG("running swap chain setup");
 
 	// format selection
 	VkSurfaceFormatKHR __Format;
-	for (VkSurfaceFormatKHR& p_Format : formats)
+	for (VkSurfaceFormatKHR& p_Format : swap_chain.formats)
 	{
 		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
@@ -70,12 +69,12 @@ VkSwapchainKHR SwapChain::select(SDL_Window* frame,VkDevice gpu,VkSurfaceKHR sur
 		}
 	}
 	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
-	__Format = formats[0];
+	__Format = swap_chain.formats[0];
 
 	// presentation mode selection
 swap_chain_selection_presentation:
 	VkPresentModeKHR __Mode;
-	for (VkPresentModeKHR& p_Mode : modes)
+	for (VkPresentModeKHR& p_Mode : swap_chain.modes)
 	{
 		if ((p_Mode==VK_PRESENT_MODE_MAILBOX_KHR&&FRAME_BLITTER_VSYNC)
 			||(p_Mode==VK_PRESENT_MODE_IMMEDIATE_KHR&&!FRAME_BLITTER_VSYNC))
@@ -91,24 +90,27 @@ swap_chain_selection_presentation:
 swap_chain_selection_extent:
 	VkExtent2D __Extent;
 	s32 __Width,__Height;
-	if (capabilities.currentExtent.width!=UINT32_MAX)
+	if (swap_chain.capabilities.currentExtent.width!=UINT32_MAX)
 	{
 		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
-		__Extent = capabilities.currentExtent;
+		__Extent = swap_chain.capabilities.currentExtent;
 		goto swap_chain_creation;
 	}
 	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
 	__Extent = {
-		.width = glm::clamp((u32)__Width,capabilities.minImageExtent.width,capabilities.maxImageExtent.width),
+		.width = glm::clamp((u32)__Width,
+							swap_chain.capabilities.minImageExtent.width,
+							swap_chain.capabilities.maxImageExtent.width),
 		.height = glm::clamp((u32)__Height,
-							 capabilities.minImageExtent.height,capabilities.maxImageExtent.height),
+							 swap_chain.capabilities.minImageExtent.height,
+							 swap_chain.capabilities.maxImageExtent.height),
 	};
 
 	// create swapchain
 swap_chain_creation:
-	u32 __ImageCount = capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
-	__ImageCount = (capabilities.maxImageCount>0&&__ImageCount>capabilities.maxImageCount)
-			? capabilities.maxImageCount : __ImageCount;
+	u32 __ImageCount = swap_chain.capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
+	__ImageCount = (swap_chain.capabilities.maxImageCount>0&&__ImageCount>swap_chain.capabilities.maxImageCount)
+			? swap_chain.capabilities.maxImageCount : __ImageCount;
 
 	// swapchain definition
 	VkSwapchainCreateInfoKHR __SwapchainInfo = {};
@@ -120,7 +122,7 @@ swap_chain_creation:
 	__SwapchainInfo.imageExtent = __Extent;
 	__SwapchainInfo.imageArrayLayers = 1;
 	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
-	__SwapchainInfo.preTransform = capabilities.currentTransform;
+	__SwapchainInfo.preTransform = swap_chain.capabilities.currentTransform;
 	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
 	__SwapchainInfo.presentMode = __Mode;
 	__SwapchainInfo.clipped = VK_TRUE;
@@ -128,7 +130,7 @@ swap_chain_creation:
 
 	// in case of split graphics & presentation queue
 	vector<u32> __Queues = vector<u32>(queues.begin(),queues.end());
-	if (gqueue!=pqueue)
+	if (graphical_queue!=presentation_queue)
 	{
 		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
 				 "concurrent mode could result in performance issues");
@@ -140,10 +142,8 @@ swap_chain_creation:
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
-	VkSwapchainKHR __SwapChain;
-	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&__SwapChain);
+	VkResult __Result = vkCreateSwapchainKHR(gpu,&__SwapchainInfo,nullptr,&swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
-	return __SwapChain;
 }
 // TODO make all those features selectable by the user
 
@@ -431,10 +431,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	u8 did = 0;
 	m_Hardware.detect(m_Instance,m_Surface);
 	m_Hardware.select_gpu(m_GPULogical,m_GraphicsQueue,m_PresentationQueue,did);
-	m_SwapChain = m_Hardware.gpus[did].swap_chain.select(m_Frame,m_GPULogical,m_Surface,
-														 m_Hardware.gpus[did].graphical_queue,
-														 m_Hardware.gpus[did].presentation_queue,
-														 m_Hardware.gpus[did].queues);
+	m_Hardware.gpus[did].select(m_Frame,m_GPULogical,m_Surface,m_SwapChain);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 	// FIXME architecture of those calls create barely survivable conditions for my future career
 #endif
