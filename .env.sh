@@ -60,6 +60,31 @@ chcw_setup()
 	echo "done."
 }
 
+sc()
+{
+	# filesystem stuffs
+	SHADER_DIR="./core/shader/vulkan/"
+	BINARY_DIR="$SHADER_DIR"bin/
+	mkdir -p "$BINARY_DIR"
+
+	# iterate shader files
+	for shader in "$SHADER_DIR"*; do
+		if [ -f "$shader" ]; then
+			time_start=$(date +%s%3N)
+			file=$(basename "$shader")
+			printf "compiling shader %-75s%s" "$file"
+
+			# compile glsl shader code to spir-v
+			glslc "$shader" -o "${BINARY_DIR}${file}"
+
+			# compile time output
+			time_end=$(date +%s%3N)
+			time_delta=$((time_end-time_start))
+			printf "| done in %sms\n" "$time_delta"
+		fi
+	done
+}
+
 
 chcw_help()
 {
@@ -70,6 +95,7 @@ chcw_help()
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"
 	printf "%-15s - %s\n" "r" "build release (only outdated libs). WARNING: will not override debug versions!"
 	printf "%-15s - %s\n" "ra" "build release, force build all libs"
+	printf "%-15s - %s\n" "sc" "compile shader binaries for vulkan version"
 	printf "%-15s - %s\n" "e" "execute engine binary"
 }
 
