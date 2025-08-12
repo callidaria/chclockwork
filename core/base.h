@@ -452,10 +452,14 @@ private:
 inline vector<const char*> g_GPUExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
+
+#ifdef DEBUG
 inline vector<const char*> g_ValidationLayers = {
 	"VK_LAYER_KHRONOS_validation"
 };
 #endif
+#endif
+// FIXME would love to only define this for blitter.cpp in the future. globals for this are overkill
 
 inline FT_Library g_FreetypeLibrary;
 

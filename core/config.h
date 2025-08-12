@@ -3,6 +3,7 @@
 
 
 // blitter
+#define FRAME_GAME_NAME "C. Hanson's Clockwork"
 #define FRAME_BLITTER_VSYNC true
 #define FRAME_RESOLUTION_X 1600
 #define FRAME_RESOLUTION_Y 900

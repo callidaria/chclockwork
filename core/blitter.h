@@ -9,6 +9,24 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
 #ifdef VKBUILD
+struct Eruption
+{
+	// utility
+	void erupt(SDL_Window* frame);
+	void vanish();
+
+	// data
+	VkInstance instance;
+	VkSurfaceKHR surface;
+	VkDevice gpu;
+	VkQueue graphical_queue;
+	VkQueue presentation_queue;
+	VkSwapchainKHR swapchain;
+#ifdef DEBUG
+	VkDebugUtilsMessengerEXT debug_messenger;
+#endif
+};
+
 struct SwapChain
 {
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -19,8 +37,7 @@ struct SwapChain
 struct GPU
 {
 	// utility
-	void select(SDL_Window* frame,VkSurfaceKHR surface,
-				VkDevice& lgpu,VkQueue& gqueue,VkQueue& pqueue,VkSwapchainKHR& swapchain);
+	void select(SDL_Window* frame,Eruption& vke);
 
 	// data
 	VkPhysicalDevice gpu;
@@ -37,7 +54,7 @@ struct GPU
 struct Hardware
 {
 	// utility
-	void detect(VkInstance instance,VkSurfaceKHR surface);
+	void detect(const Eruption& vke);
 
 	// data
 	vector<GPU> gpus;
@@ -90,17 +107,8 @@ private:
 #ifdef VKBUILD
 
 	// hardware
-	VkInstance m_Instance;
-	VkSurfaceKHR m_Surface;
-	VkSwapchainKHR m_SwapChain;
+	Eruption m_VulkanEruption;
 	Hardware m_Hardware;
-	VkDevice m_GPULogical;
-	VkQueue m_GraphicsQueue;
-	VkQueue m_PresentationQueue;
-
-#ifdef DEBUG
-	VkDebugUtilsMessengerEXT m_DebugMessenger;
-#endif
 
 #else
 	SDL_GLContext m_Context;

@@ -16,7 +16,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFl
 	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) ? "!General " : "";
 	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) ? "!Specifics " : "";
 	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) ? "!Performance " : "";
-	__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT) ? "!Memory " : "";
+	//__ErrType += (type&VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT) ? "!Memory " : "";
 	// TODO enable VK_EXT_device_address_binding_report
 
 	// error logging
@@ -46,15 +46,96 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 
 
 // ----------------------------------------------------------------------------------------------------
-// Hardware Detection
+// Hardware Interaction
 
 #ifdef VKBUILD
 
 /**
  *	TODO
  */
-void GPU::select(SDL_Window* frame,VkSurfaceKHR surface,
-				 VkDevice& lgpu,VkQueue& gqueue,VkQueue& pqueue,VkSwapchainKHR& swapchain)
+void Eruption::erupt(SDL_Window* frame)
+{
+	// application info
+	VkApplicationInfo __ApplicationInfo = {};
+	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
+	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
+
+	// extensions
+	u32 __ExtensionCount;
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
+	vector<const char*> __Extensions(__ExtensionCount);
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
+#ifdef DEBUG
+	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
+	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			//|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
+	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+
+	COMM_LOG("creating vulkan instance");
+	VkInstanceCreateInfo __CreateInfo = {};
+	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
+	__CreateInfo.enabledLayerCount = 0;
+	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
+	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
+
+	// setup validation layers for gpu auto-logging
+#ifdef DEBUG
+	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
+	__CreateInfo.pNext = &__DebugMessengerInfo;
+#endif
+
+	// creating vulkan instance
+	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
+
+#ifdef DEBUG
+	COMM_LOG("setting up gpu error log");
+	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
+		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
+	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
+#endif
+
+	COMM_LOG("setting up render surface");
+	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
+	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
+}
+
+/**
+ *	TODO
+ */
+void Eruption::vanish()
+{
+	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
+	vkDestroyDevice(gpu,nullptr);
+	vkDestroySurfaceKHR(instance,surface,nullptr);
+#ifdef DEBUG
+	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
+		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
+																	  "vkDestroyDebugUtilsMessengerEXT");
+	__DestroyMessenger(instance,debug_messenger,nullptr);
+#endif
+	vkDestroyInstance(instance,nullptr);
+}
+
+/**
+ *	TODO
+ */
+void GPU::select(SDL_Window* frame,Eruption& vke)
 {
 	COMM_ERR_COND(!supported,"selected gpu is not supported");
 	COMM_LOG("selecting gpu %s",properties.deviceName);
@@ -93,12 +174,12 @@ void GPU::select(SDL_Window* frame,VkSurfaceKHR surface,
 #endif
 
 	// create device
-	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&lgpu);
+	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&vke.gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
 
 	// initialize queues
-	vkGetDeviceQueue(lgpu,graphical_queue,0,&gqueue);
-	vkGetDeviceQueue(lgpu,presentation_queue,0,&pqueue);
+	vkGetDeviceQueue(vke.gpu,graphical_queue,0,&vke.graphical_queue);
+	vkGetDeviceQueue(vke.gpu,presentation_queue,0,&vke.presentation_queue);
 
 	// format selection
 	COMM_LOG("running swap chain setup");
@@ -158,7 +239,7 @@ swap_chain_creation:
 	// swapchain definition
 	VkSwapchainCreateInfoKHR __SwapchainInfo = {};
 	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	__SwapchainInfo.surface = surface;
+	__SwapchainInfo.surface = vke.surface;
 	__SwapchainInfo.minImageCount = __ImageCount;
 	__SwapchainInfo.imageFormat = __Format.format;
 	__SwapchainInfo.imageColorSpace = __Format.colorSpace;
@@ -185,7 +266,7 @@ swap_chain_creation:
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
-	__Result = vkCreateSwapchainKHR(lgpu,&__SwapchainInfo,nullptr,&swapchain);
+	__Result = vkCreateSwapchainKHR(vke.gpu,&__SwapchainInfo,nullptr,&vke.swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
 }
 // TODO make all those features selectable by the user
@@ -194,16 +275,16 @@ swap_chain_creation:
  *	detect gpus
  *	TODO
  */
-void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
+void Hardware::detect(const Eruption& vke)
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;
-	vkEnumeratePhysicalDevices(instance,&__GPUCount,nullptr);
+	vkEnumeratePhysicalDevices(vke.instance,&__GPUCount,nullptr);
 	COMM_ERR_COND(!__GPUCount,"no vulkan capable gpus found. use opengl version!")
 	COMM_SCC_FALLBACK("found %u vulkan capable graphics card%s",__GPUCount,(__GPUCount>1)?"s":"");
 	vector<VkPhysicalDevice> __PhysicalGPUs = vector<VkPhysicalDevice>(__GPUCount);
 	gpus.resize(__GPUCount);
-	vkEnumeratePhysicalDevices(instance,&__GPUCount,&__PhysicalGPUs[0]);
+	vkEnumeratePhysicalDevices(vke.instance,&__GPUCount,&__PhysicalGPUs[0]);
 
 	// scanning available gpus for specifics
 	gpus.resize(__GPUCount);
@@ -225,7 +306,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 
 			// check for presentation support
 			VkBool32 __PresentingQueue = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,surface,&__PresentingQueue);
+			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,vke.surface,&__PresentingQueue);
 			if (__PresentingQueue) gpus[i].presentation_queue = j;
 
 			// check for sufficient queue support & abort to align graphical queue with presenting queue
@@ -267,26 +348,24 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
 		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
-		// TODO something something, queue families, tldr okok i will do this later, probably works on my system
-		// TODO another something, not only should the required qfs be available but also all needed extensions
 
 		// get swap chain format capabilities
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,surface,&gpus[i].swap_chain.capabilities);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,surface,&__FormatCount,nullptr);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,vke.surface,&gpus[i].swap_chain.capabilities);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,vke.surface,&__FormatCount,nullptr);
 		if (!!__FormatCount)
 		{
 			gpus[i].swap_chain.formats.resize(__FormatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,surface,
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,vke.surface,
 												 &__FormatCount,&gpus[i].swap_chain.formats[0]);
 		}
 		COMM_ERR_FALLBACK("no surface formats found for GPU %s",gpus[i].properties.deviceName);
 
 		// get swap chain mode capabilities
-		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,surface,&__ModeCount,nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,vke.surface,&__ModeCount,nullptr);
 		if (!!__ModeCount)
 		{
 			gpus[i].swap_chain.modes.resize(__ModeCount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,surface,
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,vke.surface,
 													  &__ModeCount,&gpus[i].swap_chain.modes[0]);
 		}
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
@@ -304,6 +383,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
  *	\param title: window title displayed in decoration and program listing
  *	\param width: window dimension width
  *	\param height: window dimension height
+ *	TODO all those parameters are provided by config and are therefore global. remove this pass!
  */
 Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 {
@@ -354,73 +434,12 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	// Vulkan Setup
 #else
 	COMM_MSG(LOG_CYAN,"opening vulkan window");
-	m_Frame = SDL_CreateWindow(title,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-							   width,height,SDL_WINDOW_VULKAN);
-
-	// application info
-	VkApplicationInfo __ApplicationInfo = {};
-	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	__ApplicationInfo.pApplicationName = title;
-	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
-	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
-
-	// extensions
-	u32 __ExtensionCount;
-	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,nullptr);
-	vector<const char*> __Extensions(__ExtensionCount);
-	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,&__Extensions[0]);
-#ifdef DEBUG
-	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
-	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
-	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
-
-	COMM_LOG("creating vulkan instance");
-	VkInstanceCreateInfo __CreateInfo = {};
-	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
-	__CreateInfo.enabledLayerCount = 0;
-	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
-	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
-
-	// setup validation layers for gpu auto-logging
-#ifdef DEBUG
-	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
-	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
-	__CreateInfo.pNext = &__DebugMessengerInfo;
-#endif
-
-	// creating vulkan instance
-	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&m_Instance);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
-
-#ifdef DEBUG
-	COMM_LOG("setting up gpu error log");
-	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
-			= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance,
-																		"vkCreateDebugUtilsMessengerEXT");
-	__Result = __CreateMessenger(m_Instance,&__DebugMessengerInfo,nullptr,&m_DebugMessenger);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
-#endif
-
-	COMM_LOG("setting up render surface");
-	bool __SurfaceResult = SDL_Vulkan_CreateSurface(m_Frame,m_Instance,&m_Surface);
-	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
-
-	// gpu setup
 	u8 did = 0;
-	m_Hardware.detect(m_Instance,m_Surface);
-	m_Hardware.gpus[did].select(m_Frame,m_Surface,m_GPULogical,m_GraphicsQueue,m_PresentationQueue,m_SwapChain);
+	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
+							   width,height,SDL_WINDOW_VULKAN);
+	m_VulkanEruption.erupt(m_Frame);
+	m_Hardware.detect(m_VulkanEruption);
+	m_Hardware.gpus[did].select(m_Frame,m_VulkanEruption);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
@@ -484,18 +503,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	vkDestroySwapchainKHR(m_GPULogical,m_SwapChain,nullptr);
-	vkDestroyDevice(m_GPULogical,nullptr);
-	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
-#ifdef DEBUG
-	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-			= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
-																		  "vkDestroyDebugUtilsMessengerEXT");
-	__DestroyMessenger(m_Instance,m_DebugMessenger,nullptr);
-#endif
-	vkDestroyInstance(m_Instance,nullptr);
-	// TODO test if unclean destruction of device and buffer leads to the validation layer complaining
-	//		it does not even if it normally should be, further investigation necessary. verbose & warning works.
+	m_VulkanEruption.vanish();
 #else
 	SDL_GL_DeleteContext(m_Context);
 #endif
