@@ -74,8 +74,19 @@ sc()
 			file=$(basename "$shader")
 			printf "compiling shader %-75s%s" "$file"
 
+			# check if shader binary is outdated to skip unnecessary recompiles
+			compile=1
+			other_file="${BINARY_DIR}${file}"
+			if [ -f "$other_file" ]; then
+				stamp0=$(stat -c %Y "$shader")
+				stamp1=$(stat -c %Y "$other_file")
+				compile=$((stamp0>stamp1))
+			fi
+
 			# compile glsl shader code to spir-v
-			glslc "$shader" -o "${BINARY_DIR}${file}"
+			if ((compile)); then
+				glslc "$shader" -o "$other_file"
+			fi
 
 			# compile time output
 			time_end=$(date +%s%3N)
