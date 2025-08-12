@@ -120,6 +120,7 @@ void Eruption::erupt(SDL_Window* frame)
  */
 void Eruption::vanish()
 {
+	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
 	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
 	vkDestroyDevice(gpu,nullptr);
 	vkDestroySurfaceKHR(instance,surface,nullptr);
@@ -275,6 +276,33 @@ swap_chain_creation:
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
 	vke.images.resize(__SCICount);
 	vkGetSwapchainImagesKHR(vke.gpu,vke.swapchain,&__SCICount,&vke.images[0]);
+
+	// image view memory & creation info setup
+	vke.image_views.resize(__SCICount);
+	VkImageViewCreateInfo __IVInfo = {};
+	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__IVInfo.format = __Format.format;
+	__IVInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__IVInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__IVInfo.subresourceRange.baseMipLevel = 0;
+	__IVInfo.subresourceRange.levelCount = 1;
+	__IVInfo.subresourceRange.baseArrayLayer = 0;
+	__IVInfo.subresourceRange.layerCount = 1;
+
+	// iterate images to create image views
+	for (u32 i=0;i<__SCICount;i++)
+	{
+		__IVInfo.image = vke.images[i];
+		__Result = vkCreateImageView(vke.gpu,&__IVInfo,nullptr,&vke.image_views[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
+	}
+	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
 }
 // TODO make all those features selectable by the user
 
