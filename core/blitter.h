@@ -22,6 +22,7 @@ struct Eruption
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
 	VkSwapchainKHR swapchain;
+	vector<VkImage> images;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

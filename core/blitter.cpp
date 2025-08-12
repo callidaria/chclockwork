@@ -268,6 +268,13 @@ swap_chain_creation:
 	// initialize swapchain
 	__Result = vkCreateSwapchainKHR(vke.gpu,&__SwapchainInfo,nullptr,&vke.swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
+
+	// reference swapchain images
+	u32 __SCICount;
+	vkGetSwapchainImagesKHR(vke.gpu,vke.swapchain,&__SCICount,nullptr);
+	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
+	vke.images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(vke.gpu,vke.swapchain,&__SCICount,&vke.images[0]);
 }
 // TODO make all those features selectable by the user
 
