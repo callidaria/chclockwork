@@ -133,6 +133,67 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 /**
+ *	TODO
+ */
+void ShaderPipeline::assemble(const char* vs,const char* fs)
+{
+#ifdef VKBUILD
+	// read precompiled shader binaries
+	u32 __ShaderSizeVS,__ShaderSizeFS;
+	char* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
+	char* __ShaderFS = read_file_binary(fs,__ShaderSizeFS);
+
+	// setup shader info
+	VkShaderModule __VertexShader,__FragmentShader;
+	VkShaderModuleCreateInfo __ModuleInfo = {  };
+	__ModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+
+	// vertex shader
+	__ModuleInfo.codeSize = __ShaderSizeVS;
+	__ModuleInfo.pCode = (u32*)__ShaderVS;
+	VkResult __Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
+
+	// fragment shader
+	__ModuleInfo.codeSize = __ShaderSizeFS;
+	__ModuleInfo.pCode = (u32*)__ShaderFS;
+	__Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__FragmentShader);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"fragment shader %s could not be loaded",fs);
+
+	// define vertex shader stage
+	VkPipelineShaderStageCreateInfo __VertexStageInfo = {  };
+	__VertexStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	__VertexStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	__VertexStageInfo.module = __VertexShader;
+	__VertexStageInfo.pName = "main";  // TODO holy hell this is a godsend. i love & will abuse that heavily
+	__VertexStageInfo.pSpecializationInfo = nullptr;
+	// TODO also pSpecializationInfo this is also great. no text combination for optional features anymore
+
+	// define fragment shader stage
+	VkPipelineShaderStageCreateInfo __FragmentStageInfo = {  };
+	__FragmentStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	__FragmentStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	__FragmentStageInfo.module = __FragmentShader;
+	__FragmentStageInfo.pName = "main";
+
+	// assemble shader pipeline
+	VkPipelineShaderStageCreateInfo __PipelineInfo[] = { __VertexStageInfo,__FragmentStageInfo };
+	// TODO outsource those shader specific creations to their correlating shader structs
+
+	// purge shader binaries & modules from memory after load
+	vkDestroyShaderModule(g_Vk.gpu,__VertexShader,nullptr);
+	vkDestroyShaderModule(g_Vk.gpu,__FragmentShader,nullptr);
+	free(__ShaderVS);
+	free(__ShaderFS);
+	// FIXME this mallocs and frees for each shader seperately, this is not ideal!
+
+#else
+	// TODO
+#endif
+}
+// TODO implement full vulkan compatibility for all shader features, and also finally the on-the-fly-shader
+
+/**
  *	assemble shader pipeline from compiled shaders
  *	pipeline flow: vertex shader -> (geometry shader) -> fragment shader
  *	\param vs: compiled vertex shader

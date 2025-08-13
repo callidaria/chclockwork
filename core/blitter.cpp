@@ -472,9 +472,9 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	u8 did = 0;
 	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
 							   width,height,SDL_WINDOW_VULKAN);
-	m_VulkanEruption.erupt(m_Frame);
-	m_Hardware.detect(m_VulkanEruption);
-	m_Hardware.gpus[did].select(m_Frame,m_VulkanEruption);
+	g_Vk.erupt(m_Frame);
+	m_Hardware.detect(g_Vk);
+	m_Hardware.gpus[did].select(m_Frame,g_Vk);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
@@ -538,7 +538,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	m_VulkanEruption.vanish();
+	g_Vk.vanish();
 #else
 	SDL_GL_DeleteContext(m_Context);
 #endif

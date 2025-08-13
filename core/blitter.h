@@ -109,7 +109,6 @@ private:
 #ifdef VKBUILD
 
 	// hardware
-	Eruption m_VulkanEruption;
 	Hardware m_Hardware;
 
 #else
@@ -117,6 +116,9 @@ private:
 #endif
 };
 
+#ifdef VKBUILD
+inline Eruption g_Vk;
+#endif
 inline Frame g_Frame = Frame("C. Hanson's Clockwork",FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,FRAME_BLITTER_VSYNC);
 
 

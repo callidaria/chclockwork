@@ -3,6 +3,7 @@
 
 
 #include "base.h"
+#include "blitter.h"
 #include "buffer.h"
 
 
@@ -73,6 +74,7 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
+	void assemble(const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
 

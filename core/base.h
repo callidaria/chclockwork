@@ -243,6 +243,7 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 // system utility
 bool check_file_exists(const char* path);
+char* read_file_binary(const char* path,u32& buffer_size);
 void split_words(vector<string>& words,string& line);
 inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 {
