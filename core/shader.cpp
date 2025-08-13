@@ -133,6 +133,245 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 /**
+ *	TODO
+ */
+ShaderPipeline::~ShaderPipeline()
+{
+#ifdef VKBUILD
+	vkDestroyPipeline(g_Vk.gpu,m_Pipeline,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,m_RenderPass,nullptr);
+	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
+#endif
+}
+
+/**
+ *	TODO
+ */
+constexpr u32 _dynamic_state_count = 2;
+VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
+void ShaderPipeline::assemble(const char* vs,const char* fs)
+{
+#ifdef VKBUILD
+	// read precompiled shader binaries
+	u32 __ShaderSizeVS,__ShaderSizeFS;
+	char* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
+	char* __ShaderFS = read_file_binary(fs,__ShaderSizeFS);
+
+	// setup shader info
+	VkShaderModule __VertexShader,__FragmentShader;
+	VkShaderModuleCreateInfo __ModuleInfo = {  };
+	__ModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+
+	// vertex shader
+	__ModuleInfo.codeSize = __ShaderSizeVS;
+	__ModuleInfo.pCode = (u32*)__ShaderVS;
+	VkResult __Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
+
+	// fragment shader
+	__ModuleInfo.codeSize = __ShaderSizeFS;
+	__ModuleInfo.pCode = (u32*)__ShaderFS;
+	__Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__FragmentShader);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"fragment shader %s could not be loaded",fs);
+
+	// define vertex shader stage
+	VkPipelineShaderStageCreateInfo __VertexStageInfo = {  };
+	__VertexStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	__VertexStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	__VertexStageInfo.module = __VertexShader;
+	__VertexStageInfo.pName = "main";  // TODO holy hell this is a godsend. i love & will abuse that heavily
+	__VertexStageInfo.pSpecializationInfo = nullptr;
+	// TODO also pSpecializationInfo this is also great. no text combination for optional features anymore
+
+	// define fragment shader stage
+	VkPipelineShaderStageCreateInfo __FragmentStageInfo = {  };
+	__FragmentStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	__FragmentStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	__FragmentStageInfo.module = __FragmentShader;
+	__FragmentStageInfo.pName = "main";
+	VkPipelineShaderStageCreateInfo __ShaderStages[] = { __VertexStageInfo,__FragmentStageInfo };
+	// TODO outsource those shader specific creations to their correlating shader structs
+
+	// fixed function vertex input state
+	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
+	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	__InputInfo.vertexBindingDescriptionCount = 0;
+	__InputInfo.pVertexBindingDescriptions = nullptr;
+	__InputInfo.vertexAttributeDescriptionCount = 0;
+	__InputInfo.pVertexAttributeDescriptions = nullptr;
+	// TODO implement instancing switch here later!
+
+	// fixed function input assembly
+	VkPipelineInputAssemblyStateCreateInfo __AssemblyInfo = {  };
+	__AssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	__AssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	__AssemblyInfo.primitiveRestartEnable = VK_FALSE;
+	// TODO how would i even dynamically select this
+	// TODO this is a big discrepancy to the ogl implementation, that allows e.g. wireframe on the fly
+	//		cross correlate topology interpretation by definition between vulkan and ogl
+	// TODO i don't yet understand the full capabilities of primitiveRestartEnable. investigate further.
+
+	// fixed function dynamic state
+	VkPipelineDynamicStateCreateInfo __DynamicInfo = {  };
+	__DynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	__DynamicInfo.dynamicStateCount = _dynamic_state_count;
+	__DynamicInfo.pDynamicStates = _dynamic_states;
+
+	// viewport setup
+	VkViewport __Viewport = {
+		.x = .0f,
+		.y = .0f,
+		.width = (f32)g_Vk.sc_extent.width,
+		.height = (f32)g_Vk.sc_extent.height,
+		.minDepth = .0f,
+		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
+	};
+	// TODO move this out of here
+
+	// scissor setup
+	VkRect2D __Scissor = {
+		.offset = { 0,0 },
+		.extent = g_Vk.sc_extent,
+	};
+	// TODO this can all be pre-stored & reused for each of those pipeline setups
+
+	// fixed function viewport
+	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
+	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	__ViewportInfo.viewportCount = 1;
+	__ViewportInfo.pViewports = &__Viewport;
+	__ViewportInfo.scissorCount = 1;
+	__ViewportInfo.pScissors = &__Scissor;
+	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
+
+	// fixed function rasterization
+	VkPipelineRasterizationStateCreateInfo __RasterInfo = {  };
+	__RasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	__RasterInfo.depthClampEnable = VK_FALSE;  // TODO utilize this instead of depth clear + border colour
+	__RasterInfo.rasterizerDiscardEnable = VK_FALSE;
+	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	__RasterInfo.lineWidth = 1.f;
+	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	__RasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;  // TODO change this back to ccw
+	__RasterInfo.depthBiasEnable = VK_FALSE;
+	__RasterInfo.depthBiasConstantFactor = .0f;
+	__RasterInfo.depthBiasClamp = .0f;
+	__RasterInfo.depthBiasSlopeFactor = .0f;
+	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
+
+	// colour blending attachment
+	VkPipelineColorBlendAttachmentState __CBlendAttachment = {  };
+	__CBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
+			|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT;
+	__CBlendAttachment.blendEnable = VK_TRUE;
+	__CBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	__CBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	__CBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	__CBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	__CBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	__CBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	// fixed function colour blending
+	VkPipelineColorBlendStateCreateInfo __BlendingInfo = {  };
+	__BlendingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	__BlendingInfo.logicOpEnable = VK_FALSE;
+	__BlendingInfo.logicOp = VK_LOGIC_OP_COPY;
+	__BlendingInfo.attachmentCount = 1;
+	__BlendingInfo.pAttachments = &__CBlendAttachment;
+	__BlendingInfo.blendConstants[0] = .0f;
+	__BlendingInfo.blendConstants[1] = .0f;
+	__BlendingInfo.blendConstants[2] = .0f;
+	__BlendingInfo.blendConstants[3] = .0f;
+
+	// hardware based multisampling anti-aliasing
+	VkPipelineMultisampleStateCreateInfo __MSAAInfo = {  };
+	__MSAAInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	__MSAAInfo.sampleShadingEnable = VK_FALSE;
+	__MSAAInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	__MSAAInfo.minSampleShading = 1.f;
+	__MSAAInfo.pSampleMask = nullptr;
+	__MSAAInfo.alphaToCoverageEnable = VK_FALSE;
+	__MSAAInfo.alphaToOneEnable = VK_FALSE;
+
+	// assemble pipeline
+	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	__LayoutInfo.setLayoutCount = 0;
+	__LayoutInfo.pSetLayouts = nullptr;
+	__LayoutInfo.pushConstantRangeCount = 0;
+	__LayoutInfo.pPushConstantRanges = nullptr;
+	__Result = vkCreatePipelineLayout(g_Vk.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
+
+	// colour attachment
+	VkAttachmentDescription __CAttachment = {  };
+	__CAttachment.format = g_Vk.sc_format.format;
+	__CAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	__CAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	__CAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	__CAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	__CAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	__CAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO configure this in unison with clear op
+	__CAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// specify fragment output location
+	VkAttachmentReference __AttachmentReference = {  };
+	__AttachmentReference.attachment = 0;
+	__AttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// specify graphical subpass
+	VkSubpassDescription __SubpassDesc = {  };
+	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	__SubpassDesc.colorAttachmentCount = 1;
+	__SubpassDesc.pColorAttachments = &__AttachmentReference;
+
+	// render pass
+	VkRenderPassCreateInfo __RPInfo = {  };
+	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	__RPInfo.attachmentCount = 1;
+	__RPInfo.pAttachments = &__CAttachment;
+	__RPInfo.subpassCount = 1;
+	__RPInfo.pSubpasses = &__SubpassDesc;
+	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&m_RenderPass);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
+
+	// combine pipeline components into final graphics pipeline
+	VkGraphicsPipelineCreateInfo __PipelineInfo = {  };
+	__PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	__PipelineInfo.stageCount = 2;
+	__PipelineInfo.pStages = __ShaderStages;
+	__PipelineInfo.pVertexInputState = &__InputInfo;
+	__PipelineInfo.pInputAssemblyState = &__AssemblyInfo;
+	__PipelineInfo.pViewportState = &__ViewportInfo;
+	__PipelineInfo.pRasterizationState = &__RasterInfo;
+	__PipelineInfo.pMultisampleState = &__MSAAInfo;
+	__PipelineInfo.pDepthStencilState = nullptr;
+	__PipelineInfo.pColorBlendState = &__BlendingInfo;
+	__PipelineInfo.pDynamicState = &__DynamicInfo;
+	__PipelineInfo.layout = m_PipelineLayout;
+	__PipelineInfo.renderPass = m_RenderPass;
+	__PipelineInfo.subpass = 0;
+	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	__PipelineInfo.basePipelineIndex = -1;
+	__Result = vkCreateGraphicsPipelines(g_Vk.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&m_Pipeline);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create graphics pipeline");
+	// TODO pipeline cache
+
+	// purge shader binaries & modules from memory after load
+	vkDestroyShaderModule(g_Vk.gpu,__VertexShader,nullptr);
+	vkDestroyShaderModule(g_Vk.gpu,__FragmentShader,nullptr);
+	free(__ShaderVS);
+	free(__ShaderFS);
+	// TODO store the shader modules to quickly switch between implemented features at runtime (options menu)
+	// FIXME this mallocs and frees for each shader seperately, this is not ideal!
+
+#else
+	// TODO
+#endif
+}
+// TODO implement full vulkan compatibility for all shader features, and also finally the on-the-fly-shader
+
+/**
  *	assemble shader pipeline from compiled shaders
  *	pipeline flow: vertex shader -> (geometry shader) -> fragment shader
  *	\param vs: compiled vertex shader

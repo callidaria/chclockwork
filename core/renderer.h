@@ -418,7 +418,7 @@ private:
 	Lighting m_Lighting;
 };
 
-inline Renderer g_Renderer = Renderer();
+//inline Renderer g_Renderer = Renderer();
 
 
 #endif

@@ -22,20 +22,31 @@
 #include <vector>
 #include <list>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
-// ogl
+// graphics
+//#ifdef VKBUILD
+#include <vulkan/vulkan.h>
+//#else
 #include <GL/glew.h>
+//#endif
+
+// handler
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL_main.h>
 #endif
 #include <SDL2/SDL.h>
+//#ifdef VKBUILD
+#include <SDL2/SDL_vulkan.h>
+//#else
 #include <SDL2/SDL_opengl.h>
+//#endif
 
 // math
 #define GLM_ENABLE_EXPERIMENTAL
@@ -97,6 +108,7 @@ typedef std::thread thread;
 template<typename T> using vector = std::vector<T>;
 template<typename T> using list = std::list<T>;
 template<typename T> using queue = std::queue<T>;
+template<typename T> using set = std::set<T>;
 template<typename T,typename U> using map = std::unordered_map<T,U>;
 template<typename T> using lptr = typename std::list<T>::iterator;
 
@@ -231,6 +243,7 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 // system utility
 bool check_file_exists(const char* path);
+char* read_file_binary(const char* path,u32& buffer_size);
 void split_words(vector<string>& words,string& line);
 inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 {
@@ -435,6 +448,19 @@ private:
 
 // ----------------------------------------------------------------------------------------------------
 // Additional Globals
+
+#ifdef VKBUILD
+inline vector<const char*> g_GPUExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+};
+
+#ifdef DEBUG
+inline vector<const char*> g_ValidationLayers = {
+	"VK_LAYER_KHRONOS_validation"
+};
+#endif
+#endif
+// FIXME would love to only define this for blitter.cpp in the future. globals for this are overkill
 
 inline FT_Library g_FreetypeLibrary;
 

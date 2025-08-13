@@ -1,4 +1,5 @@
 #include "ui.h"
+#ifndef VKBUILD
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -281,3 +282,5 @@ void UI::remove_batch(lptr<UIBatch> batch)
 	Input::unset_input_mode();
 	m_Batches.erase(batch);
 }
+
+#endif

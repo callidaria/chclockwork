@@ -8,6 +8,64 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
+#ifdef VKBUILD
+struct Eruption
+{
+	// utility
+	void erupt(SDL_Window* frame);
+	void vanish();
+
+	// data
+	VkInstance instance;
+	VkSurfaceKHR surface;
+	VkDevice gpu;
+	VkQueue graphical_queue;
+	VkQueue presentation_queue;
+	VkSwapchainKHR swapchain;
+	VkExtent2D sc_extent;
+	VkSurfaceFormatKHR sc_format;
+	vector<VkImage> images;
+	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
+#ifdef DEBUG
+	VkDebugUtilsMessengerEXT debug_messenger;
+#endif
+};
+
+struct SwapChain
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	vector<VkSurfaceFormatKHR> formats;
+	vector<VkPresentModeKHR> modes;
+};
+
+struct GPU
+{
+	// utility
+	void select(SDL_Window* frame,Eruption& vke);
+
+	// data
+	VkPhysicalDevice gpu;
+	VkPhysicalDeviceProperties properties;
+	VkPhysicalDeviceFeatures features;
+	vector<VkExtensionProperties> extensions;
+	SwapChain swap_chain;
+	set<u32> queues;
+	s64 graphical_queue = -1;
+	s64 presentation_queue = -1;
+	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
+};
+
+struct Hardware
+{
+	// utility
+	void detect(const Eruption& vke);
+
+	// data
+	vector<GPU> gpus;
+};
+#endif
+
+
 class Frame
 {
 public:
@@ -37,7 +95,6 @@ private:
 
 	// hardware
 	SDL_Window* m_Frame;
-	SDL_GLContext m_Context;
 
 	// time
 	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
@@ -50,8 +107,20 @@ private:
 	std::chrono::steady_clock::time_point m_LastFrameUpdate = std::chrono::steady_clock::now();
 	u32 m_LFps;
 #endif
+
+#ifdef VKBUILD
+
+	// hardware
+	Hardware m_Hardware;
+
+#else
+	SDL_GLContext m_Context;
+#endif
 };
 
+#ifdef VKBUILD
+inline Eruption g_Vk;
+#endif
 inline Frame g_Frame = Frame("C. Hanson's Clockwork",FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,FRAME_BLITTER_VSYNC);
 
 
