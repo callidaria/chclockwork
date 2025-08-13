@@ -184,17 +184,16 @@ void GPU::select(SDL_Window* frame,Eruption& vke)
 
 	// format selection
 	COMM_LOG("running swap chain setup");
-	VkSurfaceFormatKHR __Format;
 	for (VkSurfaceFormatKHR& p_Format : swap_chain.formats)
 	{
 		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
-			__Format = p_Format;
+			vke.sc_format = p_Format;
 			goto swap_chain_selection_presentation;
 		}
 	}
 	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
-	__Format = swap_chain.formats[0];
+	vke.sc_format = swap_chain.formats[0];
 
 	// presentation mode selection
 swap_chain_selection_presentation:
@@ -241,8 +240,8 @@ swap_chain_creation:
 	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	__SwapchainInfo.surface = vke.surface;
 	__SwapchainInfo.minImageCount = __ImageCount;
-	__SwapchainInfo.imageFormat = __Format.format;
-	__SwapchainInfo.imageColorSpace = __Format.colorSpace;
+	__SwapchainInfo.imageFormat = vke.sc_format.format;
+	__SwapchainInfo.imageColorSpace = vke.sc_format.colorSpace;
 	__SwapchainInfo.imageExtent = vke.sc_extent;
 	__SwapchainInfo.imageArrayLayers = 1;
 	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
@@ -281,7 +280,7 @@ swap_chain_creation:
 	VkImageViewCreateInfo __IVInfo = {};
 	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__IVInfo.format = __Format.format;
+	__IVInfo.format = vke.sc_format.format;
 	__IVInfo.components = {
 		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.g = VK_COMPONENT_SWIZZLE_IDENTITY,

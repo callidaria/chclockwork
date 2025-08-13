@@ -74,6 +74,7 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
+	~ShaderPipeline();
 	void assemble(const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
@@ -105,6 +106,11 @@ private:
 private:
 
 	// program
+//#ifdef VKBUILD
+	VkPipelineLayout m_PipelineLayout;
+	VkRenderPass m_RenderPass;
+	VkPipeline m_Pipeline;
+//#else
 	u32 m_ShaderProgram;
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;
@@ -112,6 +118,7 @@ private:
 	// working iteration
 	size_t m_VertexCursor = 0;
 	size_t m_IndexCursor = 0;
+//#endif
 };
 
 

@@ -135,6 +135,18 @@ FragmentShader::FragmentShader(const char* path)
 /**
  *	TODO
  */
+ShaderPipeline::~ShaderPipeline()
+{
+#ifdef VKBUILD
+	vkDestroyPipeline(g_Vk.gpu,m_Pipeline,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,m_RenderPass,nullptr);
+	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
+#endif
+}
+
+/**
+ *	TODO
+ */
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
 void ShaderPipeline::assemble(const char* vs,const char* fs)
@@ -177,9 +189,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__FragmentStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	__FragmentStageInfo.module = __FragmentShader;
 	__FragmentStageInfo.pName = "main";
-
-	// assemble shader pipeline
-	VkPipelineShaderStageCreateInfo __PipelineInfo[] = { __VertexStageInfo,__FragmentStageInfo };
+	VkPipelineShaderStageCreateInfo __ShaderStages[] = { __VertexStageInfo,__FragmentStageInfo };
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// fixed function vertex input state
@@ -248,6 +258,104 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__RasterInfo.depthBiasClamp = .0f;
 	__RasterInfo.depthBiasSlopeFactor = .0f;
 	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
+
+	// colour blending attachment
+	VkPipelineColorBlendAttachmentState __CBlendAttachment = {  };
+	__CBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
+			|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT;
+	__CBlendAttachment.blendEnable = VK_TRUE;
+	__CBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	__CBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	__CBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	__CBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	__CBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	__CBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	// fixed function colour blending
+	VkPipelineColorBlendStateCreateInfo __BlendingInfo = {  };
+	__BlendingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	__BlendingInfo.logicOpEnable = VK_FALSE;
+	__BlendingInfo.logicOp = VK_LOGIC_OP_COPY;
+	__BlendingInfo.attachmentCount = 1;
+	__BlendingInfo.pAttachments = &__CBlendAttachment;
+	__BlendingInfo.blendConstants[0] = .0f;
+	__BlendingInfo.blendConstants[1] = .0f;
+	__BlendingInfo.blendConstants[2] = .0f;
+	__BlendingInfo.blendConstants[3] = .0f;
+
+	// hardware based multisampling anti-aliasing
+	VkPipelineMultisampleStateCreateInfo __MSAAInfo = {  };
+	__MSAAInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	__MSAAInfo.sampleShadingEnable = VK_FALSE;
+	__MSAAInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	__MSAAInfo.minSampleShading = 1.f;
+	__MSAAInfo.pSampleMask = nullptr;
+	__MSAAInfo.alphaToCoverageEnable = VK_FALSE;
+	__MSAAInfo.alphaToOneEnable = VK_FALSE;
+
+	// assemble pipeline
+	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	__LayoutInfo.setLayoutCount = 0;
+	__LayoutInfo.pSetLayouts = nullptr;
+	__LayoutInfo.pushConstantRangeCount = 0;
+	__LayoutInfo.pPushConstantRanges = nullptr;
+	__Result = vkCreatePipelineLayout(g_Vk.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
+
+	// colour attachment
+	VkAttachmentDescription __CAttachment = {  };
+	__CAttachment.format = g_Vk.sc_format.format;
+	__CAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	__CAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	__CAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	__CAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	__CAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	__CAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO configure this in unison with clear op
+	__CAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// specify fragment output location
+	VkAttachmentReference __AttachmentReference = {  };
+	__AttachmentReference.attachment = 0;
+	__AttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// specify graphical subpass
+	VkSubpassDescription __SubpassDesc = {  };
+	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	__SubpassDesc.colorAttachmentCount = 1;
+	__SubpassDesc.pColorAttachments = &__AttachmentReference;
+
+	// render pass
+	VkRenderPassCreateInfo __RPInfo = {  };
+	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	__RPInfo.attachmentCount = 1;
+	__RPInfo.pAttachments = &__CAttachment;
+	__RPInfo.subpassCount = 1;
+	__RPInfo.pSubpasses = &__SubpassDesc;
+	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&m_RenderPass);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
+
+	// combine pipeline components into final graphics pipeline
+	VkGraphicsPipelineCreateInfo __PipelineInfo = {  };
+	__PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	__PipelineInfo.stageCount = 2;
+	__PipelineInfo.pStages = __ShaderStages;
+	__PipelineInfo.pVertexInputState = &__InputInfo;
+	__PipelineInfo.pInputAssemblyState = &__AssemblyInfo;
+	__PipelineInfo.pViewportState = &__ViewportInfo;
+	__PipelineInfo.pRasterizationState = &__RasterInfo;
+	__PipelineInfo.pMultisampleState = &__MSAAInfo;
+	__PipelineInfo.pDepthStencilState = nullptr;
+	__PipelineInfo.pColorBlendState = &__BlendingInfo;
+	__PipelineInfo.pDynamicState = &__DynamicInfo;
+	__PipelineInfo.layout = m_PipelineLayout;
+	__PipelineInfo.renderPass = m_RenderPass;
+	__PipelineInfo.subpass = 0;
+	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	__PipelineInfo.basePipelineIndex = -1;
+	__Result = vkCreateGraphicsPipelines(g_Vk.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&m_Pipeline);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create graphics pipeline");
+	// TODO pipeline cache
 
 	// purge shader binaries & modules from memory after load
 	vkDestroyShaderModule(g_Vk.gpu,__VertexShader,nullptr);

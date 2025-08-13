@@ -23,6 +23,7 @@ struct Eruption
 	VkQueue presentation_queue;
 	VkSwapchainKHR swapchain;
 	VkExtent2D sc_extent;
+	VkSurfaceFormatKHR sc_format;
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 #ifdef DEBUG
