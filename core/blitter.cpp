@@ -213,16 +213,15 @@ swap_chain_selection_presentation:
 
 	// swap extent selection
 swap_chain_selection_extent:
-	VkExtent2D __Extent;
 	s32 __Width,__Height;
 	if (swap_chain.capabilities.currentExtent.width!=UINT32_MAX)
 	{
 		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
-		__Extent = swap_chain.capabilities.currentExtent;
+		vke.sc_extent = swap_chain.capabilities.currentExtent;
 		goto swap_chain_creation;
 	}
 	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
-	__Extent = {
+	vke.sc_extent = {
 		.width = glm::clamp((u32)__Width,
 							swap_chain.capabilities.minImageExtent.width,
 							swap_chain.capabilities.maxImageExtent.width),
@@ -244,7 +243,7 @@ swap_chain_creation:
 	__SwapchainInfo.minImageCount = __ImageCount;
 	__SwapchainInfo.imageFormat = __Format.format;
 	__SwapchainInfo.imageColorSpace = __Format.colorSpace;
-	__SwapchainInfo.imageExtent = __Extent;
+	__SwapchainInfo.imageExtent = vke.sc_extent;
 	__SwapchainInfo.imageArrayLayers = 1;
 	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
 	__SwapchainInfo.preTransform = swap_chain.capabilities.currentTransform;

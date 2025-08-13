@@ -135,6 +135,8 @@ FragmentShader::FragmentShader(const char* path)
 /**
  *	TODO
  */
+constexpr u32 _dynamic_state_count = 2;
+VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
 void ShaderPipeline::assemble(const char* vs,const char* fs)
 {
 #ifdef VKBUILD
@@ -180,11 +182,79 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	VkPipelineShaderStageCreateInfo __PipelineInfo[] = { __VertexStageInfo,__FragmentStageInfo };
 	// TODO outsource those shader specific creations to their correlating shader structs
 
+	// fixed function vertex input state
+	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
+	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	__InputInfo.vertexBindingDescriptionCount = 0;
+	__InputInfo.pVertexBindingDescriptions = nullptr;
+	__InputInfo.vertexAttributeDescriptionCount = 0;
+	__InputInfo.pVertexAttributeDescriptions = nullptr;
+	// TODO implement instancing switch here later!
+
+	// fixed function input assembly
+	VkPipelineInputAssemblyStateCreateInfo __AssemblyInfo = {  };
+	__AssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	__AssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	__AssemblyInfo.primitiveRestartEnable = VK_FALSE;
+	// TODO how would i even dynamically select this
+	// TODO this is a big discrepancy to the ogl implementation, that allows e.g. wireframe on the fly
+	//		cross correlate topology interpretation by definition between vulkan and ogl
+	// TODO i don't yet understand the full capabilities of primitiveRestartEnable. investigate further.
+
+	// fixed function dynamic state
+	VkPipelineDynamicStateCreateInfo __DynamicInfo = {  };
+	__DynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	__DynamicInfo.dynamicStateCount = _dynamic_state_count;
+	__DynamicInfo.pDynamicStates = _dynamic_states;
+
+	// viewport setup
+	VkViewport __Viewport = {
+		.x = .0f,
+		.y = .0f,
+		.width = (f32)g_Vk.sc_extent.width,
+		.height = (f32)g_Vk.sc_extent.height,
+		.minDepth = .0f,
+		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
+	};
+	// TODO move this out of here
+
+	// scissor setup
+	VkRect2D __Scissor = {
+		.offset = { 0,0 },
+		.extent = g_Vk.sc_extent,
+	};
+	// TODO this can all be pre-stored & reused for each of those pipeline setups
+
+	// fixed function viewport
+	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
+	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	__ViewportInfo.viewportCount = 1;
+	__ViewportInfo.pViewports = &__Viewport;
+	__ViewportInfo.scissorCount = 1;
+	__ViewportInfo.pScissors = &__Scissor;
+	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
+
+	// fixed function rasterization
+	VkPipelineRasterizationStateCreateInfo __RasterInfo = {  };
+	__RasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	__RasterInfo.depthClampEnable = VK_FALSE;  // TODO utilize this instead of depth clear + border colour
+	__RasterInfo.rasterizerDiscardEnable = VK_FALSE;
+	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	__RasterInfo.lineWidth = 1.f;
+	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	__RasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;  // TODO change this back to ccw
+	__RasterInfo.depthBiasEnable = VK_FALSE;
+	__RasterInfo.depthBiasConstantFactor = .0f;
+	__RasterInfo.depthBiasClamp = .0f;
+	__RasterInfo.depthBiasSlopeFactor = .0f;
+	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
+
 	// purge shader binaries & modules from memory after load
 	vkDestroyShaderModule(g_Vk.gpu,__VertexShader,nullptr);
 	vkDestroyShaderModule(g_Vk.gpu,__FragmentShader,nullptr);
 	free(__ShaderVS);
 	free(__ShaderFS);
+	// TODO store the shader modules to quickly switch between implemented features at runtime (options menu)
 	// FIXME this mallocs and frees for each shader seperately, this is not ideal!
 
 #else
