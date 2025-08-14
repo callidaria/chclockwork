@@ -28,7 +28,7 @@ struct Eruption
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
-
+	VkCommandPool cmds;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
@@ -44,7 +44,7 @@ struct SwapChain
 struct GPU
 {
 	// utility
-	void select(SDL_Window* frame,Eruption& vke);
+	void select(SDL_Window* frame);
 
 	// data
 	VkPhysicalDevice gpu;
@@ -61,7 +61,7 @@ struct GPU
 struct Hardware
 {
 	// utility
-	void detect(const Eruption& vke);
+	void detect();
 
 	// data
 	vector<GPU> gpus;

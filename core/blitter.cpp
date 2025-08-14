@@ -161,7 +161,7 @@ void Eruption::vanish()
 /**
  *	TODO
  */
-void GPU::select(SDL_Window* frame,Eruption& vke)  // FIXME REMOVE eruption parameter here, there is a global
+void GPU::select(SDL_Window* frame)
 {
 	COMM_ERR_COND(!supported,"selected gpu is not supported");
 	COMM_LOG("selecting gpu %s",properties.deviceName);
@@ -200,12 +200,12 @@ void GPU::select(SDL_Window* frame,Eruption& vke)  // FIXME REMOVE eruption para
 #endif
 
 	// create device
-	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&vke.gpu);
+	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&g_Vk.gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
 
 	// initialize queues
-	vkGetDeviceQueue(vke.gpu,graphical_queue,0,&vke.graphical_queue);
-	vkGetDeviceQueue(vke.gpu,presentation_queue,0,&vke.presentation_queue);
+	vkGetDeviceQueue(g_Vk.gpu,graphical_queue,0,&g_Vk.graphical_queue);
+	vkGetDeviceQueue(g_Vk.gpu,presentation_queue,0,&g_Vk.presentation_queue);
 
 	// format selection
 	COMM_LOG("running swap chain setup");
@@ -213,12 +213,12 @@ void GPU::select(SDL_Window* frame,Eruption& vke)  // FIXME REMOVE eruption para
 	{
 		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
-			vke.sc_format = p_Format;
+			g_Vk.sc_format = p_Format;
 			goto swap_chain_selection_presentation;
 		}
 	}
 	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
-	vke.sc_format = swap_chain.formats[0];
+	g_Vk.sc_format = swap_chain.formats[0];
 
 	// presentation mode selection
 swap_chain_selection_presentation:
@@ -241,11 +241,11 @@ swap_chain_selection_extent:
 	if (swap_chain.capabilities.currentExtent.width!=UINT32_MAX)
 	{
 		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
-		vke.sc_extent = swap_chain.capabilities.currentExtent;
+		g_Vk.sc_extent = swap_chain.capabilities.currentExtent;
 		goto swap_chain_creation;
 	}
 	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
-	vke.sc_extent = {
+	g_Vk.sc_extent = {
 		.width = glm::clamp((u32)__Width,
 							swap_chain.capabilities.minImageExtent.width,
 							swap_chain.capabilities.maxImageExtent.width),
@@ -263,11 +263,11 @@ swap_chain_creation:
 	// swapchain definition
 	VkSwapchainCreateInfoKHR __SwapchainInfo = {  };
 	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	__SwapchainInfo.surface = vke.surface;
+	__SwapchainInfo.surface = g_Vk.surface;
 	__SwapchainInfo.minImageCount = __ImageCount;
-	__SwapchainInfo.imageFormat = vke.sc_format.format;
-	__SwapchainInfo.imageColorSpace = vke.sc_format.colorSpace;
-	__SwapchainInfo.imageExtent = vke.sc_extent;
+	__SwapchainInfo.imageFormat = g_Vk.sc_format.format;
+	__SwapchainInfo.imageColorSpace = g_Vk.sc_format.colorSpace;
+	__SwapchainInfo.imageExtent = g_Vk.sc_extent;
 	__SwapchainInfo.imageArrayLayers = 1;
 	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
 	__SwapchainInfo.preTransform = swap_chain.capabilities.currentTransform;
@@ -290,22 +290,22 @@ swap_chain_creation:
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
-	__Result = vkCreateSwapchainKHR(vke.gpu,&__SwapchainInfo,nullptr,&vke.swapchain);
+	__Result = vkCreateSwapchainKHR(g_Vk.gpu,&__SwapchainInfo,nullptr,&g_Vk.swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
 
 	// reference swapchain images
 	u32 __SCICount;
-	vkGetSwapchainImagesKHR(vke.gpu,vke.swapchain,&__SCICount,nullptr);
+	vkGetSwapchainImagesKHR(g_Vk.gpu,g_Vk.swapchain,&__SCICount,nullptr);
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
-	vke.images.resize(__SCICount);
-	vkGetSwapchainImagesKHR(vke.gpu,vke.swapchain,&__SCICount,&vke.images[0]);
+	g_Vk.images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(g_Vk.gpu,g_Vk.swapchain,&__SCICount,&g_Vk.images[0]);
 
 	// image view memory & creation info setup
-	vke.image_views.resize(__SCICount);
+	g_Vk.image_views.resize(__SCICount);
 	VkImageViewCreateInfo __IVInfo = {  };
 	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__IVInfo.format = vke.sc_format.format;
+	__IVInfo.format = g_Vk.sc_format.format;
 	__IVInfo.components = {
 		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -321,8 +321,8 @@ swap_chain_creation:
 	// iterate images to create image views
 	for (u32 i=0;i<__SCICount;i++)
 	{
-		__IVInfo.image = vke.images[i];
-		__Result = vkCreateImageView(vke.gpu,&__IVInfo,nullptr,&vke.image_views[i]);
+		__IVInfo.image = g_Vk.images[i];
+		__Result = vkCreateImageView(g_Vk.gpu,&__IVInfo,nullptr,&g_Vk.image_views[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
@@ -333,16 +333,16 @@ swap_chain_creation:
  *	detect gpus
  *	TODO
  */
-void Hardware::detect(const Eruption& vke)  // TODO REMOVE this parameter, it is a global struct
+void Hardware::detect()
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;
-	vkEnumeratePhysicalDevices(vke.instance,&__GPUCount,nullptr);
+	vkEnumeratePhysicalDevices(g_Vk.instance,&__GPUCount,nullptr);
 	COMM_ERR_COND(!__GPUCount,"no vulkan capable gpus found. use opengl version!")
 	COMM_SCC_FALLBACK("found %u vulkan capable graphics card%s",__GPUCount,(__GPUCount>1)?"s":"");
 	vector<VkPhysicalDevice> __PhysicalGPUs = vector<VkPhysicalDevice>(__GPUCount);
 	gpus.resize(__GPUCount);
-	vkEnumeratePhysicalDevices(vke.instance,&__GPUCount,&__PhysicalGPUs[0]);
+	vkEnumeratePhysicalDevices(g_Vk.instance,&__GPUCount,&__PhysicalGPUs[0]);
 
 	// scanning available gpus for specifics
 	gpus.resize(__GPUCount);
@@ -364,7 +364,7 @@ void Hardware::detect(const Eruption& vke)  // TODO REMOVE this parameter, it is
 
 			// check for presentation support
 			VkBool32 __PresentingQueue = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,vke.surface,&__PresentingQueue);
+			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,g_Vk.surface,&__PresentingQueue);
 			if (__PresentingQueue) gpus[i].presentation_queue = j;
 
 			// check for sufficient queue support & abort to align graphical queue with presenting queue
@@ -408,22 +408,22 @@ void Hardware::detect(const Eruption& vke)  // TODO REMOVE this parameter, it is
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 
 		// get swap chain format capabilities
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,vke.surface,&gpus[i].swap_chain.capabilities);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,vke.surface,&__FormatCount,nullptr);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,g_Vk.surface,&gpus[i].swap_chain.capabilities);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,g_Vk.surface,&__FormatCount,nullptr);
 		if (!!__FormatCount)
 		{
 			gpus[i].swap_chain.formats.resize(__FormatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,vke.surface,
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,g_Vk.surface,
 												 &__FormatCount,&gpus[i].swap_chain.formats[0]);
 		}
 		COMM_ERR_FALLBACK("no surface formats found for GPU %s",gpus[i].properties.deviceName);
 
 		// get swap chain mode capabilities
-		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,vke.surface,&__ModeCount,nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,g_Vk.surface,&__ModeCount,nullptr);
 		if (!!__ModeCount)
 		{
 			gpus[i].swap_chain.modes.resize(__ModeCount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,vke.surface,
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,g_Vk.surface,
 													  &__ModeCount,&gpus[i].swap_chain.modes[0]);
 		}
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
@@ -496,8 +496,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
 							   width,height,SDL_WINDOW_VULKAN);
 	g_Vk.erupt(m_Frame);
-	m_Hardware.detect(g_Vk);
-	m_Hardware.gpus[did].select(m_Frame,g_Vk);
+	m_Hardware.detect();
+	m_Hardware.gpus[did].select(m_Frame);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 #endif
 
