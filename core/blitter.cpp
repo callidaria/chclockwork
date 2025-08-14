@@ -56,7 +56,7 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 void Eruption::erupt(SDL_Window* frame)
 {
 	// application info
-	VkApplicationInfo __ApplicationInfo = {};
+	VkApplicationInfo __ApplicationInfo = {  };
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
 	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
@@ -70,7 +70,7 @@ void Eruption::erupt(SDL_Window* frame)
 	vector<const char*> __Extensions(__ExtensionCount);
 	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
 #ifdef DEBUG
-	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {};
+	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
 	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -84,7 +84,7 @@ void Eruption::erupt(SDL_Window* frame)
 #endif
 
 	COMM_LOG("creating vulkan instance");
-	VkInstanceCreateInfo __CreateInfo = {};
+	VkInstanceCreateInfo __CreateInfo = {  };
 	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
 	__CreateInfo.enabledLayerCount = 0;
@@ -118,8 +118,33 @@ void Eruption::erupt(SDL_Window* frame)
 /**
  *	TODO
  */
+void Eruption::register_pipeline(VkRenderPass render_pass)
+{
+	// basic setup for all final framebuffers
+	VkFramebufferCreateInfo __FramebufferInfo = {  };
+	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.attachmentCount = 1;
+	__FramebufferInfo.width = sc_extent.width;
+	__FramebufferInfo.height = sc_extent.height;
+	__FramebufferInfo.layers = 1;
+
+	// allocate & iterate framebuffer creation
+	framebuffers.resize(image_views.size());
+	for (u32 i=0;i<image_views.size();i++)
+	{
+		__FramebufferInfo.pAttachments = &image_views[i];
+		VkResult __Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
+	}
+}
+
+/**
+ *	TODO
+ */
 void Eruption::vanish()
 {
+	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
 	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
 	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
 	vkDestroyDevice(gpu,nullptr);
@@ -136,7 +161,7 @@ void Eruption::vanish()
 /**
  *	TODO
  */
-void GPU::select(SDL_Window* frame,Eruption& vke)
+void GPU::select(SDL_Window* frame,Eruption& vke)  // FIXME REMOVE eruption parameter here, there is a global
 {
 	COMM_ERR_COND(!supported,"selected gpu is not supported");
 	COMM_LOG("selecting gpu %s",properties.deviceName);
@@ -155,10 +180,10 @@ void GPU::select(SDL_Window* frame,Eruption& vke)
 	}
 
 	// device features
-	VkPhysicalDeviceFeatures __DeviceFeatures = {};  // TODO
+	VkPhysicalDeviceFeatures __DeviceFeatures = {  };  // TODO
 
 	// device creation specifics
-	VkDeviceCreateInfo __DeviceInfo = {};
+	VkDeviceCreateInfo __DeviceInfo = {  };
 	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
 	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
@@ -236,7 +261,7 @@ swap_chain_creation:
 			? swap_chain.capabilities.maxImageCount : __ImageCount;
 
 	// swapchain definition
-	VkSwapchainCreateInfoKHR __SwapchainInfo = {};
+	VkSwapchainCreateInfoKHR __SwapchainInfo = {  };
 	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	__SwapchainInfo.surface = vke.surface;
 	__SwapchainInfo.minImageCount = __ImageCount;
@@ -277,7 +302,7 @@ swap_chain_creation:
 
 	// image view memory & creation info setup
 	vke.image_views.resize(__SCICount);
-	VkImageViewCreateInfo __IVInfo = {};
+	VkImageViewCreateInfo __IVInfo = {  };
 	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	__IVInfo.format = vke.sc_format.format;
@@ -308,7 +333,7 @@ swap_chain_creation:
  *	detect gpus
  *	TODO
  */
-void Hardware::detect(const Eruption& vke)
+void Hardware::detect(const Eruption& vke)  // TODO REMOVE this parameter, it is a global struct
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;

@@ -20,6 +20,10 @@ s32 main(s32 argc,char** argv)
 #ifdef DEBUG
 	//Clockwork __Clockwork = Clockwork(__Ubuntu);
 #endif
+	ShaderPipeline* __TestingPipeline = new ShaderPipeline();  // FIXME obviously not how it will be used later
+	__TestingPipeline->assemble("./core/shader/vulkan/bin/triangle.vert",
+								"./core/shader/vulkan/bin/triangle.frag");
+	g_Vk.register_pipeline(__TestingPipeline->render_pass);
 
 	//TestScene __Test = TestScene();
 
@@ -34,6 +38,7 @@ s32 main(s32 argc,char** argv)
 		//g_Renderer.update();
 		g_Frame.update();
 	}
+	delete __TestingPipeline;
 
 	//g_Renderer.exit();
 	g_Frame.close();

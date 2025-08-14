@@ -103,12 +103,17 @@ public:
 private:
 	s32 _handle_attribute_location_by_name(const char* varname);
 
+public:
+
+#ifdef VKBUILD
+	VkRenderPass render_pass;
+#endif
+
 private:
 
 	// program
 //#ifdef VKBUILD
 	VkPipelineLayout m_PipelineLayout;
-	VkRenderPass m_RenderPass;
 	VkPipeline m_Pipeline;
 //#else
 	u32 m_ShaderProgram;

@@ -13,6 +13,7 @@ struct Eruption
 {
 	// utility
 	void erupt(SDL_Window* frame);
+	void register_pipeline(VkRenderPass render_pass);
 	void vanish();
 
 	// data
@@ -26,6 +27,8 @@ struct Eruption
 	VkSurfaceFormatKHR sc_format;
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
+	vector<VkFramebuffer> framebuffers;
+
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

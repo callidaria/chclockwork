@@ -139,7 +139,7 @@ ShaderPipeline::~ShaderPipeline()
 {
 #ifdef VKBUILD
 	vkDestroyPipeline(g_Vk.gpu,m_Pipeline,nullptr);
-	vkDestroyRenderPass(g_Vk.gpu,m_RenderPass,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
 	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
 #endif
 }
@@ -332,7 +332,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__RPInfo.pAttachments = &__CAttachment;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
-	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&m_RenderPass);
+	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// combine pipeline components into final graphics pipeline
@@ -349,7 +349,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = m_PipelineLayout;
-	__PipelineInfo.renderPass = m_RenderPass;
+	__PipelineInfo.renderPass = render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
