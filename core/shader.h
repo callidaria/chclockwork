@@ -79,6 +79,9 @@ public:
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
 
+	// §§exp
+	void render();
+
 	// usage
 	void enable();
 	static void disable();
@@ -115,6 +118,8 @@ private:
 //#ifdef VKBUILD
 	VkPipelineLayout m_PipelineLayout;
 	VkPipeline m_Pipeline;
+	VkViewport m_Viewport = {  };
+	VkRect2D m_Scissor = {  };
 //#else
 	u32 m_ShaderProgram;
 	VertexShader m_VertexShader;

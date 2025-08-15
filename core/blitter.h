@@ -14,12 +14,15 @@ struct Eruption
 	// utility
 	void erupt(SDL_Window* frame);
 	void register_pipeline(VkRenderPass render_pass);
+	void register_command(VkRenderPass render_pass,VkCommandBuffer cmd);
 	void vanish();
 
 	// data
 	VkInstance instance;
 	VkSurfaceKHR surface;
 	VkDevice gpu;
+	u32 graphical_queue_id;
+	u32 presentation_queue_id;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
 	VkSwapchainKHR swapchain;
@@ -29,6 +32,7 @@ struct Eruption
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
 	VkCommandPool cmds;
+	VkCommandBuffer cmd_buffer;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

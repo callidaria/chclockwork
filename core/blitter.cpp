@@ -120,6 +120,8 @@ void Eruption::erupt(SDL_Window* frame)
  */
 void Eruption::register_pipeline(VkRenderPass render_pass)
 {
+	COMM_LOG("registration of final destination pipeline");
+
 	// basic setup for all final framebuffers
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -130,13 +132,32 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	__FramebufferInfo.layers = 1;
 
 	// allocate & iterate framebuffer creation
+	VkResult __Result;
 	framebuffers.resize(image_views.size());
 	for (u32 i=0;i<image_views.size();i++)
 	{
 		__FramebufferInfo.pAttachments = &image_views[i];
-		VkResult __Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
+		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}
+
+	// setup command pool
+	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
+	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
+	__Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
+
+	// setup command buffer
+	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
+	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CMDBufferInfo.commandPool = cmds;
+	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CMDBufferInfo.commandBufferCount = 1;
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
+	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 }
 
 /**
@@ -144,6 +165,7 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
  */
 void Eruption::vanish()
 {
+	vkDestroyCommandPool(gpu,cmds,nullptr);
 	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
 	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
 	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
@@ -202,6 +224,10 @@ void GPU::select(SDL_Window* frame)
 	// create device
 	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&g_Vk.gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
+
+	// cache current active queue ids
+	g_Vk.graphical_queue_id = graphical_queue;
+	g_Vk.presentation_queue_id = presentation_queue;
 
 	// initialize queues
 	vkGetDeviceQueue(g_Vk.gpu,graphical_queue,0,&g_Vk.graphical_queue);

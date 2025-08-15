@@ -218,7 +218,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__DynamicInfo.pDynamicStates = _dynamic_states;
 
 	// viewport setup
-	VkViewport __Viewport = {
+	m_Viewport = {
 		.x = .0f,
 		.y = .0f,
 		.width = (f32)g_Vk.sc_extent.width,
@@ -229,7 +229,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	// TODO move this out of here
 
 	// scissor setup
-	VkRect2D __Scissor = {
+	m_Scissor = {
 		.offset = { 0,0 },
 		.extent = g_Vk.sc_extent,
 	};
@@ -239,9 +239,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
 	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	__ViewportInfo.viewportCount = 1;
-	__ViewportInfo.pViewports = &__Viewport;
+	__ViewportInfo.pViewports = &m_Viewport;
 	__ViewportInfo.scissorCount = 1;
-	__ViewportInfo.pScissors = &__Scissor;
+	__ViewportInfo.pScissors = &m_Scissor;
 	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
 
 	// fixed function rasterization
@@ -370,6 +370,52 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 #endif
 }
 // TODO implement full vulkan compatibility for all shader features, and also finally the on-the-fly-shader
+
+/**
+ *	TODO
+ *	NOTE experimental! this will be removed later when test image works
+ */
+void ShaderPipeline::render()
+{
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	VkResult __Result = vkBeginCommandBuffer(g_Vk.cmd_buffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
+	// TODO the creation info can be pre-cached instead and then just used based on registration type later
+
+	// setup clear colour
+	VkClearValue __ClearColour = {{{ .0f,.0f,.0f,1.f }}};
+	// TODO foa: wtf? also: definitely set this once and run with it
+
+	// setup begin draw
+	VkRenderPassBeginInfo __RPBeginInfo = {  };
+	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	__RPBeginInfo.renderPass = render_pass;
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[0];  // TODO figure out a system
+	__RPBeginInfo.renderArea.offset = { 0,0 };
+	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
+	__RPBeginInfo.clearValueCount = 1;  // TODO ok but what? what on earth! do multiple clear colours do?
+	__RPBeginInfo.pClearValues = &__ClearColour;
+	vkCmdBeginRenderPass(g_Vk.cmd_buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(g_Vk.cmd_buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_Pipeline);
+
+	// viewport setup
+	vkCmdSetViewport(g_Vk.cmd_buffer,0,1,&m_Viewport);
+	vkCmdSetScissor(g_Vk.cmd_buffer,0,1,&m_Scissor);
+	// FIXME investigate this, it seems like this could be solved with a little more elegance
+
+	// gpu drawcall
+	vkCmdDraw(g_Vk.cmd_buffer,3,1,0,0);
+	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
+
+	// finish buffer registration
+	vkCmdEndRenderPass(g_Vk.cmd_buffer);
+	__Result = vkEndCommandBuffer(g_Vk.cmd_buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
+	// TODO outsource appropriately to pipeline probably
+}
 
 /**
  *	assemble shader pipeline from compiled shaders
