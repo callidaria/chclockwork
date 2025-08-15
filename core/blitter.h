@@ -33,6 +33,9 @@ struct Eruption
 	vector<VkFramebuffer> framebuffers;
 	VkCommandPool cmds;
 	VkCommandBuffer cmd_buffer;
+	VkSemaphore image_ready;
+	VkSemaphore render_done;
+	VkFence frame_progress;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

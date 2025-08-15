@@ -138,6 +138,7 @@ FragmentShader::FragmentShader(const char* path)
 ShaderPipeline::~ShaderPipeline()
 {
 #ifdef VKBUILD
+	vkDeviceWaitIdle(g_Vk.gpu);
 	vkDestroyPipeline(g_Vk.gpu,m_Pipeline,nullptr);
 	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
 	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
@@ -325,6 +326,15 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__SubpassDesc.colorAttachmentCount = 1;
 	__SubpassDesc.pColorAttachments = &__AttachmentReference;
 
+	// subpass dependency
+	VkSubpassDependency __SubpassDependency = {  };
+	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	__SubpassDependency.dstSubpass = 0;
+	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.srcAccessMask = 0;
+	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -332,6 +342,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__RPInfo.pAttachments = &__CAttachment;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
+	__RPInfo.dependencyCount = 1;
+	__RPInfo.pDependencies = &__SubpassDependency;
 	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
@@ -377,11 +389,25 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
  */
 void ShaderPipeline::render()
 {
+	// wait until current frame draw is ready
+	vkWaitForFences(g_Vk.gpu,1,&g_Vk.frame_progress,VK_TRUE,UINT64_MAX);
+	vkResetFences(g_Vk.gpu,1,&g_Vk.frame_progress);
+
+	// get next swapchain image
+	u32 __BufferID;
+	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,g_Vk.image_ready,
+											  VK_NULL_HANDLE,&__BufferID);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+
+	// reset command buffer
+	vkResetCommandBuffer(g_Vk.cmd_buffer,__BufferID);
+
+	// start command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
 	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
-	VkResult __Result = vkBeginCommandBuffer(g_Vk.cmd_buffer,&__CMDInfo);
+	__Result = vkBeginCommandBuffer(g_Vk.cmd_buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later
 
@@ -393,7 +419,7 @@ void ShaderPipeline::render()
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Vk.framebuffers[0];  // TODO figure out a system
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
 	__RPBeginInfo.clearValueCount = 1;  // TODO ok but what? what on earth! do multiple clear colours do?
@@ -415,6 +441,32 @@ void ShaderPipeline::render()
 	__Result = vkEndCommandBuffer(g_Vk.cmd_buffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
 	// TODO outsource appropriately to pipeline probably
+
+	// submit buffer
+	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 1;
+	__SubmitInfo.pWaitSemaphores = &g_Vk.image_ready;
+	__SubmitInfo.pWaitDstStageMask = __StageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &g_Vk.cmd_buffer;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done;
+	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,g_Vk.frame_progress);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+
+	// swap
+	VkPresentInfoKHR __PresentInfo = {  };
+	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	__PresentInfo.waitSemaphoreCount = 1;
+	__PresentInfo.pWaitSemaphores = &g_Vk.render_done;
+	__PresentInfo.swapchainCount = 1;
+	__PresentInfo.pSwapchains = &g_Vk.swapchain;
+	__PresentInfo.pImageIndices = &__BufferID;
+	__PresentInfo.pResults = nullptr;
+	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 }
 
 /**
