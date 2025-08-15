@@ -399,6 +399,7 @@ void ShaderPipeline::render()
 											  VK_NULL_HANDLE,&__BufferID);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 
+
 	// reset command buffer
 	vkResetCommandBuffer(g_Vk.cmd_buffer,__BufferID);
 
@@ -443,26 +444,29 @@ void ShaderPipeline::render()
 	// TODO outsource appropriately to pipeline probably
 
 	// submit buffer
+	VkSemaphore __ImageSemaphores[] = { g_Vk.image_ready };
+	VkSemaphore __RenderSemaphores[] = { g_Vk.render_done };
 	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = &g_Vk.image_ready;
+	__SubmitInfo.pWaitSemaphores = __ImageSemaphores;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &g_Vk.cmd_buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done;
+	__SubmitInfo.pSignalSemaphores = __RenderSemaphores;
 	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,g_Vk.frame_progress);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
 	// swap
+	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
 	VkPresentInfoKHR __PresentInfo = {  };
 	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = &g_Vk.render_done;
+	__PresentInfo.pWaitSemaphores = __RenderSemaphores;
 	__PresentInfo.swapchainCount = 1;
-	__PresentInfo.pSwapchains = &g_Vk.swapchain;
+	__PresentInfo.pSwapchains = __SwapChains;
 	__PresentInfo.pImageIndices = &__BufferID;
 	__PresentInfo.pResults = nullptr;
 	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);

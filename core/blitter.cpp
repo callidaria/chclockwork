@@ -159,19 +159,19 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 
-	// gpu async processing locking setup
+	// semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
-	VkFenceCreateInfo __FenceInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	// semaphore & fence creation
 	VkResult __ResultSem0 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&image_ready);
 	VkResult __ResultSem1 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done);
-	VkResult __ResultFence = vkCreateFence(gpu,&__FenceInfo,nullptr,&frame_progress);
-	COMM_ERR_COND(__ResultSem0!=VK_SUCCESS||__ResultSem1!=VK_SUCCESS||__ResultFence!=VK_SUCCESS,
-				  "failed to setup semaphores & fence");
+	COMM_ERR_COND(__ResultSem0!=VK_SUCCESS||__ResultSem1!=VK_SUCCESS,"failed to setup vulkan semaphores");
+
+	// fence creation
+	VkFenceCreateInfo __FenceInfo = {  };
+	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&frame_progress);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
 }
 
 /**
