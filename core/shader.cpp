@@ -399,9 +399,8 @@ void ShaderPipeline::render()
 											  VK_NULL_HANDLE,&__BufferID);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 
-
 	// reset command buffer
-	vkResetCommandBuffer(g_Vk.cmd_buffer,__BufferID);
+	vkResetCommandBuffer(g_Vk.cmd_buffer,0);
 
 	// start command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
