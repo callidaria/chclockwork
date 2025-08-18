@@ -253,7 +253,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
 	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	__RasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;  // TODO change this back to ccw
+	__RasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
 	__RasterInfo.depthBiasClamp = .0f;
@@ -443,18 +443,18 @@ void ShaderPipeline::render()
 	// TODO outsource appropriately to pipeline probably
 
 	// submit buffer
-	VkSemaphore __ImageSemaphores[] = { g_Vk.image_ready };
-	VkSemaphore __RenderSemaphores[] = { g_Vk.render_done };
+	VkSemaphore __WaitSemaphores = { g_Vk.image_ready };
+	VkSemaphore __SignalSemaphores = { g_Vk.render_done };
 	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = __ImageSemaphores;
+	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &g_Vk.cmd_buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = __RenderSemaphores;
+	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
 	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,g_Vk.frame_progress);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
@@ -463,7 +463,7 @@ void ShaderPipeline::render()
 	VkPresentInfoKHR __PresentInfo = {  };
 	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = __RenderSemaphores;
+	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
 	__PresentInfo.swapchainCount = 1;
 	__PresentInfo.pSwapchains = __SwapChains;
 	__PresentInfo.pImageIndices = &__BufferID;

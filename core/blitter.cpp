@@ -164,7 +164,7 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	VkResult __ResultSem0 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&image_ready);
 	VkResult __ResultSem1 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done);
-	COMM_ERR_COND(__ResultSem0!=VK_SUCCESS||__ResultSem1!=VK_SUCCESS,"failed to setup vulkan semaphores");
+	COMM_ERR_COND((__ResultSem0!=VK_SUCCESS)||(__ResultSem1!=VK_SUCCESS),"failed to setup vulkan semaphores");
 
 	// fence creation
 	VkFenceCreateInfo __FenceInfo = {  };
