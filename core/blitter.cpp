@@ -150,28 +150,40 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
 
 	// setup command buffer
+	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
 	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
 	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	__CMDBufferInfo.commandPool = cmds;
 	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CMDBufferInfo.commandBufferCount = 1;
-	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffer);
+	__CMDBufferInfo.commandBufferCount = FRAME_BLITTER_BUFFERS;
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffers[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 
 	// semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	VkResult __ResultSem0 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&image_ready);
-	VkResult __ResultSem1 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done);
-	COMM_ERR_COND((__ResultSem0!=VK_SUCCESS)||(__ResultSem1!=VK_SUCCESS),"failed to setup vulkan semaphores");
+	frame_ready.resize(FRAME_BLITTER_BUFFERS);
+	render_done.resize(FRAME_BLITTER_BUFFERS);
 
 	// fence creation
 	VkFenceCreateInfo __FenceInfo = {  };
 	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&frame_progress);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+	in_progress.resize(FRAME_BLITTER_BUFFERS);
+
+	// iterate asynchronous gpu conditions
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		// establish semaphores
+		VkResult __ResultSem0 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
+		VkResult __ResultSem1 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
+		COMM_ERR_COND((__ResultSem0!=VK_SUCCESS)||(__ResultSem1!=VK_SUCCESS),"failed to setup semaphores");
+
+		// establish fence
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&in_progress[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+	}
 }
 
 /**
@@ -179,9 +191,12 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
  */
 void Eruption::vanish()
 {
-	vkDestroySemaphore(gpu,image_ready,nullptr);
-	vkDestroySemaphore(gpu,render_done,nullptr);
-	vkDestroyFence(gpu,frame_progress,nullptr);
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		vkDestroySemaphore(gpu,frame_ready[i],nullptr);
+		vkDestroySemaphore(gpu,render_done[i],nullptr);
+		vkDestroyFence(gpu,in_progress[i],nullptr);
+	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
 	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
 	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);

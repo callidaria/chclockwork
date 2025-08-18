@@ -9,6 +9,7 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 
 #ifdef VKBUILD
+
 struct Eruption
 {
 	// utility
@@ -32,10 +33,10 @@ struct Eruption
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
 	VkCommandPool cmds;
-	VkCommandBuffer cmd_buffer;
-	VkSemaphore image_ready;
-	VkSemaphore render_done;
-	VkFence frame_progress;
+	vector<VkCommandBuffer> cmd_buffers;
+	vector<VkSemaphore> frame_ready;
+	vector<VkSemaphore> render_done;
+	vector<VkFence> in_progress;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

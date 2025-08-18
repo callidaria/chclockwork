@@ -120,6 +120,7 @@ private:
 	VkPipeline m_Pipeline;
 	VkViewport m_Viewport = {  };
 	VkRect2D m_Scissor = {  };
+	u8 m_ActiveBuffer = 0;
 //#else
 	u32 m_ShaderProgram;
 	VertexShader m_VertexShader;

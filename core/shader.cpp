@@ -389,25 +389,30 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
  */
 void ShaderPipeline::render()
 {
+	VkCommandBuffer p_CMDBuffer = g_Vk.cmd_buffers[m_ActiveBuffer];
+	VkSemaphore& p_ImageReady = g_Vk.frame_ready[m_ActiveBuffer];
+	VkSemaphore& p_RenderDone = g_Vk.render_done[m_ActiveBuffer];
+	VkFence& p_InProgress = g_Vk.in_progress[m_ActiveBuffer];
+
 	// wait until current frame draw is ready
-	vkWaitForFences(g_Vk.gpu,1,&g_Vk.frame_progress,VK_TRUE,UINT64_MAX);
-	vkResetFences(g_Vk.gpu,1,&g_Vk.frame_progress);
+	vkWaitForFences(g_Vk.gpu,1,&p_InProgress,VK_TRUE,UINT64_MAX);
+	vkResetFences(g_Vk.gpu,1,&p_InProgress);
 
 	// get next swapchain image
 	u32 __BufferID;
-	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,g_Vk.image_ready,
+	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,p_ImageReady,
 											  VK_NULL_HANDLE,&__BufferID);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 
 	// reset command buffer
-	vkResetCommandBuffer(g_Vk.cmd_buffer,0);
+	vkResetCommandBuffer(p_CMDBuffer,0);
 
 	// start command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
 	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
-	__Result = vkBeginCommandBuffer(g_Vk.cmd_buffer,&__CMDInfo);
+	__Result = vkBeginCommandBuffer(p_CMDBuffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later
 
@@ -424,27 +429,27 @@ void ShaderPipeline::render()
 	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
 	__RPBeginInfo.clearValueCount = 1;  // TODO ok but what? what on earth! do multiple clear colours do?
 	__RPBeginInfo.pClearValues = &__ClearColour;
-	vkCmdBeginRenderPass(g_Vk.cmd_buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(g_Vk.cmd_buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_Pipeline);
+	vkCmdBeginRenderPass(p_CMDBuffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(p_CMDBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_Pipeline);
 
 	// viewport setup
-	vkCmdSetViewport(g_Vk.cmd_buffer,0,1,&m_Viewport);
-	vkCmdSetScissor(g_Vk.cmd_buffer,0,1,&m_Scissor);
+	vkCmdSetViewport(p_CMDBuffer,0,1,&m_Viewport);
+	vkCmdSetScissor(p_CMDBuffer,0,1,&m_Scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 	// gpu drawcall
-	vkCmdDraw(g_Vk.cmd_buffer,3,1,0,0);
+	vkCmdDraw(p_CMDBuffer,3,1,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	// finish buffer registration
-	vkCmdEndRenderPass(g_Vk.cmd_buffer);
-	__Result = vkEndCommandBuffer(g_Vk.cmd_buffer);
+	vkCmdEndRenderPass(p_CMDBuffer);
+	__Result = vkEndCommandBuffer(p_CMDBuffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
 	// TODO outsource appropriately to pipeline probably
 
 	// submit buffer
-	VkSemaphore __WaitSemaphores = { g_Vk.image_ready };
-	VkSemaphore __SignalSemaphores = { g_Vk.render_done };
+	VkSemaphore __WaitSemaphores = { p_ImageReady };
+	VkSemaphore __SignalSemaphores = { p_RenderDone };
 	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -452,10 +457,10 @@ void ShaderPipeline::render()
 	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &g_Vk.cmd_buffer;
+	__SubmitInfo.pCommandBuffers = &p_CMDBuffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
-	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,g_Vk.frame_progress);
+	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,p_InProgress);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
 	// swap
@@ -470,6 +475,10 @@ void ShaderPipeline::render()
 	__PresentInfo.pResults = nullptr;
 	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
+
+	// tick frame
+	m_ActiveBuffer = (m_ActiveBuffer+1)&(FRAME_BLITTER_BUFFERS-1);
+	// TODO move this to the blitter later, this belongs in the frame update function
 }
 
 /**
