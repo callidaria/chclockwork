@@ -391,7 +391,6 @@ void ShaderPipeline::render()
 {
 	VkCommandBuffer p_CMDBuffer = g_Vk.cmd_buffers[m_ActiveBuffer];
 	VkSemaphore& p_ImageReady = g_Vk.frame_ready[m_ActiveBuffer];
-	VkSemaphore& p_RenderDone = g_Vk.render_done[m_ActiveBuffer];
 	VkFence& p_InProgress = g_Vk.in_progress[m_ActiveBuffer];
 
 	// wait until current frame draw is ready
@@ -404,7 +403,8 @@ void ShaderPipeline::render()
 											  VK_NULL_HANDLE,&__BufferID);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 
-	// reset command buffer
+	// aquire next command buffer & reset
+	VkSemaphore& p_RenderDone = g_Vk.render_done[__BufferID];
 	vkResetCommandBuffer(p_CMDBuffer,0);
 
 	// start command buffer

@@ -160,30 +160,36 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 
-	// semaphore creation
+	// buffer semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	frame_ready.resize(FRAME_BLITTER_BUFFERS);
-	render_done.resize(FRAME_BLITTER_BUFFERS);
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
+	}
 
-	// fence creation
+	// image semaphore creation
+	render_done.resize(images.size());
+	for (u8 i=0;i<images.size();i++)
+	{
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
+	}
+
+	// buffer fence creation
 	VkFenceCreateInfo __FenceInfo = {  };
 	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	in_progress.resize(FRAME_BLITTER_BUFFERS);
-
-	// iterate asynchronous gpu conditions
+	in_progress.resize(images.size());
 	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
 	{
-		// establish semaphores
-		VkResult __ResultSem0 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
-		VkResult __ResultSem1 = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
-		COMM_ERR_COND((__ResultSem0!=VK_SUCCESS)||(__ResultSem1!=VK_SUCCESS),"failed to setup semaphores");
-
-		// establish fence
 		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&in_progress[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
 	}
+
+	COMM_SCC("render pipeline ready.");
 }
 
 /**
@@ -191,10 +197,10 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
  */
 void Eruption::vanish()
 {
+	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
 	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
 	{
 		vkDestroySemaphore(gpu,frame_ready[i],nullptr);
-		vkDestroySemaphore(gpu,render_done[i],nullptr);
 		vkDestroyFence(gpu,in_progress[i],nullptr);
 	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
