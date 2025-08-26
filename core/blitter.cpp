@@ -343,6 +343,8 @@ void Hardware::detect()
  */
 void Eruption::erupt(SDL_Window* frame)
 {
+	ref_frame = frame;
+
 	// application info
 	VkApplicationInfo __ApplicationInfo = {  };
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -411,7 +413,8 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	COMM_LOG("registration of final destination pipeline");
 
 	// generate framebuffers
-	finish_swapchain(render_pass);
+	ref_render_pass = render_pass;
+	finish_swapchain();
 
 	// setup command pool
 	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
@@ -467,12 +470,12 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 /**
  *	TODO
  */
-void Eruption::finish_swapchain(VkRenderPass render_pass)
+void Eruption::finish_swapchain()
 {
 	// basic setup for all final framebuffers
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.renderPass = ref_render_pass;
 	__FramebufferInfo.attachmentCount = 1;
 	__FramebufferInfo.width = sc_extent.width;
 	__FramebufferInfo.height = sc_extent.height;
@@ -492,6 +495,27 @@ void Eruption::finish_swapchain(VkRenderPass render_pass)
 /**
  *	TODO
  */
+void Eruption::rebuild_swapchain()
+{
+	vkDeviceWaitIdle(gpu);
+	destroy_swapchain();
+	selected_gpu->assemble_swapchain(ref_frame);
+	finish_swapchain();
+}
+
+/**
+ *	TODO
+ */
+void Eruption::destroy_swapchain()
+{
+	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
+	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
+	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
+}
+
+/**
+ *	TODO
+ */
 void Eruption::vanish()
 {
 	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
@@ -501,9 +525,7 @@ void Eruption::vanish()
 		vkDestroyFence(gpu,in_progress[i],nullptr);
 	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
-	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
-	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
-	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
+	destroy_swapchain();
 	vkDestroyDevice(gpu,nullptr);
 	vkDestroySurfaceKHR(instance,surface,nullptr);
 #ifdef DEBUG

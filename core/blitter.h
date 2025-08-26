@@ -47,11 +47,15 @@ struct Eruption
 	// utility
 	void erupt(SDL_Window* frame);
 	void register_pipeline(VkRenderPass render_pass);
-	void finish_swapchain(VkRenderPass render_pass);
+	void finish_swapchain();
+	void rebuild_swapchain();
+	void destroy_swapchain();
 	void vanish();
 
 	// data
+	SDL_Window* ref_frame;
 	GPU* selected_gpu;
+	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
 	VkInstance instance;
 	VkSurfaceKHR surface;
 	VkDevice gpu;
