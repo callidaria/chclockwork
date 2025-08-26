@@ -40,6 +40,7 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 		break;
 	};
 }
+// TODO more detailed gpu error logging for ogl version
 
 #endif
 #endif
@@ -53,178 +54,11 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 /**
  *	TODO
  */
-void Eruption::erupt(SDL_Window* frame)
-{
-	// application info
-	VkApplicationInfo __ApplicationInfo = {  };
-	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
-	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
-	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
-
-	// extensions
-	u32 __ExtensionCount;
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
-	vector<const char*> __Extensions(__ExtensionCount);
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
-#ifdef DEBUG
-	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
-	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-			//|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
-	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
-
-	COMM_LOG("creating vulkan instance");
-	VkInstanceCreateInfo __CreateInfo = {  };
-	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
-	__CreateInfo.enabledLayerCount = 0;
-	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
-	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
-
-	// setup validation layers for gpu auto-logging
-#ifdef DEBUG
-	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
-	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
-	__CreateInfo.pNext = &__DebugMessengerInfo;
-#endif
-
-	// creating vulkan instance
-	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
-
-#ifdef DEBUG
-	COMM_LOG("setting up gpu error log");
-	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
-		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
-	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
-#endif
-
-	COMM_LOG("setting up render surface");
-	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
-	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
-}
-
-/**
- *	TODO
- */
-void Eruption::register_pipeline(VkRenderPass render_pass)
-{
-	COMM_LOG("registration of final destination pipeline");
-
-	// basic setup for all final framebuffers
-	VkFramebufferCreateInfo __FramebufferInfo = {  };
-	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = render_pass;
-	__FramebufferInfo.attachmentCount = 1;
-	__FramebufferInfo.width = sc_extent.width;
-	__FramebufferInfo.height = sc_extent.height;
-	__FramebufferInfo.layers = 1;
-
-	// allocate & iterate framebuffer creation
-	VkResult __Result;
-	framebuffers.resize(image_views.size());
-	for (u32 i=0;i<image_views.size();i++)
-	{
-		__FramebufferInfo.pAttachments = &image_views[i];
-		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
-	}
-
-	// setup command pool
-	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
-	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
-	__Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
-
-	// setup command buffer
-	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
-	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
-	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	__CMDBufferInfo.commandPool = cmds;
-	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CMDBufferInfo.commandBufferCount = FRAME_BLITTER_BUFFERS;
-	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffers[0]);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
-	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
-
-	// buffer semaphore creation
-	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
-	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	frame_ready.resize(FRAME_BLITTER_BUFFERS);
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
-	}
-
-	// image semaphore creation
-	render_done.resize(images.size());
-	for (u8 i=0;i<images.size();i++)
-	{
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
-	}
-
-	// buffer fence creation
-	VkFenceCreateInfo __FenceInfo = {  };
-	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	in_progress.resize(images.size());
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&in_progress[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
-	}
-
-	COMM_SCC("render pipeline ready.");
-}
-
-/**
- *	TODO
- */
-void Eruption::vanish()
-{
-	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		vkDestroySemaphore(gpu,frame_ready[i],nullptr);
-		vkDestroyFence(gpu,in_progress[i],nullptr);
-	}
-	vkDestroyCommandPool(gpu,cmds,nullptr);
-	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
-	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
-	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
-	vkDestroyDevice(gpu,nullptr);
-	vkDestroySurfaceKHR(instance,surface,nullptr);
-#ifdef DEBUG
-	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
-																	  "vkDestroyDebugUtilsMessengerEXT");
-	__DestroyMessenger(instance,debug_messenger,nullptr);
-#endif
-	vkDestroyInstance(instance,nullptr);
-}
-
-/**
- *	TODO
- */
 void GPU::select(SDL_Window* frame)
 {
 	COMM_ERR_COND(!supported,"selected gpu is not supported");
 	COMM_LOG("selecting gpu %s",properties.deviceName);
+	g_Vk.selected_gpu = this;
 
 	// queue creation
 	f32 __QueuePriority = 1.f;
@@ -271,6 +105,15 @@ void GPU::select(SDL_Window* frame)
 	vkGetDeviceQueue(g_Vk.gpu,graphical_queue,0,&g_Vk.graphical_queue);
 	vkGetDeviceQueue(g_Vk.gpu,presentation_queue,0,&g_Vk.presentation_queue);
 
+	// initial swapchain creation
+	assemble_swapchain(frame);
+}
+
+/**
+ *	TODO
+ */
+void GPU::assemble_swapchain(SDL_Window* frame)
+{
 	// format selection
 	COMM_LOG("running swap chain setup");
 	for (VkSurfaceFormatKHR& p_Format : swap_chain.formats)
@@ -354,7 +197,7 @@ swap_chain_creation:
 	// TODO optimize away concurrent mode in this case
 
 	// initialize swapchain
-	__Result = vkCreateSwapchainKHR(g_Vk.gpu,&__SwapchainInfo,nullptr,&g_Vk.swapchain);
+	VkResult __Result = vkCreateSwapchainKHR(g_Vk.gpu,&__SwapchainInfo,nullptr,&g_Vk.swapchain);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
 
 	// reference swapchain images
@@ -391,6 +234,7 @@ swap_chain_creation:
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
 }
+// TODO shortcut some features when recreating the swapchain, some selections not always necessary
 // TODO make all those features selectable by the user
 
 /**
@@ -494,6 +338,183 @@ void Hardware::detect()
 	}
 }
 
+/**
+ *	TODO
+ */
+void Eruption::erupt(SDL_Window* frame)
+{
+	// application info
+	VkApplicationInfo __ApplicationInfo = {  };
+	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
+	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
+
+	// extensions
+	u32 __ExtensionCount;
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
+	vector<const char*> __Extensions(__ExtensionCount);
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
+#ifdef DEBUG
+	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
+	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			//|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
+	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+
+	COMM_LOG("creating vulkan instance");
+	VkInstanceCreateInfo __CreateInfo = {  };
+	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
+	__CreateInfo.enabledLayerCount = 0;
+	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
+	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
+
+	// setup validation layers for gpu auto-logging
+#ifdef DEBUG
+	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
+	__CreateInfo.pNext = &__DebugMessengerInfo;
+#endif
+
+	// creating vulkan instance
+	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
+
+#ifdef DEBUG
+	COMM_LOG("setting up gpu error log");
+	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
+		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
+	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
+#endif
+
+	COMM_LOG("setting up render surface");
+	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
+	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
+}
+
+/**
+ *	TODO
+ */
+void Eruption::register_pipeline(VkRenderPass render_pass)
+{
+	COMM_LOG("registration of final destination pipeline");
+
+	// generate framebuffers
+	finish_swapchain(render_pass);
+
+	// setup command pool
+	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
+	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
+	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
+
+	// setup command buffer
+	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
+	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
+	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CMDBufferInfo.commandPool = cmds;
+	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CMDBufferInfo.commandBufferCount = FRAME_BLITTER_BUFFERS;
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffers[0]);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
+	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
+
+	// buffer semaphore creation
+	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
+	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	frame_ready.resize(FRAME_BLITTER_BUFFERS);
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
+	}
+
+	// image semaphore creation
+	render_done.resize(images.size());
+	for (u8 i=0;i<images.size();i++)
+	{
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
+	}
+
+	// buffer fence creation
+	VkFenceCreateInfo __FenceInfo = {  };
+	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	in_progress.resize(images.size());
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&in_progress[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+	}
+
+	COMM_SCC("render pipeline ready.");
+}
+
+/**
+ *	TODO
+ */
+void Eruption::finish_swapchain(VkRenderPass render_pass)
+{
+	// basic setup for all final framebuffers
+	VkFramebufferCreateInfo __FramebufferInfo = {  };
+	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.attachmentCount = 1;
+	__FramebufferInfo.width = sc_extent.width;
+	__FramebufferInfo.height = sc_extent.height;
+	__FramebufferInfo.layers = 1;
+
+	// allocate & iterate framebuffer creation
+	VkResult __Result;
+	framebuffers.resize(image_views.size());
+	for (u32 i=0;i<image_views.size();i++)
+	{
+		__FramebufferInfo.pAttachments = &image_views[i];
+		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
+	}
+}
+
+/**
+ *	TODO
+ */
+void Eruption::vanish()
+{
+	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
+	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
+	{
+		vkDestroySemaphore(gpu,frame_ready[i],nullptr);
+		vkDestroyFence(gpu,in_progress[i],nullptr);
+	}
+	vkDestroyCommandPool(gpu,cmds,nullptr);
+	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
+	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
+	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
+	vkDestroyDevice(gpu,nullptr);
+	vkDestroySurfaceKHR(instance,surface,nullptr);
+#ifdef DEBUG
+	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
+		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
+																	  "vkDestroyDebugUtilsMessengerEXT");
+	__DestroyMessenger(instance,debug_messenger,nullptr);
+#endif
+	vkDestroyInstance(instance,nullptr);
+}
+
 #endif
 
 
@@ -558,7 +579,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_MSG(LOG_CYAN,"opening vulkan window");
 	u8 did = 0;
 	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-							   width,height,SDL_WINDOW_VULKAN);
+							   width,height,/*SDL_WINDOW_RESIZABLE|*/SDL_WINDOW_VULKAN);
 	g_Vk.erupt(m_Frame);
 	m_Hardware.detect();
 	m_Hardware.gpus[did].select(m_Frame);

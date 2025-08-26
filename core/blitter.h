@@ -10,15 +10,48 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
 
 #ifdef VKBUILD
 
+
+struct SwapChain
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	vector<VkSurfaceFormatKHR> formats;
+	vector<VkPresentModeKHR> modes;
+};
+
+struct GPU
+{
+	// utility
+	void select(SDL_Window* frame);
+	void assemble_swapchain(SDL_Window* frame);
+
+	// data
+	VkPhysicalDevice gpu;
+	VkPhysicalDeviceProperties properties;
+	VkPhysicalDeviceFeatures features;
+	vector<VkExtensionProperties> extensions;
+	SwapChain swap_chain;
+	set<u32> queues;
+	s64 graphical_queue = -1;
+	s64 presentation_queue = -1;
+	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
+};
+
+struct Hardware
+{
+	void detect();
+	vector<GPU> gpus;
+};
+
 struct Eruption
 {
 	// utility
 	void erupt(SDL_Window* frame);
 	void register_pipeline(VkRenderPass render_pass);
-	void register_command(VkRenderPass render_pass,VkCommandBuffer cmd);
+	void finish_swapchain(VkRenderPass render_pass);
 	void vanish();
 
 	// data
+	GPU* selected_gpu;
 	VkInstance instance;
 	VkSurfaceKHR surface;
 	VkDevice gpu;
@@ -40,39 +73,6 @@ struct Eruption
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
-};
-
-struct SwapChain
-{
-	VkSurfaceCapabilitiesKHR capabilities;
-	vector<VkSurfaceFormatKHR> formats;
-	vector<VkPresentModeKHR> modes;
-};
-
-struct GPU
-{
-	// utility
-	void select(SDL_Window* frame);
-
-	// data
-	VkPhysicalDevice gpu;
-	VkPhysicalDeviceProperties properties;
-	VkPhysicalDeviceFeatures features;
-	vector<VkExtensionProperties> extensions;
-	SwapChain swap_chain;
-	set<u32> queues;
-	s64 graphical_queue = -1;
-	s64 presentation_queue = -1;
-	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
-};
-
-struct Hardware
-{
-	// utility
-	void detect();
-
-	// data
-	vector<GPU> gpus;
 };
 #endif
 
