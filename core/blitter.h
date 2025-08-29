@@ -33,6 +33,7 @@ struct GPU
 	set<u32> queues;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
+	VkPhysicalDeviceMemoryProperties memory_properties;
 	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
 };
 
@@ -69,6 +70,7 @@ struct Eruption
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
+	VkBuffer vertex_buffer;  // TODO test data, this will obviously be removed as soon as the test is working
 	VkCommandPool cmds;
 	vector<VkCommandBuffer> cmd_buffers;
 	vector<VkSemaphore> frame_ready;

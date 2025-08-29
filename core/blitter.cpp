@@ -335,6 +335,9 @@ void Hardware::detect()
 													  &__ModeCount,&gpus[i].swap_chain.modes[0]);
 		}
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
+
+		// get memory types
+		vkGetPhysicalDeviceMemoryProperties(gpus[i].gpu,&gpus[i].memory_properties);
 	}
 }
 
@@ -405,6 +408,13 @@ void Eruption::erupt(SDL_Window* frame)
 	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
 }
 
+// TODO remove this later when testing is done
+f32 _verts[] = {
+	-.5f,.5f,1.f,.0f,.0f,
+	.5f,.5f,.0f,1.f,.0f,
+	.0f,-.5f,.0f,.0f,1.f,
+};
+
 /**
  *	TODO
  */
@@ -423,6 +433,30 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
 	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
+
+	// vertex buffer
+	VkBufferCreateInfo __BufferInfo = {  };
+	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	__BufferInfo.size = sizeof(f32)*15;
+	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	__Result = vkCreateBuffer(gpu,&__BufferInfo,nullptr,&vertex_buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
+
+	// pick memory type
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetBufferMemoryRequirements(gpu,vertex_buffer,&__MemoryRequirements);
+	for (u32 i=0;i<selected_gpu->memory_properties.memoryTypeCount;i++)
+	{
+		// TODO
+	}
+
+	// buffer memory allocation
+	VkMemoryAllocateInfo __MallocInfo = {  };
+	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MallocInfo.allocationSize = __MemoryRequirements.size;
+	//__MallocInfo.memoryTypeIndex = 
+	// TODO later remove this from here!
 
 	// setup command buffer
 	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
@@ -500,6 +534,7 @@ void Eruption::rebuild_swapchain()
 	vkDeviceWaitIdle(gpu);
 	destroy_swapchain();
 	selected_gpu->assemble_swapchain(ref_frame);
+	// TODO recreate render pass as well
 	finish_swapchain();
 }
 
@@ -526,6 +561,7 @@ void Eruption::vanish()
 	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
 	destroy_swapchain();
+	vkDestroyBuffer(gpu,vertex_buffer,nullptr);
 	vkDestroyDevice(gpu,nullptr);
 	vkDestroySurfaceKHR(instance,surface,nullptr);
 #ifdef DEBUG

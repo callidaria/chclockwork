@@ -572,7 +572,6 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 Renderer::Renderer()
 {
 	COMM_MSG(LOG_CYAN,"starting render system");
-
 	COMM_LOG("starting font rasterizer");
 	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
 	COMM_ERR_COND(_failed,"text rasterizer not available");
@@ -688,6 +687,7 @@ Renderer::Renderer()
 	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
 									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
 	m_SpriteTextureCollector.detach();
+
 	COMM_SCC("render system ready.");
 }
 // TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
