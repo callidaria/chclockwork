@@ -437,6 +437,11 @@ void ShaderPipeline::render()
 	vkCmdSetScissor(p_CMDBuffer,0,1,&m_Scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
+	// bind buffer
+	VkBuffer __Buffers[] = { g_Vk.vertex_buffer };
+	VkDeviceSize __Offsets[] = { 0 };
+	vkCmdBindVertexBuffers(p_CMDBuffer,(u32)15,1,0,0);
+
 	// gpu drawcall
 	vkCmdDraw(p_CMDBuffer,3,1,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this

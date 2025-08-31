@@ -71,6 +71,7 @@ struct Eruption
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
 	VkBuffer vertex_buffer;  // TODO test data, this will obviously be removed as soon as the test is working
+	VkDeviceMemory buffer_vram;
 	VkCommandPool cmds;
 	vector<VkCommandBuffer> cmd_buffers;
 	vector<VkSemaphore> frame_ready;
