@@ -193,13 +193,30 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	VkPipelineShaderStageCreateInfo __ShaderStages[] = { __VertexStageInfo,__FragmentStageInfo };
 	// TODO outsource those shader specific creations to their correlating shader structs
 
+	// vertex binding setup
+	VkVertexInputBindingDescription __InputBinding = {  };
+	__InputBinding.binding = 0;
+	__InputBinding.stride = sizeof(f32)*5;
+	__InputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	// vertex attribute setup
+	VkVertexInputAttributeDescription __AttributeDesc[2] = { {},{} };
+	__AttributeDesc[0].binding = 0;
+	__AttributeDesc[0].location = 0;
+	__AttributeDesc[0].format = VK_FORMAT_R32G32_SFLOAT;
+	__AttributeDesc[0].offset = 0;
+	__AttributeDesc[1].binding = 0;
+	__AttributeDesc[1].location = 1;
+	__AttributeDesc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	__AttributeDesc[1].offset = sizeof(f32)*2;
+
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
 	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	__InputInfo.vertexBindingDescriptionCount = 0;
-	__InputInfo.pVertexBindingDescriptions = nullptr;
-	__InputInfo.vertexAttributeDescriptionCount = 0;
-	__InputInfo.pVertexAttributeDescriptions = nullptr;
+	__InputInfo.vertexBindingDescriptionCount = 1;
+	__InputInfo.pVertexBindingDescriptions = &__InputBinding;
+	__InputInfo.vertexAttributeDescriptionCount = 2;
+	__InputInfo.pVertexAttributeDescriptions = __AttributeDesc;
 	// TODO implement instancing switch here later!
 
 	// fixed function input assembly
@@ -440,7 +457,7 @@ void ShaderPipeline::render()
 	// bind buffer
 	VkBuffer __Buffers[] = { g_Vk.vertex_buffer };
 	VkDeviceSize __Offsets[] = { 0 };
-	vkCmdBindVertexBuffers(p_CMDBuffer,(u32)15,1,0,0);
+	vkCmdBindVertexBuffers(p_CMDBuffer,0,1,__Buffers,__Offsets);
 
 	// gpu drawcall
 	vkCmdDraw(p_CMDBuffer,3,1,0,0);
