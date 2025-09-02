@@ -701,13 +701,13 @@ void Renderer::update()
 
 	// shadow projection
 	Frame::gpu_cull_backfaces(false);
-	glViewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+	Frame::gpu_set_viewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	m_ShadowFrameBuffer.start();
 	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
 	Frame::gpu_cull_backfaces(true);
 
 	// 3D segment
-	glViewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	Frame::gpu_set_viewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_ForwardFrameBuffer.start();
 	_update_mesh(m_GeometryBatches,m_ParticleBatches);
 	m_DeferredFrameBuffer.start();
@@ -715,9 +715,9 @@ void Renderer::update()
 	Framebuffer::stop();
 
 	// rendertargets
-	glDisable(GL_DEPTH_TEST);
+	Frame::gpu_disable_feature(GPU_FEATURE_DEPTH_TEST);
 	_update_canvas();
-	glEnable(GL_DEPTH_TEST);
+	Frame::gpu_enable_feature(GPU_FEATURE_DEPTH_TEST);
 
 	// 2D segment
 	_update_sprites();
@@ -1188,9 +1188,13 @@ void Renderer::_update_sprites()
 {
 	m_SpriteVertexArray.bind();
 	m_SpriteInstanceBuffer.bind();
-	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem,BUFFER_MAXIMUM_TEXTURE_COUNT,GL_DYNAMIC_DRAW);
+	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem,BUFFER_MAXIMUM_TEXTURE_COUNT,MEMORY_FORMAT_QUICK);
 	m_SpritePipeline.enable();
+#ifdef VKBUILD
+	// TODO
+#else
 	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
+#endif
 }
 
 /**
@@ -1206,8 +1210,12 @@ void Renderer::_update_text()
 	// iterate text entities
 	for (Text& p_Text : m_Texts)
 	{
-		m_TextInstanceBuffer.upload_vertices(p_Text.buffer,GL_DYNAMIC_DRAW);
+		m_TextInstanceBuffer.upload_vertices(p_Text.buffer,MEMORY_FORMAT_QUICK);
+#ifdef VKBUILD
+		// TODO
+#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
+#endif
 	}
 }
 
@@ -1232,7 +1240,11 @@ void Renderer::_update_canvas()
 	m_CanvasPipeline.upload("shadow_projection",
 							m_Lighting.shadow_projection.proj*m_Lighting.shadow_projection.view);
 	// TODO do this in upload lighting process later
+#ifdef VKBUILD
+	// TODO
+#else
 	glDrawArrays(GL_TRIANGLES,0,6);
+#endif
 }
 
 /**
@@ -1259,7 +1271,11 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 			p_Batch.shader->upload("texel",p_Tuple.texel);
 
 			// upload standard values & call gpu
+#ifdef VKBUILD
+			// TODO
+#else
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+#endif
 		}
 	}
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
@@ -1270,7 +1286,11 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera();
 		p_Batch.vao.bind();
+#ifdef VKBUILD
+		// TODO
+#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.vertex_count,p_Batch.active_particles);
+#endif
 	}
 }
 
@@ -1292,7 +1312,11 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
 			p_Batch.uniform[i].upload();
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
+#ifdef VKBUILD
+		// TODO
+#else
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
+#endif
 		}
 	}
 
@@ -1302,7 +1326,11 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
 		p_Batch.batch->vao.bind();
+#ifdef VKBUILD
+		// TODO
+#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
+#endif
 	}
 }
 

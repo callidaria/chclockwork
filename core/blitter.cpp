@@ -794,6 +794,19 @@ void Frame::gpu_vsync_off()
 }
 
 /**
+ * TODO
+ */
+void Frame::gpu_set_viewport(u32 x,u32 y,u32 width,u32 height)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glViewport(x,y,width,height);
+#endif
+}
+
+/**
  *	TODO
  */
 void Frame::gpu_cull_backfaces(bool backfaces)
@@ -806,6 +819,12 @@ void Frame::gpu_cull_backfaces(bool backfaces)
 #endif
 }
 
+#ifndef VKBUILD
+GLenum _gpu_features[GPU_FEATURE_COUNT] = {
+	GL_DEPTH_TEST,
+};
+#endif
+
 /**
  *	TODO
  */
@@ -815,7 +834,7 @@ void Frame::gpu_enable_feature(GPUFeature feature)
 	// TODO
 
 #else
-	glEnable();
+	glEnable(_gpu_features[feature]);
 #endif
 }
 
@@ -828,6 +847,6 @@ void Frame::gpu_disable_feature(GPUFeature feature)
 	// TODO
 
 #else
-	glDisable();
+	glDisable(_gpu_features[feature]);
 #endif
 }

@@ -117,13 +117,13 @@ public:
 private:
 
 	// program
-//#ifdef VKBUILD
+#ifdef VKBUILD
 	VkPipelineLayout m_PipelineLayout;
 	VkPipeline m_Pipeline;
 	VkViewport m_Viewport = {  };
 	VkRect2D m_Scissor = {  };
 	u8 m_ActiveBuffer = 0;
-//#else
+#else
 	u32 m_ShaderProgram;
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;
@@ -131,7 +131,7 @@ private:
 	// working iteration
 	size_t m_VertexCursor = 0;
 	size_t m_IndexCursor = 0;
-//#endif
+#endif
 };
 
 
