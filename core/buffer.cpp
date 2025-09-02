@@ -174,8 +174,13 @@ void TextureData::load(const char* path)
  */
 void TextureData::gpu_upload()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
 				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
+#endif
 	_free();
 }
 
@@ -186,7 +191,12 @@ void TextureData::gpu_upload()
  */
 void TextureData::gpu_upload_subtexture()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
+#endif
 	_free();
 }
 
@@ -205,9 +215,15 @@ void TextureData::_free()
  */
 Texture::Texture()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glGenTextures(1,&m_Memory);
+#endif
 }
 
+#ifndef VKBUILD
 /**
  *	set texture channel
  *	\param i: channel index, correlating to sampler2D integer upload
@@ -216,6 +232,8 @@ void Texture::set_channel(u8 i)
 {
 	glActiveTexture(GL_TEXTURE0+i);
 }
+#endif
+// TODO i'm not sure this is even a thing in the vulkan version? how do we handle that?
 
 /**
  *	bind texture buffer for read and write procedures
@@ -223,8 +241,13 @@ void Texture::set_channel(u8 i)
  */
 void Texture::bind(u8 i)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	set_channel(i);
 	glBindTexture(GL_TEXTURE_2D,m_Memory);
+#endif
 }
 
 /**
@@ -232,7 +255,12 @@ void Texture::bind(u8 i)
  */
 void Texture::unbind()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindTexture(GL_TEXTURE_2D,0);
+#endif
 }
 
 /**
@@ -242,8 +270,13 @@ void Texture::unbind()
  */
 void Texture::set_texture_parameter_linear_mipmap()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+#endif
 }
 
 /**
@@ -253,8 +286,13 @@ void Texture::set_texture_parameter_linear_mipmap()
  */
 void Texture::set_texture_parameter_nearest_mipmap()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+#endif
 }
 
 /**
@@ -263,8 +301,13 @@ void Texture::set_texture_parameter_nearest_mipmap()
  */
 void Texture::set_texture_parameter_linear_unfiltered()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+#endif
 }
 
 /**
@@ -273,8 +316,13 @@ void Texture::set_texture_parameter_linear_unfiltered()
  */
 void Texture::set_texture_parameter_nearest_unfiltered()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+#endif
 }
 
 /**
@@ -283,8 +331,13 @@ void Texture::set_texture_parameter_nearest_unfiltered()
  */
 void Texture::set_texture_parameter_clamp_to_edge()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+#endif
 }
 
 /**
@@ -293,8 +346,13 @@ void Texture::set_texture_parameter_clamp_to_edge()
  */
 void Texture::set_texture_parameter_clamp_to_border()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_BORDER);
+#endif
 }
 
 /**
@@ -303,8 +361,13 @@ void Texture::set_texture_parameter_clamp_to_border()
  */
 void Texture::set_texture_parameter_repeat()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+#endif
 }
 
 /**
@@ -314,7 +377,12 @@ void Texture::set_texture_parameter_repeat()
  */
 void Texture::set_texture_parameter_filter_bias(float bias)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_LOD_BIAS,bias);
+#endif
 }
 
 /**
@@ -325,7 +393,12 @@ void Texture::set_texture_parameter_filter_bias(float bias)
  */
 void Texture::set_texture_parameter_border_colour(vec4 colour)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexParameterfv(GL_TEXTURE_2D,GL_TEXTURE_BORDER_COLOR,&colour.r);
+#endif
 }
 
 /**
@@ -334,7 +407,12 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
  */
 void Texture::generate_mipmap()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glGenerateMipmap(GL_TEXTURE_2D);
+#endif
 }
 
 
@@ -370,11 +448,19 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,u32 format)
 			.offset = vec2(0,0),
 			.dimensions = vec2(width,height)
 		});
+
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glTexImage2D(GL_TEXTURE_2D,0,format,width,height,0,format,GL_UNSIGNED_BYTE,0);
+#endif
 }
 // FIXME inconsistent formatting, the allocation format can easily be detached from texture data structure
 // FIXME in case of sRGB colourspace for example the format in internalformat and format won't be the same
 //		furthermore this is absolutely necessary to be of dynamic nature, due to monochrome buffers being a thing
+// TODO i don't believe all this schnickschnack is necessary for the vulkan version at all.
+//		vulkan allows for a way more direct malloc procedure, this might be the biggest discrepancy in the vers
 
 /**
  *	load texture from path and finally upload to gpu memory
@@ -548,10 +634,16 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
  */
 Framebuffer::Framebuffer(u8 compcount)
 {
-	glGenFramebuffers(1,&m_Buffer);
 	if (!compcount) return;
 	m_ColourComponents.resize(compcount);
+
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(compcount,&m_ColourComponents[0]);
+#endif
 }
 
 /**
@@ -563,10 +655,15 @@ Framebuffer::Framebuffer(u8 compcount)
  */
 void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[index]);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,width,height,0,GL_RGBA,GL_UNSIGNED_INT+fbuffer,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_ColourComponents[index],0);
+#endif
 }
 
 /**
@@ -576,11 +673,16 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
  */
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glGenTextures(1,&m_DepthComponent);
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
+#endif
 }
 
 /**
@@ -589,9 +691,14 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
  */
 void Framebuffer::finalize()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	u32 __Attachments[m_ColourComponents.size()];
 	for (u8 i=0;i<m_ColourComponents.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
 	glDrawBuffers(m_ColourComponents.size(),__Attachments);
+#endif
 }
 
 /**
@@ -599,7 +706,13 @@ void Framebuffer::finalize()
  */
 void Framebuffer::start()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
+#endif
+
 	Frame::clear();
 }
 
@@ -608,7 +721,12 @@ void Framebuffer::start()
  */
 void Framebuffer::stop()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
+#endif
 }
 
 /**
@@ -619,7 +737,13 @@ void Framebuffer::stop()
 void Framebuffer::bind_colour_component(u8 channel,u8 i)
 {
 	Texture::set_channel(channel);
+
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[i]);
+#endif
 }
 
 /**
@@ -629,5 +753,11 @@ void Framebuffer::bind_colour_component(u8 channel,u8 i)
 void Framebuffer::bind_depth_component(u8 channel)
 {
 	Texture::set_channel(channel);
+
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+#endif
 }
