@@ -17,11 +17,13 @@ struct ShaderAttribute
 	string name;
 };
 
+#ifndef VKBUILD
 class Shader
 {
 public:
 	static u32 compile(const char* path,GLenum type);
 };
+#endif
 
 class VertexShader
 {

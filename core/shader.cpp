@@ -4,6 +4,8 @@
 // ----------------------------------------------------------------------------------------------------
 // Shaders
 
+#ifndef VKBUILD
+
 /**
  *	compile given shader program
  *	\param path: path to shader program (can be vertex, fragment or geometry)
@@ -54,12 +56,18 @@ u32 Shader::compile(const char* path,GLenum type)
 	return shader;
 }
 
+#endif
+
 /**
  *	create a vertex shader from source
  *	\param path: path to GLSL vertex source file
  */
 VertexShader::VertexShader(const char* path)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	shader = Shader::compile(path,GL_VERTEX_SHADER);
 	if (!shader)
 	{
@@ -96,6 +104,7 @@ VertexShader::VertexShader(const char* path)
 	// convert widths to byte format
 	vbo_width *= SHADER_UPLOAD_VALUE_SIZE;
 	ibo_width *= SHADER_UPLOAD_VALUE_SIZE;
+#endif
 }
 
 /**
@@ -104,6 +113,10 @@ VertexShader::VertexShader(const char* path)
  */
 FragmentShader::FragmentShader(const char* path)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	shader = Shader::compile(path,GL_FRAGMENT_SHADER);
 	if (!shader)
 	{
@@ -126,6 +139,7 @@ FragmentShader::FragmentShader(const char* path)
 		tokens[2].pop_back();
 		sampler_attribs.push_back(tokens[2]);
 	}
+#endif
 }
 
 

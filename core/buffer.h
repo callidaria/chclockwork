@@ -8,21 +8,22 @@
 enum MemoryFormat : u8
 {
 	MEMORY_FORMAT_STATIC,
-	MEMORY_FORMAT_QUICK
+	MEMORY_FORMAT_QUICK,
+	MEMORY_FORMAT_COUNT
 };
 
 enum TextureFormat : u8
 {
 	TEXTURE_FORMAT_RGBA,
 	TEXTURE_FORMAT_SRGB,
-	TEXTURE_FORMAT_MONOCHROME
+	TEXTURE_FORMAT_MONOCHROME,
+	TEXTURE_FORMAT_COUNT
 };
 
 
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
-#ifndef VKBUILD
 class VertexArray
 {
 public:
@@ -34,10 +35,11 @@ public:
 private:
 	u32 m_VAO;
 };
-#endif
+// TODO this should be used automatically when implementing the vulkan correlation,
+//		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 
 #ifndef VKBUILD
-GLenum _memory_formats[] = {
+GLenum _memory_formats[MEMORY_FORMAT_COUNT] = {
 	GL_STATIC_DRAW,
 	GL_DYNAMIC_DRAW
 };
@@ -169,7 +171,7 @@ struct Font
 struct GPUPixelBuffer
 {
 	// utilty
-	void allocate(u32 width,u32 height,u32 format);
+	void allocate(u32 width,u32 height,TextureFormat format);
 	static void load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path);
 	static void load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size);
 	static void _load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,TextureData* data);

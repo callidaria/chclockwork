@@ -640,13 +640,13 @@ Renderer::Renderer()
 
 	COMM_LOG("allocating sprite memory");
 	m_GPUSpriteTextures.atlas.bind(RENDERER_TEXTURE_SPRITES);
-	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,GL_RGBA);
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_RGBA);
 	Texture::set_texture_parameter_linear_mipmap();
 	Texture::set_texture_parameter_clamp_to_edge();
 
 	COMM_LOG("allocating font memory");
 	m_GPUFontTextures.atlas.bind(RENDERER_TEXTURE_FONTS);
-	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,GL_RED);
+	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,TEXTURE_FORMAT_MONOCHROME);
 	Texture::set_texture_parameter_linear_mipmap();
 	Texture::set_texture_parameter_clamp_to_edge();
 
@@ -700,11 +700,11 @@ void Renderer::update()
 	m_FrameStart = std::chrono::steady_clock::now();
 
 	// shadow projection
-	glCullFace(GL_FRONT);
+	Frame::gpu_cull_backfaces(false);
 	glViewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	m_ShadowFrameBuffer.start();
 	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
-	glCullFace(GL_BACK);
+	Frame::gpu_cull_backfaces(true);
 
 	// 3D segment
 	glViewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);

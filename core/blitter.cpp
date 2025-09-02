@@ -640,6 +640,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	glFrontFace(GL_CCW);
 	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
 	glViewport(0,0,width,height);
+	// TODO all of this will be capsd as gpu settings features. those initials should be called in each version
 
 	// gpu error log
 #if defined(DEBUG) && !defined(__APPLE__)
@@ -648,6 +649,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(_gpu_error_callback,nullptr);
 #endif
+	// TODO this can also be it's own feature. those setup steps don't have to have a strict macro border
 
 	// ----------------------------------------------------------------------------------------------------
 	// Vulkan Setup
@@ -667,7 +669,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	else gpu_vsync_off();
 
 	// standard settings
-	//set_clear_colour(BLITTER_CLEAR_COLOUR);
+	set_clear_colour(BLITTER_CLEAR_COLOUR);
 
 	COMM_SCC("blitter ready.");
 }
@@ -679,6 +681,7 @@ void Frame::clear()
 {
 #ifdef VKBUILD
 	// TODO
+
 #else
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 #endif
@@ -787,5 +790,44 @@ void Frame::gpu_vsync_off()
 
 #else
 	SDL_GL_SetSwapInterval(0);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Frame::gpu_cull_backfaces(bool backfaces)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glCullFace(GL_FRONT+backfaces);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Frame::gpu_enable_feature(GPUFeature feature)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glEnable();
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Frame::gpu_disable_feature(GPUFeature feature)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glDisable();
 #endif
 }

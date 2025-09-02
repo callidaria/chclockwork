@@ -4,14 +4,17 @@
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
-#ifndef VKBUILD
-
 /**
  *	create vertex array
  */
 VertexArray::VertexArray()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glGenVertexArrays(1,&m_VAO);
+#endif
 }
 
 /**
@@ -19,7 +22,12 @@ VertexArray::VertexArray()
  */
 void VertexArray::bind()
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBindVertexArray(m_VAO);
+#endif
 }
 
 /**
@@ -27,10 +35,13 @@ void VertexArray::bind()
  */
 void VertexArray::unbind()
 {
-	glBindVertexArray(0);
-}
+#ifdef VKBUILD
+	// TODO
 
+#else
+	glBindVertexArray(0);
 #endif
+}
 
 
 /**
@@ -134,13 +145,13 @@ void VertexBuffer::upload_elements(vector<u32> elements)
 // Colour Buffers
 
 #ifndef VKBUILD
-s32 _texture_format_channels[] = {
+s32 _texture_format_channels[TEXTURE_FORMAT_COUNT] = {
 	GL_RGBA,
 	GL_RGBA,
 	GL_RED
 };
 
-s32 _texture_format_internal[] = {
+s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
 	GL_RGBA,
 	GL_SRGB8_ALPHA8,
 	GL_RED
@@ -438,7 +449,7 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param format: colourspace format of pixels
  *	NOTE cannot be executed in subthread, uses context bound to main thread
  */
-void GPUPixelBuffer::allocate(u32 width,u32 height,u32 format)
+void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 {
 	// store info
 	dimensions_inv = vec2(1.f/width,1.f/height);
@@ -453,7 +464,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,u32 format)
 	// TODO
 
 #else
-	glTexImage2D(GL_TEXTURE_2D,0,format,width,height,0,format,GL_UNSIGNED_BYTE,0);
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,format,GL_UNSIGNED_BYTE,0);
 #endif
 }
 // FIXME inconsistent formatting, the allocation format can easily be detached from texture data structure

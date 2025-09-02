@@ -102,6 +102,10 @@ public:
 	void gpu_vsync_on();
 	void gpu_vsync_off();
 
+	// processing
+	static void gpu_cull_face(bool backfaces);
+	static void gpu_depth_test(bool enable);
+
 public:
 
 	// time
