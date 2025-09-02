@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
+#ifndef VKBUILD
 
 /**
  *	create vertex array
@@ -29,13 +30,72 @@ void VertexArray::unbind()
 	glBindVertexArray(0);
 }
 
+#endif
+
 
 /**
  *	create vertex buffer
  */
 VertexBuffer::VertexBuffer()
 {
+#ifdef VKBUILD
+	// TODO construct vulkan vertex buffer
+
+#else
 	glGenBuffers(1,&m_VBO);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::bind()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::bind_elements()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::unbind()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glBindBuffer(GL_ARRAY_BUFFER,0);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::unbind_elements()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+#endif
 }
 
 /**
@@ -46,7 +106,12 @@ VertexBuffer::VertexBuffer()
  */
 void VertexBuffer::upload_elements(u32* elements,size_t size)
 {
+#ifdef VKBUILD
+	// TODO not sure if this will prevail, because the vulkan version will use element draw from the start
+
+#else
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,size,elements,GL_STATIC_DRAW);
+#endif
 }
 
 /**
@@ -56,13 +121,19 @@ void VertexBuffer::upload_elements(u32* elements,size_t size)
  */
 void VertexBuffer::upload_elements(vector<u32> elements)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,elements.size()*sizeof(u32),&elements[0],GL_STATIC_DRAW);
+#endif
 }
 
 
 // ----------------------------------------------------------------------------------------------------
 // Colour Buffers
 
+#ifndef VKBUILD
 s32 _texture_format_channels[] = {
 	GL_RGBA,
 	GL_RGBA,
@@ -74,6 +145,7 @@ s32 _texture_format_internal[] = {
 	GL_SRGB8_ALPHA8,
 	GL_RED
 };
+#endif
 
 /**
  *	allocation and setup for texture data load

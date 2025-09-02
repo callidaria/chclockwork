@@ -732,13 +732,41 @@ void Frame::close()
 }
 
 /**
+ *	TODO
+ */
+void Frame::set_clear_colour(vec3 colour)
+{
+#ifdef VKBUILD
+	// TODO clearing fbs already works. it just needs to be put here
+
+#else
+	glClearColor(colour.r,colour.g,colour.b,0);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Frame::set_clear_depth(f32 depth)
+{
+#ifdef VKBUILD
+	// TODO implement vulkan equivalent after depth buffering feature exists
+	//		also this maybe not a necessary feature. i think this issue has been solved alternatively (sdwbounds)
+
+#else
+	glClearDepth(depth);
+#endif
+}
+
+/**
  *	enable gpu based vsync, adaptive if possible: fallback regular vsync
  */
 void Frame::gpu_vsync_on()
 {
 	COMM_AWT("setting gpu vsync");
 #ifdef VKBUILD
-	// TODO
+	// TODO vsync switch happens when selecting the gpu in the vulkan version. make it switchable
+
 #else
 	if (SDL_GL_SetSwapInterval(-1)==-1)
 	{
@@ -755,7 +783,8 @@ void Frame::gpu_vsync_on()
 void Frame::gpu_vsync_off()
 {
 #ifdef VKBUILD
-	// TODO
+	// TODO see gpu_vsync_on todo comment to find out why there is nothing here!
+
 #else
 	SDL_GL_SetSwapInterval(0);
 #endif

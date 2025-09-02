@@ -5,10 +5,24 @@
 #include "base.h"
 #include "blitter.h"
 
+enum MemoryFormat : u8
+{
+	MEMORY_FORMAT_STATIC,
+	MEMORY_FORMAT_QUICK
+};
+
+enum TextureFormat : u8
+{
+	TEXTURE_FORMAT_RGBA,
+	TEXTURE_FORMAT_SRGB,
+	TEXTURE_FORMAT_MONOCHROME
+};
+
 
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
+#ifndef VKBUILD
 class VertexArray
 {
 public:
@@ -20,17 +34,26 @@ public:
 private:
 	u32 m_VAO;
 };
+#endif
 
+#ifndef VKBUILD
+GLenum _memory_formats[] = {
+	GL_STATIC_DRAW,
+	GL_DYNAMIC_DRAW
+};
+#endif
+// TODO this does not belong in the header, this will be moved to implementation later
+// TODO add more types & correlate with vulkan setup
 
 class VertexBuffer
 {
 public:
 	VertexBuffer();
 
-	inline void bind() { glBindBuffer(GL_ARRAY_BUFFER,m_VBO); }
-	inline void bind_elements() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO); }
-	static inline void unbind() { glBindBuffer(GL_ARRAY_BUFFER,0); }
-	static inline void unbind_elements() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0); }
+	void bind();
+	void bind_elements();
+	static void unbind();
+	static void unbind_elements();
 
 	/**
 	 *	template inline for dynamic vertex struct uploads
@@ -40,10 +63,25 @@ public:
 	 *	NOTE vertex buffer has to be bound beforehand
 	 *	NOTE do not use in combination with upload_elements(...)
 	 */
-	template<typename T> inline void upload_vertices(T* vertices,size_t size,GLenum memtype=GL_STATIC_DRAW)
-	{ glBufferData(GL_ARRAY_BUFFER,size*sizeof(T),vertices,memtype); }
-	template<typename T> inline void upload_vertices(vector<T> vertices,GLenum memtype=GL_STATIC_DRAW)
-	{ glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(T),&vertices[0],memtype); }
+	template<typename T> inline void upload_vertices(T* vertices,
+													 size_t size,MemoryFormat memtype=MEMORY_FORMAT_STATIC)
+	{
+#ifdef VKBUILD
+		// TODO
+#else
+		glBufferData(GL_ARRAY_BUFFER,size*sizeof(T),vertices,_memory_formats[memtype]);
+#endif
+	}
+	template<typename T> inline void upload_vertices(vector<T> vertices,
+													 MemoryFormat memtype=MEMORY_FORMAT_STATIC)
+	{
+#ifdef VKBUILD
+		// TODO
+#else
+		glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(T),&vertices[0],memory_formats[memtype]);
+#endif
+	}
+	// TODO move this out of the header & find a different upload approach
 
 	void upload_elements(u32* elements,size_t size);
 	void upload_elements(vector<u32> elements);
@@ -55,13 +93,6 @@ private:
 
 // ----------------------------------------------------------------------------------------------------
 // Colour Buffers
-
-enum TextureFormat
-{
-	TEXTURE_FORMAT_RGBA,
-	TEXTURE_FORMAT_SRGB,
-	TEXTURE_FORMAT_MONOCHROME
-};
 
 
 struct TextureData

@@ -30,11 +30,11 @@
 #include <condition_variable>
 
 // graphics
-//#ifdef VKBUILD
+#ifdef VKBUILD
 #include <vulkan/vulkan.h>
-//#else
+#else
 #include <GL/glew.h>
-//#endif
+#endif
 
 // handler
 #ifdef _WIN32
@@ -42,11 +42,11 @@
 #include <SDL2/SDL_main.h>
 #endif
 #include <SDL2/SDL.h>
-//#ifdef VKBUILD
+#ifdef VKBUILD
 #include <SDL2/SDL_vulkan.h>
-//#else
+#else
 #include <SDL2/SDL_opengl.h>
-//#endif
+#endif
 
 // math
 #define GLM_ENABLE_EXPERIMENTAL
