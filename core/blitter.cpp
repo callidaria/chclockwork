@@ -251,6 +251,7 @@ void Hardware::detect()
 	vector<VkPhysicalDevice> __PhysicalGPUs = vector<VkPhysicalDevice>(__GPUCount);
 	gpus.resize(__GPUCount);
 	vkEnumeratePhysicalDevices(g_Vk.instance,&__GPUCount,&__PhysicalGPUs[0]);
+	// TODO the fallback macro should be using the pluralization macro once it's done
 
 	// scanning available gpus for specifics
 	gpus.resize(__GPUCount);

@@ -530,10 +530,15 @@ void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
 	// FIXME this CAN and SHOULD be critisized! awful memory management through heavy copy!
 
 	// assemble program
+#ifdef VKBUILD
+	// TODO
+
+#else
 	m_ShaderProgram = glCreateProgram();
 	glAttachShader(m_ShaderProgram,vs.shader);
 	glAttachShader(m_ShaderProgram,fs.shader);
 	glLinkProgram(m_ShaderProgram);
+#endif
 }
 
 /**
@@ -545,6 +550,7 @@ void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
  */
 void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 {
+#ifndef VKBUILD
 	// vertex buffer
 	COMM_LOG("mapping shader (vbo = %lu:%lu,ibo = %lu:%lu) utilizing %lu texture channels",
 			 m_VertexShader.vbo_attribs.size(),m_VertexShader.vbo_width,
@@ -564,13 +570,35 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 	ibo->bind();
 	for (ShaderAttribute& attrib : m_VertexShader.ibo_attribs) _define_index_attribute(attrib);
 	m_IndexCursor = 0;
+#endif
+}
+// TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping
+
+/**
+ *	enable shader pipeline
+ */
+void ShaderPipeline::enable()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glUseProgram(m_ShaderProgram);
+#endif
 }
 
 /**
- *	enable/disable shader pipeline
+ *	disable shader pipeline
  */
-void ShaderPipeline::enable() { glUseProgram(m_ShaderProgram); }
-void ShaderPipeline::disable() { glUseProgram(0); }
+void ShaderPipeline::disable()
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glUseProgram(0);
+#endif
+}
 
 /**
  *	extract uniform location from shader program
@@ -579,17 +607,60 @@ void ShaderPipeline::disable() { glUseProgram(0); }
  */
 u32 ShaderPipeline::get_uniform_location(const char* uname)
 {
+#ifdef VKBUILD
+	// TODO
+	return 0;
+
+#else
 	return glGetUniformLocation(m_ShaderProgram,uname);
+#endif
 }
 
 // uniform variable upload function correlation map
 typedef void (*uniform_upload)(u16,f32*);
+#ifdef VKBUILD
+void _upload1f(u16 uloc,f32* data) { /* TODO */ }
+void _upload2f(u16 uloc,f32* data) { /* TODO */ }
+void _upload3f(u16 uloc,f32* data) { /* TODO */ }
+void _upload4f(u16 uloc,f32* data) { /* TODO */ }
+void _upload4m(u16 uloc,f32* data) { /* TODO */ }
+#else
 void _upload1f(u16 uloc,f32* data) { glUniform1f(uloc,data[0]); }
 void _upload2f(u16 uloc,f32* data) { glUniform2f(uloc,data[0],data[1]); }
 void _upload3f(u16 uloc,f32* data) { glUniform3f(uloc,data[0],data[1],data[2]); }
 void _upload4f(u16 uloc,f32* data) { glUniform4f(uloc,data[0],data[1],data[2],data[3]); }
 void _upload4m(u16 uloc,f32* data) { glUniformMatrix4fv(uloc,1,GL_FALSE,data); }
+#endif
 uniform_upload uploadf[] = { _upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
+
+/**
+ *	upload signed integer to shader
+ *	\param varname: variable name as defined as "uniform" in shader (must be part of the pipeline)
+ *	\param value: signed integer value to upload to variable
+ *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ */
+void ShaderPipeline::upload(const char* varname,s32 value)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glUniform1i(get_uniform_location(varname),value);
+#endif
+}
+
+/**
+ *	upload uniform variable to shader
+ *	\param varname: variable name as defined as "uniform" in shader (must be part of the pipeline)
+ *	\param value: value to upload to specified variable
+ *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ */
+void ShaderPipeline::upload(const char* varname,f32 value) { upload(varname,SHADER_UNIFORM_FLOAT,&value); }
+void ShaderPipeline::upload(const char* varname,vec2 value) { upload(varname,SHADER_UNIFORM_VEC2,&value.x); }
+void ShaderPipeline::upload(const char* varname,vec3 value) { upload(varname,SHADER_UNIFORM_VEC3,&value.x); }
+void ShaderPipeline::upload(const char* varname,vec4 value) { upload(varname,SHADER_UNIFORM_VEC4,&value.x); }
+void ShaderPipeline::upload(const char* varname,mat4 value)
+	{ upload(varname,SHADER_UNIFORM_MAT44,glm::value_ptr(value)); }
 
 /**
  *	upload float uniform variable to shader by variable name
@@ -612,25 +683,6 @@ void ShaderPipeline::upload(ShaderUniformValue& uniform)
 {
 	uploadf[uniform.udim](uniform.uloc,uniform.data);
 }
-
-/**
- *	upload uniform variable to shader
- *	\param varname: variable name as defined as "uniform" in shader (must be part of the pipeline)
- *	\param value: value to upload to specified variable
- *	NOTE shader pipeline needs to be active to upload values to uniform variables
- */
-void ShaderPipeline::upload(const char* varname,s32 value)
-	{ glUniform1i(get_uniform_location(varname),value); }
-void ShaderPipeline::upload(const char* varname,f32 value)
-	{ glUniform1f(get_uniform_location(varname),value); }
-void ShaderPipeline::upload(const char* varname,vec2 value)
-	{ glUniform2f(get_uniform_location(varname),value.x,value.y); }
-void ShaderPipeline::upload(const char* varname,vec3 value)
-	{ glUniform3f(get_uniform_location(varname),value.x,value.y,value.z); }
-void ShaderPipeline::upload(const char* varname,vec4 value)
-	{ glUniform4f(get_uniform_location(varname),value.x,value.y,value.z,value.w); }
-void ShaderPipeline::upload(const char* varname,mat4 value)
-	{ glUniformMatrix4fv(get_uniform_location(varname),1,GL_FALSE,glm::value_ptr(value)); }
 
 /**
  *	automatically upload the global 2D coordinate system to the shader
@@ -661,6 +713,9 @@ void ShaderPipeline::upload_camera(Camera3D& c)
 	upload("view",SHADER_UNIFORM_MAT44,glm::value_ptr(c.view));
 	upload("proj",SHADER_UNIFORM_MAT44,glm::value_ptr(c.proj));
 }
+
+
+#ifndef VKBUILD
 
 /**
  *	point to attribute in vertex buffer raster
@@ -705,6 +760,9 @@ s32 ShaderPipeline::_handle_attribute_location_by_name(const char* varname)
 	glEnableVertexAttribArray(attribute);
 	return attribute;
 }
+
+#endif
+
 
 /**
  *	upload all attached uniform variables

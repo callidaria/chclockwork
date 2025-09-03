@@ -90,23 +90,25 @@ public:
 	u32 get_uniform_location(const char* uname);
 
 	// upload
-	void upload(const char* varname,UniformDimension dim,f32* data);
-	void upload(ShaderUniformValue& uniform);
 	void upload(const char* varname,s32 value);
 	void upload(const char* varname,f32 value);
 	void upload(const char* varname,vec2 value);
 	void upload(const char* varname,vec3 value);
 	void upload(const char* varname,vec4 value);
 	void upload(const char* varname,mat4 value);
+	void upload(const char* varname,UniformDimension dim,f32* data);
+	void upload(ShaderUniformValue& uniform);
 	void upload_coordinate_system();
 	void upload_camera();
 	void upload_camera(Camera3D& c);
 
+#ifndef VKBUILD
 	void _define_attribute(ShaderAttribute attrib);
 	void _define_index_attribute(ShaderAttribute attrib);
 	// TODO change back to references
 private:
 	s32 _handle_attribute_location_by_name(const char* varname);
+#endif
 
 public:
 
@@ -125,13 +127,15 @@ private:
 	u8 m_ActiveBuffer = 0;
 #else
 	u32 m_ShaderProgram;
+#endif
+
+	// shader components
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;
 
 	// working iteration
 	size_t m_VertexCursor = 0;
 	size_t m_IndexCursor = 0;
-#endif
 };
 
 
