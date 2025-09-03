@@ -234,16 +234,19 @@ Texture::Texture()
 #endif
 }
 
-#ifndef VKBUILD
 /**
  *	set texture channel
  *	\param i: channel index, correlating to sampler2D integer upload
  */
 void Texture::set_channel(u8 i)
 {
+#ifdef VKBUILD
+	// TODO
+
+#else
 	glActiveTexture(GL_TEXTURE0+i);
-}
 #endif
+}
 // TODO i'm not sure this is even a thing in the vulkan version? how do we handle that?
 
 /**

@@ -111,15 +111,13 @@ private:
 #endif
 
 public:
-
 #ifdef VKBUILD
 	VkRenderPass render_pass;
 #endif
 
 private:
-
-	// program
 #ifdef VKBUILD
+	// program
 	VkPipelineLayout m_PipelineLayout;
 	VkPipeline m_Pipeline;
 	VkViewport m_Viewport = {  };
