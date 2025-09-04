@@ -39,7 +39,7 @@ private:
 //		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 
 #ifndef VKBUILD
-GLenum _memory_formats[MEMORY_FORMAT_COUNT] = {
+static inline GLenum _memory_formats[MEMORY_FORMAT_COUNT] = {
 	GL_STATIC_DRAW,
 	GL_DYNAMIC_DRAW
 };
@@ -80,7 +80,7 @@ public:
 #ifdef VKBUILD
 		// TODO
 #else
-		glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(T),&vertices[0],memory_formats[memtype]);
+		glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(T),&vertices[0],_memory_formats[memtype]);
 #endif
 	}
 	// TODO move this out of the header & find a different upload approach

@@ -162,8 +162,10 @@ ShaderPipeline::~ShaderPipeline()
 /**
  *	TODO
  */
+#ifdef VKBUILD
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
+#endif
 void ShaderPipeline::assemble(const char* vs,const char* fs)
 {
 #ifdef VKBUILD
@@ -420,6 +422,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
  */
 void ShaderPipeline::render()
 {
+#ifdef VKBUILD
 	VkCommandBuffer p_CMDBuffer = g_Vk.cmd_buffers[m_ActiveBuffer];
 	VkSemaphore& p_ImageReady = g_Vk.frame_ready[m_ActiveBuffer];
 	VkFence& p_InProgress = g_Vk.in_progress[m_ActiveBuffer];
@@ -515,6 +518,7 @@ void ShaderPipeline::render()
 	// tick frame
 	m_ActiveBuffer = (m_ActiveBuffer+1)&(FRAME_BLITTER_BUFFERS-1);
 	// TODO move this to the blitter later, this belongs in the frame update function
+#endif
 }
 
 /**
