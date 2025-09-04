@@ -467,12 +467,10 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	// TODO
 
 #else
-	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,format,GL_UNSIGNED_BYTE,0);
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,
+				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
 #endif
 }
-// FIXME inconsistent formatting, the allocation format can easily be detached from texture data structure
-// FIXME in case of sRGB colourspace for example the format in internalformat and format won't be the same
-//		furthermore this is absolutely necessary to be of dynamic nature, due to monochrome buffers being a thing
 // TODO i don't believe all this schnickschnack is necessary for the vulkan version at all.
 //		vulkan allows for a way more direct malloc procedure, this might be the biggest discrepancy in the vers
 
