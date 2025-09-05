@@ -149,19 +149,6 @@ FragmentShader::FragmentShader(const char* path)
 /**
  *	TODO
  */
-ShaderPipeline::~ShaderPipeline()
-{
-#ifdef VKBUILD
-	vkDeviceWaitIdle(g_Vk.gpu);
-	vkDestroyPipeline(g_Vk.gpu,m_Pipeline,nullptr);
-	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
-	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
-#endif
-}
-
-/**
- *	TODO
- */
 #ifdef VKBUILD
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
@@ -251,31 +238,13 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__DynamicInfo.dynamicStateCount = _dynamic_state_count;
 	__DynamicInfo.pDynamicStates = _dynamic_states;
 
-	// viewport setup
-	m_Viewport = {
-		.x = .0f,
-		.y = .0f,
-		.width = (f32)g_Vk.sc_extent.width,
-		.height = (f32)g_Vk.sc_extent.height,
-		.minDepth = .0f,
-		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
-	};
-	// TODO move this out of here
-
-	// scissor setup
-	m_Scissor = {
-		.offset = { 0,0 },
-		.extent = g_Vk.sc_extent,
-	};
-	// TODO this can all be pre-stored & reused for each of those pipeline setups
-
 	// fixed function viewport
 	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
 	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	__ViewportInfo.viewportCount = 1;
-	__ViewportInfo.pViewports = &m_Viewport;
+	__ViewportInfo.pViewports = &g_Vk.viewport;
 	__ViewportInfo.scissorCount = 1;
-	__ViewportInfo.pScissors = &m_Scissor;
+	__ViewportInfo.pScissors = &g_Vk.scissor;
 	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
 
 	// fixed function rasterization
@@ -398,7 +367,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
-	__Result = vkCreateGraphicsPipelines(g_Vk.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&m_Pipeline);
+	__Result = vkCreateGraphicsPipelines(g_Vk.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&pipeline);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create graphics pipeline");
 	// TODO pipeline cache
 
@@ -415,111 +384,6 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 #endif
 }
 // TODO implement full vulkan compatibility for all shader features, and also finally the on-the-fly-shader
-
-/**
- *	TODO
- *	NOTE experimental! this will be removed later when test image works
- */
-void ShaderPipeline::render()
-{
-#ifdef VKBUILD
-	VkCommandBuffer p_CMDBuffer = g_Vk.cmd_buffers[m_ActiveBuffer];
-	VkSemaphore& p_ImageReady = g_Vk.frame_ready[m_ActiveBuffer];
-	VkFence& p_InProgress = g_Vk.in_progress[m_ActiveBuffer];
-
-	// wait until current frame draw is ready
-	vkWaitForFences(g_Vk.gpu,1,&p_InProgress,VK_TRUE,UINT64_MAX);
-	vkResetFences(g_Vk.gpu,1,&p_InProgress);
-
-	// get next swapchain image
-	u32 __BufferID;
-	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,p_ImageReady,
-											  VK_NULL_HANDLE,&__BufferID);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
-
-	// aquire next command buffer & reset
-	VkSemaphore& p_RenderDone = g_Vk.render_done[__BufferID];
-	vkResetCommandBuffer(p_CMDBuffer,0);
-
-	// start command buffer
-	VkCommandBufferBeginInfo __CMDInfo = {  };
-	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDInfo.flags = 0;
-	__CMDInfo.pInheritanceInfo = nullptr;
-	__Result = vkBeginCommandBuffer(p_CMDBuffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
-	// TODO the creation info can be pre-cached instead and then just used based on registration type later
-
-	// setup clear colour
-	VkClearValue __ClearColour = {{{ .0f,.0f,.0f,1.f }}};
-	// TODO foa: wtf? also: definitely set this once and run with it
-
-	// setup begin draw
-	VkRenderPassBeginInfo __RPBeginInfo = {  };
-	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
-	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
-	__RPBeginInfo.clearValueCount = 1;  // TODO ok but what? what on earth! do multiple clear colours do?
-	__RPBeginInfo.pClearValues = &__ClearColour;
-	vkCmdBeginRenderPass(p_CMDBuffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(p_CMDBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_Pipeline);
-
-	// viewport setup
-	vkCmdSetViewport(p_CMDBuffer,0,1,&m_Viewport);
-	vkCmdSetScissor(p_CMDBuffer,0,1,&m_Scissor);
-	// FIXME investigate this, it seems like this could be solved with a little more elegance
-
-	// bind buffer
-	VkBuffer __Buffers[] = { g_Vk.vertex_buffer };
-	VkDeviceSize __Offsets[] = { 0 };
-	vkCmdBindVertexBuffers(p_CMDBuffer,0,1,__Buffers,__Offsets);
-
-	// gpu drawcall
-	vkCmdDraw(p_CMDBuffer,3,1,0,0);
-	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
-
-	// finish buffer registration
-	vkCmdEndRenderPass(p_CMDBuffer);
-	__Result = vkEndCommandBuffer(p_CMDBuffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
-	// TODO outsource appropriately to pipeline probably
-
-	// submit buffer
-	VkSemaphore __WaitSemaphores = { p_ImageReady };
-	VkSemaphore __SignalSemaphores = { p_RenderDone };
-	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
-	__SubmitInfo.pWaitDstStageMask = __StageFlags;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &p_CMDBuffer;
-	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
-	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,p_InProgress);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
-
-	// swap
-	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
-	VkPresentInfoKHR __PresentInfo = {  };
-	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
-	__PresentInfo.swapchainCount = 1;
-	__PresentInfo.pSwapchains = __SwapChains;
-	__PresentInfo.pImageIndices = &__BufferID;
-	__PresentInfo.pResults = nullptr;
-	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
-
-	// tick frame
-	m_ActiveBuffer = (m_ActiveBuffer+1)&(FRAME_BLITTER_BUFFERS-1);
-	// TODO move this to the blitter later, this belongs in the frame update function
-#endif
-}
 
 /**
  *	assemble shader pipeline from compiled shaders
@@ -577,6 +441,16 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 #endif
 }
 // TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping
+
+void ShaderPipeline::clear()
+{
+#ifdef VKBUILD
+	vkDeviceWaitIdle(g_Vk.gpu);
+	vkDestroyPipeline(g_Vk.gpu,pipeline,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
+	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
+#endif
+}
 
 /**
  *	enable shader pipeline

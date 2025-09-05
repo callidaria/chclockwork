@@ -233,6 +233,22 @@ swap_chain_creation:
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
+
+	// viewport setup
+	g_Vk.viewport = {
+		.x = .0f,
+		.y = .0f,
+		.width = (f32)g_Vk.sc_extent.width,
+		.height = (f32)g_Vk.sc_extent.height,
+		.minDepth = .0f,
+		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
+	};
+
+	// scissor setup
+	g_Vk.scissor = {
+		.offset = { 0,0 },
+		.extent = g_Vk.sc_extent,
+	};
 }
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
 // TODO make all those features selectable by the user

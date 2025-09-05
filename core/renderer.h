@@ -416,6 +416,11 @@ private:
 	lptr<ShaderPipeline> m_GeometryShadowPipeline;
 	lptr<ShaderPipeline> m_ParticleShadowPipeline;
 	Lighting m_Lighting;
+
+#ifdef VKBUILD
+	ShaderPipeline m_TestingPipeline;
+	u8 m_ActiveBuffer = 0;
+#endif
 };
 
 inline Renderer g_Renderer = Renderer();

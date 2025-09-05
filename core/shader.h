@@ -76,13 +76,10 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
-	~ShaderPipeline();
 	void assemble(const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
-
-	// §§exp
-	void render();
+	void clear();  // §testing
 
 	// usage
 	void enable();
@@ -112,6 +109,7 @@ private:
 
 public:
 #ifdef VKBUILD
+	VkPipeline pipeline;
 	VkRenderPass render_pass;
 #endif
 
@@ -119,10 +117,6 @@ private:
 #ifdef VKBUILD
 	// program
 	VkPipelineLayout m_PipelineLayout;
-	VkPipeline m_Pipeline;
-	VkViewport m_Viewport = {  };
-	VkRect2D m_Scissor = {  };
-	u8 m_ActiveBuffer = 0;
 #else
 	u32 m_ShaderProgram;
 #endif

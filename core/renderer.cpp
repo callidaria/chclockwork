@@ -572,6 +572,13 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 Renderer::Renderer()
 {
 	COMM_MSG(LOG_CYAN,"starting render system");
+
+#ifdef VKBUILD
+	m_TestingPipeline.assemble("./core/shader/vulkan/bin/triangle.vert",
+								"./core/shader/vulkan/bin/triangle.frag");
+	g_Vk.register_pipeline(m_TestingPipeline.render_pass);
+#endif
+
 	COMM_LOG("starting font rasterizer");
 	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
 	COMM_ERR_COND(_failed,"text rasterizer not available");
@@ -697,6 +704,105 @@ Renderer::Renderer()
  */
 void Renderer::update()
 {
+#ifdef VKBUILD
+	VkCommandBuffer p_CMDBuffer = g_Vk.cmd_buffers[m_ActiveBuffer];
+	VkSemaphore& p_ImageReady = g_Vk.frame_ready[m_ActiveBuffer];
+	VkFence& p_InProgress = g_Vk.in_progress[m_ActiveBuffer];
+	// TODO maybe make those arrays part of the renderer instead of them being part of the eruption
+
+	// wait until current frame draw is ready
+	vkWaitForFences(g_Vk.gpu,1,&p_InProgress,VK_TRUE,UINT64_MAX);
+	vkResetFences(g_Vk.gpu,1,&p_InProgress);
+
+	// get next swapchain image
+	u32 __BufferID;
+	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,p_ImageReady,
+											  VK_NULL_HANDLE,&__BufferID);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+
+	// aquire next command buffer & reset
+	VkSemaphore& p_RenderDone = g_Vk.render_done[__BufferID];
+	vkResetCommandBuffer(p_CMDBuffer,0);
+
+	// start command buffer
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	__Result = vkBeginCommandBuffer(p_CMDBuffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
+	// TODO the creation info can be pre-cached instead and then just used based on registration type later
+
+	// setup clear colour
+	VkClearValue __ClearColour = {{{ .0f,.0f,.0f,1.f }}};
+	// TODO foa: wtf? also: definitely set this once and run with it
+
+	// setup begin draw
+	VkRenderPassBeginInfo __RPBeginInfo = {  };
+	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	__RPBeginInfo.renderPass = m_TestingPipeline.render_pass;
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
+	__RPBeginInfo.renderArea.offset = { 0,0 };
+	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
+	__RPBeginInfo.clearValueCount = 1;  // TODO ok but what? what on earth! do multiple clear colours do?
+	__RPBeginInfo.pClearValues = &__ClearColour;
+	vkCmdBeginRenderPass(p_CMDBuffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(p_CMDBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_TestingPipeline.pipeline);
+
+	// viewport setup
+	vkCmdSetViewport(p_CMDBuffer,0,1,&g_Vk.viewport);
+	vkCmdSetScissor(p_CMDBuffer,0,1,&g_Vk.scissor);
+	// FIXME investigate this, it seems like this could be solved with a little more elegance
+
+	// bind buffer
+	VkBuffer __Buffers[] = { g_Vk.vertex_buffer };
+	VkDeviceSize __Offsets[] = { 0 };
+	vkCmdBindVertexBuffers(p_CMDBuffer,0,1,__Buffers,__Offsets);
+
+	// gpu drawcall
+	vkCmdDraw(p_CMDBuffer,3,1,0,0);
+	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
+
+	// finish buffer registration
+	vkCmdEndRenderPass(p_CMDBuffer);
+	__Result = vkEndCommandBuffer(p_CMDBuffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
+	// TODO outsource appropriately to pipeline probably
+
+	// submit buffer
+	VkSemaphore __WaitSemaphores = { p_ImageReady };
+	VkSemaphore __SignalSemaphores = { p_RenderDone };
+	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 1;
+	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
+	__SubmitInfo.pWaitDstStageMask = __StageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &p_CMDBuffer;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
+	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,p_InProgress);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+
+	// swap
+	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
+	VkPresentInfoKHR __PresentInfo = {  };
+	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	__PresentInfo.waitSemaphoreCount = 1;
+	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
+	__PresentInfo.swapchainCount = 1;
+	__PresentInfo.pSwapchains = __SwapChains;
+	__PresentInfo.pImageIndices = &__BufferID;
+	__PresentInfo.pResults = nullptr;
+	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
+
+	// tick frame
+	m_ActiveBuffer = (m_ActiveBuffer+1)&(FRAME_BLITTER_BUFFERS-1);
+	// TODO move this to the blitter later, this belongs in the frame update function
+
+#else
 	m_FrameStart = std::chrono::steady_clock::now();
 
 	// shadow projection
@@ -725,6 +831,8 @@ void Renderer::update()
 
 	// end-frame gpu management
 	_gpu_upload();
+
+#endif
 }
 
 /**
@@ -732,6 +840,7 @@ void Renderer::update()
  */
 void Renderer::exit()
 {
+	m_TestingPipeline.clear();
 	_sprite_texture_signal.exit();
 	_sprite_signal.exit();
 }

@@ -84,6 +84,8 @@ struct Eruption
 	vector<VkSemaphore> frame_ready;
 	vector<VkSemaphore> render_done;
 	vector<VkFence> in_progress;
+	VkViewport viewport;
+	VkRect2D scissor;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
