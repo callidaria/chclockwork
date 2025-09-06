@@ -647,14 +647,14 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
 Framebuffer::Framebuffer(u8 count)
 {
 	if (!count) return;
-	m_ColourComponents = (__fbuffer_component*)malloc(count*sizeof(__fbuffer_component));
+	m_ColourComponents.resize(count);
 
 #ifdef VKBUILD
 	// TODO
 
 #else
 	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(count+depth,&m_ColourComponents[0]);
+	glGenTextures(count,&m_ColourComponents[0]);
 #endif
 }
 
@@ -685,15 +685,17 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
  */
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
-#ifdef VKBUILD
-	// TODO
 	m_DepthComponent = (__fbuffer_component*)malloc(sizeof(__fbuffer_component));
 
+#ifdef VKBUILD
+	// TODO
+
 #else
-	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+	glGenTextures(1,m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,*m_DepthComponent);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,*m_DepthComponent,0);
 #endif
 }
 
@@ -703,11 +705,10 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
  */
 void Framebuffer::finalize()
 {
-	free(m_ColourComponents);
-	free(m_DepthComponent);
-
 #ifdef VKBUILD
 	// TODO
+	m_ColourComponents.clear();
+	free(m_DepthComponent);
 
 #else
 	u32 __Attachments[m_ColourComponents.size()];
@@ -773,6 +774,6 @@ void Framebuffer::bind_depth_component(u8 channel)
 	// TODO
 
 #else
-	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,*m_DepthComponent);
 #endif
 }

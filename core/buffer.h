@@ -223,11 +223,10 @@ private:
 #ifdef VKBUILD
 	VkRenderPass m_RenderPass;
 #else
-	u32 m_Buffer
+	u32 m_Buffer;
 #endif
-	__fbuffer_component* m_ColourComponents;
+	vector<__fbuffer_component> m_ColourComponents;
 	__fbuffer_component* m_DepthComponent;
-	// TODO make this a pointer
 };
 
 
