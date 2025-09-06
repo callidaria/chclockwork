@@ -306,16 +306,18 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__Result = vkCreatePipelineLayout(g_Vk.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
 
+	// §FRAMEBUFFER START
+
 	// colour attachment
-	VkAttachmentDescription __CAttachment = {  };
-	__CAttachment.format = g_Vk.sc_format.format;
-	__CAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	__CAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	__CAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	__CAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	__CAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	__CAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO configure this in unison with clear op
-	__CAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	VkAttachmentDescription __CAttachments[1] = {  };
+	__CAttachments[0].format = g_Vk.sc_format.format;
+	__CAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	__CAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	__CAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	__CAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	__CAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	__CAttachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO configure this in unison with clear op
+	__CAttachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	// specify fragment output location
 	VkAttachmentReference __AttachmentReference = {  };
@@ -341,13 +343,15 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	__RPInfo.attachmentCount = 1;
-	__RPInfo.pAttachments = &__CAttachment;
+	__RPInfo.pAttachments = __CAttachments;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
 	__RPInfo.dependencyCount = 1;
 	__RPInfo.pDependencies = &__SubpassDependency;
 	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
+
+	// §FRAMEBUFFER END
 
 	// combine pipeline components into final graphics pipeline
 	VkGraphicsPipelineCreateInfo __PipelineInfo = {  };
@@ -381,6 +385,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 
 #else
 	// TODO
+	// TODO make the pre-baking of the pipeline compatible. this can be done by storing the process list
+	//		as function pointer sequence, that will be executed everytime (is this really good though?)
+
 #endif
 }
 // TODO implement full vulkan compatibility for all shader features, and also finally the on-the-fly-shader

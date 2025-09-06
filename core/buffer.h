@@ -197,10 +197,18 @@ struct GPUPixelBuffer
 // ----------------------------------------------------------------------------------------------------
 // Rendertarget Colour Buffers
 
+typedef
+#ifdef VKBUILD
+VkAttachmentDescription
+#else
+u32
+#endif
+__fbuffer_component;
+
 class Framebuffer
 {
 public:
-	Framebuffer(u8 compcount);
+	Framebuffer(u8 count);
 	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height);
 	void finalize();
@@ -212,9 +220,14 @@ public:
 	void bind_depth_component(u8 channel);
 
 private:
-	u32 m_Buffer;
-	std::vector<u32> m_ColourComponents;  // TODO pointer here
-	u32 m_DepthComponent;
+#ifdef VKBUILD
+	VkRenderPass m_RenderPass;
+#else
+	u32 m_Buffer
+#endif
+	__fbuffer_component* m_ColourComponents;
+	__fbuffer_component* m_DepthComponent;
+	// TODO make this a pointer
 };
 
 

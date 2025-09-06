@@ -642,19 +642,19 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
 
 /**
  *	allocate memory for framebuffer
- *	\param compcount: number of components, that will be defined for this framebuffer
+ *	\param count: number of components, that will be defined for this framebuffer
  */
-Framebuffer::Framebuffer(u8 compcount)
+Framebuffer::Framebuffer(u8 count)
 {
-	if (!compcount) return;
-	m_ColourComponents.resize(compcount);
+	if (!count) return;
+	m_ColourComponents = (__fbuffer_component*)malloc(count*sizeof(__fbuffer_component));
 
 #ifdef VKBUILD
 	// TODO
 
 #else
 	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(compcount,&m_ColourComponents[0]);
+	glGenTextures(count+depth,&m_ColourComponents[0]);
 #endif
 }
 
@@ -687,9 +687,9 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 #ifdef VKBUILD
 	// TODO
+	m_DepthComponent = (__fbuffer_component*)malloc(sizeof(__fbuffer_component));
 
 #else
-	glGenTextures(1,&m_DepthComponent);
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
@@ -703,6 +703,9 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
  */
 void Framebuffer::finalize()
 {
+	free(m_ColourComponents);
+	free(m_DepthComponent);
+
 #ifdef VKBUILD
 	// TODO
 

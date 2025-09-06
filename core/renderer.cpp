@@ -840,7 +840,9 @@ void Renderer::update()
  */
 void Renderer::exit()
 {
+#ifdef VKBUILD
 	m_TestingPipeline.clear();
+#endif
 	_sprite_texture_signal.exit();
 	_sprite_signal.exit();
 }
