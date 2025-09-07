@@ -223,7 +223,9 @@ private:
 #ifdef VKBUILD
 	VkRenderPass m_RenderPass;
 	VkAttachmentDescription* m_ColourComponentSetup;
+	VkAttachmentReference* m_ColourComponentReference;
 	VkAttachmentDescription* m_DepthComponentSetup;
+	VkAttachmentReference* m_DepthComponentReference;
 #else
 	u32 m_Buffer;
 #endif
@@ -232,6 +234,7 @@ private:
 	vector<__fbuffer_component> m_ColourComponents;
 	__fbuffer_component m_DepthComponent;
 };
+// TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
 // TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
 
 

@@ -651,6 +651,7 @@ Framebuffer::Framebuffer(u8 count)
 
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
+	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
 #else
 	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(count,&m_ColourComponents[0]);
@@ -667,7 +668,23 @@ Framebuffer::Framebuffer(u8 count)
 void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer)
 {
 #ifdef VKBUILD
-	// TODO
+	// specify colour component
+	m_ColourComponentSetup[index].format = g_Vk.sc_format.format;
+	m_ColourComponentSetup[index].samples = VK_SAMPLE_COUNT_1_BIT;
+	m_ColourComponentSetup[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	m_ColourComponentSetup[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	m_ColourComponentSetup[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	m_ColourComponentSetup[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_ColourComponentSetup[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// specify fragment output location
+	m_ColourComponentReference[index].attachment = index;
+	m_ColourComponentReference[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// TODO load format based on given width & height, not based on the global format
+	// TODO configure initialLayout in unison with clear op
+	// TODO setup display texture in this case, because subpass is not yet working
+	// TODO research if different component resolutions are even viable and check for standard setup impl.
 
 #else
 	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[index]);
@@ -676,6 +693,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_ColourComponents[index],0);
 #endif
 }
+// TODO maybe define index inside the framebuffer struct as a cursor counter variable
 
 /**
  *	depth component definition, only a single one per framebuffer allowed for obvious reasons
@@ -696,6 +714,7 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
 #endif
 }
+// TODO this way the depth component can't be used when finalizing, the depth belongs into constructor malloc
 
 /**
  *	combine previously defined framebuffer attachments
@@ -705,8 +724,12 @@ void Framebuffer::finalize()
 {
 #ifdef VKBUILD
 	// TODO
+
+	// clear setup memory
 	free(m_ColourComponentSetup);
+	free(m_ColourComponentReference);
 	free(m_DepthComponentSetup);
+	free(m_DepthComponentReference);
 
 #else
 	u32 __Attachments[m_ColourComponents.size()];

@@ -308,21 +308,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 
 	// §FRAMEBUFFER START
 
-	// colour attachment
-	VkAttachmentDescription __CAttachments[1] = {  };
-	__CAttachments[0].format = g_Vk.sc_format.format;
-	__CAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	__CAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	__CAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	__CAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	__CAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	__CAttachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO configure this in unison with clear op
-	__CAttachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	// specify fragment output location
-	VkAttachmentReference __AttachmentReference = {  };
-	__AttachmentReference.attachment = 0;
-	__AttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	m_Framebuffer.define_colour_component(0,FRAME_BLITTER_RESOLUTION_X,FRAME_BLITTER_RESOLUTION_Y);
+	m_Framebuffer.finalize();
 
 	// specify graphical subpass
 	VkSubpassDescription __SubpassDesc = {  };
