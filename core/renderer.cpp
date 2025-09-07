@@ -687,6 +687,7 @@ Renderer::Renderer()
 	// Start Subprocesses
 
 	COMM_LOG("starting renderer subprocesses");
+	/*
 	_sprite_signal.stall();
 	m_SpriteCollector = thread(Renderer::_collector<Sprite>,&m_Sprites,&_sprite_signal);
 	m_SpriteCollector.detach();
@@ -694,6 +695,7 @@ Renderer::Renderer()
 	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
 									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
 	m_SpriteTextureCollector.detach();
+	*/
 
 	COMM_SCC("render system ready.");
 }
@@ -843,8 +845,10 @@ void Renderer::exit()
 #ifdef VKBUILD
 	m_TestingPipeline.clear();
 #endif
+	/*
 	_sprite_texture_signal.exit();
 	_sprite_signal.exit();
+	*/
 }
 
 /**

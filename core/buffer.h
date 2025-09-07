@@ -199,7 +199,7 @@ struct GPUPixelBuffer
 
 typedef
 #ifdef VKBUILD
-VkAttachmentDescription
+u32  // TODO texture representation of components
 #else
 u32
 #endif
@@ -222,12 +222,17 @@ public:
 private:
 #ifdef VKBUILD
 	VkRenderPass m_RenderPass;
+	VkAttachmentDescription* m_ColourComponentSetup;
+	VkAttachmentDescription* m_DepthComponentSetup;
 #else
 	u32 m_Buffer;
 #endif
+
+	// textures
 	vector<__fbuffer_component> m_ColourComponents;
-	__fbuffer_component* m_DepthComponent;
+	__fbuffer_component m_DepthComponent;
 };
+// TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
 
 
 #endif

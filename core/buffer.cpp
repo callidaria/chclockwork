@@ -650,8 +650,7 @@ Framebuffer::Framebuffer(u8 count)
 	m_ColourComponents.resize(count);
 
 #ifdef VKBUILD
-	// TODO
-
+	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
 #else
 	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(count,&m_ColourComponents[0]);
@@ -685,17 +684,16 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
  */
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
-	m_DepthComponent = (__fbuffer_component*)malloc(sizeof(__fbuffer_component));
-
 #ifdef VKBUILD
+	m_DepthComponentSetup = (VkAttachmentDescription*)malloc(sizeof(VkAttachmentDescription));
 	// TODO
 
 #else
-	glGenTextures(1,m_DepthComponent);
-	glBindTexture(GL_TEXTURE_2D,*m_DepthComponent);
+	glGenTextures(1,&m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,*m_DepthComponent,0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
 #endif
 }
 
@@ -707,8 +705,8 @@ void Framebuffer::finalize()
 {
 #ifdef VKBUILD
 	// TODO
-	m_ColourComponents.clear();
-	free(m_DepthComponent);
+	free(m_ColourComponentSetup);
+	free(m_DepthComponentSetup);
 
 #else
 	u32 __Attachments[m_ColourComponents.size()];
@@ -774,6 +772,6 @@ void Framebuffer::bind_depth_component(u8 channel)
 	// TODO
 
 #else
-	glBindTexture(GL_TEXTURE_2D,*m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 #endif
 }
