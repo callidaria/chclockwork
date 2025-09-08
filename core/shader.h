@@ -76,7 +76,7 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
-	void assemble(const char* vs,const char* fs);
+	void assemble(Framebuffer& target,const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
 	void clear();  // §testing
@@ -110,7 +110,6 @@ private:
 public:
 #ifdef VKBUILD
 	VkPipeline pipeline;
-	VkRenderPass render_pass;
 #endif
 
 private:

@@ -153,7 +153,7 @@ FragmentShader::FragmentShader(const char* path)
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
 #endif
-void ShaderPipeline::assemble(const char* vs,const char* fs)
+void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
 	// read precompiled shader binaries
@@ -306,40 +306,6 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__Result = vkCreatePipelineLayout(g_Vk.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
 
-	// §FRAMEBUFFER START
-
-	m_Framebuffer.define_colour_component(0,FRAME_BLITTER_RESOLUTION_X,FRAME_BLITTER_RESOLUTION_Y);
-	m_Framebuffer.finalize();
-
-	// specify graphical subpass
-	VkSubpassDescription __SubpassDesc = {  };
-	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = 1;
-	__SubpassDesc.pColorAttachments = &__AttachmentReference;
-
-	// subpass dependency
-	VkSubpassDependency __SubpassDependency = {  };
-	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.srcAccessMask = 0;
-	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-	// render pass
-	VkRenderPassCreateInfo __RPInfo = {  };
-	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = 1;
-	__RPInfo.pAttachments = __CAttachments;
-	__RPInfo.subpassCount = 1;
-	__RPInfo.pSubpasses = &__SubpassDesc;
-	__RPInfo.dependencyCount = 1;
-	__RPInfo.pDependencies = &__SubpassDependency;
-	__Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
-
-	// §FRAMEBUFFER END
-
 	// combine pipeline components into final graphics pipeline
 	VkGraphicsPipelineCreateInfo __PipelineInfo = {  };
 	__PipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -354,7 +320,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = m_PipelineLayout;
-	__PipelineInfo.renderPass = render_pass;
+	__PipelineInfo.renderPass = target.render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;

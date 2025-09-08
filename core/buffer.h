@@ -219,14 +219,17 @@ public:
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
 
-private:
+public:
 #ifdef VKBUILD
-	VkRenderPass m_RenderPass;
+public:
+	VkRenderPass render_pass;  // TODO switch back to private and somehow add to pipeline?
+private:
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
 	VkAttachmentDescription* m_DepthComponentSetup;
 	VkAttachmentReference* m_DepthComponentReference;
 #else
+private:
 	u32 m_Buffer;
 #endif
 
@@ -236,6 +239,7 @@ private:
 };
 // TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
 // TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
+// TODO maybe create pipeline feature from this and implement this for ogl version with recursive fb chains
 
 
 #endif

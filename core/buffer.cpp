@@ -723,7 +723,33 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 void Framebuffer::finalize()
 {
 #ifdef VKBUILD
-	// TODO
+	// specify graphical subpass
+	VkSubpassDescription __SubpassDesc = {  };
+	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
+	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
+
+	// subpass dependency
+	VkSubpassDependency __SubpassDependency = {  };
+	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	__SubpassDependency.dstSubpass = 0;
+	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.srcAccessMask = 0;
+	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	// TODO implement feature according to the todo placed in header file
+
+	// render pass
+	VkRenderPassCreateInfo __RPInfo = {  };
+	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	__RPInfo.attachmentCount = m_ColourComponents.size();
+	__RPInfo.pAttachments = m_ColourComponentSetup;
+	__RPInfo.subpassCount = 1;
+	__RPInfo.pSubpasses = &__SubpassDesc;
+	__RPInfo.dependencyCount = 1;
+	__RPInfo.pDependencies = &__SubpassDependency;
+	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// clear setup memory
 	free(m_ColourComponentSetup);
