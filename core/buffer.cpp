@@ -669,6 +669,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 {
 #ifdef VKBUILD
 	// specify colour component
+	m_ColourComponentSetup[index] = {};
 	m_ColourComponentSetup[index].format = g_Vk.sc_format.format;
 	m_ColourComponentSetup[index].samples = VK_SAMPLE_COUNT_1_BIT;
 	m_ColourComponentSetup[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -679,6 +680,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 	m_ColourComponentSetup[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	// specify fragment output location
+	m_ColourComponentReference[index] = {};
 	m_ColourComponentReference[index].attachment = index;
 	m_ColourComponentReference[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	// TODO load format based on given width & height, not based on the global format
@@ -704,6 +706,9 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 #ifdef VKBUILD
 	m_DepthComponentSetup = (VkAttachmentDescription*)malloc(sizeof(VkAttachmentDescription));
+	m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
+	m_DepthComponentSetup = {};
+	m_DepthComponentReference = {};
 	// TODO
 
 #else
@@ -761,6 +766,16 @@ void Framebuffer::finalize()
 	u32 __Attachments[m_ColourComponents.size()];
 	for (u8 i=0;i<m_ColourComponents.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
 	glDrawBuffers(m_ColourComponents.size(),__Attachments);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Framebuffer::vanish()
+{
+#ifdef VKBUILD
+	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
 #endif
 }
 

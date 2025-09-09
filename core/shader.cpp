@@ -402,12 +402,11 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 }
 // TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping
 
-void ShaderPipeline::clear()
+void ShaderPipeline::vanish()
 {
 #ifdef VKBUILD
 	vkDeviceWaitIdle(g_Vk.gpu);
 	vkDestroyPipeline(g_Vk.gpu,pipeline,nullptr);
-	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
 	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
 #endif
 }

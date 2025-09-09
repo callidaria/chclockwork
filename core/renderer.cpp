@@ -574,9 +574,11 @@ Renderer::Renderer()
 	COMM_MSG(LOG_CYAN,"starting render system");
 
 #ifdef VKBUILD
-	m_TestingPipeline.assemble("./core/shader/vulkan/bin/triangle.vert",
-								"./core/shader/vulkan/bin/triangle.frag");
-	g_Vk.register_pipeline(m_TestingPipeline.render_pass);
+	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_Framebuffer.finalize();
+	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
+							   "./core/shader/vulkan/bin/triangle.frag");
+	g_Vk.register_pipeline(m_Framebuffer.render_pass);
 #endif
 
 	COMM_LOG("starting font rasterizer");
@@ -742,7 +744,7 @@ void Renderer::update()
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = m_TestingPipeline.render_pass;
+	__RPBeginInfo.renderPass = m_Framebuffer.render_pass;
 	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
@@ -843,7 +845,11 @@ void Renderer::update()
 void Renderer::exit()
 {
 #ifdef VKBUILD
-	m_TestingPipeline.clear();
+	m_TestingPipeline.vanish();
+	m_Framebuffer.vanish();
+	m_ForwardFrameBuffer.vanish();
+	m_DeferredFrameBuffer.vanish();
+	m_ShadowFrameBuffer.vanish();  // FIXME no!
 #endif
 	/*
 	_sprite_texture_signal.exit();

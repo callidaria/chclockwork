@@ -79,7 +79,7 @@ public:
 	void assemble(Framebuffer& target,const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
-	void clear();  // §testing
+	void vanish();  // §testing
 
 	// usage
 	void enable();

@@ -418,6 +418,7 @@ private:
 	Lighting m_Lighting;
 
 #ifdef VKBUILD
+	Framebuffer m_Framebuffer = Framebuffer(1);
 	ShaderPipeline m_TestingPipeline;
 	u8 m_ActiveBuffer = 0;
 #endif
