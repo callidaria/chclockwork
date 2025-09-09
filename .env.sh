@@ -1,6 +1,10 @@
 #!/bin/bash
 
 
+GPU_VULKAN_MODE=true
+GPU_BUILD_SUFFIX="-DVKBUILD"
+
+
 chcw_setup()
 {
 	echo "running linux project setup"
@@ -96,12 +100,26 @@ sc()
 	done
 }
 
+sal()
+{
+	if $GPU_VULKAN_MODE; then
+		GPU_VULKAN_MODE=false
+		GPU_BUILD_SUFFIX="-DGLBUILD"
+		echo "opengl mode enabled"
+	else
+		GPU_VULKAN_MODE=true
+		GPU_BUILD_SUFFIX="-DVKBUILD"
+		echo "vulkan mode enabled"
+	fi
+}
+
 
 chcw_help()
 {
 	printf "C. Hanson's Clockwork Environment Helpdesk:\n\n"
 	printf "%-15s - %s\n" "chcw_setup" "project setup for build & development purposes"
 	printf "%-15s - %s\n" "chcw_help" "i didn't need to tell you that for recursive reasons"
+	printf "%-15s - %s\n" "sal" "switch graphics api library to specify next version build"
 	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"
 	printf "%-15s - %s\n" "r" "build release (only outdated libs). WARNING: will not override debug versions!"
@@ -111,10 +129,10 @@ chcw_help()
 }
 
 
-alias d='make debug'
-alias da='make debug -B'
-alias r='make release'
-alias ra='make release -B'
+alias d='make debug GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias da='make debug -B GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias r='make release GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias ra='make release -B GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
 
 if [ "$OS" == "Windows_NT" ]; then
 	alias e="./chcw.exe"
