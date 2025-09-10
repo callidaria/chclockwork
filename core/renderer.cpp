@@ -576,11 +576,18 @@ Renderer::Renderer()
 	COMM_MSG(LOG_CYAN,"starting render system");
 
 #ifdef VKBUILD
+	f32 _verts[] = {
+		-.5f,.5f,1.f,.0f,.0f,
+		.5f,.5f,.0f,1.f,.0f,
+		.0f,-.5f,.0f,.0f,1.f,
+	};
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
 	g_Vk.register_pipeline(m_Framebuffer.render_pass);
+	m_VertexBuffer.allocate(15*sizeof(f32));
+	m_VertexBuffer.upload_vertices(_verts);
 #endif
 
 	COMM_LOG("starting font rasterizer");
@@ -765,7 +772,7 @@ void Renderer::update()
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 	// bind buffer
-	VkBuffer __Buffers[] = { g_Vk.vertex_buffer };
+	VkBuffer __Buffers[] = { m_VertexBuffer.m_VBO };
 	VkDeviceSize __Offsets[] = { 0 };
 	vkCmdBindVertexBuffers(p_CMDBuffer,0,1,__Buffers,__Offsets);
 

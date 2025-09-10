@@ -425,13 +425,6 @@ void Eruption::erupt(SDL_Window* frame)
 	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
 }
 
-f32 _verts[] = {
-	-.5f,.5f,1.f,.0f,.0f,
-	.5f,.5f,.0f,1.f,.0f,
-	.0f,-.5f,.0f,.0f,1.f,
-};
-// TODO remove this later when testing is done
-
 /**
  *	TODO
  */
@@ -450,47 +443,6 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
 	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
-
-	// vertex buffer
-	VkBufferCreateInfo __BufferInfo = {  };
-	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	__BufferInfo.size = sizeof(f32)*15;
-	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	__Result = vkCreateBuffer(gpu,&__BufferInfo,nullptr,&vertex_buffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
-
-	// pick memory type
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(gpu,vertex_buffer,&__MemoryRequirements);
-	u32 __MemoryIndex = 0;
-	while (__MemoryIndex<selected_gpu->memory_properties.memoryTypeCount)
-	{
-		if ((__MemoryRequirements.memoryTypeBits&(1<<__MemoryIndex))
-			&&(selected_gpu->memory_properties.memoryTypes[__MemoryIndex].propertyFlags
-			   &(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)))
-			break;
-		__MemoryIndex++;
-	}
-	// TODO well this just has to be completely reworked before fully including this
-	// TODO optimize, do not rely on coherent bit and flush explicitly later
-
-	// buffer memory allocation
-	VkMemoryAllocateInfo __MallocInfo = {  };
-	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MallocInfo.allocationSize = __MemoryRequirements.size;
-	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(gpu,&__MallocInfo,nullptr,&buffer_vram);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for some reason");
-	vkBindBufferMemory(gpu,vertex_buffer,buffer_vram,0);
-	// TODO later remove this from here!
-
-	// ram to vram
-	void* __Data;
-	vkMapMemory(gpu,buffer_vram,0,__BufferInfo.size,0,&__Data);
-	memcpy(__Data,_verts,(size_t)__BufferInfo.size);
-	vkUnmapMemory(gpu,buffer_vram);
-	// FIXME the data doesn't have to be copied in this context
 
 	// setup command buffer
 	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);

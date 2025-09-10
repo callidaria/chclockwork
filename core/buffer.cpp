@@ -47,7 +47,12 @@ void VertexArray::unbind()
 // ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
 
-#ifdef GLBUILD
+#ifdef VKBUILD
+VkBufferUsageFlagBits _buffer_formats[BUFFER_TYPE_COUNT] = {
+	VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+};
+#else
 GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
 	GL_STATIC_DRAW,
 	GL_DYNAMIC_DRAW
@@ -71,12 +76,47 @@ VertexBuffer::~VertexBuffer()
  */
 void VertexBuffer::allocate(size_t size,BufferType type)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	m_BufferSize = size;
 	m_BufferType = type;
+
+#ifdef VKBUILD
+	// vertex buffer
+	VkBufferCreateInfo __BufferInfo = {  };
+	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	__BufferInfo.size = size;
+	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkResult __Result = vkCreateBuffer(g_Vk.gpu,&__BufferInfo,nullptr,&m_VBO);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
+
+	// analyze memory type
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetBufferMemoryRequirements(g_Vk.gpu,m_VBO,&__MemoryRequirements);
+
+	// iterate memory
+	u32 __MemoryIndex = 0;
+	while (__MemoryIndex<g_Vk.selected_gpu->memory_properties.memoryTypeCount)
+	{
+		if ((__MemoryRequirements.memoryTypeBits&(1<<__MemoryIndex))
+			&&(g_Vk.selected_gpu->memory_properties.memoryTypes[__MemoryIndex].propertyFlags
+			   &(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))) break;
+		__MemoryIndex++;
+	}
+	// TODO well this just has to be completely reworked before fully including this
+	// TODO optimize, do not rely on coherent bit and flush explicitly later
+
+	// buffer memory allocation
+	VkMemoryAllocateInfo __MallocInfo = {  };
+	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MallocInfo.allocationSize = __MemoryRequirements.size;
+	__MallocInfo.memoryTypeIndex = __MemoryIndex;
+	__Result = vkAllocateMemory(g_Vk.gpu,&__MallocInfo,nullptr,&m_Memory);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for some reason");
+
+	// bind memory to vbo
+	vkBindBufferMemory(g_Vk.gpu,m_VBO,m_Memory,0);
+
+#else
 	glGenBuffers(1,&m_VBO);
 #endif
 }
@@ -88,11 +128,11 @@ void VertexBuffer::bind()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 #endif
 }
+// FIXME there is no bind/unbind in vulkan. how do i replicate this phenomenon?
 
 /**
  *	TODO
@@ -100,8 +140,7 @@ void VertexBuffer::bind()
 void VertexBuffer::bind_elements()
 {
 #ifdef VKBUILD
-	// TODO
-
+	// TODO bind vulkan elements
 #else
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
 #endif
@@ -114,7 +153,6 @@ void VertexBuffer::unbind()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glBindBuffer(GL_ARRAY_BUFFER,0);
 #endif
@@ -126,8 +164,7 @@ void VertexBuffer::unbind()
 void VertexBuffer::unbind_elements()
 {
 #ifdef VKBUILD
-	// TODO
-
+	// TODO unbind vulkan elements
 #else
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
 #endif
@@ -139,7 +176,10 @@ void VertexBuffer::unbind_elements()
 void VertexBuffer::upload_vertices(void* verts)
 {
 #ifdef VKBUILD
-	// TODO
+	void* __Data;
+	vkMapMemory(g_Vk.gpu,m_Memory,0,m_BufferSize,0,&__Data);
+	memcpy(__Data,verts,m_BufferSize);
+	vkUnmapMemory(g_Vk.gpu,m_Memory);
 #else
 	glBufferData(GL_ARRAY_BUFFER,m_BufferSize,verts,_memory_formats[m_BufferType]);
 #endif

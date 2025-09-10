@@ -5,6 +5,7 @@
 #include "base.h"
 #include "blitter.h"
 
+
 enum BufferType : u8
 {
 	BUFFER_TYPE_VERTEX,
@@ -56,11 +57,17 @@ public:
 	void upload_elements(u32* elements,size_t size);
 	void upload_elements(vector<u32> elements);
 
+#ifdef VKBUILD
+public:
+	VkBuffer m_VBO;
+#endif
+// TODO remove
+
 private:
 	BufferType m_BufferType;
 	size_t m_BufferSize;
 #ifdef VKBUILD
-	VkBuffer m_VBO;
+	//VkBuffer m_VBO;
 	VkDeviceMemory m_Memory;
 #else
 	u32 m_VBO;
@@ -70,7 +77,6 @@ private:
 
 // ----------------------------------------------------------------------------------------------------
 // Colour Buffers
-
 
 struct TextureData
 {
