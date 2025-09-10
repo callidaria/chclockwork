@@ -30,19 +30,6 @@ void VertexArray::bind()
 #endif
 }
 
-/**
- *	unbind all vertex arrays
- */
-void VertexArray::unbind()
-{
-#ifdef VKBUILD
-	// TODO
-
-#else
-	glBindVertexArray(0);
-#endif
-}
-
 
 // ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
@@ -143,30 +130,6 @@ void VertexBuffer::bind_elements()
 	// TODO bind vulkan elements
 #else
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
-#endif
-}
-
-/**
- *	TODO
- */
-void VertexBuffer::unbind()
-{
-#ifdef VKBUILD
-	// TODO
-#else
-	glBindBuffer(GL_ARRAY_BUFFER,0);
-#endif
-}
-
-/**
- *	TODO
- */
-void VertexBuffer::unbind_elements()
-{
-#ifdef VKBUILD
-	// TODO unbind vulkan elements
-#else
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
 #endif
 }
 

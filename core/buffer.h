@@ -29,9 +29,7 @@ class VertexArray
 {
 public:
 	VertexArray();
-
 	void bind();
-	static void unbind();
 
 private:
 	u32 m_VAO;
@@ -51,8 +49,6 @@ public:
 	// activation
 	void bind();
 	void bind_elements();
-	static void unbind();
-	static void unbind_elements();
 
 	// upload
 	void upload_vertices(void* vertices);
