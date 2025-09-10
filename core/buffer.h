@@ -5,11 +5,11 @@
 #include "base.h"
 #include "blitter.h"
 
-enum MemoryFormat : u8
+enum BufferType : u8
 {
-	MEMORY_FORMAT_STATIC,
-	MEMORY_FORMAT_QUICK,
-	MEMORY_FORMAT_COUNT
+	BUFFER_TYPE_VERTEX,
+	BUFFER_TYPE_INDEX,
+	BUFFER_TYPE_COUNT
 };
 
 enum TextureFormat : u8
@@ -38,58 +38,33 @@ private:
 // TODO this should be used automatically when implementing the vulkan correlation,
 //		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 
-#ifndef VKBUILD
-static inline GLenum _memory_formats[MEMORY_FORMAT_COUNT] = {
-	GL_STATIC_DRAW,
-	GL_DYNAMIC_DRAW
-};
-#endif
-// TODO this does not belong in the header, this will be moved to implementation later
-// TODO add more types & correlate with vulkan setup
 
 class VertexBuffer
 {
 public:
-	VertexBuffer();
+	~VertexBuffer();
+	void allocate(size_t size,BufferType type=BUFFER_TYPE_VERTEX);
 
+	// activation
 	void bind();
 	void bind_elements();
 	static void unbind();
 	static void unbind_elements();
 
-	/**
-	 *	template inline for dynamic vertex struct uploads
-	 *	\param vertices: vertex array/vector holding geometry
-	 *	\param size: array size, not necessary when using a vector
-	 *	\param memtype: GL_(STREAM+STATIC+DYNAMIC)_(DRAW+READ+COPY)
-	 *	NOTE vertex buffer has to be bound beforehand
-	 *	NOTE do not use in combination with upload_elements(...)
-	 */
-	template<typename T> inline void upload_vertices(T* vertices,
-													 size_t size,MemoryFormat memtype=MEMORY_FORMAT_STATIC)
-	{
-#ifdef VKBUILD
-		// TODO
-#else
-		glBufferData(GL_ARRAY_BUFFER,size*sizeof(T),vertices,_memory_formats[memtype]);
-#endif
-	}
-	template<typename T> inline void upload_vertices(vector<T> vertices,
-													 MemoryFormat memtype=MEMORY_FORMAT_STATIC)
-	{
-#ifdef VKBUILD
-		// TODO
-#else
-		glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(T),&vertices[0],_memory_formats[memtype]);
-#endif
-	}
-	// TODO move this out of the header & find a different upload approach
-
+	// upload
+	void upload_vertices(void* vertices);
 	void upload_elements(u32* elements,size_t size);
 	void upload_elements(vector<u32> elements);
 
 private:
+	BufferType m_BufferType;
+	size_t m_BufferSize;
+#ifdef VKBUILD
+	VkBuffer m_VBO;
+	VkDeviceMemory m_Memory;
+#else
 	u32 m_VBO;
+#endif
 };
 
 

@@ -213,7 +213,7 @@ struct GeometryBatch
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
-	vector<float> geometry;
+	vector<f32> geometry;
 //vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
@@ -232,7 +232,7 @@ struct ParticleBatch
 	VertexBuffer vbo;
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
-	vector<float> geometry;
+	vector<f32> geometry;
 	u32 vertex_count;
 	u32 active_particles = 0;
 };

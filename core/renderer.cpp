@@ -522,8 +522,9 @@ void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
 	vao.bind();
+	vbo.allocate(geometry.size()*sizeof(f32));
 	vbo.bind();
-	vbo.upload_vertices(geometry);
+	vbo.upload_vertices(&geometry[0]);
 	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 }
 
@@ -553,8 +554,9 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 
 	// auto-mapping particle shader pipeline
 	vao.bind();
+	vbo.allocate(geometry.size()*sizeof(f32));
 	vbo.bind();
-	vbo.upload_vertices(geometry);
+	vbo.upload_vertices(&geometry[0]);
 	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// store geometry information
@@ -617,14 +619,17 @@ Renderer::Renderer()
 	COMM_LOG("sprite pipeline");
 	m_SpritePipeline.assemble(__SpriteVertexShader,__DirectFragmentShader);
 	m_SpriteVertexArray.bind();
+	m_SpriteVertexBuffer.allocate(24*sizeof(f32));
+	m_SpriteInstanceBuffer.allocate(BUFFER_MAXIMUM_TEXTURE_COUNT*sizeof(Sprite),BUFFER_TYPE_INDEX);
 	m_SpriteVertexBuffer.bind();
-	m_SpriteVertexBuffer.upload_vertices(__QuadVertices,24);
+	m_SpriteVertexBuffer.upload_vertices(__QuadVertices);
 	m_SpritePipeline.map(RENDERER_TEXTURE_SPRITES,&m_SpriteVertexBuffer,&m_SpriteInstanceBuffer);
 	m_SpritePipeline.upload_coordinate_system();
 
 	COMM_LOG("text pipeline");
 	m_TextPipeline.assemble(__TextVertexShader,__TextFragmentShader);
 	m_TextVertexArray.bind();
+	m_TextInstanceBuffer.allocate(BUFFER_TYPE_INDEX*sizeof(TextCharacter),BUFFER_TYPE_INDEX);
 	m_SpriteVertexBuffer.bind();
 	m_TextPipeline.map(RENDERER_TEXTURE_FONTS,&m_SpriteVertexBuffer,&m_TextInstanceBuffer);
 	m_TextPipeline.upload_coordinate_system();
@@ -632,8 +637,9 @@ Renderer::Renderer()
 	COMM_LOG("canvas pipeline");
 	m_CanvasPipeline.assemble(__CanvasVertexShader,__LightingPassFragmentShader);
 	m_CanvasVertexArray.bind();
+	m_CanvasVertexBuffer.allocate(24*sizeof(f32));
 	m_CanvasVertexBuffer.bind();
-	m_CanvasVertexBuffer.upload_vertices(__CanvasVertices,24);
+	m_CanvasVertexBuffer.upload_vertices(__CanvasVertices);
 	m_CanvasPipeline.map(RENDERER_TEXTURE_FORWARD,&m_CanvasVertexBuffer);
 
 	COMM_LOG("geometry pass pipelines");
@@ -1309,7 +1315,7 @@ void Renderer::_update_sprites()
 {
 	m_SpriteVertexArray.bind();
 	m_SpriteInstanceBuffer.bind();
-	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem,BUFFER_MAXIMUM_TEXTURE_COUNT,MEMORY_FORMAT_QUICK);
+	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
 	m_SpritePipeline.enable();
 #ifdef VKBUILD
 	// TODO
@@ -1331,7 +1337,7 @@ void Renderer::_update_text()
 	// iterate text entities
 	for (Text& p_Text : m_Texts)
 	{
-		m_TextInstanceBuffer.upload_vertices(p_Text.buffer,MEMORY_FORMAT_QUICK);
+		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0]);
 #ifdef VKBUILD
 		// TODO
 #else

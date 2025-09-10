@@ -2,7 +2,7 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// Geometry Buffers
+// Vertex Array
 
 /**
  *	create vertex array
@@ -44,15 +44,39 @@ void VertexArray::unbind()
 }
 
 
+// ----------------------------------------------------------------------------------------------------
+// Vertex Buffer
+
+#ifdef GLBUILD
+GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
+	GL_STATIC_DRAW,
+	GL_DYNAMIC_DRAW
+};
+#endif
+// TODO add more types & correlate with vulkan setup
+
 /**
- *	create vertex buffer
+ *	TODO
  */
-VertexBuffer::VertexBuffer()
+VertexBuffer::~VertexBuffer()
 {
 #ifdef VKBUILD
-	// TODO construct vulkan vertex buffer
+	vkDestroyBuffer(g_Vk.gpu,m_VBO,nullptr);
+	vkFreeMemory(g_Vk.gpu,m_Memory,nullptr);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::allocate(size_t size,BufferType type)
+{
+#ifdef VKBUILD
+	// TODO
 
 #else
+	m_BufferSize = size;
+	m_BufferType = type;
 	glGenBuffers(1,&m_VBO);
 #endif
 }
@@ -106,6 +130,18 @@ void VertexBuffer::unbind_elements()
 
 #else
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::upload_vertices(void* verts)
+{
+#ifdef VKBUILD
+	// TODO
+#else
+	glBufferData(GL_ARRAY_BUFFER,m_BufferSize,verts,_memory_formats[m_BufferType]);
 #endif
 }
 

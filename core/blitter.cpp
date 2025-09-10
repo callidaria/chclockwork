@@ -595,8 +595,6 @@ void Eruption::vanish()
 	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
 	destroy_swapchain();
-	vkDestroyBuffer(gpu,vertex_buffer,nullptr);
-	vkFreeMemory(gpu,buffer_vram,nullptr);
 	vkDestroyDevice(gpu,nullptr);
 	vkDestroySurfaceKHR(instance,surface,nullptr);
 #ifdef DEBUG
