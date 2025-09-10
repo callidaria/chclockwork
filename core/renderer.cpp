@@ -629,7 +629,7 @@ Renderer::Renderer()
 	COMM_LOG("text pipeline");
 	m_TextPipeline.assemble(__TextVertexShader,__TextFragmentShader);
 	m_TextVertexArray.bind();
-	m_TextInstanceBuffer.allocate(BUFFER_TYPE_INDEX*sizeof(TextCharacter),BUFFER_TYPE_INDEX);
+	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter),BUFFER_TYPE_INDEX);
 	m_SpriteVertexBuffer.bind();
 	m_TextPipeline.map(RENDERER_TEXTURE_FONTS,&m_SpriteVertexBuffer,&m_TextInstanceBuffer);
 	m_TextPipeline.upload_coordinate_system();
