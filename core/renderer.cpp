@@ -848,7 +848,6 @@ void Renderer::update()
 
 	// end-frame gpu management
 	_gpu_upload();
-
 #endif
 }
 
@@ -863,6 +862,15 @@ void Renderer::exit()
 	m_ForwardFrameBuffer.vanish();
 	m_DeferredFrameBuffer.vanish();
 	m_ShadowFrameBuffer.vanish();  // FIXME no!
+	m_VertexBuffer.vanish();
+	m_SpriteVertexBuffer.vanish();
+	m_CanvasVertexBuffer.vanish();
+	m_SpriteInstanceBuffer.vanish();
+	m_TextInstanceBuffer.vanish();
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vbo.vanish();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vbo.vanish();
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vbo.vanish();
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.vbo.vanish();
 #endif
 	/*
 	_sprite_texture_signal.exit();

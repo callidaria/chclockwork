@@ -43,8 +43,10 @@ private:
 class VertexBuffer
 {
 public:
-	~VertexBuffer();
 	void allocate(size_t size,BufferType type=BUFFER_TYPE_VERTEX);
+#ifdef VKBUILD
+	void vanish();
+#endif
 
 	// activation
 	void bind();

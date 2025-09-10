@@ -63,17 +63,6 @@ GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
 /**
  *	TODO
  */
-VertexBuffer::~VertexBuffer()
-{
-#ifdef VKBUILD
-	vkDestroyBuffer(g_Vk.gpu,m_VBO,nullptr);
-	vkFreeMemory(g_Vk.gpu,m_Memory,nullptr);
-#endif
-}
-
-/**
- *	TODO
- */
 void VertexBuffer::allocate(size_t size,BufferType type)
 {
 	m_BufferSize = size;
@@ -120,6 +109,17 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	glGenBuffers(1,&m_VBO);
 #endif
 }
+
+#ifdef VKBUILD
+/**
+ *	TODO
+ */
+void VertexBuffer::vanish()
+{
+	vkDestroyBuffer(g_Vk.gpu,m_VBO,nullptr);
+	vkFreeMemory(g_Vk.gpu,m_Memory,nullptr);
+}
+#endif
 
 /**
  *	TODO
