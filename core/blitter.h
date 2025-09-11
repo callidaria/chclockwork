@@ -110,7 +110,7 @@ public:
 	void gpu_vsync_off();
 
 	// processing
-	static void gpu_set_viewport(u32 x,u32 y,u32 width,u32 height);
+	static void gpu_set_viewport(u32 width,u32 height);
 	static void gpu_cull_backfaces(bool backfaces);
 	static void gpu_enable_feature(GPUFeature feature);
 	static void gpu_disable_feature(GPUFeature feature);

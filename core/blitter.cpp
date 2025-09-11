@@ -763,13 +763,13 @@ void Frame::gpu_vsync_off()
 /**
  * TODO
  */
-void Frame::gpu_set_viewport(u32 x,u32 y,u32 width,u32 height)
+void Frame::gpu_set_viewport(u32 width,u32 height)
 {
 #ifdef VKBUILD
 	// TODO
 
 #else
-	glViewport(x,y,width,height);
+	glViewport(0,0,width,height);
 #endif
 }
 

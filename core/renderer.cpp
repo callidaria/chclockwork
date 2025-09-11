@@ -816,7 +816,7 @@ void Renderer::update()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 
 	// tick frame
-	m_ActiveBuffer = (m_ActiveBuffer+1)&(FRAME_BLITTER_BUFFERS-1);
+	m_ActiveBuffer = (m_ActiveBuffer+1)%FRAME_BLITTER_BUFFERS;
 	// TODO move this to the blitter later, this belongs in the frame update function
 
 #else
@@ -824,13 +824,13 @@ void Renderer::update()
 
 	// shadow projection
 	Frame::gpu_cull_backfaces(false);
-	Frame::gpu_set_viewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+	Frame::gpu_set_viewport(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	m_ShadowFrameBuffer.start();
 	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
 	Frame::gpu_cull_backfaces(true);
 
 	// 3D segment
-	Frame::gpu_set_viewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	Frame::gpu_set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_ForwardFrameBuffer.start();
 	_update_mesh(m_GeometryBatches,m_ParticleBatches);
 	m_DeferredFrameBuffer.start();
@@ -1047,7 +1047,8 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 	COMM_LOG("mesh texture register of %s",path);
 	Texture* p_Texture = m_MeshTextures.next_free();
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	thread __LoadThread(_load_texture,p_Texture,path,format,
+						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();
 	return p_Texture;
 }

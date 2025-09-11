@@ -685,9 +685,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
  */
 Framebuffer::Framebuffer(u8 count)
 {
-	if (!count) return;
 	m_ColourComponents.resize(count);
-
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
 	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
