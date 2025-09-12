@@ -445,24 +445,37 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
 
 	// setup command buffer
-	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
+	VkCommandBuffer __CommandBuffers[FRAME_BLITTER_BUFFERS];
 	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
 	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	__CMDBufferInfo.commandPool = cmds;
 	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	__CMDBufferInfo.commandBufferCount = FRAME_BLITTER_BUFFERS;
-	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,&cmd_buffers[0]);
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__CommandBuffers);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 
-	// buffer semaphore creation
+	// store command buffers
+	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
+	for (u8 i=0;i<cmd_buffers.size();i++) cmd_buffers[i].buffer = __CommandBuffers[i];
+
+	// setup buffer threading constraints info
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	frame_ready.resize(FRAME_BLITTER_BUFFERS);
+	VkFenceCreateInfo __FenceInfo = {  };
+	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	// iterate buffer semaphore creation
 	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
 	{
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&frame_ready[i]);
+		// create command buffer semaphore
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers[i].ready);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
+
+		// create command buffer fence
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers[i].processing);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
 	}
 
 	// image semaphore creation
@@ -473,18 +486,31 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
 	}
 
-	// buffer fence creation
-	VkFenceCreateInfo __FenceInfo = {  };
-	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-	in_progress.resize(images.size());
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&in_progress[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
-	}
-
 	COMM_SCC("render pipeline ready.");
+}
+
+/**
+ *	TODO
+ */
+void Eruption::vanish()
+{
+	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
+	for (CommandBuffer& p_Buffer : cmd_buffers)
+	{
+		vkDestroySemaphore(gpu,p_Buffer.ready,nullptr);
+		vkDestroyFence(gpu,p_Buffer.processing,nullptr);
+	}
+	vkDestroyCommandPool(gpu,cmds,nullptr);
+	destroy_swapchain();
+	vkDestroyDevice(gpu,nullptr);
+	vkDestroySurfaceKHR(instance,surface,nullptr);
+#ifdef DEBUG
+	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
+		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
+																	  "vkDestroyDebugUtilsMessengerEXT");
+	__DestroyMessenger(instance,debug_messenger,nullptr);
+#endif
+	vkDestroyInstance(instance,nullptr);
 }
 
 /**
@@ -537,25 +563,16 @@ void Eruption::destroy_swapchain()
 /**
  *	TODO
  */
-void Eruption::vanish()
+CommandBuffer& Eruption::aquire_command_buffer()
 {
-	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		vkDestroySemaphore(gpu,frame_ready[i],nullptr);
-		vkDestroyFence(gpu,in_progress[i],nullptr);
-	}
-	vkDestroyCommandPool(gpu,cmds,nullptr);
-	destroy_swapchain();
-	vkDestroyDevice(gpu,nullptr);
-	vkDestroySurfaceKHR(instance,surface,nullptr);
-#ifdef DEBUG
-	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
-																	  "vkDestroyDebugUtilsMessengerEXT");
-	__DestroyMessenger(instance,debug_messenger,nullptr);
-#endif
-	vkDestroyInstance(instance,nullptr);
+	// tick command buffer
+	CommandBuffer& out = cmd_buffers[active_buffer];
+	active_buffer = (active_buffer+1)%FRAME_BLITTER_BUFFERS;
+
+	// wait until draw is ready
+	vkWaitForFences(g_Vk.gpu,1,&out.processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(g_Vk.gpu,1,&out.processing);
+	return out;
 }
 
 #endif
@@ -707,8 +724,7 @@ void Frame::close()
 void Frame::set_clear_colour(vec3 colour)
 {
 #ifdef VKBUILD
-	// TODO clearing fbs already works. it just needs to be put here
-
+	g_Vk.clear_colour = {{{ colour.r,colour.g,colour.b,1.f }}};
 #else
 	glClearColor(colour.r,colour.g,colour.b,0);
 #endif

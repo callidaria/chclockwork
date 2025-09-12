@@ -5,7 +5,7 @@
 #include "base.h"
 
 
-constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(0);
+constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
 enum GPUFeature : u8
@@ -50,17 +50,31 @@ struct Hardware
 	vector<GPU> gpus;
 };
 
+struct CommandBuffer
+{
+	VkCommandBuffer buffer;
+	VkSemaphore ready;
+	VkFence processing;
+};
+
 struct Eruption
 {
 	// utility
+	// setup
 	void erupt(SDL_Window* frame);
 	void register_pipeline(VkRenderPass render_pass);
+	void vanish();
+
+	// swapchain
 	void finish_swapchain();
 	void rebuild_swapchain();
 	void destroy_swapchain();
-	void vanish();
+
+	// command buffer
+	CommandBuffer& aquire_command_buffer();
 
 	// data
+	// vulkan
 	SDL_Window* ref_frame;
 	GPU* selected_gpu;
 	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
@@ -78,12 +92,18 @@ struct Eruption
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
 	VkCommandPool cmds;
-	vector<VkCommandBuffer> cmd_buffers;
-	vector<VkSemaphore> frame_ready;
+
+	// command buffer
+	vector<CommandBuffer> cmd_buffers;
 	vector<VkSemaphore> render_done;
-	vector<VkFence> in_progress;
+
+	// viewport
 	VkViewport viewport;
 	VkRect2D scissor;
+
+	// state
+	VkClearValue clear_colour;
+	u8 active_buffer = 0;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

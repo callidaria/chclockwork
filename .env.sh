@@ -100,7 +100,7 @@ sc()
 	done
 }
 
-sal()
+sgl()
 {
 	if $GPU_VULKAN_MODE; then
 		GPU_VULKAN_MODE=false
@@ -119,7 +119,7 @@ chcw_help()
 	printf "C. Hanson's Clockwork Environment Helpdesk:\n\n"
 	printf "%-15s - %s\n" "chcw_setup" "project setup for build & development purposes"
 	printf "%-15s - %s\n" "chcw_help" "i didn't need to tell you that for recursive reasons"
-	printf "%-15s - %s\n" "sal" "switch graphics api library to specify next version build"
+	printf "%-15s - %s\n" "sgl" "switch graphics api library to specify next version build"
 	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"
 	printf "%-15s - %s\n" "r" "build release (only outdated libs). WARNING: will not override debug versions!"
