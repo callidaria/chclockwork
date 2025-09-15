@@ -646,8 +646,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	m_Hardware.detect();
 	m_Hardware.gpus[did].select(m_Frame);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
-#endif
 
+#endif
 	// vsync
 	if (vsync) gpu_vsync_on();
 	else gpu_vsync_off();

@@ -790,7 +790,7 @@ void Framebuffer::finalize()
 	__RPInfo.pSubpasses = &__SubpassDesc;
 	__RPInfo.dependencyCount = 1;
 	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
+	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&m_RenderPass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// clear setup memory
@@ -812,7 +812,7 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
-	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,m_RenderPass,nullptr);
 #endif
 }
 
@@ -822,13 +822,47 @@ void Framebuffer::vanish()
 void Framebuffer::start()
 {
 #ifdef VKBUILD
-	// TODO
+	// aquire next command buffer & reset
+	CommandBuffer& p_CMDBuffer = g_Vk.aquire_command_buffer();
+	vkResetCommandBuffer(p_CMDBuffer.buffer,0);
+
+	// get next swapchain image
+	u32 __BufferID;
+	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,p_CMDBuffer.ready,
+											  VK_NULL_HANDLE,&__BufferID);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+	VkSemaphore& p_RenderDone = g_Vk.render_done[__BufferID];
+
+	// start command buffer
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	__Result = vkBeginCommandBuffer(p_CMDBuffer.buffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
+	// TODO the creation info can be pre-cached instead and then just used based on registration type later
+
+	// setup begin draw
+	VkRenderPassBeginInfo __RPBeginInfo = {  };
+	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	__RPBeginInfo.renderPass = m_RenderPass;
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
+	__RPBeginInfo.renderArea.offset = { 0,0 };
+	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
+	__RPBeginInfo.clearValueCount = 1;
+	__RPBeginInfo.pClearValues = &g_Vk.clear_colour;
+	vkCmdBeginRenderPass(p_CMDBuffer.buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(p_CMDBuffer.buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_TestingPipeline.pipeline);
+
+	// viewport setup
+	vkCmdSetViewport(p_CMDBuffer.buffer,0,1,&g_Vk.viewport);
+	vkCmdSetScissor(p_CMDBuffer.buffer,0,1,&g_Vk.scissor);
+	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
-#endif
-
 	Frame::clear();
+#endif
 }
 
 /**
@@ -837,7 +871,27 @@ void Framebuffer::start()
 void Framebuffer::stop()
 {
 #ifdef VKBUILD
-	// TODO
+	// finish buffer registration
+	vkCmdEndRenderPass(p_CMDBuffer.buffer);
+	__Result = vkEndCommandBuffer(p_CMDBuffer.buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
+	// TODO outsource appropriately to pipeline probably
+
+	// submit buffer
+	VkSemaphore __WaitSemaphores = { p_CMDBuffer.ready };
+	VkSemaphore __SignalSemaphores = { p_RenderDone };
+	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 1;
+	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
+	__SubmitInfo.pWaitDstStageMask = __StageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &p_CMDBuffer.buffer;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
+	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,p_CMDBuffer.processing);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
