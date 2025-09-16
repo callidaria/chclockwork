@@ -735,19 +735,6 @@ void Renderer::update()
 
 	m_Framebuffer.stop();
 
-	// swap
-	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
-	VkPresentInfoKHR __PresentInfo = {  };
-	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
-	__PresentInfo.swapchainCount = 1;
-	__PresentInfo.pSwapchains = __SwapChains;
-	__PresentInfo.pImageIndices = &__BufferID;
-	__PresentInfo.pResults = nullptr;
-	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
-
 #else
 	m_FrameStart = std::chrono::steady_clock::now();
 
