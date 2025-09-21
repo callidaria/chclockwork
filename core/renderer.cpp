@@ -696,7 +696,7 @@ Renderer::Renderer()
 	m_ShadowFrameBuffer.define_depth_component(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	Texture::set_texture_parameter_clamp_to_border();
 	Texture::set_texture_parameter_border_colour(vec4(1));
-	Framebuffer::stop();
+	m_ShadowFrameBuffer.stop();
 
 	// ----------------------------------------------------------------------------------------------------
 	// Start Subprocesses
@@ -722,15 +722,16 @@ Renderer::Renderer()
 void Renderer::update()
 {
 #ifdef VKBUILD
+	m_TestingPipeline.enable();
 	m_Framebuffer.start();
 
 	// bind buffer
 	VkBuffer __Buffers[] = { m_VertexBuffer.m_VBO };
 	VkDeviceSize __Offsets[] = { 0 };
-	vkCmdBindVertexBuffers(p_CMDBuffer.buffer,0,1,__Buffers,__Offsets);
+	vkCmdBindVertexBuffers(m_Framebuffer.cmd_buffer->buffer,0,1,__Buffers,__Offsets);
 
 	// gpu drawcall
-	vkCmdDraw(p_CMDBuffer.buffer,3,1,0,0);
+	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();
@@ -751,7 +752,7 @@ void Renderer::update()
 	_update_mesh(m_GeometryBatches,m_ParticleBatches);
 	m_DeferredFrameBuffer.start();
 	_update_mesh(m_DeferredGeometryBatches,m_DeferredParticleBatches);
-	Framebuffer::stop();
+	m_DeferredFrameBuffer.stop();
 
 	// rendertargets
 	Frame::gpu_disable_feature(GPU_FEATURE_DEPTH_TEST);

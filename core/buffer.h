@@ -195,14 +195,17 @@ public:
 
 	// usage
 	void start();
-	static void stop();
+	void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
 
 private:
 #ifdef VKBUILD
+public:
+	VkRenderPass render_pass;
+	CommandBuffer* cmd_buffer;
+private:
 	  // TODO switch back to private and somehow add to pipeline?
-	VkRenderPass m_RenderPass;
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
 	VkAttachmentDescription* m_DepthComponentSetup;

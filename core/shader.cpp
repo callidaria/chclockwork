@@ -417,7 +417,7 @@ void ShaderPipeline::vanish()
 void ShaderPipeline::enable()
 {
 #ifdef VKBUILD
-	// TODO
+	g_Vk.pipeline = pipeline;
 
 #else
 	glUseProgram(m_ShaderProgram);

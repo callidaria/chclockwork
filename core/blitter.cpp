@@ -563,15 +563,15 @@ void Eruption::destroy_swapchain()
 /**
  *	TODO
  */
-CommandBuffer& Eruption::aquire_command_buffer()
+CommandBuffer* Eruption::aquire_command_buffer()
 {
 	// tick command buffer
-	CommandBuffer& out = cmd_buffers[active_buffer];
+	CommandBuffer* out = &cmd_buffers[active_buffer];
 	active_buffer = (active_buffer+1)%FRAME_BLITTER_BUFFERS;
 
 	// wait until draw is ready
-	vkWaitForFences(g_Vk.gpu,1,&out.processing,VK_TRUE,UINT64_MAX);
-	vkResetFences(g_Vk.gpu,1,&out.processing);
+	vkWaitForFences(g_Vk.gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(g_Vk.gpu,1,&out->processing);
 	return out;
 }
 
@@ -678,15 +678,16 @@ void Frame::update()
 {
 #ifdef VKBUILD
 	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
+	VkSemaphore __SignalSemaphores = { g_Vk.render_done[g_Vk.active_frame] };  // TODO remove
 	VkPresentInfoKHR __PresentInfo = {  };
 	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	__PresentInfo.waitSemaphoreCount = 1;
 	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
 	__PresentInfo.swapchainCount = 1;
 	__PresentInfo.pSwapchains = __SwapChains;
-	__PresentInfo.pImageIndices = &__BufferID;
+	__PresentInfo.pImageIndices = &g_Vk.active_frame;
 	__PresentInfo.pResults = nullptr;
-	__Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
+	VkResult __Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 #else
 	SDL_GL_SwapWindow(m_Frame);

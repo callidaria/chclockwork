@@ -790,7 +790,7 @@ void Framebuffer::finalize()
 	__RPInfo.pSubpasses = &__SubpassDesc;
 	__RPInfo.dependencyCount = 1;
 	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&m_RenderPass);
+	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// clear setup memory
@@ -812,7 +812,7 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
-	vkDestroyRenderPass(g_Vk.gpu,m_RenderPass,nullptr);
+	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
 #endif
 }
 
@@ -823,40 +823,38 @@ void Framebuffer::start()
 {
 #ifdef VKBUILD
 	// aquire next command buffer & reset
-	CommandBuffer& p_CMDBuffer = g_Vk.aquire_command_buffer();
-	vkResetCommandBuffer(p_CMDBuffer.buffer,0);
+	cmd_buffer = g_Vk.aquire_command_buffer();
+	vkResetCommandBuffer(cmd_buffer->buffer,0);
 
 	// get next swapchain image
-	u32 __BufferID;
-	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,p_CMDBuffer.ready,
-											  VK_NULL_HANDLE,&__BufferID);
+	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,cmd_buffer->ready,
+											  VK_NULL_HANDLE,&g_Vk.active_frame);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
-	VkSemaphore& p_RenderDone = g_Vk.render_done[__BufferID];
 
 	// start command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
 	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
-	__Result = vkBeginCommandBuffer(p_CMDBuffer.buffer,&__CMDInfo);
+	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later
 
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = m_RenderPass;
-	__RPBeginInfo.framebuffer = g_Vk.framebuffers[__BufferID];
+	__RPBeginInfo.renderPass = render_pass;
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[g_Vk.active_frame];
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
 	__RPBeginInfo.clearValueCount = 1;
 	__RPBeginInfo.pClearValues = &g_Vk.clear_colour;
-	vkCmdBeginRenderPass(p_CMDBuffer.buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(p_CMDBuffer.buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,m_TestingPipeline.pipeline);
+	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Vk.pipeline);
 
 	// viewport setup
-	vkCmdSetViewport(p_CMDBuffer.buffer,0,1,&g_Vk.viewport);
-	vkCmdSetScissor(p_CMDBuffer.buffer,0,1,&g_Vk.scissor);
+	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Vk.viewport);
+	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Vk.scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else
@@ -872,14 +870,14 @@ void Framebuffer::stop()
 {
 #ifdef VKBUILD
 	// finish buffer registration
-	vkCmdEndRenderPass(p_CMDBuffer.buffer);
-	__Result = vkEndCommandBuffer(p_CMDBuffer.buffer);
+	vkCmdEndRenderPass(cmd_buffer->buffer);
+	VkResult __Result = vkEndCommandBuffer(cmd_buffer->buffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
 	// TODO outsource appropriately to pipeline probably
 
 	// submit buffer
-	VkSemaphore __WaitSemaphores = { p_CMDBuffer.ready };
-	VkSemaphore __SignalSemaphores = { p_RenderDone };
+	VkSemaphore __WaitSemaphores = { cmd_buffer->ready };
+	VkSemaphore __SignalSemaphores = { g_Vk.render_done[g_Vk.active_frame] };  // TODO remove
 	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -887,10 +885,10 @@ void Framebuffer::stop()
 	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &p_CMDBuffer.buffer;
+	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
-	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,p_CMDBuffer.processing);
+	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
 #else
