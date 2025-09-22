@@ -676,13 +676,13 @@ Renderer::Renderer()
 	// Render Targets
 
 	COMM_LOG("creating forward render target");
-	m_ForwardFrameBuffer.start();
+	//m_ForwardFrameBuffer.start();
 	m_ForwardFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_ForwardFrameBuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_ForwardFrameBuffer.finalize();
 
 	COMM_LOG("creating deferred render target");
-	m_DeferredFrameBuffer.start();
+	//m_DeferredFrameBuffer.start();
 	m_DeferredFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_DeferredFrameBuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
 	m_DeferredFrameBuffer.define_colour_component(2,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
@@ -692,11 +692,11 @@ Renderer::Renderer()
 	m_DeferredFrameBuffer.finalize();
 
 	COMM_LOG("creating shadow projection render target");
-	m_ShadowFrameBuffer.start();
+	//m_ShadowFrameBuffer.start();
 	m_ShadowFrameBuffer.define_depth_component(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	Texture::set_texture_parameter_clamp_to_border();
 	Texture::set_texture_parameter_border_colour(vec4(1));
-	m_ShadowFrameBuffer.stop();
+	//m_ShadowFrameBuffer.stop();
 
 	// ----------------------------------------------------------------------------------------------------
 	// Start Subprocesses
