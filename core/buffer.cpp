@@ -876,18 +876,16 @@ void Framebuffer::stop()
 	// TODO outsource appropriately to pipeline probably
 
 	// submit buffer
-	VkSemaphore __WaitSemaphores = { cmd_buffer->ready };
-	VkSemaphore __SignalSemaphores = { g_Vk.render_done[g_Vk.active_frame] };  // TODO remove
 	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = &__WaitSemaphores;
+	__SubmitInfo.pWaitSemaphores = &cmd_buffer->ready;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &__SignalSemaphores;
+	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done[g_Vk.active_frame];
 	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 

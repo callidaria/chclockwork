@@ -678,11 +678,10 @@ void Frame::update()
 {
 #ifdef VKBUILD
 	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
-	VkSemaphore __SignalSemaphores = { g_Vk.render_done[g_Vk.active_frame] };  // TODO remove
 	VkPresentInfoKHR __PresentInfo = {  };
 	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = &__SignalSemaphores;
+	__PresentInfo.pWaitSemaphores = &g_Vk.render_done[g_Vk.active_frame];
 	__PresentInfo.swapchainCount = 1;
 	__PresentInfo.pSwapchains = __SwapChains;
 	__PresentInfo.pImageIndices = &g_Vk.active_frame;
