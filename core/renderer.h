@@ -45,8 +45,9 @@ enum ScreenAlignment
 
 struct Alignment
 {
+	vec2 align(Rect geom);
 	Rect border = { vec2(0),vec2(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE) };
-	ScreenAlignment align = SCREEN_ALIGN_NEUTRAL;
+	ScreenAlignment alignment = SCREEN_ALIGN_NEUTRAL;
 };
 
 
@@ -182,6 +183,26 @@ public:
 
 // ----------------------------------------------------------------------------------------------------
 // Batches
+
+#ifdef VKBUILD
+
+class Renderer
+{
+public:
+	Renderer();
+	void update();
+	void exit();
+
+private:
+	Framebuffer m_Framebuffer = Framebuffer(1);
+	ShaderPipeline m_TestingPipeline;
+	VertexBuffer m_VertexBuffer;
+	u8 m_ActiveBuffer = 0;
+};
+
+
+// TODO light structures, except for shadow projections are universal and belong outside gfxapi related stuff
+#else
 
 struct TextureDataTuple
 {
@@ -416,14 +437,9 @@ private:
 	lptr<ShaderPipeline> m_GeometryShadowPipeline;
 	lptr<ShaderPipeline> m_ParticleShadowPipeline;
 	Lighting m_Lighting;
-
-#ifdef VKBUILD
-	Framebuffer m_Framebuffer = Framebuffer(1);
-	ShaderPipeline m_TestingPipeline;
-	VertexBuffer m_VertexBuffer;
-	u8 m_ActiveBuffer = 0;
-#endif
 };
+
+#endif
 
 inline Renderer g_Renderer = Renderer();
 

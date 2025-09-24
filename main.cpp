@@ -14,6 +14,19 @@
 
 s32 main(s32 argc,char** argv)
 {
+#ifdef VKBUILD
+	bool running = true;
+	while (running)
+	{
+		g_Frame.clear();
+		g_Input.update(running);
+		g_Wheel.update();
+		g_Camera.update();
+		g_Renderer.update();
+		g_Frame.update();
+	}
+
+#else
 	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",20);
 
 	// engine components
@@ -33,6 +46,7 @@ s32 main(s32 argc,char** argv)
 		g_Renderer.update();
 		g_Frame.update();
 	}
+#endif
 
 	g_Renderer.exit();
 	g_Frame.close();

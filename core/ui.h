@@ -6,6 +6,8 @@
 #include "renderer.h"
 
 
+#ifndef VKBUILD  // §§prototyping remove
+
 constexpr f32 UI_TEXT_DOWNSCALE = .6f;
 constexpr f32 UI_TEXT_BORDER_X = .95f;
 constexpr f32 UI_TEXT_BORDER_Y = .4f;
@@ -92,4 +94,5 @@ private:
 inline UI g_UI = UI("./res/ui/cursor.png");
 
 
+#endif
 #endif

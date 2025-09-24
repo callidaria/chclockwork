@@ -2,6 +2,8 @@
 #define SCRIPT_CLOCKWORK_HEADER
 
 
+#ifndef VKBUILD  // §§prototyping remove
+
 #include "../core/blitter.h"
 #include "../core/renderer.h"
 #include "../core/input.h"
@@ -36,4 +38,5 @@ private:
 };
 
 
+#endif
 #endif

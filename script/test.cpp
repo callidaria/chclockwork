@@ -1,6 +1,8 @@
 #include "test.h"
 
 
+#ifndef VKBUILD  // §§prototyping remove
+
 /**
  *	setup test scene
  */
@@ -66,3 +68,5 @@ void TestScene::update()
 {
 	m_Dude.update();
 }
+
+#endif

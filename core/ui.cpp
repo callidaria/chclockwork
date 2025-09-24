@@ -1,5 +1,7 @@
 #include "ui.h"
 
+#ifndef VKBUILD  // §§prototyping remove
+
 
 // ----------------------------------------------------------------------------------------------------
 // Button Utility
@@ -192,7 +194,7 @@ lptr<TextField> UIBatch::add_text_field(PixelBufferComponent* tidle,PixelBufferC
 	vec3 __TPos = p_TextField->canvas->offset
 			-vec3(__HScale.x*UI_TEXT_BORDER_X,__HScale.y*UI_TEXT_BORDER_Y,position.z-UI_DEPTH_OFFSET);
 	p_TextField->content = g_Renderer.write_text(font,"",__TPos,scale.y*UI_TEXT_DOWNSCALE,
-												 vec4(1),{ .align=SCREEN_ALIGN_BOTTOMLEFT });
+												 vec4(1),{ .alignment=SCREEN_ALIGN_BOTTOMLEFT });
 
 	// intersection boundaries
 	p_TextField->bounds = {
@@ -281,3 +283,5 @@ void UI::remove_batch(lptr<UIBatch> batch)
 	Input::unset_input_mode();
 	m_Batches.erase(batch);
 }
+
+#endif

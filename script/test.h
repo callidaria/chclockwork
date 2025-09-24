@@ -2,6 +2,8 @@
 #define SCRIPT_TEST_HEADER
 
 
+#ifndef VKBUILD  // §§prototyping remove
+
 #include "../core/renderer.h"
 #include "../core/input.h"
 #include "../core/wheel.h"
@@ -20,4 +22,5 @@ private:
 };
 
 
+#endif
 #endif

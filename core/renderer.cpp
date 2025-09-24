@@ -20,6 +20,32 @@ ThreadSignal _sprite_signal
 
 
 // ----------------------------------------------------------------------------------------------------
+// Additional Utility
+
+/**
+ *	geometry realignment based on position
+ *	\param geom: intersection rectangle over aligning geometry
+ *	\returns new position of geometry after alignment process
+ */
+vec2 Alignment::align(Rect geom)
+{
+	// setup
+	vec2 __Position = geom.position;
+	vec2 __GeomCenter = geom.extent*vec2(.5f);
+	vec2 __BorderCenter = border.extent*vec2(.5f)+border.position;
+
+	// adjust vertical alignment
+	u8 vertical_alignment = 2-(alignment%3);
+	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
+
+	// adjust horizontal alignment
+	u8 horizontal_alignment = alignment/3;
+	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
+	return __Position;
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Text Component
 
 /**
@@ -32,9 +58,9 @@ void Text::align()
 	dimensions = vec2(wordlen,font->size)*scale;
 
 	// calculate position based on alignment and dimensions
-	if (alignment.align<SCREEN_ALIGN_NEUTRAL)
+	if (alignment.alignment<SCREEN_ALIGN_NEUTRAL)
 	{
-		vec2 __AlignedOffset = Renderer::align({ position,dimensions },alignment);
+		vec2 __AlignedOffset = alignment.align({ position,dimensions });
 		offset.x = __AlignedOffset.x;
 		offset.y = __AlignedOffset.y;
 		return;
@@ -459,6 +485,52 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 }
 
 
+#ifdef VKBUILD
+
+// TODO those are all prototype implementations!
+//		doc will be created later down the line when everything is in order
+Renderer::Renderer()
+{
+	f32 _verts[] = {
+		-.5f,.5f,1.f,.0f,.0f,
+		.5f,.5f,.0f,1.f,.0f,
+		.0f,-.5f,.0f,.0f,1.f,
+	};
+	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_Framebuffer.finalize();
+	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
+							   "./core/shader/vulkan/bin/triangle.frag");
+	g_Vk.register_pipeline(m_Framebuffer.render_pass);
+	m_VertexBuffer.allocate(15*sizeof(f32));
+	m_VertexBuffer.upload_vertices(_verts);
+}
+
+void Renderer::update()
+{
+	m_TestingPipeline.enable();
+	m_Framebuffer.start();
+
+	// bind buffer
+	VkBuffer __Buffers[] = { m_VertexBuffer.m_VBO };
+	VkDeviceSize __Offsets[] = { 0 };
+	vkCmdBindVertexBuffers(m_Framebuffer.cmd_buffer->buffer,0,1,__Buffers,__Offsets);
+
+	// gpu drawcall
+	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);
+	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
+
+	m_Framebuffer.stop();
+}
+
+void Renderer::exit()
+{
+	m_TestingPipeline.vanish();
+	m_Framebuffer.vanish();
+	m_VertexBuffer.vanish();
+}
+
+
+#else
 // ----------------------------------------------------------------------------------------------------
 // Geometry Batching
 
@@ -574,22 +646,6 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 Renderer::Renderer()
 {
 	COMM_MSG(LOG_CYAN,"starting render system");
-
-#ifdef VKBUILD
-	f32 _verts[] = {
-		-.5f,.5f,1.f,.0f,.0f,
-		.5f,.5f,.0f,1.f,.0f,
-		.0f,-.5f,.0f,.0f,1.f,
-	};
-	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_Framebuffer.finalize();
-	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
-							   "./core/shader/vulkan/bin/triangle.frag");
-	g_Vk.register_pipeline(m_Framebuffer.render_pass);
-	m_VertexBuffer.allocate(15*sizeof(f32));
-	m_VertexBuffer.upload_vertices(_verts);
-#endif
-
 	COMM_LOG("starting font rasterizer");
 	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
 	COMM_ERR_COND(_failed,"text rasterizer not available");
@@ -721,22 +777,6 @@ Renderer::Renderer()
  */
 void Renderer::update()
 {
-#ifdef VKBUILD
-	m_TestingPipeline.enable();
-	m_Framebuffer.start();
-
-	// bind buffer
-	VkBuffer __Buffers[] = { m_VertexBuffer.m_VBO };
-	VkDeviceSize __Offsets[] = { 0 };
-	vkCmdBindVertexBuffers(m_Framebuffer.cmd_buffer->buffer,0,1,__Buffers,__Offsets);
-
-	// gpu drawcall
-	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);
-	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
-
-	m_Framebuffer.stop();
-
-#else
 	m_FrameStart = std::chrono::steady_clock::now();
 
 	// shadow projection
@@ -765,7 +805,6 @@ void Renderer::update()
 
 	// end-frame gpu management
 	_gpu_upload();
-#endif
 }
 
 /**
@@ -773,22 +812,6 @@ void Renderer::update()
  */
 void Renderer::exit()
 {
-#ifdef VKBUILD
-	m_TestingPipeline.vanish();
-	m_Framebuffer.vanish();
-	m_ForwardFrameBuffer.vanish();
-	m_DeferredFrameBuffer.vanish();
-	m_ShadowFrameBuffer.vanish();  // FIXME no!
-	m_VertexBuffer.vanish();
-	m_SpriteVertexBuffer.vanish();
-	m_CanvasVertexBuffer.vanish();
-	m_SpriteInstanceBuffer.vanish();
-	m_TextInstanceBuffer.vanish();
-	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vbo.vanish();
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vbo.vanish();
-	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vbo.vanish();
-	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.vbo.vanish();
-#endif
 	/*
 	_sprite_texture_signal.exit();
 	_sprite_signal.exit();
@@ -831,10 +854,10 @@ Sprite* Renderer::register_sprite(PixelBufferComponent* texture,vec3 position,ve
 			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
 
 	// align sprite into borders
-	if (alignment.align!=SCREEN_ALIGN_NEUTRAL)
+	if (alignment.alignment!=SCREEN_ALIGN_NEUTRAL)
 	{
 		vec2 hsize = size*.5f;
-		vec2 __AlignedPosition = align({ vec2(position)-hsize,size },alignment)+size;
+		vec2 __AlignedPosition = alignment.align({ vec2(position)-hsize,size })+size;
 		position.x = __AlignedPosition.x;
 		position.y = __AlignedPosition.y;
 	}
@@ -1219,29 +1242,6 @@ void Renderer::reset_lighting()
 }
 
 /**
- *	geometry realignment based on position
- *	\param geom: intersection rectangle over aligning geometry
- *	\param alignment: (default fullscreen neutral) target alignment within specified border
- *	\returns new position of geometry after alignment process
- */
-vec2 Renderer::align(Rect geom,Alignment alignment)
-{
-	// setup
-	vec2 __Position = geom.position;
-	vec2 __GeomCenter = geom.extent*vec2(.5f);
-	vec2 __BorderCenter = alignment.border.extent*vec2(.5f)+alignment.border.position;
-
-	// adjust vertical alignment
-	u8 vertical_alignment = 2-(alignment.align%3);
-	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
-
-	// adjust horizontal alignment
-	u8 horizontal_alignment = alignment.align/3;
-	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
-	return __Position;
-}
-
-/**
  *	update all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1250,11 +1250,7 @@ void Renderer::_update_sprites()
 	m_SpriteInstanceBuffer.bind();
 	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
 	m_SpritePipeline.enable();
-#ifdef VKBUILD
-	// TODO
-#else
 	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
-#endif
 }
 
 /**
@@ -1271,11 +1267,7 @@ void Renderer::_update_text()
 	for (Text& p_Text : m_Texts)
 	{
 		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0]);
-#ifdef VKBUILD
-		// TODO
-#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
-#endif
 	}
 }
 
@@ -1300,11 +1292,7 @@ void Renderer::_update_canvas()
 	m_CanvasPipeline.upload("shadow_projection",
 							m_Lighting.shadow_projection.proj*m_Lighting.shadow_projection.view);
 	// TODO do this in upload lighting process later
-#ifdef VKBUILD
-	// TODO
-#else
 	glDrawArrays(GL_TRIANGLES,0,6);
-#endif
 }
 
 /**
@@ -1331,11 +1319,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 			p_Batch.shader->upload("texel",p_Tuple.texel);
 
 			// upload standard values & call gpu
-#ifdef VKBUILD
-			// TODO
-#else
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
-#endif
 		}
 	}
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
@@ -1346,11 +1330,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera();
 		p_Batch.vao.bind();
-#ifdef VKBUILD
-		// TODO
-#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.vertex_count,p_Batch.active_particles);
-#endif
 	}
 }
 
@@ -1372,11 +1352,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
 			p_Batch.uniform[i].upload();
 			p_Batch.shader->upload("model",p_Tuple.transform.model);
-#ifdef VKBUILD
-		// TODO
-#else
 			glDrawArrays(GL_TRIANGLES,p_Tuple.offset,p_Tuple.vertex_count);
-#endif
 		}
 	}
 
@@ -1386,11 +1362,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
 		p_Batch.batch->vao.bind();
-#ifdef VKBUILD
-		// TODO
-#else
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
-#endif
 	}
 }
 
@@ -1466,3 +1438,5 @@ template<typename T> void Renderer::_collector(InPlaceArray<T>* xs,ThreadSignal*
 }
 template void Renderer::_collector<Sprite>(InPlaceArray<Sprite>*,ThreadSignal*);
 template void Renderer::_collector<PixelBufferComponent>(InPlaceArray<PixelBufferComponent>*,ThreadSignal*);
+
+#endif
