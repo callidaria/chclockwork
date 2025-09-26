@@ -17,39 +17,6 @@ enum GPUFeature : u8
 
 #ifdef VKBUILD
 
-
-struct SwapChain
-{
-	VkSurfaceCapabilitiesKHR capabilities;
-	vector<VkSurfaceFormatKHR> formats;
-	vector<VkPresentModeKHR> modes;
-};
-
-struct GPU
-{
-	// utility
-	void select(SDL_Window* frame);
-	void assemble_swapchain(SDL_Window* frame);
-
-	// data
-	VkPhysicalDevice gpu;
-	VkPhysicalDeviceProperties properties;
-	VkPhysicalDeviceFeatures features;
-	vector<VkExtensionProperties> extensions;
-	SwapChain swap_chain;
-	set<u32> queues;
-	s64 graphical_queue = -1;
-	s64 presentation_queue = -1;
-	VkPhysicalDeviceMemoryProperties memory_properties;
-	u32 supported = 0;  // TODO set bits in order to define which options are avaiable to the user
-};
-
-struct Hardware
-{
-	void detect();
-	vector<GPU> gpus;
-};
-
 struct CommandBuffer
 {
 	VkCommandBuffer buffer;
