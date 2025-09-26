@@ -647,6 +647,13 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	m_Hardware.gpus[did].select(m_Frame);
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 
+	// setup swap command information
+	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	m_PresentInfo.waitSemaphoreCount = 1;
+	m_PresentInfo.swapchainCount = 1;
+	m_PresentInfo.pSwapchains = &g_Vk.swapchain;
+	m_PresentInfo.pResults = nullptr;
+
 #endif
 	// vsync
 	if (vsync) gpu_vsync_on();
@@ -677,16 +684,9 @@ void Frame::clear()
 void Frame::update()
 {
 #ifdef VKBUILD
-	VkSwapchainKHR __SwapChains[] = { g_Vk.swapchain };
-	VkPresentInfoKHR __PresentInfo = {  };
-	__PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	__PresentInfo.waitSemaphoreCount = 1;
-	__PresentInfo.pWaitSemaphores = &g_Vk.render_done[g_Vk.active_frame];
-	__PresentInfo.swapchainCount = 1;
-	__PresentInfo.pSwapchains = __SwapChains;
-	__PresentInfo.pImageIndices = &g_Vk.active_frame;
-	__PresentInfo.pResults = nullptr;
-	VkResult __Result = vkQueuePresentKHR(g_Vk.presentation_queue,&__PresentInfo);
+	m_PresentInfo.pWaitSemaphores = &g_Vk.render_done[frame_id];
+	m_PresentInfo.pImageIndices = &frame_id;
+	VkResult __Result = vkQueuePresentKHR(g_Vk.presentation_queue,&m_PresentInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 #else
 	SDL_GL_SwapWindow(m_Frame);

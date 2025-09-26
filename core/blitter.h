@@ -105,7 +105,6 @@ struct Eruption
 	VkPipeline pipeline;
 	VkClearValue clear_colour;
 	u8 active_buffer = 0;
-	u32 active_frame = 0;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
@@ -163,13 +162,18 @@ private:
 
 #ifdef VKBUILD
 
-	// hardware
+public:
+	u32 frame_id = 0;
+
+private:
 	Hardware m_Hardware;
+	VkPresentInfoKHR m_PresentInfo = {  };
 
 #else
 	SDL_GLContext m_Context;
 #endif
 };
+
 
 #ifdef VKBUILD
 inline Eruption g_Vk;

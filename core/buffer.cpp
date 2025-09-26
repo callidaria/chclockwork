@@ -45,7 +45,6 @@ GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
 	GL_DYNAMIC_DRAW
 };
 #endif
-// TODO add more types & correlate with vulkan setup
 
 /**
  *	TODO
@@ -87,7 +86,7 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	__MallocInfo.allocationSize = __MemoryRequirements.size;
 	__MallocInfo.memoryTypeIndex = __MemoryIndex;
 	__Result = vkAllocateMemory(g_Vk.gpu,&__MallocInfo,nullptr,&m_Memory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for some reason");
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
 
 	// bind memory to vbo
 	vkBindBufferMemory(g_Vk.gpu,m_VBO,m_Memory,0);
@@ -828,8 +827,9 @@ void Framebuffer::start()
 
 	// get next swapchain image
 	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,cmd_buffer->ready,
-											  VK_NULL_HANDLE,&g_Vk.active_frame);
+											  VK_NULL_HANDLE,&g_Frame.frame_id);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+	// TODO never write to frame directly in and buffer method
 
 	// start command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
@@ -844,13 +844,14 @@ void Framebuffer::start()
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Vk.framebuffers[g_Vk.active_frame];
+	__RPBeginInfo.framebuffer = g_Vk.framebuffers[g_Frame.frame_id];
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
 	__RPBeginInfo.clearValueCount = 1;
 	__RPBeginInfo.pClearValues = &g_Vk.clear_colour;
 	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Vk.pipeline);
+	// TODO very rigid. this expects graphical output, which is kindergarten
 
 	// viewport setup
 	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Vk.viewport);
@@ -885,9 +886,10 @@ void Framebuffer::stop()
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done[g_Vk.active_frame];
+	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done[g_Frame.frame_id];
 	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+	// TODO again, using all framebuffers like final render targets does not hold up
 
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
