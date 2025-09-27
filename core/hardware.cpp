@@ -45,7 +45,7 @@ void Hardware::detect()
 			if (gpus[i].graphical_queue!=-1&&gpus[i].presentation_queue!=-1)
 			{
 				gpus[i].queues = { (u32)gpus[i].graphical_queue,(u32)gpus[i].presentation_queue };
-				gpus[i].supported = true;
+				gpus[i].supported = GPU_FEATURE_SUPPORT_BASIC;
 				break;
 			}
 			// TODO iterate fully & check for aligning ids, to avoid queue split in edge-cases
@@ -68,7 +68,7 @@ void Hardware::detect()
 		set<string> __RequiredExtensions = set<string>(g_GPUExtensions.begin(),g_GPUExtensions.end());
 		for (VkExtensionProperties& __Extension : gpus[i].extensions)
 			__RequiredExtensions.erase(__Extension.extensionName);
-		gpus[i].supported = __RequiredExtensions.empty();
+		gpus[i].supported = __RequiredExtensions.empty()*GPU_FEATURE_SUPPORT_BASIC;
 		if (!gpus[i].supported)
 		{
 			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);

@@ -6,7 +6,6 @@
 
 #ifdef VKBUILD
 
-
 enum GPUFeatureSupport : u64
 {
 	GPU_FEATURE_SUPPORT_NONE = 0x0000000000000000;
