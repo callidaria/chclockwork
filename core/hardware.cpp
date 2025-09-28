@@ -4,9 +4,64 @@
 #ifdef VKBUILD
 
 /**
+ *	select detected gpu
+ */
+void GPUDevice::select()
+{
+	COMM_ERR_COND(!supported,"selected gpu %s is not supported",properties.deviceName);
+	COMM_LOG_FALLBACK("selecting gpu %s",properties.deviceName);
+	g_GPU.device_info = this;
+
+	// queue creation
+	f32 __QueuePriority = 1.f;
+	vector<VkDeviceQueueCreateInfo> __QueueInfos;
+	__QueueInfos.reserve(queues.size());
+	for (u32 __QueueID : queues)
+	{
+		__QueueInfos.push_back({  });
+		__QueueInfos.back().sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		__QueueInfos.back().queueFamilyIndex = __QueueID;
+		__QueueInfos.back().queueCount = 1;
+		__QueueInfos.back().pQueuePriorities = &__QueuePriority;
+	}
+
+	// device features
+	VkPhysicalDeviceFeatures __DeviceFeatures = {  };  // TODO
+
+	// device creation specifics
+	VkDeviceCreateInfo __DeviceInfo = {  };
+	__DeviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	__DeviceInfo.queueCreateInfoCount = (u32)__QueueInfos.size();
+	__DeviceInfo.pQueueCreateInfos = &__QueueInfos[0];
+	__DeviceInfo.enabledExtensionCount = (u32)g_GPUExtensions.size();
+	__DeviceInfo.ppEnabledExtensionNames = &g_GPUExtensions[0];
+	__DeviceInfo.pEnabledFeatures = &__DeviceFeatures;
+
+	// enable validation layers here as well for safety, even though it's deprecated
+#ifdef DEBUG
+	__DeviceInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__DeviceInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
+#else
+	__DeviceInfo.enabledLayerCount = 0;
+#endif
+
+	// create device
+	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&g_GPU.gpu);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
+
+	// cache current active queue ids
+	g_Vk.graphical_queue_id = graphical_queue;
+	g_Vk.presentation_queue_id = presentation_queue;
+
+	// initialize queues
+	vkGetDeviceQueue(g_Vk.gpu,graphical_queue,0,&g_Vk.graphical_queue);
+	vkGetDeviceQueue(g_Vk.gpu,presentation_queue,0,&g_Vk.presentation_queue);
+}
+
+/**
  *	hardware detection routine
  */
-void Hardware::detect()
+Hardware::Hardware()
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;

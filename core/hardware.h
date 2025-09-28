@@ -20,11 +20,10 @@ struct SwapChainInfo
 	vector<VkPresentModeKHR> modes;
 };
 
-struct GPUInfo
+struct GPUDevice
 {
 	// utility
-	void select(SDL_Window* frame);
-	void assemble_swapchain(SDL_Window* frame);
+	void select();
 
 	// data
 	VkPhysicalDevice gpu;
@@ -39,16 +38,21 @@ struct GPUInfo
 	u64 supported = GPU_FEATURE_SUPPORT_NONE;
 };
 
-struct Hardware
+class Hardware
 {
-	void detect();
-	vector<GPUInfo> gpus;
+public:
+	Hardware();
+	vector<GPUDevice> gpus;
 };
 
 struct GPU
 {
-	GPUInfo* info;
+	GPUDevice* device_info;
+	VkDevice gpu;
 };
+
+inline Hardware g_Hardware;
+inline GPU g_GPU;
 
 #endif
 
