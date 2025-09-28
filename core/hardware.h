@@ -20,7 +20,7 @@ struct SwapChainInfo
 	vector<VkPresentModeKHR> modes;
 };
 
-struct GPU
+struct GPUInfo
 {
 	// utility
 	void select(SDL_Window* frame);
@@ -42,7 +42,12 @@ struct GPU
 struct Hardware
 {
 	void detect();
-	vector<GPU> gpus;
+	vector<GPUInfo> gpus;
+};
+
+struct GPU
+{
+	GPUInfo* info;
 };
 
 #endif
