@@ -57,7 +57,7 @@ void GPUDevice::select()
 /**
  *	hardware detection routine
  */
-Hardware::Hardware()
+void Hardware::detect()
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;
@@ -156,6 +156,14 @@ Hardware::Hardware()
 		// get memory types
 		vkGetPhysicalDeviceMemoryProperties(gpus[i].gpu,&gpus[i].memory_properties);
 	}
+}
+
+/**
+ *	free gpu from this process
+ */
+void GPU::stop()
+{
+	vkDestroyDevice(gpu,nullptr);
 }
 
 #endif

@@ -208,73 +208,6 @@ swap_chain_creation:
 /**
  *	TODO
  */
-void Eruption::erupt(SDL_Window* frame)
-{
-	ref_frame = frame;
-
-	// application info
-	VkApplicationInfo __ApplicationInfo = {  };
-	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
-	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
-	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
-
-	// extensions
-	u32 __ExtensionCount;
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
-	vector<const char*> __Extensions(__ExtensionCount);
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
-#ifdef DEBUG
-	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
-	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-			//|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
-	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
-
-	COMM_LOG("creating vulkan instance");
-	VkInstanceCreateInfo __CreateInfo = {  };
-	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
-	__CreateInfo.enabledLayerCount = 0;
-	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
-	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
-
-	// setup validation layers for gpu auto-logging
-#ifdef DEBUG
-	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
-	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
-	__CreateInfo.pNext = &__DebugMessengerInfo;
-#endif
-
-	// creating vulkan instance
-	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
-
-#ifdef DEBUG
-	COMM_LOG("setting up gpu error log");
-	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
-		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
-	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
-#endif
-
-	COMM_LOG("setting up render surface");
-	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
-	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
-}
-
-/**
- *	TODO
- */
 void Eruption::register_pipeline(VkRenderPass render_pass)
 {
 	COMM_LOG("registration of final destination pipeline");
@@ -349,15 +282,6 @@ void Eruption::vanish()
 	}
 	vkDestroyCommandPool(gpu,cmds,nullptr);
 	destroy_swapchain();
-	vkDestroyDevice(gpu,nullptr);
-	vkDestroySurfaceKHR(instance,surface,nullptr);
-#ifdef DEBUG
-	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
-																	  "vkDestroyDebugUtilsMessengerEXT");
-	__DestroyMessenger(instance,debug_messenger,nullptr);
-#endif
-	vkDestroyInstance(instance,nullptr);
 }
 
 /**
@@ -449,8 +373,88 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	COMM_ERR_COND(!!__InitSuccess,"sdl initialization failed!");
 
 	// ----------------------------------------------------------------------------------------------------
+	// Vulkan Setup
+#ifdef VKBUILD
+	COMM_MSG(LOG_CYAN,"opening vulkan window");
+	u8 did = 0;
+	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
+							   width,height,/*SDL_WINDOW_RESIZABLE|*/SDL_WINDOW_VULKAN);
+
+	// application info
+	VkApplicationInfo __ApplicationInfo = {  };
+	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
+	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
+
+	// extensions
+	u32 __ExtensionCount;
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
+	vector<const char*> __Extensions(__ExtensionCount);
+	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
+#ifdef DEBUG
+	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
+	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	__DebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			|VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			//|VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+	__DebugMessengerInfo.pfnUserCallback = _gpu_error_callback;
+	__Extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+
+	COMM_LOG("creating vulkan instance");
+	VkInstanceCreateInfo __CreateInfo = {  };
+	__CreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	__CreateInfo.pApplicationInfo = &__ApplicationInfo;
+	__CreateInfo.enabledLayerCount = 0;
+	__CreateInfo.enabledExtensionCount = (u32)__Extensions.size();
+	__CreateInfo.ppEnabledExtensionNames = &__Extensions[0];
+
+	// setup validation layers for gpu auto-logging
+#ifdef DEBUG
+	__CreateInfo.enabledLayerCount = (u32)g_ValidationLayers.size();
+	__CreateInfo.ppEnabledLayerNames = &g_ValidationLayers[0];
+	__CreateInfo.pNext = &__DebugMessengerInfo;
+#endif
+
+	// creating vulkan instance
+	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
+
+#ifdef DEBUG
+	COMM_LOG("setting up gpu error log");
+	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
+		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
+	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
+#endif
+
+	COMM_LOG("setting up render surface");
+	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
+	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
+
+	// hardware detection & gpu selection
+	m_Hardware.detect();
+	m_Hardware.gpus[did].select(m_Frame);
+	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
+
+	// setup swap command information
+	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	m_PresentInfo.waitSemaphoreCount = 1;
+	m_PresentInfo.swapchainCount = 1;
+	m_PresentInfo.pSwapchains = &g_Vk.swapchain;
+	m_PresentInfo.pResults = nullptr;
+
+
+	// ----------------------------------------------------------------------------------------------------
 	// OpenGL Setup
-#ifndef VKBUILD
+#else
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
@@ -481,27 +485,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	glDebugMessageCallback(_gpu_error_callback,nullptr);
 #endif
 	// TODO this can also be it's own feature. those setup steps don't have to have a strict macro border
-
-	// ----------------------------------------------------------------------------------------------------
-	// Vulkan Setup
-#else
-	COMM_MSG(LOG_CYAN,"opening vulkan window");
-	u8 did = 0;
-	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-							   width,height,/*SDL_WINDOW_RESIZABLE|*/SDL_WINDOW_VULKAN);
-	g_Vk.erupt(m_Frame);
-	m_Hardware.detect();
-	m_Hardware.gpus[did].select(m_Frame);
-	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
-
-	// setup swap command information
-	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	m_PresentInfo.waitSemaphoreCount = 1;
-	m_PresentInfo.swapchainCount = 1;
-	m_PresentInfo.pSwapchains = &g_Vk.swapchain;
-	m_PresentInfo.pResults = nullptr;
-
 #endif
+
 	// vsync
 	if (vsync) gpu_vsync_on();
 	else gpu_vsync_off();
@@ -566,7 +551,15 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	g_Vk.vanish();
+	g_GPU.stop();
+	vkDestroySurfaceKHR(instance,surface,nullptr);
+#ifdef DEBUG
+	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
+		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
+																	  "vkDestroyDebugUtilsMessengerEXT");
+	__DestroyMessenger(instance,debug_messenger,nullptr);
+#endif
+	vkDestroyInstance(instance,nullptr);
 #else
 	SDL_GL_DeleteContext(m_Context);
 #endif

@@ -38,10 +38,9 @@ struct GPUDevice
 	u64 supported = GPU_FEATURE_SUPPORT_NONE;
 };
 
-class Hardware
+struct Hardware
 {
-public:
-	Hardware();
+	void detect();
 	vector<GPUDevice> gpus;
 };
 
@@ -49,6 +48,7 @@ struct GPU
 {
 	// utility
 	// TODO
+	void stop();
 
 	// data
 	GPUDevice* device_info;
@@ -57,7 +57,6 @@ struct GPU
 	VkQueue presentation_queue;
 };
 
-inline Hardware g_Hardware;
 inline GPU g_GPU;
 
 #endif

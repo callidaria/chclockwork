@@ -28,7 +28,6 @@ struct Eruption
 {
 	// utility
 	// setup
-	void erupt(SDL_Window* frame);
 	void register_pipeline(VkRenderPass render_pass);
 	void vanish();
 
@@ -44,8 +43,6 @@ struct Eruption
 	// vulkan
 	SDL_Window* ref_frame;
 	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
-	VkInstance instance;
-	VkSurfaceKHR surface;
 	VkSwapchainKHR swapchain;
 	VkExtent2D sc_extent;
 	VkSurfaceFormatKHR sc_format;
@@ -128,6 +125,8 @@ public:
 
 private:
 	Hardware m_Hardware;
+	VkInstance instance;
+	VkSurfaceKHR surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
 
 #else
