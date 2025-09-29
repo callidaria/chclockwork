@@ -160,6 +160,17 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 }
 
 /**
+ *	TODO
+ */
+void GPU::free(VkBuffer res) { vkDestroyBuffer(gpu,res,nullptr); }
+void GPU::free(VkDeviceMemory res) { vkFreeMemory(gpu,res,nullptr); }
+void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }
+void GPU::free(VkPipeline res) { vkDestroyPipeline(gpu,res,nullptr); }
+void GPU::free(VkPipelineLayout res) { vkDestroyPipelineLayout(gpu,res,nullptr); }
+void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
+// TODO add the rest later, when handling the swapchain, commandbuffer & rest differently
+
+/**
  *	wait until device is idle
  */
 void GPU::expect_idle()

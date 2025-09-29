@@ -47,7 +47,15 @@ struct Hardware
 struct GPU
 {
 	// utility
-	// TODO
+	// resources
+	void free(VkBuffer res);
+	void free(VkDeviceMemory res);
+	void free(VkShaderModule res);
+	void free(VkPipeline res);
+	void free(VkPipelineLayout res);
+	void free(VkRenderPass res);
+
+	// state
 	void expect_idle();
 	void stop();
 

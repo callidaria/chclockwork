@@ -102,8 +102,8 @@ void VertexBuffer::allocate(size_t size,BufferType type)
  */
 void VertexBuffer::vanish()
 {
-	vkDestroyBuffer(g_GPU.gpu,m_VBO,nullptr);
-	vkFreeMemory(g_GPU.gpu,m_Memory,nullptr);
+	g_GPU.free(m_VBO);
+	g_GPU.free(m_Memory);
 }
 #endif
 
@@ -811,7 +811,7 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
-	vkDestroyRenderPass(g_GPU.gpu,render_pass,nullptr);
+	g_GPU.free(render_pass);
 #endif
 }
 

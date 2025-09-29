@@ -329,8 +329,8 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// TODO pipeline cache
 
 	// purge shader binaries & modules from memory after load
-	vkDestroyShaderModule(g_GPU.gpu,__VertexShader,nullptr);
-	vkDestroyShaderModule(g_GPU.gpu,__FragmentShader,nullptr);
+	g_GPU.free(__VertexShader);
+	g_GPU.free(__FragmentShader);
 	free(__ShaderVS);
 	free(__ShaderFS);
 	// TODO store the shader modules to quickly switch between implemented features at runtime (options menu)
@@ -406,8 +406,8 @@ void ShaderPipeline::vanish()
 {
 #ifdef VKBUILD
 	g_GPU.expect_idle();
-	vkDestroyPipeline(g_GPU.gpu,pipeline,nullptr);
-	vkDestroyPipelineLayout(g_GPU.gpu,m_PipelineLayout,nullptr);
+	g_GPU.free(pipeline);
+	g_GPU.free(m_PipelineLayout);
 #endif
 }
 
