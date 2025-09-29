@@ -54,16 +54,7 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 /**
  *	TODO
  */
-void GPU::select(SDL_Window* frame)
-{
-
-	// initial swapchain creation
-	//assemble_swapchain(frame);
-}
-
-/**
- *	TODO
- */
+/*
 void GPU::assemble_swapchain(SDL_Window* frame)
 {
 	// format selection
@@ -202,12 +193,14 @@ swap_chain_creation:
 		.extent = g_Vk.sc_extent,
 	};
 }
+*/
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
 // TODO make all those features selectable by the user
 
 /**
  *	TODO
  */
+/*
 void Eruption::register_pipeline(VkRenderPass render_pass)
 {
 	COMM_LOG("registration of final destination pipeline");
@@ -268,10 +261,12 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 
 	COMM_SCC("render pipeline ready.");
 }
+*/
 
 /**
  *	TODO
  */
+/*
 void Eruption::vanish()
 {
 	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
@@ -283,10 +278,12 @@ void Eruption::vanish()
 	vkDestroyCommandPool(gpu,cmds,nullptr);
 	destroy_swapchain();
 }
+*/
 
 /**
  *	TODO
  */
+/*
 void Eruption::finish_swapchain()
 {
 	// basic setup for all final framebuffers
@@ -308,10 +305,12 @@ void Eruption::finish_swapchain()
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}
 }
+*/
 
 /**
  *	TODO
  */
+/*
 void Eruption::rebuild_swapchain()
 {
 	vkDeviceWaitIdle(gpu);
@@ -320,20 +319,24 @@ void Eruption::rebuild_swapchain()
 	// TODO recreate render pass as well
 	finish_swapchain();
 }
+*/
 
 /**
  *	TODO
  */
+/*
 void Eruption::destroy_swapchain()
 {
 	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
 	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
 	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
 }
+*/
 
 /**
  *	TODO
  */
+/*
 CommandBuffer* Eruption::aquire_command_buffer()
 {
 	// tick command buffer
@@ -345,6 +348,7 @@ CommandBuffer* Eruption::aquire_command_buffer()
 	vkResetFences(g_Vk.gpu,1,&out->processing);
 	return out;
 }
+*/
 
 #endif
 
@@ -391,9 +395,9 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 
 	// extensions
 	u32 __ExtensionCount;
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,nullptr);
+	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,nullptr);
 	vector<const char*> __Extensions(__ExtensionCount);
-	SDL_Vulkan_GetInstanceExtensions(frame,&__ExtensionCount,&__Extensions[0]);
+	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,&__Extensions[0]);
 #ifdef DEBUG
 	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
 	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -424,25 +428,27 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 #endif
 
 	// creating vulkan instance
-	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&instance);
+	VkResult __Result = vkCreateInstance(&__CreateInfo,nullptr,&m_Instance);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create vulkan instance");
 
 #ifdef DEBUG
 	COMM_LOG("setting up gpu error log");
 	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
-		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,"vkCreateDebugUtilsMessengerEXT");
-	__Result = __CreateMessenger(instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
+		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance,"vkCreateDebugUtilsMessengerEXT");
+	__Result = __CreateMessenger(m_Instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
 #endif
 
 	COMM_LOG("setting up render surface");
-	bool __SurfaceResult = SDL_Vulkan_CreateSurface(frame,instance,&surface);
+	bool __SurfaceResult = SDL_Vulkan_CreateSurface(m_Frame,m_Instance,&m_Surface);
 	COMM_ERR_COND(!__SurfaceResult,"failed to initialize render surface");
 
 	// hardware detection & gpu selection
-	m_Hardware.detect();
-	m_Hardware.gpus[did].select(m_Frame);
+	m_Hardware.detect(m_Instance,m_Surface);
+	m_Hardware.gpus[did].select();
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
+
+	// TODO assemble swapchain here
 
 	// setup swap command information
 	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -518,7 +524,7 @@ void Frame::update()
 #ifdef VKBUILD
 	m_PresentInfo.pWaitSemaphores = &g_Vk.render_done[frame_id];
 	m_PresentInfo.pImageIndices = &frame_id;
-	VkResult __Result = vkQueuePresentKHR(g_Vk.presentation_queue,&m_PresentInfo);
+	VkResult __Result = vkQueuePresentKHR(g_GPU.presentation_queue,&m_PresentInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 #else
 	SDL_GL_SwapWindow(m_Frame);
@@ -552,14 +558,14 @@ void Frame::close()
 
 #ifdef VKBUILD
 	g_GPU.stop();
-	vkDestroySurfaceKHR(instance,surface,nullptr);
+	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
 	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
+		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
 																	  "vkDestroyDebugUtilsMessengerEXT");
-	__DestroyMessenger(instance,debug_messenger,nullptr);
+	__DestroyMessenger(m_Instance,debug_messenger,nullptr);
 #endif
-	vkDestroyInstance(instance,nullptr);
+	vkDestroyInstance(m_Instance,nullptr);
 #else
 	SDL_GL_DeleteContext(m_Context);
 #endif

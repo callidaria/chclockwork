@@ -2,7 +2,7 @@
 #define CORE_BLITTER_HEADER
 
 
-#include "base.h"
+#include "hardware.h"
 
 
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
@@ -28,16 +28,18 @@ struct Eruption
 {
 	// utility
 	// setup
-	void register_pipeline(VkRenderPass render_pass);
-	void vanish();
+	//void register_pipeline(VkRenderPass render_pass);
+	//void vanish();
 
 	// swapchain
+	/*
 	void finish_swapchain();
 	void rebuild_swapchain();
 	void destroy_swapchain();
 
 	// command buffer
 	CommandBuffer* aquire_command_buffer();
+	*/
 
 	// data
 	// vulkan
@@ -63,9 +65,6 @@ struct Eruption
 	VkPipeline pipeline;
 	VkClearValue clear_colour;
 	u8 active_buffer = 0;
-#ifdef DEBUG
-	VkDebugUtilsMessengerEXT debug_messenger;
-#endif
 };
 #endif
 
@@ -125,9 +124,12 @@ public:
 
 private:
 	Hardware m_Hardware;
-	VkInstance instance;
-	VkSurfaceKHR surface;
+	VkInstance m_Instance;
+	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
+#ifdef DEBUG
+	VkDebugUtilsMessengerEXT debug_messenger;
+#endif
 
 #else
 	SDL_GLContext m_Context;

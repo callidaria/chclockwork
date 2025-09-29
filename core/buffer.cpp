@@ -61,19 +61,19 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	__BufferInfo.size = size;
 	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	VkResult __Result = vkCreateBuffer(g_Vk.gpu,&__BufferInfo,nullptr,&m_VBO);
+	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&m_VBO);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
 
 	// analyze memory type
 	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(g_Vk.gpu,m_VBO,&__MemoryRequirements);
+	vkGetBufferMemoryRequirements(g_GPU.gpu,m_VBO,&__MemoryRequirements);
 
 	// iterate memory
 	u32 __MemoryIndex = 0;
-	while (__MemoryIndex<g_Vk.selected_gpu->memory_properties.memoryTypeCount)
+	while (__MemoryIndex<g_GPU.device_info->memory_properties.memoryTypeCount)
 	{
 		if ((__MemoryRequirements.memoryTypeBits&(1<<__MemoryIndex))
-			&&(g_Vk.selected_gpu->memory_properties.memoryTypes[__MemoryIndex].propertyFlags
+			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags
 			   &(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))) break;
 		__MemoryIndex++;
 	}
@@ -85,11 +85,11 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	__MallocInfo.allocationSize = __MemoryRequirements.size;
 	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(g_Vk.gpu,&__MallocInfo,nullptr,&m_Memory);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&m_Memory);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
 
 	// bind memory to vbo
-	vkBindBufferMemory(g_Vk.gpu,m_VBO,m_Memory,0);
+	vkBindBufferMemory(g_GPU.gpu,m_VBO,m_Memory,0);
 
 #else
 	glGenBuffers(1,&m_VBO);
@@ -102,8 +102,8 @@ void VertexBuffer::allocate(size_t size,BufferType type)
  */
 void VertexBuffer::vanish()
 {
-	vkDestroyBuffer(g_Vk.gpu,m_VBO,nullptr);
-	vkFreeMemory(g_Vk.gpu,m_Memory,nullptr);
+	vkDestroyBuffer(g_GPU.gpu,m_VBO,nullptr);
+	vkFreeMemory(g_GPU.gpu,m_Memory,nullptr);
 }
 #endif
 
@@ -139,9 +139,9 @@ void VertexBuffer::upload_vertices(void* verts)
 {
 #ifdef VKBUILD
 	void* __Data;
-	vkMapMemory(g_Vk.gpu,m_Memory,0,m_BufferSize,0,&__Data);
+	vkMapMemory(g_GPU.gpu,m_Memory,0,m_BufferSize,0,&__Data);
 	memcpy(__Data,verts,m_BufferSize);
-	vkUnmapMemory(g_Vk.gpu,m_Memory);
+	vkUnmapMemory(g_GPU.gpu,m_Memory);
 #else
 	glBufferData(GL_ARRAY_BUFFER,m_BufferSize,verts,_memory_formats[m_BufferType]);
 #endif
@@ -789,7 +789,7 @@ void Framebuffer::finalize()
 	__RPInfo.pSubpasses = &__SubpassDesc;
 	__RPInfo.dependencyCount = 1;
 	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_Vk.gpu,&__RPInfo,nullptr,&render_pass);
+	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// clear setup memory
@@ -811,7 +811,7 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
-	vkDestroyRenderPass(g_Vk.gpu,render_pass,nullptr);
+	vkDestroyRenderPass(g_GPU.gpu,render_pass,nullptr);
 #endif
 }
 
@@ -822,11 +822,11 @@ void Framebuffer::start()
 {
 #ifdef VKBUILD
 	// aquire next command buffer & reset
-	cmd_buffer = g_Vk.aquire_command_buffer();
+	//cmd_buffer = g_Vk.aquire_command_buffer();
 	vkResetCommandBuffer(cmd_buffer->buffer,0);
 
 	// get next swapchain image
-	VkResult __Result = vkAcquireNextImageKHR(g_Vk.gpu,g_Vk.swapchain,UINT64_MAX,cmd_buffer->ready,
+	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Vk.swapchain,UINT64_MAX,cmd_buffer->ready,
 											  VK_NULL_HANDLE,&g_Frame.frame_id);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 	// TODO never write to frame directly in and buffer method
@@ -887,7 +887,7 @@ void Framebuffer::stop()
 	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done[g_Frame.frame_id];
-	__Result = vkQueueSubmit(g_Vk.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
+	__Result = vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 	// TODO again, using all framebuffers like final render targets does not hold up
 

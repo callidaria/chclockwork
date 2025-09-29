@@ -169,13 +169,13 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// vertex shader
 	__ModuleInfo.codeSize = __ShaderSizeVS;
 	__ModuleInfo.pCode = (u32*)__ShaderVS;
-	VkResult __Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	VkResult __Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
 
 	// fragment shader
 	__ModuleInfo.codeSize = __ShaderSizeFS;
 	__ModuleInfo.pCode = (u32*)__ShaderFS;
-	__Result = vkCreateShaderModule(g_Vk.gpu,&__ModuleInfo,nullptr,&__FragmentShader);
+	__Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__FragmentShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"fragment shader %s could not be loaded",fs);
 
 	// define vertex shader stage
@@ -303,7 +303,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__LayoutInfo.pSetLayouts = nullptr;
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
-	__Result = vkCreatePipelineLayout(g_Vk.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
+	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
 
 	// combine pipeline components into final graphics pipeline
@@ -324,13 +324,13 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
-	__Result = vkCreateGraphicsPipelines(g_Vk.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&pipeline);
+	__Result = vkCreateGraphicsPipelines(g_GPU.gpu,VK_NULL_HANDLE,1,&__PipelineInfo,nullptr,&pipeline);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create graphics pipeline");
 	// TODO pipeline cache
 
 	// purge shader binaries & modules from memory after load
-	vkDestroyShaderModule(g_Vk.gpu,__VertexShader,nullptr);
-	vkDestroyShaderModule(g_Vk.gpu,__FragmentShader,nullptr);
+	vkDestroyShaderModule(g_GPU.gpu,__VertexShader,nullptr);
+	vkDestroyShaderModule(g_GPU.gpu,__FragmentShader,nullptr);
 	free(__ShaderVS);
 	free(__ShaderFS);
 	// TODO store the shader modules to quickly switch between implemented features at runtime (options menu)
@@ -405,9 +405,9 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 void ShaderPipeline::vanish()
 {
 #ifdef VKBUILD
-	vkDeviceWaitIdle(g_Vk.gpu);
-	vkDestroyPipeline(g_Vk.gpu,pipeline,nullptr);
-	vkDestroyPipelineLayout(g_Vk.gpu,m_PipelineLayout,nullptr);
+	g_GPU.expect_idle();
+	vkDestroyPipeline(g_GPU.gpu,pipeline,nullptr);
+	vkDestroyPipelineLayout(g_GPU.gpu,m_PipelineLayout,nullptr);
 #endif
 }
 

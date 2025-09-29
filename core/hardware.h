@@ -8,8 +8,8 @@
 
 enum GPUFeatureSupport : u64
 {
-	GPU_FEATURE_SUPPORT_NONE = 0x0000000000000000;
-	GPU_FEATURE_SUPPORT_BASIC = 0x0000000000000001;
+	GPU_FEATURE_SUPPORT_NONE = 0x0000000000000000,
+	GPU_FEATURE_SUPPORT_BASIC = 0x0000000000000001
 	// TODO add features to available bits and combine through bitwise or
 };
 
@@ -40,7 +40,7 @@ struct GPUDevice
 
 struct Hardware
 {
-	void detect();
+	void detect(VkInstance instance,VkSurfaceKHR surface);
 	vector<GPUDevice> gpus;
 };
 
@@ -48,6 +48,7 @@ struct GPU
 {
 	// utility
 	// TODO
+	void expect_idle();
 	void stop();
 
 	// data

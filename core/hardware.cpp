@@ -8,7 +8,7 @@
  */
 void GPUDevice::select()
 {
-	COMM_ERR_COND(!supported,"selected gpu %s is not supported",properties.deviceName);
+	COMM_ERR_COND(!supported,"selected gpu %s is not supported",properties.deviceName)
 	COMM_LOG_FALLBACK("selecting gpu %s",properties.deviceName);
 	g_GPU.device_info = this;
 
@@ -56,17 +56,18 @@ void GPUDevice::select()
 
 /**
  *	hardware detection routine
+ *	TODO
  */
-void Hardware::detect()
+void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 {
 	COMM_LOG("detecting available GPUs");
 	u32 __GPUCount;
-	vkEnumeratePhysicalDevices(g_Vk.instance,&__GPUCount,nullptr);
+	vkEnumeratePhysicalDevices(instance,&__GPUCount,nullptr);
 	COMM_ERR_COND(!__GPUCount,"no vulkan capable gpus found. use opengl version!")
 	COMM_SCC_FALLBACK("found %u vulkan capable graphics card%s",__GPUCount,(__GPUCount>1)?"s":"");
 	vector<VkPhysicalDevice> __PhysicalGPUs = vector<VkPhysicalDevice>(__GPUCount);
 	gpus.resize(__GPUCount);
-	vkEnumeratePhysicalDevices(g_Vk.instance,&__GPUCount,&__PhysicalGPUs[0]);
+	vkEnumeratePhysicalDevices(instance,&__GPUCount,&__PhysicalGPUs[0]);
 	// TODO the fallback macro should be using the pluralization macro once it's done
 
 	// scanning available gpus for specifics
@@ -89,7 +90,7 @@ void Hardware::detect()
 
 			// check for presentation support
 			VkBool32 __PresentingQueue = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,g_Vk.surface,&__PresentingQueue);
+			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,surface,&__PresentingQueue);
 			if (__PresentingQueue) gpus[i].presentation_queue = j;
 
 			// check for sufficient queue support & abort to align graphical queue with presenting queue
@@ -133,22 +134,22 @@ void Hardware::detect()
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 
 		// get swap chain format capabilities
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,g_Vk.surface,&gpus[i].swapchain_info.capabilities);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,g_Vk.surface,&__FormatCount,nullptr);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,surface,&gpus[i].swapchain_info.capabilities);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,surface,&__FormatCount,nullptr);
 		if (!!__FormatCount)
 		{
 			gpus[i].swapchain_info.formats.resize(__FormatCount);
-			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,g_Vk.surface,
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpus[i].gpu,surface,
 												 &__FormatCount,&gpus[i].swapchain_info.formats[0]);
 		}
 		COMM_ERR_FALLBACK("no surface formats found for GPU %s",gpus[i].properties.deviceName);
 
 		// get swap chain mode capabilities
-		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,g_Vk.surface,&__ModeCount,nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,surface,&__ModeCount,nullptr);
 		if (!!__ModeCount)
 		{
 			gpus[i].swapchain_info.modes.resize(__ModeCount);
-			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,g_Vk.surface,
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpus[i].gpu,surface,
 													  &__ModeCount,&gpus[i].swapchain_info.modes[0]);
 		}
 		COMM_ERR_FALLBACK("no presentation modes found for GPU %s",gpus[i].properties.deviceName);
@@ -156,6 +157,14 @@ void Hardware::detect()
 		// get memory types
 		vkGetPhysicalDeviceMemoryProperties(gpus[i].gpu,&gpus[i].memory_properties);
 	}
+}
+
+/**
+ *	wait until device is idle
+ */
+void GPU::expect_idle()
+{
+	vkDeviceWaitIdle(gpu);
 }
 
 /**

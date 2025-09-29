@@ -500,7 +500,7 @@ Renderer::Renderer()
 	m_Framebuffer.finalize();
 	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
-	g_Vk.register_pipeline(m_Framebuffer.render_pass);
+	//g_Vk.register_pipeline(m_Framebuffer.render_pass);
 	m_VertexBuffer.allocate(15*sizeof(f32));
 	m_VertexBuffer.upload_vertices(_verts);
 }
