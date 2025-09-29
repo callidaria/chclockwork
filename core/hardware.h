@@ -47,8 +47,14 @@ public:
 
 struct GPU
 {
+	// utility
+	// TODO
+
+	// data
 	GPUDevice* device_info;
 	VkDevice gpu;
+	VkQueue graphical_queue;
+	VkQueue presentation_queue;
 };
 
 inline Hardware g_Hardware;

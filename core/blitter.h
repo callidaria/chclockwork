@@ -43,15 +43,9 @@ struct Eruption
 	// data
 	// vulkan
 	SDL_Window* ref_frame;
-	GPU* selected_gpu;
 	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
 	VkInstance instance;
 	VkSurfaceKHR surface;
-	VkDevice gpu;
-	u32 graphical_queue_id;
-	u32 presentation_queue_id;
-	VkQueue graphical_queue;
-	VkQueue presentation_queue;
 	VkSwapchainKHR swapchain;
 	VkExtent2D sc_extent;
 	VkSurfaceFormatKHR sc_format;

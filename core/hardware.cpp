@@ -49,13 +49,9 @@ void GPUDevice::select()
 	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&g_GPU.gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
 
-	// cache current active queue ids
-	g_Vk.graphical_queue_id = graphical_queue;
-	g_Vk.presentation_queue_id = presentation_queue;
-
 	// initialize queues
-	vkGetDeviceQueue(g_Vk.gpu,graphical_queue,0,&g_Vk.graphical_queue);
-	vkGetDeviceQueue(g_Vk.gpu,presentation_queue,0,&g_Vk.presentation_queue);
+	vkGetDeviceQueue(g_GPU.gpu,graphical_queue,0,&g_GPU.graphical_queue);
+	vkGetDeviceQueue(g_GPU.gpu,presentation_queue,0,&g_GPU.presentation_queue);
 }
 
 /**
