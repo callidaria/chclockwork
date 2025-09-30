@@ -706,7 +706,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 #ifdef VKBUILD
 	// specify colour component
 	m_ColourComponentSetup[index] = {};
-	m_ColourComponentSetup[index].format = g_Vk.sc_format.format;
+	m_ColourComponentSetup[index].format = g_Frame.swapchain.format.format;
 	m_ColourComponentSetup[index].samples = VK_SAMPLE_COUNT_1_BIT;
 	m_ColourComponentSetup[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	m_ColourComponentSetup[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -826,7 +826,7 @@ void Framebuffer::start()
 	vkResetCommandBuffer(cmd_buffer->buffer,0);
 
 	// get next swapchain image
-	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Vk.swapchain,UINT64_MAX,cmd_buffer->ready,
+	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,cmd_buffer->ready,
 											  VK_NULL_HANDLE,&g_Frame.frame_id);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 	// TODO never write to frame directly in and buffer method
@@ -846,7 +846,7 @@ void Framebuffer::start()
 	__RPBeginInfo.renderPass = render_pass;
 	__RPBeginInfo.framebuffer = g_Vk.framebuffers[g_Frame.frame_id];
 	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = g_Vk.sc_extent;
+	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
 	__RPBeginInfo.clearValueCount = 1;
 	__RPBeginInfo.pClearValues = &g_Vk.clear_colour;
 	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);

@@ -100,6 +100,7 @@ private:
 #ifdef VKBUILD
 
 public:
+	SwapChain swapchain;
 	u32 frame_id = 0;
 
 private:
@@ -107,7 +108,6 @@ private:
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
-	SwapChain swapchain;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

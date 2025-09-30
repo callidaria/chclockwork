@@ -308,7 +308,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	m_PresentInfo.waitSemaphoreCount = 1;
 	m_PresentInfo.swapchainCount = 1;
-	m_PresentInfo.pSwapchains = &g_Vk.swapchain;
+	m_PresentInfo.pSwapchains = &swapchain.swapchain;
 	m_PresentInfo.pResults = nullptr;
 
 
@@ -554,7 +554,7 @@ void Frame::_assemble_swapchain()
 {
 	// format selection
 	COMM_LOG("running swap chain setup");
-	for (VkSurfaceFormatKHR& p_Format : g_GPU.swapchain_info.formats)
+	for (VkSurfaceFormatKHR& p_Format : g_GPU.device_info->swapchain_info.formats)
 	{
 		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
@@ -563,12 +563,12 @@ void Frame::_assemble_swapchain()
 		}
 	}
 	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
-	swapchain.format = g_GPU.swapchain_info.formats[0];
+	swapchain.format = g_GPU.device_info->swapchain_info.formats[0];
 
 	// presentation mode selection
 swap_chain_selection_presentation:
 	VkPresentModeKHR __Mode;
-	for (VkPresentModeKHR& p_Mode : g_GPU.swapchain_info.modes)
+	for (VkPresentModeKHR& p_Mode : g_GPU.device_info->swapchain_info.modes)
 	{
 		if ((p_Mode==VK_PRESENT_MODE_MAILBOX_KHR&&FRAME_BLITTER_VSYNC)
 			||(p_Mode==VK_PRESENT_MODE_IMMEDIATE_KHR&&!FRAME_BLITTER_VSYNC))
@@ -583,48 +583,48 @@ swap_chain_selection_presentation:
 	// swap extent selection
 swap_chain_selection_extent:
 	s32 __Width,__Height;
-	if (g_GPU.swapchain_info.capabilities.currentExtent.width!=UINT32_MAX)
+	if (g_GPU.device_info->swapchain_info.capabilities.currentExtent.width!=UINT32_MAX)
 	{
 		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
-		swapchain.extent = g_GPU.swapchain_info.capabilities.currentExtent;
+		swapchain.extent = g_GPU.device_info->swapchain_info.capabilities.currentExtent;
 		goto swap_chain_creation;
 	}
-	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
+	SDL_Vulkan_GetDrawableSize(m_Frame,&__Width,&__Height);
 	swapchain.extent = {
 		.width = glm::clamp((u32)__Width,
-							g_GPU.swapchain_info.capabilities.minImageExtent.width,
-							g_GPU.swapchain_info.capabilities.maxImageExtent.width),
+							g_GPU.device_info->swapchain_info.capabilities.minImageExtent.width,
+							g_GPU.device_info->swapchain_info.capabilities.maxImageExtent.width),
 		.height = glm::clamp((u32)__Height,
-							 g_GPU.swapchain_info.capabilities.minImageExtent.height,
-							 g_GPU.swapchain_info.capabilities.maxImageExtent.height),
+							 g_GPU.device_info->swapchain_info.capabilities.minImageExtent.height,
+							 g_GPU.device_info->swapchain_info.capabilities.maxImageExtent.height),
 	};
 
 	// create swapchain
 swap_chain_creation:
-	u32 __ImageCount = g_GPU.swapchain_info.capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
-	__ImageCount = (g_GPU.swapchain_info.capabilities.maxImageCount>0
-					&&__ImageCount>g_GPU.swapchain_info.capabilities.maxImageCount)
-			? g_GPU.swapchain_info.capabilities.maxImageCount : __ImageCount;
+	u32 __ImageCount = g_GPU.device_info->swapchain_info.capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
+	__ImageCount = (g_GPU.device_info->swapchain_info.capabilities.maxImageCount>0
+					&&__ImageCount>g_GPU.device_info->swapchain_info.capabilities.maxImageCount)
+			? g_GPU.device_info->swapchain_info.capabilities.maxImageCount : __ImageCount;
 
 	// swapchain definition
 	VkSwapchainCreateInfoKHR __SwapchainInfo = {  };
 	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	__SwapchainInfo.surface = g_Vk.surface;
+	__SwapchainInfo.surface = m_Surface;
 	__SwapchainInfo.minImageCount = __ImageCount;
 	__SwapchainInfo.imageFormat = swapchain.format.format;
 	__SwapchainInfo.imageColorSpace = swapchain.format.colorSpace;
 	__SwapchainInfo.imageExtent = swapchain.extent;
 	__SwapchainInfo.imageArrayLayers = 1;
 	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
-	__SwapchainInfo.preTransform = g_GPU.swapchain_info.capabilities.currentTransform;
+	__SwapchainInfo.preTransform = g_GPU.device_info->swapchain_info.capabilities.currentTransform;
 	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
 	__SwapchainInfo.presentMode = __Mode;
 	__SwapchainInfo.clipped = VK_TRUE;
 	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO geez this looks like a ton of work in the future
 
 	// in case of split graphics & presentation queue
-	vector<u32> __Queues = vector<u32>(queues.begin(),queues.end());
-	if (graphical_queue!=presentation_queue)
+	vector<u32> __Queues = vector<u32>(g_GPU.device_info->queues.begin(),g_GPU.device_info->queues.end());
+	if (g_GPU.device_info->graphical_queue!=g_GPU.device_info->presentation_queue)
 	{
 		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
 				 "concurrent mode could result in performance issues");
