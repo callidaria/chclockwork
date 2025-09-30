@@ -20,6 +20,20 @@ struct SwapChainInfo
 	vector<VkPresentModeKHR> modes;
 };
 
+struct SwapChain
+{
+	VkSwapchainKHR swapchain;
+	VkExtent2D extent;
+	VkSurfaceFormatKHR format;
+};
+
+struct CommandBuffer
+{
+	VkCommandBuffer buffer;
+	VkSemaphore ready;
+	VkFence processing;
+};
+
 struct GPUDevice
 {
 	// utility

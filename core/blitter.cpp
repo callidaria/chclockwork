@@ -55,152 +55,6 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
  *	TODO
  */
 /*
-void GPU::assemble_swapchain(SDL_Window* frame)
-{
-	// format selection
-	COMM_LOG("running swap chain setup");
-	for (VkSurfaceFormatKHR& p_Format : swap_chain.formats)
-	{
-		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-		{
-			g_Vk.sc_format = p_Format;
-			goto swap_chain_selection_presentation;
-		}
-	}
-	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
-	g_Vk.sc_format = swap_chain.formats[0];
-
-	// presentation mode selection
-swap_chain_selection_presentation:
-	VkPresentModeKHR __Mode;
-	for (VkPresentModeKHR& p_Mode : swap_chain.modes)
-	{
-		if ((p_Mode==VK_PRESENT_MODE_MAILBOX_KHR&&FRAME_BLITTER_VSYNC)
-			||(p_Mode==VK_PRESENT_MODE_IMMEDIATE_KHR&&!FRAME_BLITTER_VSYNC))
-		{
-			__Mode = p_Mode;
-			goto swap_chain_selection_extent;
-		}
-	}
-	COMM_MSG(LOG_YELLOW,"WARNING: desired mode not available, falling back to fifo mode");
-	__Mode = VK_PRESENT_MODE_FIFO_KHR;
-
-	// swap extent selection
-swap_chain_selection_extent:
-	s32 __Width,__Height;
-	if (swap_chain.capabilities.currentExtent.width!=UINT32_MAX)
-	{
-		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
-		g_Vk.sc_extent = swap_chain.capabilities.currentExtent;
-		goto swap_chain_creation;
-	}
-	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
-	g_Vk.sc_extent = {
-		.width = glm::clamp((u32)__Width,
-							swap_chain.capabilities.minImageExtent.width,
-							swap_chain.capabilities.maxImageExtent.width),
-		.height = glm::clamp((u32)__Height,
-							 swap_chain.capabilities.minImageExtent.height,
-							 swap_chain.capabilities.maxImageExtent.height),
-	};
-
-	// create swapchain
-swap_chain_creation:
-	u32 __ImageCount = swap_chain.capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
-	__ImageCount = (swap_chain.capabilities.maxImageCount>0&&__ImageCount>swap_chain.capabilities.maxImageCount)
-			? swap_chain.capabilities.maxImageCount : __ImageCount;
-
-	// swapchain definition
-	VkSwapchainCreateInfoKHR __SwapchainInfo = {  };
-	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	__SwapchainInfo.surface = g_Vk.surface;
-	__SwapchainInfo.minImageCount = __ImageCount;
-	__SwapchainInfo.imageFormat = g_Vk.sc_format.format;
-	__SwapchainInfo.imageColorSpace = g_Vk.sc_format.colorSpace;
-	__SwapchainInfo.imageExtent = g_Vk.sc_extent;
-	__SwapchainInfo.imageArrayLayers = 1;
-	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
-	__SwapchainInfo.preTransform = swap_chain.capabilities.currentTransform;
-	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
-	__SwapchainInfo.presentMode = __Mode;
-	__SwapchainInfo.clipped = VK_TRUE;
-	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO geez this looks like a ton of work in the future
-
-	// in case of split graphics & presentation queue
-	vector<u32> __Queues = vector<u32>(queues.begin(),queues.end());
-	if (graphical_queue!=presentation_queue)
-	{
-		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
-				 "concurrent mode could result in performance issues");
-		__SwapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		__SwapchainInfo.queueFamilyIndexCount = 2;
-		__SwapchainInfo.pQueueFamilyIndices = &__Queues[0];
-	}
-	else __SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	// TODO optimize away concurrent mode in this case
-
-	// initialize swapchain
-	VkResult __Result = vkCreateSwapchainKHR(g_Vk.gpu,&__SwapchainInfo,nullptr,&g_Vk.swapchain);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
-
-	// reference swapchain images
-	u32 __SCICount;
-	vkGetSwapchainImagesKHR(g_Vk.gpu,g_Vk.swapchain,&__SCICount,nullptr);
-	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
-	g_Vk.images.resize(__SCICount);
-	vkGetSwapchainImagesKHR(g_Vk.gpu,g_Vk.swapchain,&__SCICount,&g_Vk.images[0]);
-
-	// image view memory & creation info setup
-	g_Vk.image_views.resize(__SCICount);
-	VkImageViewCreateInfo __IVInfo = {  };
-	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__IVInfo.format = g_Vk.sc_format.format;
-	__IVInfo.components = {
-		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-	};
-	__IVInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__IVInfo.subresourceRange.baseMipLevel = 0;
-	__IVInfo.subresourceRange.levelCount = 1;
-	__IVInfo.subresourceRange.baseArrayLayer = 0;
-	__IVInfo.subresourceRange.layerCount = 1;
-
-	// iterate images to create image views
-	for (u32 i=0;i<__SCICount;i++)
-	{
-		__IVInfo.image = g_Vk.images[i];
-		__Result = vkCreateImageView(g_Vk.gpu,&__IVInfo,nullptr,&g_Vk.image_views[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
-	}
-	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
-
-	// viewport setup
-	g_Vk.viewport = {
-		.x = .0f,
-		.y = .0f,
-		.width = (f32)g_Vk.sc_extent.width,
-		.height = (f32)g_Vk.sc_extent.height,
-		.minDepth = .0f,
-		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
-	};
-
-	// scissor setup
-	g_Vk.scissor = {
-		.offset = { 0,0 },
-		.extent = g_Vk.sc_extent,
-	};
-}
-*/
-// TODO shortcut some features when recreating the swapchain, some selections not always necessary
-// TODO make all those features selectable by the user
-
-/**
- *	TODO
- */
-/*
 void Eruption::register_pipeline(VkRenderPass render_pass)
 {
 	COMM_LOG("registration of final destination pipeline");
@@ -448,7 +302,7 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	m_Hardware.gpus[did].select();
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
 
-	// TODO assemble swapchain here
+	// TODO assemble swapchain
 
 	// setup swap command information
 	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -689,3 +543,153 @@ void Frame::gpu_disable_feature(GPUFeature feature)
 	glDisable(_gpu_features[feature]);
 #endif
 }
+
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+void Frame::_assemble_swapchain()
+{
+	// format selection
+	COMM_LOG("running swap chain setup");
+	for (VkSurfaceFormatKHR& p_Format : g_GPU.swapchain_info.formats)
+	{
+		if (p_Format.format==VK_FORMAT_B8G8R8A8_SRGB&&p_Format.colorSpace==VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		{
+			swapchain.format = p_Format;
+			goto swap_chain_selection_presentation;
+		}
+	}
+	COMM_MSG(LOG_YELLOW,"WARNING: SRGB8 format not supported, falling back to swap chain standard");
+	swapchain.format = g_GPU.swapchain_info.formats[0];
+
+	// presentation mode selection
+swap_chain_selection_presentation:
+	VkPresentModeKHR __Mode;
+	for (VkPresentModeKHR& p_Mode : g_GPU.swapchain_info.modes)
+	{
+		if ((p_Mode==VK_PRESENT_MODE_MAILBOX_KHR&&FRAME_BLITTER_VSYNC)
+			||(p_Mode==VK_PRESENT_MODE_IMMEDIATE_KHR&&!FRAME_BLITTER_VSYNC))
+		{
+			__Mode = p_Mode;
+			goto swap_chain_selection_extent;
+		}
+	}
+	COMM_MSG(LOG_YELLOW,"WARNING: desired mode not available, falling back to fifo mode");
+	__Mode = VK_PRESENT_MODE_FIFO_KHR;
+
+	// swap extent selection
+swap_chain_selection_extent:
+	s32 __Width,__Height;
+	if (g_GPU.swapchain_info.capabilities.currentExtent.width!=UINT32_MAX)
+	{
+		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
+		swapchain.extent = g_GPU.swapchain_info.capabilities.currentExtent;
+		goto swap_chain_creation;
+	}
+	SDL_Vulkan_GetDrawableSize(frame,&__Width,&__Height);
+	swapchain.extent = {
+		.width = glm::clamp((u32)__Width,
+							g_GPU.swapchain_info.capabilities.minImageExtent.width,
+							g_GPU.swapchain_info.capabilities.maxImageExtent.width),
+		.height = glm::clamp((u32)__Height,
+							 g_GPU.swapchain_info.capabilities.minImageExtent.height,
+							 g_GPU.swapchain_info.capabilities.maxImageExtent.height),
+	};
+
+	// create swapchain
+swap_chain_creation:
+	u32 __ImageCount = g_GPU.swapchain_info.capabilities.minImageCount+FRAME_BLITTER_SWAP_IMAGES;
+	__ImageCount = (g_GPU.swapchain_info.capabilities.maxImageCount>0
+					&&__ImageCount>g_GPU.swapchain_info.capabilities.maxImageCount)
+			? g_GPU.swapchain_info.capabilities.maxImageCount : __ImageCount;
+
+	// swapchain definition
+	VkSwapchainCreateInfoKHR __SwapchainInfo = {  };
+	__SwapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	__SwapchainInfo.surface = g_Vk.surface;
+	__SwapchainInfo.minImageCount = __ImageCount;
+	__SwapchainInfo.imageFormat = swapchain.format.format;
+	__SwapchainInfo.imageColorSpace = swapchain.format.colorSpace;
+	__SwapchainInfo.imageExtent = swapchain.extent;
+	__SwapchainInfo.imageArrayLayers = 1;
+	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
+	__SwapchainInfo.preTransform = g_GPU.swapchain_info.capabilities.currentTransform;
+	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
+	__SwapchainInfo.presentMode = __Mode;
+	__SwapchainInfo.clipped = VK_TRUE;
+	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO geez this looks like a ton of work in the future
+
+	// in case of split graphics & presentation queue
+	vector<u32> __Queues = vector<u32>(queues.begin(),queues.end());
+	if (graphical_queue!=presentation_queue)
+	{
+		COMM_MSG(LOG_YELLOW,"%s %s","WARNING: graphical & presentation queues are distict,",
+				 "concurrent mode could result in performance issues");
+		__SwapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		__SwapchainInfo.queueFamilyIndexCount = 2;
+		__SwapchainInfo.pQueueFamilyIndices = &__Queues[0];
+	}
+	else __SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	// TODO optimize away concurrent mode in this case
+
+	// initialize swapchain
+	VkResult __Result = vkCreateSwapchainKHR(g_GPU.gpu,&__SwapchainInfo,nullptr,&swapchain.swapchain);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not initialize swap chain");
+
+	// reference swapchain images
+	u32 __SCICount;
+	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,nullptr);
+	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
+	g_Vk.images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&g_Vk.images[0]);
+
+	// image view memory & creation info setup
+	g_Vk.image_views.resize(__SCICount);
+	VkImageViewCreateInfo __IVInfo = {  };
+	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__IVInfo.format = swapchain.format.format;
+	__IVInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__IVInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__IVInfo.subresourceRange.baseMipLevel = 0;
+	__IVInfo.subresourceRange.levelCount = 1;
+	__IVInfo.subresourceRange.baseArrayLayer = 0;
+	__IVInfo.subresourceRange.layerCount = 1;
+
+	// iterate images to create image views
+	for (u32 i=0;i<__SCICount;i++)
+	{
+		__IVInfo.image = g_Vk.images[i];
+		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&g_Vk.image_views[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
+	}
+	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
+
+	// viewport setup
+	g_Vk.viewport = {
+		.x = .0f,
+		.y = .0f,
+		.width = (f32)swapchain.extent.width,
+		.height = (f32)swapchain.extent.height,
+		.minDepth = .0f,
+		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
+	};
+
+	// scissor setup
+	g_Vk.scissor = {
+		.offset = { 0,0 },
+		.extent = swapchain.extent,
+	};
+}
+// TODO shortcut some features when recreating the swapchain, some selections not always necessary
+// TODO make all those features selectable by the user
+
+#endif

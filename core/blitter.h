@@ -17,37 +17,12 @@ enum GPUFeature : u8
 
 #ifdef VKBUILD
 
-struct CommandBuffer
-{
-	VkCommandBuffer buffer;
-	VkSemaphore ready;
-	VkFence processing;
-};
-
 struct Eruption
 {
-	// utility
-	// setup
-	//void register_pipeline(VkRenderPass render_pass);
-	//void vanish();
-
-	// swapchain
-	/*
-	void finish_swapchain();
-	void rebuild_swapchain();
-	void destroy_swapchain();
-
-	// command buffer
-	CommandBuffer* aquire_command_buffer();
-	*/
-
 	// data
 	// vulkan
 	SDL_Window* ref_frame;
 	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
-	VkSwapchainKHR swapchain;
-	VkExtent2D sc_extent;
-	VkSurfaceFormatKHR sc_format;
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
@@ -93,6 +68,11 @@ public:
 	static void gpu_enable_feature(GPUFeature feature);
 	static void gpu_disable_feature(GPUFeature feature);
 
+#ifdef VKBUILD
+private:
+	void _assemble_swapchain();
+#endif
+
 public:
 
 	// time
@@ -127,6 +107,7 @@ private:
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
+	SwapChain swapchain;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

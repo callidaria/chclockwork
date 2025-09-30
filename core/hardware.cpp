@@ -160,7 +160,8 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 }
 
 /**
- *	TODO
+ *	free given gpu related resources
+ *	\param res: resource of any supported type, that will be removed
  */
 void GPU::free(VkBuffer res) { vkDestroyBuffer(gpu,res,nullptr); }
 void GPU::free(VkDeviceMemory res) { vkFreeMemory(gpu,res,nullptr); }
