@@ -674,7 +674,7 @@ swap_chain_creation:
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
 
 	// viewport setup
-	g_Vk.viewport = {
+	viewport = {
 		.x = .0f,
 		.y = .0f,
 		.width = (f32)swapchain.extent.width,
@@ -684,7 +684,7 @@ swap_chain_creation:
 	};
 
 	// scissor setup
-	g_Vk.scissor = {
+	scissor = {
 		.offset = { 0,0 },
 		.extent = swapchain.extent,
 	};

@@ -242,10 +242,11 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
 	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	__ViewportInfo.viewportCount = 1;
-	__ViewportInfo.pViewports = &g_Vk.viewport;
+	__ViewportInfo.pViewports = &g_Frame.viewport;
 	__ViewportInfo.scissorCount = 1;
-	__ViewportInfo.pScissors = &g_Vk.scissor;
+	__ViewportInfo.pScissors = &g_Frame.scissor;
 	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
+	// TODO this should not always depend on standard frame viewport
 
 	// fixed function rasterization
 	VkPipelineRasterizationStateCreateInfo __RasterInfo = {  };

@@ -33,8 +33,6 @@ struct Eruption
 	vector<VkSemaphore> render_done;
 
 	// viewport
-	VkViewport viewport;
-	VkRect2D scissor;
 
 	// state
 	VkPipeline pipeline;
@@ -101,6 +99,8 @@ private:
 
 public:
 	SwapChain swapchain;
+	VkViewport viewport;
+	VkRect2D scissor;
 	u32 frame_id = 0;
 
 private:

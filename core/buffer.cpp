@@ -854,8 +854,8 @@ void Framebuffer::start()
 	// TODO very rigid. this expects graphical output, which is kindergarten
 
 	// viewport setup
-	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Vk.viewport);
-	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Vk.scissor);
+	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Frame.viewport);
+	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Frame.scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else
