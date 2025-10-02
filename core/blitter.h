@@ -21,24 +21,20 @@ struct Eruption
 {
 	// data
 	// vulkan
-	SDL_Window* ref_frame;
-	VkRenderPass ref_render_pass;  // TODO those refs will be removed once the architecture starts to make sense
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
 	vector<VkFramebuffer> framebuffers;
-	VkCommandPool cmds;
+	//VkCommandPool cmds;
 
 	// command buffer
-	vector<CommandBuffer> cmd_buffers;
+	//vector<CommandBuffer> cmd_buffers;
 	vector<VkSemaphore> render_done;
-
-	// viewport
 
 	// state
 	VkPipeline pipeline;
-	VkClearValue clear_colour;
-	u8 active_buffer = 0;
+	//u8 active_buffer = 0;
 };
+
 #endif
 
 
@@ -53,8 +49,8 @@ public:
 	void close();
 
 	// settings
-	static void set_clear_colour(vec3 colour);
-	static void set_clear_depth(f32 depth);
+	void set_clear_colour(vec3 colour);
+	void set_clear_depth(f32 depth);
 
 	// framerate
 	void gpu_vsync_on();
@@ -66,8 +62,9 @@ public:
 	static void gpu_enable_feature(GPUFeature feature);
 	static void gpu_disable_feature(GPUFeature feature);
 
-#ifdef VKBUILD
 private:
+
+#ifdef VKBUILD
 	void _assemble_swapchain();
 #endif
 
@@ -96,11 +93,11 @@ private:
 #endif
 
 #ifdef VKBUILD
-
 public:
 	SwapChain swapchain;
 	VkViewport viewport;
 	VkRect2D scissor;
+	VkClearValue clear_colour;  // TODO make this private, this should not be relevant outside frame
 	u32 frame_id = 0;
 
 private:

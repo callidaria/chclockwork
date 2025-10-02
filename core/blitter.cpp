@@ -300,9 +300,8 @@ Frame::Frame(const char* title,u16 width,u16 height,bool vsync)
 	// hardware detection & gpu selection
 	m_Hardware.detect(m_Instance,m_Surface);
 	m_Hardware.gpus[did].select();
+	_assemble_swapchain();
 	// FIXME just selecting the first possible gpu without feature checking or evaluating is dangerous!
-
-	// TODO assemble swapchain
 
 	// setup swap command information
 	m_PresentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -364,7 +363,6 @@ void Frame::clear()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 #endif
@@ -434,7 +432,7 @@ void Frame::close()
 void Frame::set_clear_colour(vec3 colour)
 {
 #ifdef VKBUILD
-	g_Vk.clear_colour = {{{ colour.r,colour.g,colour.b,1.f }}};
+	clear_colour = {{{ colour.r,colour.g,colour.b,1.f }}};
 #else
 	glClearColor(colour.r,colour.g,colour.b,0);
 #endif
