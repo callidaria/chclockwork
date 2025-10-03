@@ -21,9 +21,6 @@ struct Eruption
 {
 	// data
 	// vulkan
-	vector<VkImage> images;
-	vector<VkImageView> image_views;  // TODO outsource this part into buffer later!
-	vector<VkFramebuffer> framebuffers;
 	//VkCommandPool cmds;
 
 	// command buffer
@@ -33,6 +30,11 @@ struct Eruption
 	// state
 	VkPipeline pipeline;
 	//u8 active_buffer = 0;
+};
+
+struct ImageBuffer
+{
+	VkFramebuffer framebuffer;
 };
 
 #endif
@@ -66,6 +68,7 @@ private:
 
 #ifdef VKBUILD
 	void _assemble_swapchain();
+	void _finalize_swapchain();
 #endif
 
 public:
@@ -98,6 +101,11 @@ public:
 	VkViewport viewport;
 	VkRect2D scissor;
 	VkClearValue clear_colour;  // TODO make this private, this should not be relevant outside frame
+
+	// image buffers
+	vector<VkImage> images;
+	vector<VkImageView> image_views;  // TODO outsource this part into image buffers later!
+	vector<VkFramebuffer> framebuffers;
 	u32 frame_id = 0;
 
 private:

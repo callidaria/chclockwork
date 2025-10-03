@@ -61,7 +61,7 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 
 	// generate framebuffers
 	ref_render_pass = render_pass;
-	finish_swapchain();
+	_finalize_swapchain();
 
 	// setup command pool
 	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
@@ -138,36 +138,9 @@ void Eruption::vanish()
  *	TODO
  */
 /*
-void Eruption::finish_swapchain()
-{
-	// basic setup for all final framebuffers
-	VkFramebufferCreateInfo __FramebufferInfo = {  };
-	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = ref_render_pass;
-	__FramebufferInfo.attachmentCount = 1;
-	__FramebufferInfo.width = sc_extent.width;
-	__FramebufferInfo.height = sc_extent.height;
-	__FramebufferInfo.layers = 1;
-
-	// allocate & iterate framebuffer creation
-	VkResult __Result;
-	framebuffers.resize(image_views.size());
-	for (u32 i=0;i<image_views.size();i++)
-	{
-		__FramebufferInfo.pAttachments = &image_views[i];
-		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
-	}
-}
-*/
-
-/**
- *	TODO
- */
-/*
 void Eruption::rebuild_swapchain()
 {
-	vkDeviceWaitIdle(gpu);
+	g_GPU.expect_idle();
 	destroy_swapchain();
 	selected_gpu->assemble_swapchain(ref_frame);
 	// TODO recreate render pass as well
@@ -641,11 +614,11 @@ swap_chain_creation:
 	u32 __SCICount;
 	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,nullptr);
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
-	g_Vk.images.resize(__SCICount);
-	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&g_Vk.images[0]);
+	images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&images[0]);
 
 	// image view memory & creation info setup
-	g_Vk.image_views.resize(__SCICount);
+	image_views.resize(__SCICount);
 	VkImageViewCreateInfo __IVInfo = {  };
 	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -665,8 +638,8 @@ swap_chain_creation:
 	// iterate images to create image views
 	for (u32 i=0;i<__SCICount;i++)
 	{
-		__IVInfo.image = g_Vk.images[i];
-		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&g_Vk.image_views[i]);
+		__IVInfo.image = images[i];
+		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&image_views[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
@@ -689,5 +662,30 @@ swap_chain_creation:
 }
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
 // TODO make all those features selectable by the user
+
+/**
+ *	TODO
+ */
+void Frame::_finalize_swapchain()
+{
+	// basic setup for all final framebuffers
+	VkFramebufferCreateInfo __FramebufferInfo = {  };
+	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	__FramebufferInfo.renderPass = ref_render_pass;
+	__FramebufferInfo.attachmentCount = 1;
+	__FramebufferInfo.width = sc_extent.width;
+	__FramebufferInfo.height = sc_extent.height;
+	__FramebufferInfo.layers = 1;
+
+	// allocate & iterate framebuffer creation
+	VkResult __Result;
+	framebuffers.resize(image_views.size());
+	for (u32 i=0;i<image_views.size();i++)
+	{
+		__FramebufferInfo.pAttachments = &image_views[i];
+		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
+	}
+}
 
 #endif
