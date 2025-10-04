@@ -8,13 +8,6 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
-enum GPUFeature : u8
-{
-	GPU_FEATURE_DEPTH_TEST,
-	GPU_FEATURE_COUNT
-};
-
-
 #ifdef VKBUILD
 
 struct Eruption
@@ -30,11 +23,6 @@ struct Eruption
 	// state
 	VkPipeline pipeline;
 	//u8 active_buffer = 0;
-};
-
-struct ImageBuffer
-{
-	VkFramebuffer framebuffer;
 };
 
 #endif
@@ -53,16 +41,11 @@ public:
 	// settings
 	void set_clear_colour(vec3 colour);
 	void set_clear_depth(f32 depth);
+	void set_viewport(u32 width,u32 height);
 
 	// framerate
 	void gpu_vsync_on();
 	void gpu_vsync_off();
-
-	// processing
-	static void gpu_set_viewport(u32 width,u32 height);
-	static void gpu_cull_backfaces(bool backfaces);
-	static void gpu_enable_feature(GPUFeature feature);
-	static void gpu_disable_feature(GPUFeature feature);
 
 private:
 

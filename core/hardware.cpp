@@ -159,6 +159,60 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 	}
 }
 
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// GPU Feature Implementation
+
+/**
+ *	TODO
+ */
+void GPU::cull_backfaces(bool backfaces)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glCullFace(GL_FRONT+backfaces);
+#endif
+}
+
+#ifndef VKBUILD
+GLenum _gpu_features[GPU_FEATURE_COUNT] = {
+	GL_DEPTH_TEST,
+};
+#endif
+
+/**
+ *	TODO
+ */
+void GPU::enable_feature(GPUFeature feature)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glEnable(_gpu_features[feature]);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void GPU::disable_feature(GPUFeature feature)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glDisable(_gpu_features[feature]);
+#endif
+}
+
+
+#ifdef VKBUILD
+
 /**
  *	free given gpu related resources
  *	\param res: resource of any supported type, that will be removed

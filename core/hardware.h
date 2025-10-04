@@ -58,8 +58,24 @@ struct Hardware
 	vector<GPUDevice> gpus;
 };
 
+#endif
+
+
+enum GPUFeature : u8
+{
+	GPU_FEATURE_DEPTH_TEST,
+	GPU_FEATURE_COUNT
+};
+
+
 struct GPU
 {
+	// settings
+	void cull_backfaces(bool backfaces);
+	void enable_feature(GPUFeature feature);
+	void disable_feature(GPUFeature feature);
+
+#ifdef VKBUILD
 	// utility
 	// resources
 	void free(VkBuffer res);
@@ -78,11 +94,10 @@ struct GPU
 	VkDevice gpu;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
+#endif
 };
 
 inline GPU g_GPU;
-
-#endif
 
 
 #endif

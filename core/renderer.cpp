@@ -780,14 +780,14 @@ void Renderer::update()
 	m_FrameStart = std::chrono::steady_clock::now();
 
 	// shadow projection
-	Frame::gpu_cull_backfaces(false);
-	Frame::gpu_set_viewport(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+	g_GPU.cull_backfaces(false);
+	g_Frame.set_viewport(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 	m_ShadowFrameBuffer.start();
 	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
-	Frame::gpu_cull_backfaces(true);
+	g_GPU.cull_backfaces(true);
 
 	// 3D segment
-	Frame::gpu_set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	g_Frame.set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_ForwardFrameBuffer.start();
 	_update_mesh(m_GeometryBatches,m_ParticleBatches);
 	m_DeferredFrameBuffer.start();
@@ -795,9 +795,9 @@ void Renderer::update()
 	m_DeferredFrameBuffer.stop();
 
 	// rendertargets
-	Frame::gpu_disable_feature(GPU_FEATURE_DEPTH_TEST);
+	g_GPU.disable_feature(GPU_FEATURE_DEPTH_TEST);
 	_update_canvas();
-	Frame::gpu_enable_feature(GPU_FEATURE_DEPTH_TEST);
+	g_GPU.enable_feature(GPU_FEATURE_DEPTH_TEST);
 
 	// 2D segment
 	_update_sprites();
