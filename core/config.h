@@ -2,10 +2,12 @@
 #define CORE_CONFIG_HEADER
 
 
+// gpu
+#define GPU_BUFFER_COUNT 2
+
 // blitter
 #define FRAME_GAME_NAME "C. Hanson's Clockwork"
 #define FRAME_BLITTER_VSYNC true
-#define FRAME_BLITTER_BUFFERS 2
 #define FRAME_RESOLUTION_X 1600
 #define FRAME_RESOLUTION_Y 900
 #define FRAME_TIME_BUDGET_MS 15.

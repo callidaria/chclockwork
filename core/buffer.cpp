@@ -822,7 +822,7 @@ void Framebuffer::start()
 {
 #ifdef VKBUILD
 	// aquire next command buffer & reset
-	//cmd_buffer = g_Vk.aquire_command_buffer();
+	cmd_buffer = g_GPU.aquire_command_buffer();
 	vkResetCommandBuffer(cmd_buffer->buffer,0);
 
 	// get next swapchain image
@@ -844,13 +844,13 @@ void Framebuffer::start()
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Vk.framebuffers[g_Frame.frame_id];
+	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
 	__RPBeginInfo.clearValueCount = 1;
 	__RPBeginInfo.pClearValues = &g_Frame.clear_colour;
 	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Vk.pipeline);
+	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
 	// TODO very rigid. this expects graphical output, which is kindergarten
 
 	// viewport setup

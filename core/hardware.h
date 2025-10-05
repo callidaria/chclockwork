@@ -77,6 +77,10 @@ struct GPU
 
 #ifdef VKBUILD
 	// utility
+	// command buffers
+	void setup_command_buffers();
+	CommandBuffer* aquire_command_buffer();
+
 	// resources
 	void free(VkBuffer res);
 	void free(VkDeviceMemory res);
@@ -94,6 +98,9 @@ struct GPU
 	VkDevice gpu;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
+	VkCommandPool cmd_pool;
+	CommandBuffer cmd_buffers[GPU_BUFFER_COUNT];
+	u8 active_buffer = 0;
 #endif
 };
 

@@ -14,15 +14,12 @@ struct Eruption
 {
 	// data
 	// vulkan
-	//VkCommandPool cmds;
 
 	// command buffer
-	//vector<CommandBuffer> cmd_buffers;
 	vector<VkSemaphore> render_done;
 
 	// state
 	VkPipeline pipeline;
-	//u8 active_buffer = 0;
 };
 
 #endif
@@ -90,6 +87,9 @@ public:
 	vector<VkImageView> image_views;  // TODO outsource this part into image buffers later!
 	vector<VkFramebuffer> framebuffers;
 	u32 frame_id = 0;
+
+	VkRenderPass ref_render_pass;  // §placeholder
+	VkPipeline ref_pipeline;  // $placeholder
 
 private:
 	Hardware m_Hardware;

@@ -52,6 +52,10 @@ void GPUDevice::select()
 	// initialize queues
 	vkGetDeviceQueue(g_GPU.gpu,graphical_queue,0,&g_GPU.graphical_queue);
 	vkGetDeviceQueue(g_GPU.gpu,presentation_queue,0,&g_GPU.presentation_queue);
+	// TODO pack this setup into gpu maybe?
+
+	// command buffers
+	g_GPU.setup_command_buffers();
 }
 
 /**
@@ -191,7 +195,6 @@ void GPU::enable_feature(GPUFeature feature)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glEnable(_gpu_features[feature]);
 #endif
@@ -204,7 +207,6 @@ void GPU::disable_feature(GPUFeature feature)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glDisable(_gpu_features[feature]);
 #endif
@@ -212,6 +214,66 @@ void GPU::disable_feature(GPUFeature feature)
 
 
 #ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+void GPU::setup_command_buffers()
+{
+	// setup command pool
+	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
+	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	__CMDPoolInfo.queueFamilyIndex = device_info->graphical_queue;
+	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmd_pool);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
+
+	// setup command buffer
+	VkCommandBuffer __CommandBuffers[GPU_BUFFER_COUNT];
+	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
+	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CMDBufferInfo.commandPool = cmd_pool;
+	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CMDBufferInfo.commandBufferCount = GPU_BUFFER_COUNT;
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__CommandBuffers);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) cmd_buffers[i].buffer = __CommandBuffers[i];
+	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
+
+	// setup buffer threading constraints info
+	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
+	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	VkFenceCreateInfo __FenceInfo = {  };
+	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	// iterate buffer semaphore creation
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		// create command buffer semaphore
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers[i].ready);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
+
+		// create command buffer fence
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers[i].processing);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+	}
+}
+
+/**
+ *	TODO
+ */
+CommandBuffer* GPU::aquire_command_buffer()
+{
+	// tick command buffer
+	CommandBuffer* out = &cmd_buffers[active_buffer];
+	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
+
+	// wait until draw is ready
+	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(gpu,1,&out->processing);
+	return out;
+}
 
 /**
  *	free given gpu related resources

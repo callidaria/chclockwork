@@ -63,48 +63,6 @@ void Eruption::register_pipeline(VkRenderPass render_pass)
 	ref_render_pass = render_pass;
 	_finalize_swapchain();
 
-	// setup command pool
-	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
-	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	__CMDPoolInfo.queueFamilyIndex = graphical_queue_id;
-	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmds);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
-
-	// setup command buffer
-	VkCommandBuffer __CommandBuffers[FRAME_BLITTER_BUFFERS];
-	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
-	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	__CMDBufferInfo.commandPool = cmds;
-	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CMDBufferInfo.commandBufferCount = FRAME_BLITTER_BUFFERS;
-	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__CommandBuffers);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
-	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
-
-	// store command buffers
-	cmd_buffers.resize(FRAME_BLITTER_BUFFERS);
-	for (u8 i=0;i<cmd_buffers.size();i++) cmd_buffers[i].buffer = __CommandBuffers[i];
-
-	// setup buffer threading constraints info
-	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
-	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	VkFenceCreateInfo __FenceInfo = {  };
-	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	// iterate buffer semaphore creation
-	for (u8 i=0;i<FRAME_BLITTER_BUFFERS;i++)
-	{
-		// create command buffer semaphore
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers[i].ready);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
-
-		// create command buffer fence
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers[i].processing);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
-	}
-
 	// image semaphore creation
 	render_done.resize(images.size());
 	for (u8 i=0;i<images.size();i++)
@@ -157,23 +115,6 @@ void Eruption::destroy_swapchain()
 	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
 	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
 	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
-}
-*/
-
-/**
- *	TODO
- */
-/*
-CommandBuffer* Eruption::aquire_command_buffer()
-{
-	// tick command buffer
-	CommandBuffer* out = &cmd_buffers[active_buffer];
-	active_buffer = (active_buffer+1)%FRAME_BLITTER_BUFFERS;
-
-	// wait until draw is ready
-	vkWaitForFences(g_Vk.gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
-	vkResetFences(g_Vk.gpu,1,&out->processing);
-	return out;
 }
 */
 
@@ -628,8 +569,8 @@ void Frame::_finalize_swapchain()
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	__FramebufferInfo.renderPass = ref_render_pass;
 	__FramebufferInfo.attachmentCount = 1;
-	__FramebufferInfo.width = sc_extent.width;
-	__FramebufferInfo.height = sc_extent.height;
+	__FramebufferInfo.width = swapchain.extent.width;
+	__FramebufferInfo.height = swapchain.extent.height;
 	__FramebufferInfo.layers = 1;
 
 	// allocate & iterate framebuffer creation
@@ -638,7 +579,7 @@ void Frame::_finalize_swapchain()
 	for (u32 i=0;i<image_views.size();i++)
 	{
 		__FramebufferInfo.pAttachments = &image_views[i];
-		__Result = vkCreateFramebuffer(gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
+		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}
 }

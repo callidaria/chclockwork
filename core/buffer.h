@@ -194,7 +194,7 @@ public:
 	void vanish();  // §§test
 
 	// usage
-	void start();
+	void start();  // TODO retire start/stop
 	void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
@@ -204,8 +204,8 @@ private:
 public:
 	VkRenderPass render_pass;
 	CommandBuffer* cmd_buffer;
+	// TODO switch back to private and somehow add to pipeline?
 private:
-	  // TODO switch back to private and somehow add to pipeline?
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
 	VkAttachmentDescription* m_DepthComponentSetup;
