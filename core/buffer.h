@@ -197,7 +197,10 @@ public:
 	void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
+
+#ifdef VKBUILD
 	void link_output();
+#endif
 
 private:
 #ifdef VKBUILD

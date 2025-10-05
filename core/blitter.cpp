@@ -338,6 +338,9 @@ void Frame::gpu_vsync_off()
 #endif
 }
 
+
+#ifdef VKBUILD
+
 /**
  *	TODO
  */
@@ -373,9 +376,6 @@ void Frame::link_result(VkRenderPass render_pass)
 
 	COMM_SCC("render pipeline ready.");
 }
-
-
-#ifdef VKBUILD
 
 /**
  *	TODO

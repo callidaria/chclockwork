@@ -927,6 +927,9 @@ void Framebuffer::bind_depth_component(u8 channel)
 #endif
 }
 
+
+#ifdef VKBUILD
+
 /**
  *	TODO
  */
@@ -934,3 +937,5 @@ void Framebuffer::link_output()
 {
 	g_Frame.link_result(render_pass);
 }
+
+#endif
