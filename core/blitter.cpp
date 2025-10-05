@@ -47,81 +47,6 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 
 
 // ----------------------------------------------------------------------------------------------------
-// Hardware Interaction
-
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-/*
-void Eruption::register_pipeline(VkRenderPass render_pass)
-{
-	COMM_LOG("registration of final destination pipeline");
-
-	// generate framebuffers
-	ref_render_pass = render_pass;
-	_finalize_swapchain();
-
-	// image semaphore creation
-	render_done.resize(images.size());
-	for (u8 i=0;i<images.size();i++)
-	{
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
-	}
-
-	COMM_SCC("render pipeline ready.");
-}
-*/
-
-/**
- *	TODO
- */
-/*
-void Eruption::vanish()
-{
-	for (u8 i=0;i<images.size();i++) vkDestroySemaphore(gpu,render_done[i],nullptr);
-	for (CommandBuffer& p_Buffer : cmd_buffers)
-	{
-		vkDestroySemaphore(gpu,p_Buffer.ready,nullptr);
-		vkDestroyFence(gpu,p_Buffer.processing,nullptr);
-	}
-	vkDestroyCommandPool(gpu,cmds,nullptr);
-	destroy_swapchain();
-}
-*/
-
-/**
- *	TODO
- */
-/*
-void Eruption::rebuild_swapchain()
-{
-	g_GPU.expect_idle();
-	destroy_swapchain();
-	selected_gpu->assemble_swapchain(ref_frame);
-	// TODO recreate render pass as well
-	finish_swapchain();
-}
-*/
-
-/**
- *	TODO
- */
-/*
-void Eruption::destroy_swapchain()
-{
-	for (VkFramebuffer p_Framebuffer : framebuffers) vkDestroyFramebuffer(gpu,p_Framebuffer,nullptr);
-	for (VkImageView p_ImageView : image_views) vkDestroyImageView(gpu,p_ImageView,nullptr);
-	vkDestroySwapchainKHR(gpu,swapchain,nullptr);
-}
-*/
-
-#endif
-
-
-// ----------------------------------------------------------------------------------------------------
 // Graphical Frame
 
 /**
@@ -288,7 +213,7 @@ void Frame::clear()
 void Frame::update()
 {
 #ifdef VKBUILD
-	m_PresentInfo.pWaitSemaphores = &g_Vk.render_done[frame_id];
+	m_PresentInfo.pWaitSemaphores = &render_done[frame_id];
 	m_PresentInfo.pImageIndices = &frame_id;
 	VkResult __Result = vkQueuePresentKHR(g_GPU.presentation_queue,&m_PresentInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
@@ -323,6 +248,8 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
+	for (u8 i=0;i<images.size();i++) g_GPU.free(render_done[i]);
+	_destroy_swapchain();
 	g_GPU.stop();
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
@@ -367,6 +294,19 @@ void Frame::set_clear_depth(f32 depth)
 }
 
 /**
+ * TODO
+ */
+void Frame::set_viewport(u32 width,u32 height)
+{
+#ifdef VKBUILD
+	// TODO
+
+#else
+	glViewport(0,0,width,height);
+#endif
+}
+
+/**
  *	enable gpu based vsync, adaptive if possible: fallback regular vsync
  */
 void Frame::gpu_vsync_on()
@@ -399,16 +339,39 @@ void Frame::gpu_vsync_off()
 }
 
 /**
- * TODO
+ *	TODO
  */
-void Frame::set_viewport(u32 width,u32 height)
+void Frame::rebuild_swapchain()
 {
-#ifdef VKBUILD
-	// TODO
+	g_GPU.expect_idle();
+	_destroy_swapchain();
+	_assemble_swapchain();
+	// TODO recreate render pass as well?
+	_finalize_swapchain();
+}
 
-#else
-	glViewport(0,0,width,height);
-#endif
+/**
+ *	TODO
+ */
+void Frame::link_result(VkRenderPass render_pass)
+{
+	COMM_LOG("registration of final result pipeline");
+
+	// generate framebuffers
+	ref_render_pass = render_pass;
+	_finalize_swapchain();
+
+	// image semaphore creation
+	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
+	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	render_done.resize(images.size());
+	for (u8 i=0;i<images.size();i++)
+	{
+		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
+	}
+
+	COMM_SCC("render pipeline ready.");
 }
 
 
@@ -582,6 +545,16 @@ void Frame::_finalize_swapchain()
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}
+}
+
+/**
+ *	TODO
+ */
+void Frame::_destroy_swapchain()
+{
+	for (VkFramebuffer p_Framebuffer : framebuffers) g_GPU.free(p_Framebuffer);
+	for (VkImageView p_ImageView : image_views) g_GPU.free(p_ImageView);
+	g_GPU.free(swapchain.swapchain);
 }
 
 #endif

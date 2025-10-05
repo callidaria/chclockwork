@@ -2,7 +2,6 @@
 #define CORE_BUFFER_HEADER
 
 
-#include "base.h"
 #include "blitter.h"
 
 
@@ -198,6 +197,7 @@ public:
 	void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
+	void link_output();
 
 private:
 #ifdef VKBUILD

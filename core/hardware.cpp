@@ -281,10 +281,13 @@ CommandBuffer* GPU::aquire_command_buffer()
  */
 void GPU::free(VkBuffer res) { vkDestroyBuffer(gpu,res,nullptr); }
 void GPU::free(VkDeviceMemory res) { vkFreeMemory(gpu,res,nullptr); }
+void GPU::free(VkSwapchainKHR res) { vkDestroySwapchainKHR(gpu,res,nullptr); }
 void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }
 void GPU::free(VkPipeline res) { vkDestroyPipeline(gpu,res,nullptr); }
 void GPU::free(VkPipelineLayout res) { vkDestroyPipelineLayout(gpu,res,nullptr); }
 void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
+void GPU::free(VkImageView res) { vkDestroyImageView(gpu,res,nullptr); }
+void GPU::free(VkFramebuffer res) { vkDestroyFramebuffer(gpu,res,nullptr); }
 void GPU::free(VkSemaphore res) { vkDestroySemaphore(gpu,res,nullptr); }
 void GPU::free(VkFence res) { vkDestroyFence(gpu,res,nullptr); }
 
@@ -306,7 +309,7 @@ void GPU::stop()
 		free(cmd_buffers[i].ready);
 		free(cmd_buffers[i].processing);
 	}
-	vkDestroyCommandPool(gpu,cmd_pool);
+	vkDestroyCommandPool(gpu,cmd_pool,nullptr);
 	vkDestroyDevice(gpu,nullptr);
 }
 

@@ -886,7 +886,7 @@ void Framebuffer::stop()
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &g_Vk.render_done[g_Frame.frame_id];
+	__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
 	__Result = vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 	// TODO again, using all framebuffers like final render targets does not hold up
@@ -907,7 +907,6 @@ void Framebuffer::bind_colour_component(u8 channel,u8 i)
 
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[i]);
 #endif
@@ -923,8 +922,15 @@ void Framebuffer::bind_depth_component(u8 channel)
 
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 #endif
+}
+
+/**
+ *	TODO
+ */
+void Framebuffer::link_output()
+{
+	g_Frame.link_result(render_pass);
 }

@@ -27,11 +27,17 @@ public:
 	void gpu_vsync_on();
 	void gpu_vsync_off();
 
+#ifdef VKBUILD
+	void rebuild_swapchain();
+	void link_result(VkRenderPass render_pass);
+#endif
+
 private:
 
 #ifdef VKBUILD
 	void _assemble_swapchain();
 	void _finalize_swapchain();
+	void _destroy_swapchain();
 #endif
 
 public:
@@ -73,7 +79,7 @@ public:
 	u32 frame_id = 0;
 
 	VkRenderPass ref_render_pass;  // §placeholder
-	VkPipeline pipeline;  // $placeholder
+	VkPipeline ref_pipeline;  // $placeholder
 
 private:
 	Hardware m_Hardware;

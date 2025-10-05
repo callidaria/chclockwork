@@ -84,10 +84,13 @@ struct GPU
 	// resources
 	void free(VkBuffer res);
 	void free(VkDeviceMemory res);
+	void free(VkSwapchainKHR res);
 	void free(VkShaderModule res);
 	void free(VkPipeline res);
 	void free(VkPipelineLayout res);
 	void free(VkRenderPass res);
+	void free(VkImageView res);
+	void free(VkFramebuffer res);
 	void free(VkSemaphore res);
 	void free(VkFence res);
 
