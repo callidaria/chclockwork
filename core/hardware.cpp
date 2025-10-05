@@ -285,7 +285,8 @@ void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }
 void GPU::free(VkPipeline res) { vkDestroyPipeline(gpu,res,nullptr); }
 void GPU::free(VkPipelineLayout res) { vkDestroyPipelineLayout(gpu,res,nullptr); }
 void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
-// TODO add the rest later, when handling the swapchain, commandbuffer & rest differently
+void GPU::free(VkSemaphore res) { vkDestroySemaphore(gpu,res,nullptr); }
+void GPU::free(VkFence res) { vkDestroyFence(gpu,res,nullptr); }
 
 /**
  *	wait until device is idle
@@ -300,6 +301,12 @@ void GPU::expect_idle()
  */
 void GPU::stop()
 {
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		free(cmd_buffers[i].ready);
+		free(cmd_buffers[i].processing);
+	}
+	vkDestroyCommandPool(gpu,cmd_pool);
 	vkDestroyDevice(gpu,nullptr);
 }
 

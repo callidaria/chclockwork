@@ -8,23 +8,6 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
-#ifdef VKBUILD
-
-struct Eruption
-{
-	// data
-	// vulkan
-
-	// command buffer
-	vector<VkSemaphore> render_done;
-
-	// state
-	VkPipeline pipeline;
-};
-
-#endif
-
-
 class Frame
 {
 public:
@@ -86,10 +69,11 @@ public:
 	vector<VkImage> images;
 	vector<VkImageView> image_views;  // TODO outsource this part into image buffers later!
 	vector<VkFramebuffer> framebuffers;
+	vector<VkSemaphore> render_done;  // TODO this all belongs together i think
 	u32 frame_id = 0;
 
 	VkRenderPass ref_render_pass;  // §placeholder
-	VkPipeline ref_pipeline;  // $placeholder
+	VkPipeline pipeline;  // $placeholder
 
 private:
 	Hardware m_Hardware;
@@ -105,10 +89,6 @@ private:
 #endif
 };
 
-
-#ifdef VKBUILD
-inline Eruption g_Vk;
-#endif
 inline Frame g_Frame = Frame("C. Hanson's Clockwork",FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,FRAME_BLITTER_VSYNC);
 
 

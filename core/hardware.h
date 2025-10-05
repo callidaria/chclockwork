@@ -70,13 +70,13 @@ enum GPUFeature : u8
 
 struct GPU
 {
+	// utility
 	// settings
 	void cull_backfaces(bool backfaces);
 	void enable_feature(GPUFeature feature);
 	void disable_feature(GPUFeature feature);
 
 #ifdef VKBUILD
-	// utility
 	// command buffers
 	void setup_command_buffers();
 	CommandBuffer* aquire_command_buffer();
@@ -88,16 +88,21 @@ struct GPU
 	void free(VkPipeline res);
 	void free(VkPipelineLayout res);
 	void free(VkRenderPass res);
+	void free(VkSemaphore res);
+	void free(VkFence res);
 
 	// state
 	void expect_idle();
 	void stop();
 
 	// data
+	// device
 	GPUDevice* device_info;
 	VkDevice gpu;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
+
+	// gpu commands
 	VkCommandPool cmd_pool;
 	CommandBuffer cmd_buffers[GPU_BUFFER_COUNT];
 	u8 active_buffer = 0;
