@@ -361,7 +361,7 @@ void Frame::link_result(VkRenderPass render_pass)
 	COMM_LOG("registration of final result pipeline");
 
 	// generate framebuffers
-	ref_render_pass = render_pass;
+	p_RenderPass = render_pass;
 	_finalize_swapchain();
 
 	// image semaphore creation
@@ -530,7 +530,7 @@ void Frame::_finalize_swapchain()
 	// basic setup for all final framebuffers
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = ref_render_pass;
+	__FramebufferInfo.renderPass = p_RenderPass;
 	__FramebufferInfo.attachmentCount = 1;
 	__FramebufferInfo.width = swapchain.extent.width;
 	__FramebufferInfo.height = swapchain.extent.height;

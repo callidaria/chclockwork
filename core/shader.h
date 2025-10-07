@@ -100,6 +100,7 @@ public:
 	void upload_camera(Camera3D& c);
 
 #ifndef VKBUILD
+private:
 	void _define_attribute(ShaderAttribute attrib);
 	void _define_index_attribute(ShaderAttribute attrib);
 	// TODO change back to references

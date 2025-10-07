@@ -78,7 +78,6 @@ public:
 	vector<VkSemaphore> render_done;  // TODO this all belongs together i think
 	u32 frame_id = 0;
 
-	VkRenderPass ref_render_pass;  // §placeholder
 	VkPipeline ref_pipeline;  // $placeholder
 
 private:
@@ -86,6 +85,7 @@ private:
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
+	VkRenderPass p_RenderPass;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
