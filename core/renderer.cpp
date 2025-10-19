@@ -503,17 +503,14 @@ Renderer::Renderer()
 							   "./core/shader/vulkan/bin/triangle.frag");
 	m_VertexBuffer.allocate(15*sizeof(f32));
 	m_VertexBuffer.upload_vertices(_verts);
+	m_VertexArray.link_buffer(m_VertexBuffer,0);
 }
 
 void Renderer::update()
 {
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
-
-	// bind buffer
-	VkBuffer __Buffers[] = { m_VertexBuffer.m_VBO };
-	VkDeviceSize __Offsets[] = { 0 };
-	vkCmdBindVertexBuffers(m_Framebuffer.cmd_buffer->buffer,0,1,__Buffers,__Offsets);
+	m_VertexArray.bind(m_Framebuffer);
 
 	// gpu drawcall
 	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);

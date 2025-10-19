@@ -22,32 +22,66 @@ enum TextureFormat : u8
 
 
 // ----------------------------------------------------------------------------------------------------
-// Geometry Buffers
+// Rendertarget Colour Buffers
 
-class VertexArray
+typedef
+#ifdef VKBUILD
+u32  // TODO texture representation of components
+#else
+u32
+#endif
+__fbuffer_component;
+
+class Framebuffer
 {
 public:
-	VertexArray();
-	void bind();
+	Framebuffer(u8 count);
+	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false);
+	void define_depth_component(f32 width,f32 height);
+	void finalize();
+	void vanish();  // §§test
+
+	// usage
+	void start();  // TODO retire start/stop
+	void stop();
+	void bind_colour_component(u8 channel,u8 i);
+	void bind_depth_component(u8 channel);
+
+#ifdef VKBUILD
+	void link_output();
+#endif
 
 private:
-	u32 m_VAO;
-};
-// TODO this should be used automatically when implementing the vulkan correlation,
-//		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
+#ifdef VKBUILD
+public:
+	VkRenderPass render_pass;
+	CommandBuffer* cmd_buffer;
+	// TODO switch back to private and somehow add to pipeline?
+private:
+	VkAttachmentDescription* m_ColourComponentSetup;
+	VkAttachmentReference* m_ColourComponentReference;
+	VkAttachmentDescription* m_DepthComponentSetup;
+	VkAttachmentReference* m_DepthComponentReference;
+#else
+	u32 m_Buffer;
+#endif
 
+	// textures
+	vector<__fbuffer_component> m_ColourComponents;
+	__fbuffer_component m_DepthComponent;
+};
+// TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
+// TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
+// TODO maybe create pipeline feature from this and implement this for ogl version with recursive fb chains
+
+
+// ----------------------------------------------------------------------------------------------------
+// Geometry Buffers
 
 class VertexBuffer
 {
 public:
 	void allocate(size_t size,BufferType type=BUFFER_TYPE_VERTEX);
-#ifdef VKBUILD
-	void vanish();
-#endif
-
-	// activation
-	void bind();
-	void bind_elements();
 
 	// upload
 	void upload_vertices(void* vertices);
@@ -55,21 +89,48 @@ public:
 	void upload_elements(vector<u32> elements);
 
 #ifdef VKBUILD
-public:
-	VkBuffer m_VBO;
+	void vanish();
+#else
+	void bind();
+	void bind_elements();
 #endif
-// TODO remove
 
 private:
 	BufferType m_BufferType;
 	size_t m_BufferSize;
+
 #ifdef VKBUILD
-	//VkBuffer m_VBO;
+public:
+	VkBuffer vbo;
+private:
 	VkDeviceMemory m_Memory;
 #else
 	u32 m_VBO;
 #endif
 };
+
+class VertexArray
+{
+public:
+#ifdef VKBUILD
+	VertexArray(u8 size);
+	void link_buffer(VertexBuffer& vb,u64 offset);
+	void bind(Framebuffer& fb);
+#else
+	VertexArray();
+	void bind();
+#endif
+
+private:
+#ifdef VKBUILD
+	vector<VkBuffer> m_Buffers;
+	vector<u64> m_Offsets;
+#else
+	u32 m_VAO;
+#endif
+};
+// TODO this should be used automatically when implementing the vulkan correlation,
+//		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -170,60 +231,6 @@ struct GPUPixelBuffer
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
 };
-
-
-// ----------------------------------------------------------------------------------------------------
-// Rendertarget Colour Buffers
-
-typedef
-#ifdef VKBUILD
-u32  // TODO texture representation of components
-#else
-u32
-#endif
-__fbuffer_component;
-
-class Framebuffer
-{
-public:
-	Framebuffer(u8 count);
-	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false);
-	void define_depth_component(f32 width,f32 height);
-	void finalize();
-	void vanish();  // §§test
-
-	// usage
-	void start();  // TODO retire start/stop
-	void stop();
-	void bind_colour_component(u8 channel,u8 i);
-	void bind_depth_component(u8 channel);
-
-#ifdef VKBUILD
-	void link_output();
-#endif
-
-private:
-#ifdef VKBUILD
-public:
-	VkRenderPass render_pass;
-	CommandBuffer* cmd_buffer;
-	// TODO switch back to private and somehow add to pipeline?
-private:
-	VkAttachmentDescription* m_ColourComponentSetup;
-	VkAttachmentReference* m_ColourComponentReference;
-	VkAttachmentDescription* m_DepthComponentSetup;
-	VkAttachmentReference* m_DepthComponentReference;
-#else
-	u32 m_Buffer;
-#endif
-
-	// textures
-	vector<__fbuffer_component> m_ColourComponents;
-	__fbuffer_component m_DepthComponent;
-};
-// TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
-// TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
-// TODO maybe create pipeline feature from this and implement this for ogl version with recursive fb chains
 
 
 #endif

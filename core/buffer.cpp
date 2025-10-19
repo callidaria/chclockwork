@@ -2,33 +2,269 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// Vertex Array
+// Rendertarget Colour Buffers
 
 /**
- *	create vertex array
+ *	allocate memory for framebuffer
+ *	\param count: number of components, that will be defined for this framebuffer
  */
-VertexArray::VertexArray()
+Framebuffer::Framebuffer(u8 count)
 {
+	m_ColourComponents.resize(count);
 #ifdef VKBUILD
-	// TODO
-
+	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
+	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
 #else
-	glGenVertexArrays(1,&m_VAO);
+	glGenFramebuffers(1,&m_Buffer);
+	glGenTextures(count,&m_ColourComponents[0]);
 #endif
 }
 
 /**
- *	bind vertex array
+ *	colour component definition, allowed as many as the constructor has allocated
+ *	\param index: frambuffer component index
+ *	\param width: resolution width
+ *	\param height: resolution height
+ *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
  */
-void VertexArray::bind()
+void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer)
 {
 #ifdef VKBUILD
+	// specify colour component
+	m_ColourComponentSetup[index] = {};
+	m_ColourComponentSetup[index].format = g_Frame.swapchain.format.format;
+	m_ColourComponentSetup[index].samples = VK_SAMPLE_COUNT_1_BIT;
+	m_ColourComponentSetup[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	m_ColourComponentSetup[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	m_ColourComponentSetup[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	m_ColourComponentSetup[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_ColourComponentSetup[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// specify fragment output location
+	m_ColourComponentReference[index] = {};
+	m_ColourComponentReference[index].attachment = index;
+	m_ColourComponentReference[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// TODO load format based on given width & height, not based on the global format
+	// TODO configure initialLayout in unison with clear op
+	// TODO setup display texture in this case, because subpass is not yet working
+	// TODO research if different component resolutions are even viable and check for standard setup impl.
+
+#else
+	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[index]);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,width,height,0,GL_RGBA,GL_UNSIGNED_INT+fbuffer,NULL);
+	Texture::set_texture_parameter_nearest_unfiltered();
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_ColourComponents[index],0);
+#endif
+}
+// TODO maybe define index inside the framebuffer struct as a cursor counter variable
+
+/**
+ *	depth component definition, only a single one per framebuffer allowed for obvious reasons
+ *	\param width: resolution width
+ *	\param height: resolution height
+ */
+void Framebuffer::define_depth_component(f32 width,f32 height)
+{
+#ifdef VKBUILD
+	m_DepthComponentSetup = (VkAttachmentDescription*)malloc(sizeof(VkAttachmentDescription));
+	m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
+	m_DepthComponentSetup = {};
+	m_DepthComponentReference = {};
 	// TODO
 
 #else
-	glBindVertexArray(m_VAO);
+	glGenTextures(1,&m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
+	Texture::set_texture_parameter_nearest_unfiltered();
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
 #endif
 }
+// TODO this way the depth component can't be used when finalizing, the depth belongs into constructor malloc
+
+/**
+ *	combine previously defined framebuffer attachments
+ *	NOTE: this has to happen after definitions of all components
+ */
+void Framebuffer::finalize()
+{
+#ifdef VKBUILD
+	// specify graphical subpass
+	VkSubpassDescription __SubpassDesc = {  };
+	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
+	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
+
+	// subpass dependency
+	VkSubpassDependency __SubpassDependency = {  };
+	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	__SubpassDependency.dstSubpass = 0;
+	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.srcAccessMask = 0;
+	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	// TODO implement feature according to the todo placed in header file
+
+	// render pass
+	VkRenderPassCreateInfo __RPInfo = {  };
+	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	__RPInfo.attachmentCount = m_ColourComponents.size();
+	__RPInfo.pAttachments = m_ColourComponentSetup;
+	__RPInfo.subpassCount = 1;
+	__RPInfo.pSubpasses = &__SubpassDesc;
+	__RPInfo.dependencyCount = 1;
+	__RPInfo.pDependencies = &__SubpassDependency;
+	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
+
+	// clear setup memory
+	free(m_ColourComponentSetup);
+	free(m_ColourComponentReference);
+	free(m_DepthComponentSetup);
+	free(m_DepthComponentReference);
+
+#else
+	u32 __Attachments[m_ColourComponents.size()];
+	for (u8 i=0;i<m_ColourComponents.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
+	glDrawBuffers(m_ColourComponents.size(),__Attachments);
+#endif
+}
+
+/**
+ *	TODO
+ */
+void Framebuffer::vanish()
+{
+#ifdef VKBUILD
+	g_GPU.free(render_pass);
+#endif
+}
+
+/**
+ *	clear buffer and start recording process
+ */
+void Framebuffer::start()
+{
+#ifdef VKBUILD
+	// aquire next command buffer & reset
+	cmd_buffer = g_GPU.aquire_command_buffer();
+	vkResetCommandBuffer(cmd_buffer->buffer,0);
+
+	// get next swapchain image
+	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,cmd_buffer->ready,
+											  VK_NULL_HANDLE,&g_Frame.frame_id);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+	// TODO never write to frame directly in and buffer method
+
+	// start command buffer
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
+	// TODO the creation info can be pre-cached instead and then just used based on registration type later
+
+	// setup begin draw
+	VkRenderPassBeginInfo __RPBeginInfo = {  };
+	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	__RPBeginInfo.renderPass = render_pass;
+	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
+	__RPBeginInfo.renderArea.offset = { 0,0 };
+	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
+	__RPBeginInfo.clearValueCount = 1;
+	__RPBeginInfo.pClearValues = &g_Frame.clear_colour;
+	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
+	// TODO very rigid. this expects graphical output, which is kindergarten
+
+	// viewport setup
+	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Frame.viewport);
+	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Frame.scissor);
+	// FIXME investigate this, it seems like this could be solved with a little more elegance
+
+#else
+	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
+	Frame::clear();
+#endif
+}
+
+/**
+ *	stop writing to the framebuffer
+ */
+void Framebuffer::stop()
+{
+#ifdef VKBUILD
+	// finish buffer registration
+	vkCmdEndRenderPass(cmd_buffer->buffer);
+	VkResult __Result = vkEndCommandBuffer(cmd_buffer->buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
+	// TODO outsource appropriately to pipeline probably
+
+	// submit buffer
+	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 1;
+	__SubmitInfo.pWaitSemaphores = &cmd_buffer->ready;
+	__SubmitInfo.pWaitDstStageMask = __StageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
+	__Result = vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+	// TODO again, using all framebuffers like final render targets does not hold up
+
+#else
+	glBindFramebuffer(GL_FRAMEBUFFER,0);
+#endif
+}
+
+/**
+ *	bind colour component to a texture channel
+ *	\param channel: texture channel
+ *	\param i: colour component index of rendertarget
+ */
+void Framebuffer::bind_colour_component(u8 channel,u8 i)
+{
+	Texture::set_channel(channel);
+
+#ifdef VKBUILD
+	// TODO
+#else
+	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[i]);
+#endif
+}
+
+/**
+ *	bind depth component to a texture channel
+ *	\param channel: texture channel
+ */
+void Framebuffer::bind_depth_component(u8 channel)
+{
+	Texture::set_channel(channel);
+
+#ifdef VKBUILD
+	// TODO
+#else
+	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+#endif
+}
+
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+void Framebuffer::link_output()
+{
+	g_Frame.link_result(render_pass);
+}
+
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -61,12 +297,12 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	__BufferInfo.size = size;
 	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&m_VBO);
+	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
 
 	// analyze memory type
 	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(g_GPU.gpu,m_VBO,&__MemoryRequirements);
+	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
 
 	// iterate memory
 	u32 __MemoryIndex = 0;
@@ -89,48 +325,13 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
 
 	// bind memory to vbo
-	vkBindBufferMemory(g_GPU.gpu,m_VBO,m_Memory,0);
+	vkBindBufferMemory(g_GPU.gpu,vbo,m_Memory,0);
 
 #else
 	glGenBuffers(1,&m_VBO);
 #endif
 }
-
-#ifdef VKBUILD
-/**
- *	TODO
- */
-void VertexBuffer::vanish()
-{
-	g_GPU.free(m_VBO);
-	g_GPU.free(m_Memory);
-}
-#endif
-
-/**
- *	TODO
- */
-void VertexBuffer::bind()
-{
-#ifdef VKBUILD
-	// TODO
-#else
-	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
-#endif
-}
-// FIXME there is no bind/unbind in vulkan. how do i replicate this phenomenon?
-
-/**
- *	TODO
- */
-void VertexBuffer::bind_elements()
-{
-#ifdef VKBUILD
-	// TODO bind vulkan elements
-#else
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
-#endif
-}
+// TODO buffer type only relevant for ogl version
 
 /**
  *	TODO
@@ -177,6 +378,86 @@ void VertexBuffer::upload_elements(vector<u32> elements)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,elements.size()*sizeof(u32),&elements[0],GL_STATIC_DRAW);
 #endif
 }
+
+#ifdef VKBUILD
+/**
+ *	TODO
+ */
+void VertexBuffer::vanish()
+{
+	g_GPU.free(vbo);
+	g_GPU.free(m_Memory);
+}
+
+#else
+/**
+ *	TODO
+ */
+void VertexBuffer::bind()
+{
+	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
+}
+// FIXME there is no bind/unbind in vulkan. how do i replicate this phenomenon?
+// TODO maybe just not allow to bind vertex buffer and solve through linking and direct value assignment
+
+/**
+ *	TODO
+ */
+void VertexBuffer::bind_elements()
+{
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
+}
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Vertex Array
+
+#ifdef VKBUILD
+/**
+ *	create vertex array
+ */
+VertexArray::VertexArray(u8 size)
+{
+	m_Buffers.reserve(size);
+	m_Offsets.reserve(size);
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::link_buffer(VertexBuffer& vb,u64 offset)
+{
+	m_Buffers.push_back(vb.vbo);
+	m_Offsets.push_back(offset);
+}
+
+/**
+ *	bind vertex array
+ */
+void VertexArray::bind(Framebuffer& fb)
+{
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_Buffers[0],&m_Offsets[0]);
+}
+
+#else
+/**
+ *	create vertex array
+ */
+VertexArray::VertexArray()
+{
+	glGenVertexArrays(1,&m_VAO);
+}
+
+/**
+ *	bind vertex array
+ */
+void VertexArray::bind()
+{
+	glBindVertexArray(m_VAO);
+}
+
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -673,269 +954,3 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
 	Texture::generate_mipmap();
 }
 // FIXME performance will suffer when generating mipmap every time the loop condition breaks
-
-
-// ----------------------------------------------------------------------------------------------------
-// Rendertarget Colour Buffers
-
-/**
- *	allocate memory for framebuffer
- *	\param count: number of components, that will be defined for this framebuffer
- */
-Framebuffer::Framebuffer(u8 count)
-{
-	m_ColourComponents.resize(count);
-#ifdef VKBUILD
-	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
-	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
-#else
-	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(count,&m_ColourComponents[0]);
-#endif
-}
-
-/**
- *	colour component definition, allowed as many as the constructor has allocated
- *	\param index: frambuffer component index
- *	\param width: resolution width
- *	\param height: resolution height
- *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
- */
-void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer)
-{
-#ifdef VKBUILD
-	// specify colour component
-	m_ColourComponentSetup[index] = {};
-	m_ColourComponentSetup[index].format = g_Frame.swapchain.format.format;
-	m_ColourComponentSetup[index].samples = VK_SAMPLE_COUNT_1_BIT;
-	m_ColourComponentSetup[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	m_ColourComponentSetup[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	m_ColourComponentSetup[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	m_ColourComponentSetup[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	m_ColourComponentSetup[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	m_ColourComponentSetup[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	// specify fragment output location
-	m_ColourComponentReference[index] = {};
-	m_ColourComponentReference[index].attachment = index;
-	m_ColourComponentReference[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	// TODO load format based on given width & height, not based on the global format
-	// TODO configure initialLayout in unison with clear op
-	// TODO setup display texture in this case, because subpass is not yet working
-	// TODO research if different component resolutions are even viable and check for standard setup impl.
-
-#else
-	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[index]);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,width,height,0,GL_RGBA,GL_UNSIGNED_INT+fbuffer,NULL);
-	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_ColourComponents[index],0);
-#endif
-}
-// TODO maybe define index inside the framebuffer struct as a cursor counter variable
-
-/**
- *	depth component definition, only a single one per framebuffer allowed for obvious reasons
- *	\param width: resolution width
- *	\param height: resolution height
- */
-void Framebuffer::define_depth_component(f32 width,f32 height)
-{
-#ifdef VKBUILD
-	m_DepthComponentSetup = (VkAttachmentDescription*)malloc(sizeof(VkAttachmentDescription));
-	m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
-	m_DepthComponentSetup = {};
-	m_DepthComponentReference = {};
-	// TODO
-
-#else
-	glGenTextures(1,&m_DepthComponent);
-	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
-	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
-#endif
-}
-// TODO this way the depth component can't be used when finalizing, the depth belongs into constructor malloc
-
-/**
- *	combine previously defined framebuffer attachments
- *	NOTE: this has to happen after definitions of all components
- */
-void Framebuffer::finalize()
-{
-#ifdef VKBUILD
-	// specify graphical subpass
-	VkSubpassDescription __SubpassDesc = {  };
-	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
-	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
-
-	// subpass dependency
-	VkSubpassDependency __SubpassDependency = {  };
-	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.srcAccessMask = 0;
-	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	// TODO implement feature according to the todo placed in header file
-
-	// render pass
-	VkRenderPassCreateInfo __RPInfo = {  };
-	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = m_ColourComponents.size();
-	__RPInfo.pAttachments = m_ColourComponentSetup;
-	__RPInfo.subpassCount = 1;
-	__RPInfo.pSubpasses = &__SubpassDesc;
-	__RPInfo.dependencyCount = 1;
-	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
-
-	// clear setup memory
-	free(m_ColourComponentSetup);
-	free(m_ColourComponentReference);
-	free(m_DepthComponentSetup);
-	free(m_DepthComponentReference);
-
-#else
-	u32 __Attachments[m_ColourComponents.size()];
-	for (u8 i=0;i<m_ColourComponents.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
-	glDrawBuffers(m_ColourComponents.size(),__Attachments);
-#endif
-}
-
-/**
- *	TODO
- */
-void Framebuffer::vanish()
-{
-#ifdef VKBUILD
-	g_GPU.free(render_pass);
-#endif
-}
-
-/**
- *	clear buffer and start recording process
- */
-void Framebuffer::start()
-{
-#ifdef VKBUILD
-	// aquire next command buffer & reset
-	cmd_buffer = g_GPU.aquire_command_buffer();
-	vkResetCommandBuffer(cmd_buffer->buffer,0);
-
-	// get next swapchain image
-	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,cmd_buffer->ready,
-											  VK_NULL_HANDLE,&g_Frame.frame_id);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
-	// TODO never write to frame directly in and buffer method
-
-	// start command buffer
-	VkCommandBufferBeginInfo __CMDInfo = {  };
-	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDInfo.flags = 0;
-	__CMDInfo.pInheritanceInfo = nullptr;
-	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
-	// TODO the creation info can be pre-cached instead and then just used based on registration type later
-
-	// setup begin draw
-	VkRenderPassBeginInfo __RPBeginInfo = {  };
-	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
-	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
-	__RPBeginInfo.clearValueCount = 1;
-	__RPBeginInfo.pClearValues = &g_Frame.clear_colour;
-	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
-	// TODO very rigid. this expects graphical output, which is kindergarten
-
-	// viewport setup
-	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Frame.viewport);
-	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Frame.scissor);
-	// FIXME investigate this, it seems like this could be solved with a little more elegance
-
-#else
-	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
-	Frame::clear();
-#endif
-}
-
-/**
- *	stop writing to the framebuffer
- */
-void Framebuffer::stop()
-{
-#ifdef VKBUILD
-	// finish buffer registration
-	vkCmdEndRenderPass(cmd_buffer->buffer);
-	VkResult __Result = vkEndCommandBuffer(cmd_buffer->buffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
-	// TODO outsource appropriately to pipeline probably
-
-	// submit buffer
-	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = &cmd_buffer->ready;
-	__SubmitInfo.pWaitDstStageMask = __StageFlags;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
-	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
-	__Result = vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
-	// TODO again, using all framebuffers like final render targets does not hold up
-
-#else
-	glBindFramebuffer(GL_FRAMEBUFFER,0);
-#endif
-}
-
-/**
- *	bind colour component to a texture channel
- *	\param channel: texture channel
- *	\param i: colour component index of rendertarget
- */
-void Framebuffer::bind_colour_component(u8 channel,u8 i)
-{
-	Texture::set_channel(channel);
-
-#ifdef VKBUILD
-	// TODO
-#else
-	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[i]);
-#endif
-}
-
-/**
- *	bind depth component to a texture channel
- *	\param channel: texture channel
- */
-void Framebuffer::bind_depth_component(u8 channel)
-{
-	Texture::set_channel(channel);
-
-#ifdef VKBUILD
-	// TODO
-#else
-	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
-#endif
-}
-
-
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-void Framebuffer::link_output()
-{
-	g_Frame.link_result(render_pass);
-}
-
-#endif

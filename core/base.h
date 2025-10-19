@@ -139,6 +139,7 @@ constexpr u8 MEM_SHIFT = 5;
 constexpr u8 MEM_WIDTH = sizeof(__system_word)*8;
 constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
+
 // ----------------------------------------------------------------------------------------------------
 // logger
 #ifdef DEBUG
