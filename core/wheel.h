@@ -21,7 +21,7 @@ struct Wheel
 	// utility
 	template<typename T> inline lptr<UpdateRoutine> call(T* mem)
 	{
-		routines.push_back(UpdateRoutine { &UpdateRoutine::template _update<T>,(void*)mem });
+		routines.push_back(UpdateRoutine { &UpdateRoutine::_update<T>,(void*)mem });
 		return std::prev(routines.end());
 	}
 	void update();
