@@ -11,7 +11,8 @@ struct UpdateRoutine
 	void* memory;
 	template<typename T> static inline void _update(void* mem)
 	{
-		T* p = (T*)p; p->update();
+		T* p = (T*)mem;
+		p->update();
 	}
 };
 
