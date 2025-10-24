@@ -22,7 +22,6 @@ class Clockwork
 {
 public:
 	Clockwork(Font* font);
-	static inline void _update(void* cc) { Clockwork* p = (Clockwork*)cc; p->update(); }
 	void update();
 
 private:

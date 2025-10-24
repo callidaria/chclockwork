@@ -11,7 +11,6 @@ class TestScene
 {
 public:
 	TestScene();
-	static inline void _update(void* cc) { TestScene* p = (TestScene*)cc; p->update(); }
 	void update();
 
 private:

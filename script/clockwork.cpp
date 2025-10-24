@@ -13,7 +13,7 @@ Clockwork::Clockwork(Font* font)
 	// fps display
 	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,0),15,vec4(1),Alignment{ .align=SCREEN_ALIGN_TOPRIGHT });
 
-	g_Wheel.call(UpdateRoutine{ &Clockwork::_update,(void*)this });
+	g_Wheel.call(this);
 }
 
 /**
