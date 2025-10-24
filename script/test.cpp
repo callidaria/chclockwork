@@ -56,7 +56,7 @@ TestScene::TestScene()
 	g_Renderer.upload_lighting();
 	// FIXME the sunlight emission is coming from a left handed coordinate system somehow (y-axis flip)
 
-	g_Wheel.call(UpdateRoutine{ &TestScene::_update,(void*)this });
+	g_Wheel.call<TestScene>(this);
 }
 
 /**
