@@ -402,15 +402,7 @@ void Camera3D::roll(f32 r)
  *	\param t: amount of time in seconds the momentum takes to snap to target position
  */
 TargetMomentumSnap::TargetMomentumSnap(f32 t)
-	: m_Omega(2.f/t)
-{
-	/*
-	f32 __Omega = 2.f/ffactor;
-	m_Stiff = __Omega*__Omega;
-	m_Damp = 2.f*__Omega;
-	*/
-	m_Omega = 2.f/t;
-}
+	: m_Omega(2.f/t) {  }
 
 /**
  *	update momentum based position to snap to given target position
@@ -419,11 +411,10 @@ TargetMomentumSnap::TargetMomentumSnap(f32 t)
  */
 void TargetMomentumSnap::update(vec3& pos,f32 dt)
 {
-	dt = min(dt,MATH_FRAMERATE_30Hz);
-	/*
-	//momentum += ((target-pos)*m_Stiff-momentum*m_Damp)*dt;
-	momentum = (target-pos)*m_Stiff*dt;
-	//momentum = momentum*dt+((target-pos)*m_Stiff-momentum*m_Damp)*dt;
-	pos += momentum*dt;
-	*/
+	dt = std::min(dt,MATH_FRAMERATE_30Hz);
+	f32 __e = fast_exp3(m_Omega*dt);
+	vec3 __Delta = target-pos;
+	vec3 __v = (momentum+m_Omega*__Delta)*dt;
+	momentum = (momentum-m_Omega*__v)*__e;
+	pos = target+(__Delta+__v)*__e;
 }

@@ -111,9 +111,9 @@ constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
 constexpr f64 MATH_CONVERSION_MS = .000001;
 constexpr f64 MATH_CONVERSION_SC = .000000001;
-constexpr f64 MATH_FRAMERATRE_60Hz = 1/60.;
-constexpr f64 MATH_FRAMERATRE_30Hz = 1/30.;
-constexpr f64 MATH_FRAMERATRE_15Hz = 1/15.;
+constexpr f32 MATH_FRAMERATE_60Hz = 1/60.;
+constexpr f32 MATH_FRAMERATE_30Hz = 1/30.;
+constexpr f32 MATH_FRAMERATE_15Hz = 1/15.;
 
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
@@ -237,16 +237,17 @@ inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 }
 
 // math
-f32 fast_exp2(f32 x) { return 1.f/(1.f+x+.48f*x*x); }
-f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
-f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
-vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
+static inline f32 fast_exp2(f32 x) { return 1.f/(1.f+x+.48f*x*x); }
+static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
+static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
+static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
 
 // assimp conversion
 static inline vec2 to_vec2(aiVector3D& v) { return vec2(v.x,v.y); }
 static inline vec3 to_vec3(aiVector3D& v) { return vec3(v.x,v.y,v.z); }
 static inline quat to_quat(aiQuaternion& q) { return quat(q.w,q.x,q.y,q.z); }
 static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat4(&m.a1)); }
+// TODO this can be done way smoother
 
 
 class BitwiseWords
