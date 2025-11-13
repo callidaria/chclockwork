@@ -28,28 +28,6 @@ void split_words(vector<string>& words,string& line)
 	while (stream>>word) words.push_back(word);
 }
 
-/**
- *	calculate the angular relationship between two vectors in radians
- *	\param a: first vector
- *	\param b: second vector
- *	\returns angle between vectors in radians
- */
-f32 angular_relationship(vec2 a,vec2 b)
-{
-	return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y);
-}
-
-/**
- *	calculate halfway vector in-between the two given vectors
- *	\param a: first vector
- *	\param b: second vector
- *	\returns vector pointing to the location halfway in-between the given vectors
- */
-vec3 halfway(vec3 a,vec3 b)
-{
-	return (a+b)*.5f;
-}
-
 
 // ----------------------------------------------------------------------------------------------------
 // Low-Level Data
@@ -421,13 +399,17 @@ void Camera3D::roll(f32 r)
 
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
- *	\param ffactor: amount of time in seconds the momentum takes to snap to target position
+ *	\param t: amount of time in seconds the momentum takes to snap to target position
  */
-TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
+TargetMomentumSnap::TargetMomentumSnap(f32 t)
+	: m_Omega(2.f/t)
 {
+	/*
 	f32 __Omega = 2.f/ffactor;
 	m_Stiff = __Omega*__Omega;
 	m_Damp = 2.f*__Omega;
+	*/
+	m_Omega = 2.f/t;
 }
 
 /**
@@ -437,6 +419,11 @@ TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
  */
 void TargetMomentumSnap::update(vec3& pos,f32 dt)
 {
-	momentum += ((target-pos)*m_Stiff-momentum*m_Damp)*dt;
+	dt = min(dt,MATH_FRAMERATE_30Hz);
+	/*
+	//momentum += ((target-pos)*m_Stiff-momentum*m_Damp)*dt;
+	momentum = (target-pos)*m_Stiff*dt;
+	//momentum = momentum*dt+((target-pos)*m_Stiff-momentum*m_Damp)*dt;
 	pos += momentum*dt;
+	*/
 }

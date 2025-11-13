@@ -475,6 +475,11 @@ void AnimatedMesh::update()
 	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 }
 
+/**
+ *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
+ *	\param joint: joint of current root in animation joint subtree
+ *	\param parent_transform: transformation basis inherited from parent joint
+ */
 void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
 {
 	mat4 __LocalTransform = parent_transform*joint.transform;
