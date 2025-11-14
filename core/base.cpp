@@ -411,9 +411,8 @@ TargetMomentumSnap::TargetMomentumSnap(f32 t)
  */
 void TargetMomentumSnap::update(vec3& pos,f32 dt)
 {
-	dt = std::min(dt,MATH_FRAMERATE_30Hz);
 	f32 __e = fast_exp3(m_Omega*dt);
-	vec3 __Delta = target-pos;
+	vec3 __Delta = pos-target;
 	vec3 __v = (momentum+m_Omega*__Delta)*dt;
 	momentum = (momentum-m_Omega*__v)*__e;
 	pos = target+(__Delta+__v)*__e;
