@@ -237,6 +237,7 @@ inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
 }
 
 // math
+static inline u32 wrap_next(u32 x,u32 n) { x++;return x*(x<n); }
 static inline f32 fast_exp2(f32 x) { return 1.f/(1.f+x+.48f*x*x); }
 static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
 static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }

@@ -110,9 +110,6 @@ TestScene::TestScene()
  */
 void TestScene::update()
 {
-	// player input (former)
-	//else if (g_Input.keyboard.keys[SDL_SCANCODE_U]) m_Dude.current_animation = 4;	// fall
-
 	// animation update
 	m_Dude.update();
 

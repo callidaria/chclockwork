@@ -418,7 +418,8 @@ f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
 {
 	while (durations[crr+1]<progress) crr++;
 	crr *= crr<durations.size()&&durations[crr]<progress;
-	return (progress-durations[crr])/(durations[crr+1]-durations[crr]);
+	u16 nxt = wrap_next(crr,durations.size());
+	return (progress-durations[crr])/((durations[nxt])-durations[crr]*(nxt>crr));
 }
 
 void AnimatedMesh::update()
@@ -440,26 +441,27 @@ void AnimatedMesh::update()
 		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
 		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
 		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+		COMM_LOG("%f",__RotationProgress);
 
 		// interpolation between keyframes
 		// translations
 		vec3 __TranslateInterpolation = glm::mix(
 				p_Joint.position_keys[p_Joint.crr_position],
-				p_Joint.position_keys[p_Joint.crr_position+1],
+				p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())],
 				__TransformProgress
 			);
 
 		// scaling
 		vec3 __ScaleInterpolation = glm::mix(
 				p_Joint.scaling_keys[p_Joint.crr_scale],
-				p_Joint.scaling_keys[p_Joint.crr_scale+1],
+				p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_durations.size())],
 				__ScalingProgress
 			);
 
 		// rotation
 		quat __RotateInterpolation = glm::slerp(
 				p_Joint.rotation_keys[p_Joint.crr_rotation],
-				p_Joint.rotation_keys[p_Joint.crr_rotation+1],
+				p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_durations.size())],
 				__RotationProgress
 			);
 
@@ -468,6 +470,7 @@ void AnimatedMesh::update()
 				* glm::scale(mat4(1.f),__ScaleInterpolation)
 				* glm::toMat4(__RotateInterpolation);
 	}
+	COMM_LOG("\n");
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);
