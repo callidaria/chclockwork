@@ -441,7 +441,6 @@ void AnimatedMesh::update()
 		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
 		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
 		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
-		COMM_LOG("%f",__RotationProgress);
 
 		// interpolation between keyframes
 		// translations
@@ -470,7 +469,6 @@ void AnimatedMesh::update()
 				* glm::scale(mat4(1.f),__ScaleInterpolation)
 				* glm::toMat4(__RotateInterpolation);
 	}
-	COMM_LOG("\n");
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);

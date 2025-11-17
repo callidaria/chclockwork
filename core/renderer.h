@@ -130,11 +130,19 @@ public:
 
 struct MeshJoint
 {
+	// data mapping
 	string id;
 	string uniform_location;
+
+	// transform manipulation
+	// TODO endpoint
+
+	// final transform
 	mat4 offset;
 	mat4 transform = mat4(1.f);
 	mat4 recursive_transform = mat4(1.f);
+
+	// tree structure
 	vector<u16> children;
 };
 
