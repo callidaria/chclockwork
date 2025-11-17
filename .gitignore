@@ -7,4 +7,6 @@ gmon.out
 core/include/*
 lib/*
 *.o
-texmex.jpg
+
+# resource
+res/private/*

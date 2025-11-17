@@ -8,7 +8,7 @@ TestScene::TestScene()
 {
 	// resources
 	vector<Texture*> __DudeTexture = {
-		g_Renderer.register_texture("./res/test/texmex.jpg",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB),
 		g_Renderer.register_texture("./res/standard/normal.png"),
 		g_Renderer.register_texture("./res/standard/material.png"),
 	};
@@ -103,6 +103,7 @@ TestScene::TestScene()
 	m_Dude.standard_animation = 3;
 
 	g_Wheel.call(UpdateRoutine{ &TestScene::_update,(void*)this });
+	// FIXME this call stuff has been drastically changed, this will break upon merge!
 }
 
 /**
