@@ -412,7 +412,11 @@ f64 AnimatedMesh::get_progress()
 }
 
 /**
- *	update active animation
+ *	(called by AnimatedMesh::animate()) advances through animation keys until current is found
+ *	\param durations: vector list of anim durations, iterated to find the current one
+ *	\param crr: the index of current key in correlated key list of durations
+ *	\param progress: current progress of animation
+ *	\returns progress in-between keys, used for interpolation
  */
 f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
 {
@@ -422,11 +426,15 @@ f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
 	return (progress-durations[crr])/((durations[nxt])-durations[crr]*(nxt>crr));
 }
 
-void AnimatedMesh::update()
+/**
+ *	update active animation
+ */
+void AnimatedMesh::animate()
 {
 	Animation& p_Animation = animations[current_animation];
 
 	// interpolation delta & restore default animation after playback has finished
+	/*
 	progress += g_Frame.delta_time;
 	if (progress>p_Animation.duration)
 	{
@@ -469,12 +477,27 @@ void AnimatedMesh::update()
 				* glm::scale(mat4(1.f),__ScaleInterpolation)
 				* glm::toMat4(__RotateInterpolation);
 	}
+	*/
+	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
+}
+
+/**
+ *	update joint transform based on current target & progression
+ */
+void AnimatedMesh::update()
+{
+	// iterate joints for location animation transformations
+	for (MeshJoint& p_Joint : joints)
+	{
+		// TODO iterate transformation
+		// TODO calculate duration changes
+	}
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
-	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 }
+// TODO while animate is requested, this should be default always-active for all registered anim meshes!
 
 /**
  *	recursively transform joint tree based on each parent (funamentals of forward kinematics)

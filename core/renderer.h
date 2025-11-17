@@ -92,6 +92,32 @@ struct AnimationVertex
 
 
 // ----------------------------------------------------------------------------------------------------
+// Animations
+
+struct AnimationJoint
+{
+	u16 id;
+	u16 crr_position = 0;
+	u16 crr_scale = 0;
+	u16 crr_rotation = 0;
+	vector<vec3> position_keys;
+	vector<vec3> scaling_keys;
+	vector<quat> rotation_keys;
+	vector<f64> position_durations;
+	vector<f64> scaling_durations;
+	vector<f64> rotation_durations;
+};
+// TODO maybe join duration & keys?
+
+struct Animation
+{
+	vector<AnimationJoint> joints;
+	f64 duration;
+	f64 duration_inv;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Entity Data
 
 struct Text
@@ -134,8 +160,18 @@ struct MeshJoint
 	string id;
 	string uniform_location;
 
+	// transform data
+	vec3 crr_position = vec3();
+	vec3 crr_scale = vec3();
+	quat crr_rotation = quat();
+
 	// transform manipulation
-	// TODO endpoint
+	f32 prog_position = .0f;
+	f32 prog_scale = .0f;
+	f32 prog_rotation = .0f;
+	vec3 target_position = vec3();
+	vec3 target_scale = vec3();
+	quat target_rotation = quat();
 
 	// final transform
 	mat4 offset;
@@ -146,34 +182,13 @@ struct MeshJoint
 	vector<u16> children;
 };
 
-struct AnimationJoint
-{
-	u16 id;
-	u16 crr_position = 0;
-	u16 crr_scale = 0;
-	u16 crr_rotation = 0;
-	vector<vec3> position_keys;
-	vector<vec3> scaling_keys;
-	vector<quat> rotation_keys;
-	vector<f64> position_durations;
-	vector<f64> scaling_durations;
-	vector<f64> rotation_durations;
-};
-// TODO maybe join duration & keys?
-
-struct Animation
-{
-	vector<AnimationJoint> joints;
-	f64 duration;
-	f64 duration_inv;
-};
-
 class AnimatedMesh
 {
 public:
 	AnimatedMesh(const char* path);
 	void set_animation(u8 id);
 	f64 get_progress();
+	void animate();
 	void update();
 
 private:

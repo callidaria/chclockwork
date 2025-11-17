@@ -111,6 +111,7 @@ TestScene::TestScene()
 void TestScene::update()
 {
 	// animation update
+	m_Dude.animate();
 	m_Dude.update();
 
 	// camera view geometry
