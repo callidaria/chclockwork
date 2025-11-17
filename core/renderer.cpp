@@ -348,6 +348,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			.joints = vector<AnimationJoint>(__Animation->mNumChannels),
 			.duration = __Animation->mDuration*__TPSinv
 		};
+		animations[i].duration_inv = 1./animations[i].duration;
 
 		// process animation channels
 		for (u32 j=0;j<__Animation->mNumChannels;j++)
@@ -392,22 +393,46 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 
 /**
+ *	switch active animation by id
+ *	\param id: animation id
+ */
+void AnimatedMesh::set_animation(u8 id)
+{
+	current_animation = id;
+	progress = .0;
+}
+
+/**
+ *	aquire progress of current animation
+ *	\returns animation progress between 0 and 1
+ */
+f64 AnimatedMesh::get_progress()
+{
+	return progress*animations[current_animation].duration_inv;
+}
+
+/**
  *	update active animation
  */
 f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
 {
 	while (durations[crr+1]<progress) crr++;
 	crr *= crr<durations.size()&&durations[crr]<progress;
-	return (progress-durations[crr])/(durations[crr+1]-durations[crr]);
+	u16 nxt = wrap_next(crr,durations.size());
+	return (progress-durations[crr])/((durations[nxt])-durations[crr]*(nxt>crr));
 }
 
 void AnimatedMesh::update()
 {
 	Animation& p_Animation = animations[current_animation];
 
-	// interpolation delta
+	// interpolation delta & restore default animation after playback has finished
 	progress += g_Frame.delta_time;
-	progress = fmod(progress,p_Animation.duration);
+	if (progress>p_Animation.duration)
+	{
+		progress -= p_Animation.duration;
+		current_animation = standard_animation;
+	}
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
@@ -421,21 +446,21 @@ void AnimatedMesh::update()
 		// translations
 		vec3 __TranslateInterpolation = glm::mix(
 				p_Joint.position_keys[p_Joint.crr_position],
-				p_Joint.position_keys[p_Joint.crr_position+1],
+				p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())],
 				__TransformProgress
 			);
 
 		// scaling
 		vec3 __ScaleInterpolation = glm::mix(
 				p_Joint.scaling_keys[p_Joint.crr_scale],
-				p_Joint.scaling_keys[p_Joint.crr_scale+1],
+				p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_durations.size())],
 				__ScalingProgress
 			);
 
 		// rotation
 		quat __RotateInterpolation = glm::slerp(
 				p_Joint.rotation_keys[p_Joint.crr_rotation],
-				p_Joint.rotation_keys[p_Joint.crr_rotation+1],
+				p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_durations.size())],
 				__RotationProgress
 			);
 
@@ -451,6 +476,11 @@ void AnimatedMesh::update()
 	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 }
 
+/**
+ *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
+ *	\param joint: joint of current root in animation joint subtree
+ *	\param parent_transform: transformation basis inherited from parent joint
+ */
 void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
 {
 	mat4 __LocalTransform = parent_transform*joint.transform;

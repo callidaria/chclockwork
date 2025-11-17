@@ -28,17 +28,6 @@ void split_words(vector<string>& words,string& line)
 	while (stream>>word) words.push_back(word);
 }
 
-/**
- *	calculate halfway vector in-between the two given vectors
- *	\param a: first vector
- *	\param b: second vector
- *	\returns vector pointing to the location halfway in-between the given vectors
- */
-vec3 halfway(vec3 a,vec3 b)
-{
-	return (a+b)*.5f;
-}
-
 
 // ----------------------------------------------------------------------------------------------------
 // Low-Level Data
@@ -278,6 +267,17 @@ void Transform3D::rotate(vec3 r,vec3 a)
 	rotate(r);
 	transform(position-a,__ScaleFactor,r);
 }
+// FIXME yes, this is actually broken unfortunately. what a surprise, scaling is the culprit
+
+/**
+ *	reset model transform values and model matrix
+ */
+void Transform3D::reset()
+{
+	position = vec3(.0f);
+	rotation = vec3(.0f);
+	model = mat4(1.f);
+}
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -399,14 +399,10 @@ void Camera3D::roll(f32 r)
 
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
- *	\param ffactor: amount of time in seconds the momentum takes to snap to target position
+ *	\param t: amount of time in seconds the momentum takes to snap to target position
  */
-TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
-{
-	f32 __Omega = 2.f/ffactor;
-	m_Stiff = __Omega*__Omega;
-	m_Damp = 2.f*__Omega;
-}
+TargetMomentumSnap::TargetMomentumSnap(f32 t)
+	: m_Omega(2.f/t) {  }
 
 /**
  *	update momentum based position to snap to given target position
@@ -415,6 +411,9 @@ TargetMomentumSnap::TargetMomentumSnap(f32 ffactor)
  */
 void TargetMomentumSnap::update(vec3& pos,f32 dt)
 {
-	m_Momentum += ((target-pos)*m_Stiff-m_Momentum*m_Damp)*dt;
-	pos += m_Momentum*dt;
+	f32 __e = fast_exp3(m_Omega*dt);
+	vec3 __Delta = pos-target;
+	vec3 __v = (momentum+m_Omega*__Delta)*dt;
+	momentum = (momentum-m_Omega*__v)*__e;
+	pos = target+(__Delta+__v)*__e;
 }
