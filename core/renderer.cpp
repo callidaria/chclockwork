@@ -204,6 +204,19 @@ Mesh::Mesh(const char* path)
 }
 
 /**
+ * interpolate between joint transformation based on given data in struct
+ */
+void MeshJoint::interpolate()
+{
+	vec3 __TranslateInterpolation = glm::mix(crr_position,target_position,prog_position);
+	vec3 __ScaleInterpolation = glm::mix(crr_scale,target_scale,prog_scale);
+	quat __RotateInterpolation = glm::slerp(crr_rotation,target_rotation,prog_rotation);
+	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
+			* glm::scale(mat4(1.f),__ScaleInterpolation)
+			* glm::toMat4(__RotateInterpolation);
+}
+
+/**
  *	load animation & mesh information from collada file
  *	\param path: path to .dae collada file
  */
@@ -434,7 +447,6 @@ void AnimatedMesh::animate()
 	Animation& p_Animation = animations[current_animation];
 
 	// interpolation delta & restore default animation after playback has finished
-	/*
 	progress += g_Frame.delta_time;
 	if (progress>p_Animation.duration)
 	{
@@ -445,40 +457,26 @@ void AnimatedMesh::animate()
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
 	{
+		MeshJoint& p_MJoint = joints[p_Joint.id];
+
 		// determine transformation keyframes
-		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
-		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
-		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+		p_MJoint.prog_position = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
+		p_MJoint.prog_scale = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
+		p_MJoint.prog_rotation = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
 
-		// interpolation between keyframes
-		// translations
-		vec3 __TranslateInterpolation = glm::mix(
-				p_Joint.position_keys[p_Joint.crr_position],
-				p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())],
-				__TransformProgress
-			);
+		// setting current positions
+		p_MJoint.crr_position = p_Joint.position_keys[p_Joint.crr_position];
+		p_MJoint.crr_scale = p_Joint.scaling_keys[p_Joint.crr_scale];
+		p_MJoint.crr_rotation = p_Joint.rotation_keys[p_Joint.crr_rotation];
 
-		// scaling
-		vec3 __ScaleInterpolation = glm::mix(
-				p_Joint.scaling_keys[p_Joint.crr_scale],
-				p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_durations.size())],
-				__ScalingProgress
-			);
-
-		// rotation
-		quat __RotateInterpolation = glm::slerp(
-				p_Joint.rotation_keys[p_Joint.crr_rotation],
-				p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_durations.size())],
-				__RotationProgress
-			);
-
-		// transformation
-		joints[p_Joint.id].transform = glm::translate(mat4(1.f),__TranslateInterpolation)
-				* glm::scale(mat4(1.f),__ScaleInterpolation)
-				* glm::toMat4(__RotateInterpolation);
+		// setting target positions;
+		p_MJoint.target_position
+				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())];
+		p_MJoint.target_scale
+				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_durations.size())];
+		p_MJoint.target_rotation
+				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_durations.size())];
 	}
-	*/
-	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 }
 
 /**
@@ -487,16 +485,14 @@ void AnimatedMesh::animate()
 void AnimatedMesh::update()
 {
 	// iterate joints for location animation transformations
-	for (MeshJoint& p_Joint : joints)
-	{
-		// TODO iterate transformation
-		// TODO calculate duration changes
-	}
+	for (MeshJoint& p_Joint : joints) p_Joint.interpolate();
+	// TODO calculate duration changes
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
 }
+// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 // TODO while animate is requested, this should be default always-active for all registered anim meshes!
 
 /**

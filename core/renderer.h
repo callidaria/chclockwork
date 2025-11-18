@@ -156,13 +156,16 @@ public:
 
 struct MeshJoint
 {
+	// utility
+	void interpolate();
+
 	// data mapping
 	string id;
 	string uniform_location;
 
 	// transform data
-	vec3 crr_position = vec3();
-	vec3 crr_scale = vec3();
+	vec3 crr_position = vec3(.0f);
+	vec3 crr_scale = vec3(1.f);
 	quat crr_rotation = quat();
 
 	// transform manipulation
