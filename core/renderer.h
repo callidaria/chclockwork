@@ -169,7 +169,7 @@ struct MeshJoint
 	f32 prog_rotation = .0f;
 	vec3 crr_position = vec3(.0f);
 	vec3 crr_scale = vec3(1.f);
-	quat crr_rotation = quat();
+	quat crr_rotation = quat(1,0,0,0);
 
 	// transform manipulation
 	f32 dur_position = 1.f;
@@ -177,7 +177,7 @@ struct MeshJoint
 	f32 dur_rotation = 1.f;
 	vec3 target_position = vec3(.0f);
 	vec3 target_scale = vec3(1.f);
-	quat target_rotation = quat();
+	quat target_rotation = quat(1,0,0,0);
 
 	// final transform
 	mat4 offset;
