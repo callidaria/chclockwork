@@ -164,16 +164,19 @@ struct MeshJoint
 	string uniform_location;
 
 	// transform data
+	f32 prog_position = .0f;
+	f32 prog_scale = .0f;
+	f32 prog_rotation = .0f;
 	vec3 crr_position = vec3(.0f);
 	vec3 crr_scale = vec3(1.f);
 	quat crr_rotation = quat();
 
 	// transform manipulation
-	f32 prog_position = .0f;
-	f32 prog_scale = .0f;
-	f32 prog_rotation = .0f;
-	vec3 target_position = vec3();
-	vec3 target_scale = vec3();
+	f32 dur_position = 1.f;
+	f32 dur_scale = 1.f;
+	f32 dur_rotation = 1.f;
+	vec3 target_position = vec3(.0f);
+	vec3 target_scale = vec3(1.f);
 	quat target_rotation = quat();
 
 	// final transform

@@ -453,6 +453,7 @@ void AnimatedMesh::animate()
 		progress -= p_Animation.duration;
 		current_animation = standard_animation;
 	}
+	// FIXME fmod in earlier version is more elegant, but you try to replace it with a branch thats faster?
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
@@ -469,7 +470,7 @@ void AnimatedMesh::animate()
 		p_MJoint.crr_scale = p_Joint.scaling_keys[p_Joint.crr_scale];
 		p_MJoint.crr_rotation = p_Joint.rotation_keys[p_Joint.crr_rotation];
 
-		// setting target positions;
+		// setting target positions
 		p_MJoint.target_position
 				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())];
 		p_MJoint.target_scale
