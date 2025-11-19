@@ -217,8 +217,10 @@ void MeshJoint::interpolate()
 }
 
 /**
- *	load animation & mesh information from collada file
- *	\param path: path to .dae collada file
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	recursively counts joints in mesh tree structure
+ *	\param root: root node of counting subtree
+ *	\returns number of joints in this subtree counting parent, children and all subsequent children
  */
 u16 _rc_get_joint_count(aiNode* root)
 {
@@ -227,6 +229,12 @@ u16 _rc_get_joint_count(aiNode* root)
 	return __Result;
 }
 
+/**
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	recursively assemble joint hierarchy by transferring the tree into a flat structure by depthsearch
+ *	\param joints: reference to joint list, that will be filled by this function
+ *	\param root: root note of current subtree
+ */
 void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 {
 	// root joint translation
@@ -247,13 +255,25 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	}
 }
 
-u16 _get_joint_id(vector<MeshJoint>& joints,string id)
+/**
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	aquire joint numerical id from joint list by it's joint string id
+ *	\param joints: list of joints
+ *	\param id: alphanumeric joint id as imported from file structure
+ *	\returns numerical joint id as given by depthsearch layout assembly
+ */
+u16 _get_joint_id(const vector<MeshJoint>& joints,string id)
 {
 	u16 i = 0;
 	while (id!=joints[i].id) i++;
 	return i;
 }
+// FIXME investigate if there is a better solution without iteration find after all
 
+/**
+ *	load animation & mesh information from collada file
+ *	\param path: path to .dae collada file
+ */
 AnimatedMesh::AnimatedMesh(const char* path)
 {
 	Assimp::Importer __Importer;
