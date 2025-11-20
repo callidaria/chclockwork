@@ -211,6 +211,15 @@ void MeshJoint::interpolate()
 	vec3 __TranslateInterpolation = glm::mix(crr_position,target_position,prog_position);
 	vec3 __ScaleInterpolation = glm::mix(crr_scale,target_scale,prog_scale);
 	quat __RotateInterpolation = glm::slerp(crr_rotation,target_rotation,prog_rotation);
+	if (__TranslateInterpolation==vec3(.0f))
+	{
+		bool __CNF = (glm::translate(mat4(1.f),__TranslateInterpolation)
+					  * glm::scale(mat4(1.f),__ScaleInterpolation)
+					  * glm::toMat4(__RotateInterpolation))==transform;
+		COMM_LOG("%s: %f %f %f %f %i\n",id.c_str(),__RotateInterpolation.w,
+				 __RotateInterpolation.x,__RotateInterpolation.y,__RotateInterpolation.z,__CNF);
+		return;
+	}
 	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
 			* glm::scale(mat4(1.f),__ScaleInterpolation)
 			* glm::toMat4(__RotateInterpolation);
@@ -473,7 +482,7 @@ void AnimatedMesh::animate()
 		progress -= p_Animation.duration;
 		current_animation = standard_animation;
 	}
-	// FIXME fmod in earlier version is more elegant, but you try to replace it with a branch thats faster?
+	// TODO exchange rigid control structure with a usable one, then maybe change back to fmod solution
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
@@ -507,13 +516,14 @@ void AnimatedMesh::update()
 {
 	// iterate joints for location animation transformations
 	for (MeshJoint& p_Joint : joints) p_Joint.interpolate();
+	COMM_LOG("\n");
 	// TODO calculate duration changes
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
 }
-// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
+// FIXME the switch to a separated update method has jambled up some vertices in the test mesh...
 // TODO while animate is requested, this should be default always-active for all registered anim meshes!
 
 /**

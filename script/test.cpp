@@ -194,6 +194,7 @@ void TestScene::update()
 	// player transformation
 	m_AnimationBatch->objects[m_DudeID].transform.reset();
 	m_AnimationBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
+	m_AnimationBatch->objects[m_DudeID].transform.rotate_x(90.f);
 	m_AnimationBatch->objects[m_DudeID].transform.model =
 			glm::translate(mat4(1.f),m_PlayerPosition)
 			* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
