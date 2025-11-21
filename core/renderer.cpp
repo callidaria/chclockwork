@@ -245,13 +245,15 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 		.transform = to_mat4(root->mTransformation),
 		.children = vector<u16>(root->mNumChildren)
 	};
-	joints.push_back(__Joint);
 
 	// extract transformation components
 	decompose(__Joint.transform,__Joint.crr_position,__Joint.crr_scale,__Joint.crr_rotation);
 	__Joint.target_position = __Joint.crr_position;
 	__Joint.target_scale = __Joint.crr_scale;
 	__Joint.target_rotation = __Joint.crr_rotation;
+
+	// register joint
+	joints.push_back(__Joint);
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
