@@ -239,21 +239,19 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 {
 	// root joint translation
 	u16 __MemoryID = joints.size();
-	MeshJoint __Joint = {
-		.id = root->mName.C_Str(),
-		.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
-		.transform = to_mat4(root->mTransformation),
-		.children = vector<u16>(root->mNumChildren)
-	};
+	joints.push_back({
+			.id = root->mName.C_Str(),
+			.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
+			.transform = to_mat4(root->mTransformation),
+			.children = vector<u16>(root->mNumChildren)
+		});
+	MeshJoint& __Joint = joints.back();
 
 	// extract transformation components
 	decompose(__Joint.transform,__Joint.crr_position,__Joint.crr_scale,__Joint.crr_rotation);
 	__Joint.target_position = __Joint.crr_position;
 	__Joint.target_scale = __Joint.crr_scale;
 	__Joint.target_rotation = __Joint.crr_rotation;
-
-	// register joint
-	joints.push_back(__Joint);
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)

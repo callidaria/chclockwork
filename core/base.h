@@ -253,9 +253,7 @@ static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
 static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
 {
 	p = m[3];
-	s.x = glm::length(m[0]);
-	s.y = glm::length(m[1]);
-	s.z = glm::length(m[2]);
+	s = vec3(glm::length(m[0]),glm::length(m[1]),glm::length(m[2]));
 	mat3 __Rotation = mat3(vec3(m[0])/s.x,vec3(m[1])/s.y,vec3(m[2])/s.z);
 	r = glm::quat_cast(__Rotation);
 }
