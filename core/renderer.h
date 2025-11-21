@@ -94,20 +94,22 @@ struct AnimationVertex
 // ----------------------------------------------------------------------------------------------------
 // Animations
 
+template<typename T> struct AnimKey
+{
+	T key;
+	f64 duration = .0;
+};
+
 struct AnimationJoint
 {
 	u16 id;
 	u16 crr_position = 0;
 	u16 crr_scale = 0;
 	u16 crr_rotation = 0;
-	vector<vec3> position_keys;
-	vector<vec3> scaling_keys;
-	vector<quat> rotation_keys;
-	vector<f64> position_durations;
-	vector<f64> scaling_durations;
-	vector<f64> rotation_durations;
+	vector<AnimKey<vec3>> position_keys;
+	vector<AnimKey<vec3>> scaling_keys;
+	vector<AnimKey<quat>> rotation_keys;
 };
-// TODO maybe join duration & keys?
 
 struct Animation
 {
@@ -163,21 +165,16 @@ struct MeshJoint
 	string id;
 	string uniform_location;
 
-	// transform data
+	// transform data manipulation
 	f32 prog_position = .0f;
 	f32 prog_scale = .0f;
 	f32 prog_rotation = .0f;
-	vec3 crr_position = vec3(.0f);
-	vec3 crr_scale = vec3(1.f);
-	quat crr_rotation = quat(1,0,0,0);
-
-	// transform manipulation
-	f32 dur_position = 1.f;
-	f32 dur_scale = 1.f;
-	f32 dur_rotation = 1.f;
-	vec3 target_position = vec3(.0f);
-	vec3 target_scale = vec3(1.f);
-	quat target_rotation = quat(1,0,0,0);
+	AnimKey<vec3> crr_position;
+	AnimKey<vec3> crr_scale;
+	AnimKey<quat> crr_rotation;
+	AnimKey<vec3> target_position;
+	AnimKey<vec3> target_scale;
+	AnimKey<quat> target_rotation;
 
 	// final transform
 	mat4 offset;

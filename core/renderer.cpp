@@ -208,9 +208,9 @@ Mesh::Mesh(const char* path)
  */
 void MeshJoint::interpolate()
 {
-	vec3 __TranslateInterpolation = glm::mix(crr_position,target_position,prog_position);
-	vec3 __ScaleInterpolation = glm::mix(crr_scale,target_scale,prog_scale);
-	quat __RotateInterpolation = glm::slerp(crr_rotation,target_rotation,prog_rotation);
+	vec3 __TranslateInterpolation = glm::mix(crr_position.key,target_position.key,prog_position);
+	vec3 __ScaleInterpolation = glm::mix(crr_scale.key,target_scale.key,prog_scale);
+	quat __RotateInterpolation = glm::slerp(crr_rotation.key,target_rotation.key,prog_rotation);
 	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
 			* glm::scale(mat4(1.f),__ScaleInterpolation)
 			* glm::toMat4(__RotateInterpolation);
@@ -248,7 +248,7 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	MeshJoint& __Joint = joints.back();
 
 	// extract transformation components
-	decompose(__Joint.transform,__Joint.crr_position,__Joint.crr_scale,__Joint.crr_rotation);
+	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
 	__Joint.target_position = __Joint.crr_position;
 	__Joint.target_scale = __Joint.crr_scale;
 	__Joint.target_rotation = __Joint.crr_rotation;
@@ -398,34 +398,37 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			// process channel keys for related joint
 			__Joint = {
 				.id = _get_joint_id(joints,__Node->mNodeName.C_Str()),
-				.position_keys = vector<vec3>(__Node->mNumPositionKeys),
-				.scaling_keys = vector<vec3>(__Node->mNumScalingKeys),
-				.rotation_keys = vector<quat>(__Node->mNumRotationKeys),
-				.position_durations = vector<f64>(__Node->mNumPositionKeys),
-				.scaling_durations = vector<f64>(__Node->mNumScalingKeys),
-				.rotation_durations = vector<f64>(__Node->mNumRotationKeys)
+				.position_keys = vector<AnimKey<vec3>>(__Node->mNumPositionKeys),
+				.scaling_keys = vector<AnimKey<vec3>>(__Node->mNumScalingKeys),
+				.rotation_keys = vector<AnimKey<quat>>(__Node->mNumRotationKeys)
 			};
 			// FIXME what happens to memory during this loop is truly gruesome
 
 			// extract position keys
 			for (u32 k=0;k<__Node->mNumPositionKeys;k++)
 			{
-				__Joint.position_keys[k] = to_vec3(__Node->mPositionKeys[k].mValue);
-				__Joint.position_durations[k] = __Node->mPositionKeys[k].mTime*__TPSinv;
+				__Joint.position_keys[k] = {
+					.key = to_vec3(__Node->mPositionKeys[k].mValue),
+					.duration = __Node->mPositionKeys[k].mTime*__TPSinv
+				};
 			}
 
 			// extract scaling keys
 			for (u32 k=0;k<__Node->mNumScalingKeys;k++)
 			{
-				__Joint.scaling_keys[k] = to_vec3(__Node->mScalingKeys[k].mValue);
-				__Joint.scaling_durations[k] = __Node->mScalingKeys[k].mTime*__TPSinv;
+				__Joint.scaling_keys[k] = {
+					.key = to_vec3(__Node->mScalingKeys[k].mValue),
+					.duration = __Node->mScalingKeys[k].mTime*__TPSinv
+				};
 			}
 
 			// extract rotation keys
 			for (u32 k=0;k<__Node->mNumRotationKeys;k++)
 			{
-				__Joint.rotation_keys[k] = to_quat(__Node->mRotationKeys[k].mValue);
-				__Joint.rotation_durations[k] = __Node->mRotationKeys[k].mTime*__TPSinv;
+				__Joint.rotation_keys[k] = {
+					.key = to_quat(__Node->mRotationKeys[k].mValue),
+					.duration = __Node->mRotationKeys[k].mTime*__TPSinv
+				};
 			}
 		}
 	}
@@ -457,12 +460,12 @@ f64 AnimatedMesh::get_progress()
  *	\param progress: current progress of animation
  *	\returns progress in-between keys, used for interpolation
  */
-f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
+template<typename T> f32 _advance_keys(vector<AnimKey<T>>& keys,u16& crr,f64 progress)
 {
-	while (durations[crr+1]<progress) crr++;
-	crr *= crr<durations.size()&&durations[crr]<progress;
-	u16 nxt = wrap_next(crr,durations.size());
-	return (progress-durations[crr])/((durations[nxt])-durations[crr]*(nxt>crr));
+	while (keys[crr+1].duration<progress) crr++;
+	crr *= crr<keys.size()&&keys[crr].duration<progress;
+	u16 nxt = wrap_next(crr,keys.size());
+	return (progress-keys[crr].duration)/((keys[nxt].duration)-keys[crr].duration*(nxt>crr));
 }
 
 /**
@@ -487,9 +490,9 @@ void AnimatedMesh::animate()
 		MeshJoint& p_MJoint = joints[p_Joint.id];
 
 		// determine transformation keyframes
-		p_MJoint.prog_position = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
-		p_MJoint.prog_scale = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
-		p_MJoint.prog_rotation = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+		p_MJoint.prog_position = _advance_keys(p_Joint.position_keys,p_Joint.crr_position,progress);
+		p_MJoint.prog_scale = _advance_keys(p_Joint.scaling_keys,p_Joint.crr_scale,progress);
+		p_MJoint.prog_rotation = _advance_keys(p_Joint.rotation_keys,p_Joint.crr_rotation,progress);
 
 		// setting current positions
 		p_MJoint.crr_position = p_Joint.position_keys[p_Joint.crr_position];
@@ -498,11 +501,11 @@ void AnimatedMesh::animate()
 
 		// setting target positions
 		p_MJoint.target_position
-				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_durations.size())];
+				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_keys.size())];
 		p_MJoint.target_scale
-				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_durations.size())];
+				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_keys.size())];
 		p_MJoint.target_rotation
-				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_durations.size())];
+				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_keys.size())];
 	}
 }
 
