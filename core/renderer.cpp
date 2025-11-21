@@ -211,15 +211,6 @@ void MeshJoint::interpolate()
 	vec3 __TranslateInterpolation = glm::mix(crr_position,target_position,prog_position);
 	vec3 __ScaleInterpolation = glm::mix(crr_scale,target_scale,prog_scale);
 	quat __RotateInterpolation = glm::slerp(crr_rotation,target_rotation,prog_rotation);
-	if (__TranslateInterpolation==vec3(.0f))
-	{
-		bool __CNF = (glm::translate(mat4(1.f),__TranslateInterpolation)
-					  * glm::scale(mat4(1.f),__ScaleInterpolation)
-					  * glm::toMat4(__RotateInterpolation))==transform;
-		COMM_LOG("%s: %f %f %f %f %i\n",id.c_str(),__RotateInterpolation.w,
-				 __RotateInterpolation.x,__RotateInterpolation.y,__RotateInterpolation.z,__CNF);
-		return;
-	}
 	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
 			* glm::scale(mat4(1.f),__ScaleInterpolation)
 			* glm::toMat4(__RotateInterpolation);
@@ -255,6 +246,12 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 		.children = vector<u16>(root->mNumChildren)
 	};
 	joints.push_back(__Joint);
+
+	// extract transformation components
+	decompose(__Joint.transform,__Joint.crr_position,__Joint.crr_scale,__Joint.crr_rotation);
+	__Joint.target_position = __Joint.crr_position;
+	__Joint.target_scale = __Joint.crr_scale;
+	__Joint.target_rotation = __Joint.crr_rotation;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -516,7 +513,6 @@ void AnimatedMesh::update()
 {
 	// iterate joints for location animation transformations
 	for (MeshJoint& p_Joint : joints) p_Joint.interpolate();
-	COMM_LOG("\n");
 	// TODO calculate duration changes
 
 	// calculate transform after parent influence

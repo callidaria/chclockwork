@@ -84,6 +84,8 @@ typedef glm::vec2 vec2;
 typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 typedef glm::quat quat;
+typedef glm::mat2 mat2;
+typedef glm::mat3 mat3;
 typedef glm::mat4 mat4;
 
 // basic magic
@@ -246,6 +248,17 @@ static inline f32 fast_exp2(f32 x) { return 1.f/(1.f+x+.48f*x*x); }
 static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
 static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
 static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
+
+// matrixmath
+static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
+{
+	p = m[3];
+	s.x = glm::length(m[0]);
+	s.y = glm::length(m[1]);
+	s.z = glm::length(m[2]);
+	mat3 __Rotation = mat3(vec3(m[0])/s.x,vec3(m[1])/s.y,vec3(m[2])/s.z);
+	r = glm::quat_cast(__Rotation);
+}
 
 // assimp conversion
 static inline vec2 to_vec2(aiVector3D& v) { return vec2(v.x,v.y); }
