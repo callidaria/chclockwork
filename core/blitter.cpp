@@ -91,8 +91,8 @@ void Frame::update()
 	SDL_GL_SwapWindow(m_Frame);
 
 	// calculate delta time
-	m_LastFrameTime = m_CurrentFrameTime;
-	m_CurrentFrameTime = std::chrono::steady_clock::now();
+	m_LastFrameTime = fstart;
+	fstart = std::chrono::steady_clock::now();
 	delta_time_real = calculate_delta_time_s(m_LastFrameTime);
 	delta_time = delta_time_real*time_factor;
 

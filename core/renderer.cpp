@@ -818,8 +818,6 @@ Renderer::Renderer()
  */
 void Renderer::update()
 {
-	m_FrameStart = std::chrono::steady_clock::now();
-
 	// shadow projection
 	glCullFace(GL_FRONT);
 	glViewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
@@ -1432,12 +1430,12 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
  */
 void Renderer::_gpu_upload()
 {
-	m_GPUSpriteTextures.gpu_upload(RENDERER_TEXTURE_SPRITES,m_FrameStart);
-	m_GPUFontTextures.gpu_upload(RENDERER_TEXTURE_FONTS,m_FrameStart);
+	m_GPUSpriteTextures.gpu_upload(RENDERER_TEXTURE_SPRITES);
+	m_GPUFontTextures.gpu_upload(RENDERER_TEXTURE_FONTS);
 
 	// singular textures
 	m_MutexMeshTextureUpload.lock();
-	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time_ms(m_FrameStart)<FRAME_TIME_BUDGET_MS)
+	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
 		p_Tuple.texture->bind(RENDERER_TEXTURE_UNMAPPED);
@@ -1449,8 +1447,6 @@ void Renderer::_gpu_upload()
 	}
 	m_MutexMeshTextureUpload.unlock();
 }
-// FIXME the same is happening in buffer.cpp, it seems untidy and is worth another thought
-// FIXME optimization implications. the ms delta time is calculated twice between those frames!
 
 
 // ----------------------------------------------------------------------------------------------------
