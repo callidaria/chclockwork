@@ -208,13 +208,55 @@ Mesh::Mesh(const char* path)
  */
 void MeshJoint::interpolate()
 {
-	vec3 __TranslateInterpolation = glm::mix(crr_position.key,target_position.key,prog_position);
-	vec3 __ScaleInterpolation = glm::mix(crr_scale.key,target_scale.key,prog_scale);
-	quat __RotateInterpolation = glm::slerp(crr_rotation.key,target_rotation.key,prog_rotation);
+	vec3 __TranslateInterpolation = glm::mix(crr_position.key,target_position,prog_position);
+	vec3 __ScaleInterpolation = glm::mix(crr_scale.key,target_scale,prog_scale);
+	quat __RotateInterpolation = glm::slerp(crr_rotation.key,target_rotation,prog_rotation);
 	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
 			* glm::scale(mat4(1.f),__ScaleInterpolation)
 			* glm::toMat4(__RotateInterpolation);
 }
+/**
+ *	TODO structure
+ *	- set keys for mesh joints in here for later automatic interpolation
+ *	- somehow exclude animation progress from the animate call and auto-update
+ *	- find correct data structure for mesh joints, holding key, duration and target + switch feat.
+ *	- somehow automatically set next key while that all is happening simultaneously
+ *
+ *	TODO workstructure
+ *	- call request_<component>() over an animation key entry
+ *	- set a duration inside the key for interpolation progress
+ *	- set the target transformation in respective vector or quaternion
+ *	- then the interpolation is able to run between keys
+ *
+ *	FIXME problems with this
+ *	- how would the joint know when the interpolation is done
+ *	- what would the joint do once the interpolation is done
+ *	- when animation switches keys, do you overwrite the key each loop iteration?
+ *	- how do you keep progress?
+ *
+ *	IDEAs
+ *	- set a different splitkey every time the interpolation has been set.
+ *		if there is none set or there is a key transition, it will automatically transition between animations
+ *	- when requesting a new change, automatically split into new progress, store & then transform
+ *		this will automatically interpolate into the progress when crr_duration is saved as delta
+ *	- maybe upload the progression through key, then interpolate on that and store the result as current
+ *
+ *	PROBLEMS
+ *	- this idea wants to do the interpolation TWICE
+ *	- it also is not working with the switch in-between animation concepts
+ *	- when storing result and then updating key, will this create weird transition in case of low fps?
+ *
+ *	TRYING to fix the problem with self advancing duration & key update in animator update
+ *	- it is a given that the animation iterator updates the target keys
+ *	- it is a given that the animation iterator calculates an in-between progression
+ *	- it is a given that the mesh updater will listen to delta time on it's own
+ *	- it is a given that the mesh updater will interpolate in-between transformation keys
+ *	- we want to interpolate in-between transformation keys only ONCE
+ *		-> this means the interpolation happens in the mesh update and prohibits part interpolation in animator
+ *	- we ideally do NOT want to compute the in-between key progression in animator update
+ *		-> this means that there is no progress computation inside the animator
+ *		-> this ALSO means that the original start timing of the animation key has to be stored in the joint
+ */
 
 /**
  *	(called by AnimatedMesh::AnimatedMesh())
@@ -249,9 +291,9 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 
 	// extract transformation components
 	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
-	__Joint.target_position = __Joint.crr_position;
-	__Joint.target_scale = __Joint.crr_scale;
-	__Joint.target_rotation = __Joint.crr_rotation;
+	__Joint.target_position = __Joint.crr_position.key;
+	__Joint.target_scale = __Joint.crr_scale.key;
+	__Joint.target_rotation = __Joint.crr_rotation.key;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -501,11 +543,11 @@ void AnimatedMesh::animate()
 
 		// setting target positions
 		p_MJoint.target_position
-				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_keys.size())];
+				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_keys.size())].key;
 		p_MJoint.target_scale
-				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_keys.size())];
+				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_keys.size())].key;
 		p_MJoint.target_rotation
-				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_keys.size())];
+				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_keys.size())].key;
 	}
 }
 

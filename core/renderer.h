@@ -172,9 +172,9 @@ struct MeshJoint
 	AnimKey<vec3> crr_position;
 	AnimKey<vec3> crr_scale;
 	AnimKey<quat> crr_rotation;
-	AnimKey<vec3> target_position;
-	AnimKey<vec3> target_scale;
-	AnimKey<quat> target_rotation;
+	vec3 target_position;
+	vec3 target_scale;
+	quat target_rotation;
 
 	// final transform
 	mat4 offset;
