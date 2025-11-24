@@ -132,6 +132,24 @@ constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
 
 // ----------------------------------------------------------------------------------------------------
+// Utility
+
+// time
+inline f64 calculate_delta_time_s(std::chrono::steady_clock::time_point& t)
+{
+	return std::chrono::duration<f64>(std::chrono::steady_clock::now()-t).count();
+}
+inline f64 calculate_delta_time_ms(std::chrono::steady_clock::time_point& t)
+{
+	return std::chrono::duration<f64,std::milli>(std::chrono::steady_clock::now()-t).count();
+}
+
+// system utility
+bool check_file_exists(const char* path);
+void split_words(vector<string>& words,string& line);
+
+
+// ----------------------------------------------------------------------------------------------------
 // Logger
 #ifdef DEBUG
 
@@ -147,14 +165,13 @@ constexpr const char* LOG_GREY = "\e[1;90m";
 constexpr const char* LOG_CLEAR = "\e[0;39m";
 
 // time records
-f64 calculate_delta_time(std::chrono::steady_clock::time_point& t);
 constexpr f64 LOG_FPS_ALERT = 16.6;
 constexpr const char* LOG_TIMING[] = { LOG_GREY,LOG_YELLOW,LOG_RED };
 inline std::chrono::steady_clock::time_point log_delta = std::chrono::steady_clock::now();
 static inline void reset_timestamp() { log_delta = std::chrono::steady_clock::now(); }
 static inline void produce_timestamp(bool padding=true)
 {
-	f64 delta = calculate_delta_time(log_delta);
+	f64 delta = calculate_delta_time_ms(log_delta);
 	printf("%s",LOG_TIMING[(u8)std::min(delta/LOG_FPS_ALERT,2.)]);
 	printf((padding) ? "%12fms%s" : "%fms%s\n",delta,LOG_CLEAR);
 	reset_timestamp();
@@ -191,7 +208,7 @@ struct RuntimeProfilerData
 };
 static inline void profiler_tick(RuntimeProfilerData* data)
 {
-	data->measurements[data->head] = calculate_delta_time(data->last);
+	data->measurements[data->head] = calculate_delta_time_ms(data->last);
 	data->head = (data->head+1)%PROFILER_FRAMES_RELEVANT_AVERAGE;
 	data->last = std::chrono::steady_clock::now();
 }
@@ -235,17 +252,7 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 
 // ----------------------------------------------------------------------------------------------------
-// Utility
-
-// time
-inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
-{
-	return std::chrono::duration<f64,std::milli>(std::chrono::steady_clock::now()-t).count();
-}
-
-// system utility
-bool check_file_exists(const char* path);
-void split_words(vector<string>& words,string& line);
+// Math
 
 // math
 static inline u32 wrap_next(u32 x,u32 n) { x++;return x*(x<n); }

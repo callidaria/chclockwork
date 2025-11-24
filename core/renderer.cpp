@@ -1437,7 +1437,7 @@ void Renderer::_gpu_upload()
 
 	// singular textures
 	m_MutexMeshTextureUpload.lock();
-	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time(m_FrameStart)<FRAME_TIME_BUDGET_MS)
+	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time_ms(m_FrameStart)<FRAME_TIME_BUDGET_MS)
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
 		p_Tuple.texture->bind(RENDERER_TEXTURE_UNMAPPED);
@@ -1450,6 +1450,7 @@ void Renderer::_gpu_upload()
 	m_MutexMeshTextureUpload.unlock();
 }
 // FIXME the same is happening in buffer.cpp, it seems untidy and is worth another thought
+// FIXME optimization implications. the ms delta time is calculated twice between those frames!
 
 
 // ----------------------------------------------------------------------------------------------------

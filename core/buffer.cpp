@@ -452,7 +452,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point
 	mutex_texture_requests.lock();
 
 	// iterate waiting requests
-	while (load_requests.size()&&calculate_delta_time(fstart)<FRAME_TIME_BUDGET_MS)
+	while (load_requests.size()&&calculate_delta_time_ms(fstart)<FRAME_TIME_BUDGET_MS)
 	{
 		TextureData& p_Data = load_requests.front();
 		p_Data.gpu_upload_subtexture();
