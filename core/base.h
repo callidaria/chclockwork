@@ -62,7 +62,7 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// basetype definitions to n64 standard
+// Basetype Definitions to N64 Standard
 // unsigned data
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -115,8 +115,6 @@ constexpr f32 MATH_CENTER_X = MATH_CARTESIAN_XRANGE*.5f;
 constexpr f32 MATH_CENTER_Y = MATH_CARTESIAN_YRANGE*.5f;
 constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
-constexpr f64 MATH_CONVERSION_MS = .000001;
-constexpr f64 MATH_CONVERSION_SC = .000000001;
 constexpr f32 MATH_FRAMERATE_60Hz = 1/60.;
 constexpr f32 MATH_FRAMERATE_30Hz = 1/30.;
 constexpr f32 MATH_FRAMERATE_15Hz = 1/15.;
@@ -132,8 +130,9 @@ constexpr u8 MEM_SHIFT = 5;
 constexpr u8 MEM_WIDTH = sizeof(__system_word)*8;
 constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
+
 // ----------------------------------------------------------------------------------------------------
-// logger
+// Logger
 #ifdef DEBUG
 
 // text colour
@@ -148,13 +147,14 @@ constexpr const char* LOG_GREY = "\e[1;90m";
 constexpr const char* LOG_CLEAR = "\e[0;39m";
 
 // time records
+f64 calculate_delta_time(std::chrono::steady_clock::time_point& t);
 constexpr f64 LOG_FPS_ALERT = 16.6;
 constexpr const char* LOG_TIMING[] = { LOG_GREY,LOG_YELLOW,LOG_RED };
 inline std::chrono::steady_clock::time_point log_delta = std::chrono::steady_clock::now();
 static inline void reset_timestamp() { log_delta = std::chrono::steady_clock::now(); }
 static inline void produce_timestamp(bool padding=true)
 {
-	f64 delta = (std::chrono::steady_clock::now()-log_delta).count()*MATH_CONVERSION_MS;
+	f64 delta = calculate_delta_time(log_delta);
 	printf("%s",LOG_TIMING[(u8)std::min(delta/LOG_FPS_ALERT,2.)]);
 	printf((padding) ? "%12fms%s" : "%fms%s\n",delta,LOG_CLEAR);
 	reset_timestamp();
@@ -191,7 +191,7 @@ struct RuntimeProfilerData
 };
 static inline void profiler_tick(RuntimeProfilerData* data)
 {
-	data->measurements[data->head] = (std::chrono::steady_clock::now()-data->last).count()*MATH_CONVERSION_MS;
+	data->measurements[data->head] = calculate_delta_time(data->last);
 	data->head = (data->head+1)%PROFILER_FRAMES_RELEVANT_AVERAGE;
 	data->last = std::chrono::steady_clock::now();
 }
@@ -234,13 +234,18 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 #endif
 
 
+// ----------------------------------------------------------------------------------------------------
+// Utility
+
+// time
+inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
+{
+	return std::chrono::duration<f64,std::milli>(std::chrono::steady_clock::now()-t).count();
+}
+
 // system utility
 bool check_file_exists(const char* path);
 void split_words(vector<string>& words,string& line);
-inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
-{
-	return (std::chrono::steady_clock::now()-t).count()*MATH_CONVERSION_MS;
-}
 
 // math
 static inline u32 wrap_next(u32 x,u32 n) { x++;return x*(x<n); }
@@ -266,6 +271,9 @@ static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat
 // TODO this can be done way smoother
 
 
+// ----------------------------------------------------------------------------------------------------
+// Boolean Clusters
+
 class BitwiseWords
 {
 public:
@@ -282,6 +290,9 @@ private:
 	size_t m_Size;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Segmentless Datastructure
 
 template<typename T> class InPlaceArray
 {
@@ -321,6 +332,9 @@ private: u16 m_Size;
 };
 
 
+// ----------------------------------------------------------------------------------------------------
+// Common Thread Signaling Structure
+
 struct ThreadSignal
 {
 	// utility
@@ -340,6 +354,9 @@ struct ThreadSignal
 };
 
 
+// ----------------------------------------------------------------------------------------------------
+// Geometry Definition
+
 struct Rect
 {
 	// utility
@@ -350,6 +367,9 @@ struct Rect
 	vec2 extent;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Thematic Matrix Math
 
 struct Transform3D
 {

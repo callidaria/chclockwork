@@ -93,12 +93,12 @@ void Frame::update()
 	// calculate delta time
 	m_LastFrameTime = m_CurrentFrameTime;
 	m_CurrentFrameTime = std::chrono::steady_clock::now();
-	delta_time_real = (m_CurrentFrameTime-m_LastFrameTime).count()*MATH_CONVERSION_SC;
+	delta_time_real = std::chrono::duration<f64>(m_CurrentFrameTime-m_LastFrameTime).count();
 	delta_time = delta_time_real*time_factor;
 
 	// fps counter
 #ifdef DEBUG
-	f64 __LFrameUpdate = (std::chrono::steady_clock::now()-m_LastFrameUpdate).count()*MATH_CONVERSION_MS;
+	f64 __LFrameUpdate = calculate_delta_time(m_LastFrameUpdate);
 	if (__LFrameUpdate>1000)
 	{
 		fps = m_LFps;
