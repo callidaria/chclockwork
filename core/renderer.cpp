@@ -246,7 +246,7 @@ void MeshJoint::interpolate()
  *	- it also is not working with the switch in-between animation concepts
  *	- when storing result and then updating key, will this create weird transition in case of low fps?
  *
- *	TRYING to fix the problem with self advancing duration & key update in animator update
+ *	TRYING to fix the problem with self advancing duration & key update in animator
  *	- it is a given that the animation iterator updates the target keys
  *	- it is a given that the animation iterator calculates an in-between progression
  *	- it is a given that the mesh updater will listen to delta time on it's own
@@ -256,6 +256,14 @@ void MeshJoint::interpolate()
  *	- we ideally do NOT want to compute the in-between key progression in animator update
  *		-> this means that there is no progress computation inside the animator
  *		-> this ALSO means that the original start timing of the animation key has to be stored in the joint
+ *		-> possible solution is to offset key's duration value into negative for current progression & reset??
+ *		-> better: store future key to transition into; anim key will be delayed but targeter will be compatible
+ *		-> this would make target the animation key and current only a vec/quat!
+ *		-> then subtract the remaining duration from key and interpolate between current position & target
+ *	- how would i go about the in-between progression calculated by the target?
+ *		-> variable to bias the starting key into the past, this will then be subtracted when interpolating
+ *		-> this bias will be reset after each subtraction, due to the new current position & duration subtraction
+ *		-> this bias can be stored as duration component in current transformation keys, when using animkeys
  */
 
 /**
@@ -502,12 +510,12 @@ f64 AnimatedMesh::get_progress()
  *	\param progress: current progress of animation
  *	\returns progress in-between keys, used for interpolation
  */
-template<typename T> f32 _advance_keys(vector<AnimKey<T>>& keys,u16& crr,f64 progress)
+template<typename T> void _advance_keys(vector<AnimKey<T>>& keys,u16& crr,f64 progress)
 {
 	while (keys[crr+1].duration<progress) crr++;
 	crr *= crr<keys.size()&&keys[crr].duration<progress;
-	u16 nxt = wrap_next(crr,keys.size());
-	return (progress-keys[crr].duration)/((keys[nxt].duration)-keys[crr].duration*(nxt>crr));
+	u16 __Nxt = wrap_next(crr,keys.size());
+	return (progress-keys[crr].duration)/((keys[__Nxt].duration)-keys[crr].duration*(__Nxt>crr));
 }
 
 /**
