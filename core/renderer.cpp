@@ -247,10 +247,15 @@ void MeshJoint::interpolate()
 	prog_rotation += g_Frame.delta_time;
 	// TODO when target is reached, make the transition stop! (this is not applying to running animations)
 
+	// calculate key progression
+	f32 dt_position = glm::clamp(prog_position/target_position.duration,.0,1.);
+	f32 dt_scale = glm::clamp(prog_scale/target_scale.duration,.0,1.);
+	f32 dt_rotation = glm::clamp(prog_rotation/target_rotation.duration,.0,1.);
+
 	// interpolation
-	ct_position = glm::mix(crr_position.key,target_position.key,prog_position);
-	ct_scale = glm::mix(crr_scale.key,target_scale.key,prog_scale);
-	ct_rotation = glm::slerp(crr_rotation.key,target_rotation.key,prog_rotation);
+	ct_position = glm::mix(crr_position.key,target_position.key,dt_position);
+	ct_scale = glm::mix(crr_scale.key,target_scale.key,dt_scale);
+	ct_rotation = glm::slerp(crr_rotation.key,target_rotation.key,dt_rotation);
 	transform = glm::translate(mat4(1.f),ct_position)*glm::scale(mat4(1.f),ct_scale)*glm::toMat4(ct_rotation);
 }
 
@@ -529,6 +534,7 @@ void AnimatedMesh::animate()
 		current_animation = standard_animation;
 	}
 	// TODO exchange rigid control structure with a usable one, then maybe change back to fmod solution
+	// TODO transition from last to first in loop without jumping violently (this also happens when switching)
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
