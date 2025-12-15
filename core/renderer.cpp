@@ -204,23 +204,61 @@ Mesh::Mesh(const char* path)
 }
 
 /**
+ *	TODO
+ */
+void MeshJoint::request_position(const AnimKey<vec3>& target)
+{
+	prog_position = 0;
+	crr_position.key = ct_position;
+	crr_position.duration = 0;
+	target_position = target;
+}
+
+/**
+ *	TODO
+ */
+void MeshJoint::request_scale(const AnimKey<vec3>& target)
+{
+	prog_scale = 0;
+	crr_scale.key = ct_scale;
+	crr_scale.duration = 0;
+	target_scale = target;
+}
+
+/**
+ *	TODO
+ */
+void MeshJoint::request_rotation(const AnimKey<quat>& target)
+{
+	prog_rotation = 0;
+	crr_rotation.key = ct_rotation;
+	crr_rotation.duration = 0;
+	target_rotation = target;
+}
+
+/**
  * interpolate between joint transformation based on given data in struct
  */
 void MeshJoint::interpolate()
 {
-	vec3 __TranslateInterpolation = glm::mix(crr_position.key,target_position,prog_position);
-	vec3 __ScaleInterpolation = glm::mix(crr_scale.key,target_scale,prog_scale);
-	quat __RotateInterpolation = glm::slerp(crr_rotation.key,target_rotation,prog_rotation);
-	transform = glm::translate(mat4(1.f),__TranslateInterpolation)
-			* glm::scale(mat4(1.f),__ScaleInterpolation)
-			* glm::toMat4(__RotateInterpolation);
+	// time advancement
+	prog_position += g_Frame.delta_time;
+	prog_scale += g_Frame.delta_time;
+	prog_rotation += g_Frame.delta_time;
+	// TODO when target is reached, make the transition stop! (this is not applying to running animations)
+
+	// interpolation
+	ct_position = glm::mix(crr_position.key,target_position.key,prog_position);
+	ct_scale = glm::mix(crr_scale.key,target_scale.key,prog_scale);
+	ct_rotation = glm::slerp(crr_rotation.key,target_rotation.key,prog_rotation);
+	transform = glm::translate(mat4(1.f),ct_position)*glm::scale(mat4(1.f),ct_scale)*glm::toMat4(ct_rotation);
 }
 /**
  *	TODO structure
  *	- set keys for mesh joints in here for later automatic interpolation
  *	- somehow exclude animation progress from the animate call and auto-update
  *	- find correct data structure for mesh joints, holding key, duration and target + switch feat.
- *	- somehow automatically set next key while that all is happening simultaneously
+ *	- somehow automatically set next key while all that is happening simultaneously
  *
  *	TODO workstructure
  *	- call request_<component>() over an animation key entry
@@ -299,9 +337,9 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 
 	// extract transformation components
 	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
-	__Joint.target_position = __Joint.crr_position.key;
-	__Joint.target_scale = __Joint.crr_scale.key;
-	__Joint.target_rotation = __Joint.crr_rotation.key;
+	__Joint.target_position = __Joint.crr_position;
+	__Joint.target_scale = __Joint.crr_scale;
+	__Joint.target_rotation = __Joint.crr_rotation;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -506,16 +544,22 @@ f64 AnimatedMesh::get_progress()
 /**
  *	(called by AnimatedMesh::animate()) advances through animation keys until current is found
  *	\param durations: vector list of anim durations, iterated to find the current one
- *	\param crr: the index of current key in correlated key list of durations
+ *	\param crr: the current key, with adjusted duration time
  *	\param progress: current progress of animation
- *	\returns progress in-between keys, used for interpolation
+ *	\returns actual-time progress after the current key as offset bias, used for interpolation
+ *	TODO
  */
-template<typename T> void _advance_keys(vector<AnimKey<T>>& keys,u16& crr,f64 progress)
+template<typename T> /*f64*/void _advance_keys(const vector<AnimKey<T>>& keys,AnimKey<T>& crr,f64 progress)
 {
-	while (keys[crr+1].duration<progress) crr++;
-	crr *= crr<keys.size()&&keys[crr].duration<progress;
-	u16 __Nxt = wrap_next(crr,keys.size());
-	return (progress-keys[crr].duration)/((keys[__Nxt].duration)-keys[crr].duration*(__Nxt>crr));
+	u16 __Crr = 0;
+	while (keys[__Crr+1].duration<progress) __Crr++;
+	__Crr *= __Crr<keys.size()&&keys[__Crr].duration<progress;
+	f64 __Offset = progress-g_Frame.delta_time;
+	crr = keys[wrap_next(__Crr,keys.size())];
+	COMM_LOG("%f %f",crr.duration,__Offset);
+	crr.duration -= __Offset;//keys[__Prev].duration+(progress-g_Frame.delta_time);
+	COMM_LOG("%f",crr.duration);
+	//return __Out;
 }
 
 /**
@@ -540,22 +584,16 @@ void AnimatedMesh::animate()
 		MeshJoint& p_MJoint = joints[p_Joint.id];
 
 		// determine transformation keyframes
-		p_MJoint.prog_position = _advance_keys(p_Joint.position_keys,p_Joint.crr_position,progress);
-		p_MJoint.prog_scale = _advance_keys(p_Joint.scaling_keys,p_Joint.crr_scale,progress);
-		p_MJoint.prog_rotation = _advance_keys(p_Joint.rotation_keys,p_Joint.crr_rotation,progress);
+		AnimKey<vec3> __TargetPosition,__TargetScale;
+		AnimKey<quat> __TargetRotation;
+		/*f64 __OfsPosition = */_advance_keys(p_Joint.position_keys,__TargetPosition,progress);
+		/*f64 __OfsScale = */_advance_keys(p_Joint.scaling_keys,__TargetScale,progress);
+		/*f64 __OfsRotation = */_advance_keys(p_Joint.rotation_keys,__TargetRotation,progress);
 
-		// setting current positions
-		p_MJoint.crr_position = p_Joint.position_keys[p_Joint.crr_position];
-		p_MJoint.crr_scale = p_Joint.scaling_keys[p_Joint.crr_scale];
-		p_MJoint.crr_rotation = p_Joint.rotation_keys[p_Joint.crr_rotation];
-
-		// setting target positions
-		p_MJoint.target_position
-				= p_Joint.position_keys[wrap_next(p_Joint.crr_position,p_Joint.position_keys.size())].key;
-		p_MJoint.target_scale
-				= p_Joint.scaling_keys[wrap_next(p_Joint.crr_scale,p_Joint.scaling_keys.size())].key;
-		p_MJoint.target_rotation
-				= p_Joint.rotation_keys[wrap_next(p_Joint.crr_rotation,p_Joint.rotation_keys.size())].key;
+		// set joint transformation targets
+		p_MJoint.request_position(__TargetPosition/*,__OfsPosition*/);
+		p_MJoint.request_scale(__TargetScale/*,__OfsScale*/);
+		p_MJoint.request_rotation(__TargetRotation/*,__OfsRotation*/);
 	}
 }
 
@@ -566,7 +604,6 @@ void AnimatedMesh::update()
 {
 	// iterate joints for location animation transformations
 	for (MeshJoint& p_Joint : joints) p_Joint.interpolate();
-	// TODO calculate duration changes
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);

@@ -159,6 +159,9 @@ public:
 struct MeshJoint
 {
 	// utility
+	void request_position(const AnimKey<vec3>& target);
+	void request_scale(const AnimKey<vec3>& target);
+	void request_rotation(const AnimKey<quat>& target);
 	void interpolate();
 
 	// data mapping
@@ -169,6 +172,9 @@ struct MeshJoint
 	f32 prog_position = .0f;
 	f32 prog_scale = .0f;
 	f32 prog_rotation = .0f;
+	vec3 ct_position;
+	vec3 ct_scale;
+	quat ct_rotation;
 	AnimKey<vec3> crr_position;
 	AnimKey<vec3> crr_scale;
 	AnimKey<quat> crr_rotation;
