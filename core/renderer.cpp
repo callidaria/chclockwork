@@ -253,56 +253,6 @@ void MeshJoint::interpolate()
 	ct_rotation = glm::slerp(crr_rotation.key,target_rotation.key,prog_rotation);
 	transform = glm::translate(mat4(1.f),ct_position)*glm::scale(mat4(1.f),ct_scale)*glm::toMat4(ct_rotation);
 }
-/**
- *	TODO structure
- *	- set keys for mesh joints in here for later automatic interpolation
- *	- somehow exclude animation progress from the animate call and auto-update
- *	- find correct data structure for mesh joints, holding key, duration and target + switch feat.
- *	- somehow automatically set next key while all that is happening simultaneously
- *
- *	TODO workstructure
- *	- call request_<component>() over an animation key entry
- *	- set a duration inside the key for interpolation progress
- *	- set the target transformation in respective vector or quaternion
- *	- then the interpolation is able to run between keys
- *
- *	FIXME problems with this
- *	- how would the joint know when the interpolation is done
- *	- what would the joint do once the interpolation is done
- *	- when animation switches keys, do you overwrite the key each loop iteration?
- *	- how do you keep progress?
- *
- *	IDEAs
- *	- set a different splitkey every time the interpolation has been set.
- *		if there is none set or there is a key transition, it will automatically transition between animations
- *	- when requesting a new change, automatically split into new progress, store & then transform
- *		this will automatically interpolate into the progress when crr_duration is saved as delta
- *	- maybe upload the progression through key, then interpolate on that and store the result as current
- *
- *	PROBLEMS
- *	- this idea wants to do the interpolation TWICE
- *	- it also is not working with the switch in-between animation concepts
- *	- when storing result and then updating key, will this create weird transition in case of low fps?
- *
- *	TRYING to fix the problem with self advancing duration & key update in animator
- *	- it is a given that the animation iterator updates the target keys
- *	- it is a given that the animation iterator calculates an in-between progression
- *	- it is a given that the mesh updater will listen to delta time on it's own
- *	- it is a given that the mesh updater will interpolate in-between transformation keys
- *	- we want to interpolate in-between transformation keys only ONCE
- *		-> this means the interpolation happens in the mesh update and prohibits part interpolation in animator
- *	- we ideally do NOT want to compute the in-between key progression in animator update
- *		-> this means that there is no progress computation inside the animator
- *		-> this ALSO means that the original start timing of the animation key has to be stored in the joint
- *		-> possible solution is to offset key's duration value into negative for current progression & reset??
- *		-> better: store future key to transition into; anim key will be delayed but targeter will be compatible
- *		-> this would make target the animation key and current only a vec/quat!
- *		-> then subtract the remaining duration from key and interpolate between current position & target
- *	- how would i go about the in-between progression calculated by the target?
- *		-> variable to bias the starting key into the past, this will then be subtracted when interpolating
- *		-> this bias will be reset after each subtraction, due to the new current position & duration subtraction
- *		-> this bias can be stored as duration component in current transformation keys, when using animkeys
- */
 
 /**
  *	(called by AnimatedMesh::AnimatedMesh())
@@ -336,10 +286,13 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	MeshJoint& __Joint = joints.back();
 
 	// extract transformation components
-	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
-	__Joint.target_position = __Joint.crr_position;
-	__Joint.target_scale = __Joint.crr_scale;
-	__Joint.target_rotation = __Joint.crr_rotation;
+	decompose(__Joint.transform,__Joint.ct_position,__Joint.ct_scale,__Joint.ct_rotation);
+	__Joint.crr_position.key = __Joint.ct_position;
+	__Joint.crr_scale.key = __Joint.ct_scale;
+	__Joint.crr_rotation.key = __Joint.ct_rotation;
+	__Joint.target_position.key = __Joint.ct_position;
+	__Joint.target_scale.key = __Joint.ct_scale;
+	__Joint.target_rotation.key = __Joint.ct_rotation;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -543,23 +496,22 @@ f64 AnimatedMesh::get_progress()
 
 /**
  *	(called by AnimatedMesh::animate()) advances through animation keys until current is found
- *	\param durations: vector list of anim durations, iterated to find the current one
- *	\param crr: the current key, with adjusted duration time
+ *	\param keys: vector list of anim keys, iterated to find the current one
  *	\param progress: current progress of animation
- *	\returns actual-time progress after the current key as offset bias, used for interpolation
- *	TODO
+ *	\returns current target animation key with adjusted key duration based on actual-time progress
  */
-template<typename T> /*f64*/void _advance_keys(const vector<AnimKey<T>>& keys,AnimKey<T>& crr,f64 progress)
+template<typename T> AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64 progress)
 {
+	// find current key
 	u16 __Crr = 0;
 	while (keys[__Crr+1].duration<progress) __Crr++;
 	__Crr *= __Crr<keys.size()&&keys[__Crr].duration<progress;
 	f64 __Offset = progress-g_Frame.delta_time;
-	crr = keys[wrap_next(__Crr,keys.size())];
-	COMM_LOG("%f %f",crr.duration,__Offset);
-	crr.duration -= __Offset;//keys[__Prev].duration+(progress-g_Frame.delta_time);
-	COMM_LOG("%f",crr.duration);
-	//return __Out;
+
+	// determine key & adjust duration
+	AnimKey<T> __Out = keys[wrap_next(__Crr,keys.size())];
+	__Out.duration -= __Offset;
+	return __Out;
 }
 
 /**
@@ -584,16 +536,14 @@ void AnimatedMesh::animate()
 		MeshJoint& p_MJoint = joints[p_Joint.id];
 
 		// determine transformation keyframes
-		AnimKey<vec3> __TargetPosition,__TargetScale;
-		AnimKey<quat> __TargetRotation;
-		/*f64 __OfsPosition = */_advance_keys(p_Joint.position_keys,__TargetPosition,progress);
-		/*f64 __OfsScale = */_advance_keys(p_Joint.scaling_keys,__TargetScale,progress);
-		/*f64 __OfsRotation = */_advance_keys(p_Joint.rotation_keys,__TargetRotation,progress);
+		AnimKey<vec3> __TargetPosition = _advance_keys(p_Joint.position_keys,progress);
+		AnimKey<vec3> __TargetScale = _advance_keys(p_Joint.scaling_keys,progress);
+		AnimKey<quat> __TargetRotation = _advance_keys(p_Joint.rotation_keys,progress);
 
 		// set joint transformation targets
-		p_MJoint.request_position(__TargetPosition/*,__OfsPosition*/);
-		p_MJoint.request_scale(__TargetScale/*,__OfsScale*/);
-		p_MJoint.request_rotation(__TargetRotation/*,__OfsRotation*/);
+		p_MJoint.request_position(__TargetPosition);
+		p_MJoint.request_scale(__TargetScale);
+		p_MJoint.request_rotation(__TargetRotation);
 	}
 }
 
