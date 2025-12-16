@@ -101,6 +101,7 @@ TestScene::TestScene()
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Frame.time_factor = 2.f;
 	m_Dude.standard_animation = 3;
+	g_Renderer.animate(&m_Dude);
 
 	g_Wheel.call(this);
 }
@@ -110,10 +111,6 @@ TestScene::TestScene()
  */
 void TestScene::update()
 {
-	// animation update
-	m_Dude.animate();
-	m_Dude.update();
-
 	// camera view geometry
 	vec3 __CenteredPosition = vec3(m_Dude.joints[2].transform[3]);
 	vec3 __Attitude = glm::normalize(vec3(g_Camera.target.x-g_Camera.position.x,

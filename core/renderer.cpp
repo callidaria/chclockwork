@@ -603,6 +603,7 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
 	for (MeshJoint& p_Joint : mesh.joints)
 		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	anim_meshes.push_back(&mesh);
 	return id;
 }
 
@@ -810,6 +811,24 @@ Renderer::Renderer()
 	COMM_SCC("render system ready.");
 }
 // TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
+
+/**
+ *	precalculating setup (before wheel system setup)
+ */
+void Renderer::precalculate()
+{
+	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
+	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+}
 
 /**
  *	render visual result
@@ -1273,6 +1292,15 @@ void Renderer::reset_lighting()
 	m_Lighting.sunlights_active = 0;
 	m_Lighting.pointlights_active = 0;
 	upload_lighting();
+}
+
+/**
+ *	register animated mesh for automatic animation
+ *	\param mesh: address of mesh to automatically animate
+ */
+void Renderer::animate(AnimatedMesh* mesh)
+{
+	m_AnimatingMeshes.push_back(mesh);
 }
 
 /**

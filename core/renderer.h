@@ -249,6 +249,7 @@ struct GeometryBatch
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
+	vector<AnimatedMesh*> anim_meshes;
 	vector<float> geometry;
 //vector<u32> elements;
 	u32 geometry_cursor = 0;
@@ -324,6 +325,7 @@ class Renderer
 public:
 	Renderer();
 
+	void precalculate();
 	void update();
 	void exit();
 
@@ -366,6 +368,7 @@ public:
 	void reset_lighting();
 
 	// utility
+	void animate(AnimatedMesh* mesh);
 	static vec2 align(Rect geom,Alignment alignment);
 
 private:
@@ -444,6 +447,10 @@ private:
 	list<ParticleBatch> m_DeferredParticleBatches;
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
+
+	// animation
+	vector<AnimatedMesh*> m_AnimatingMeshes;
+	// FIXME figure out what happens to deleted animated meshes that are linked here and in geometry batch
 
 	// lighting
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
