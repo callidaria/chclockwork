@@ -204,36 +204,39 @@ Mesh::Mesh(const char* path)
 }
 
 /**
- *	TODO
+ *	request a positional change towards a target in a given time
+ *	\param target: animation key, holding positional target & transition duration
  */
 void MeshJoint::request_position(const AnimKey<vec3>& target)
 {
 	prog_position = 0;
 	crr_position.key = ct_position;
 	crr_position.duration = 0;
-	target_position = target;
+	target_position = { target.key,1./target.duration };
 }
 
 /**
- *	TODO
+ *	request a scaling change towards a target in a given time
+ *	\param target: animation key, holding scaling target & transition duration
  */
 void MeshJoint::request_scale(const AnimKey<vec3>& target)
 {
 	prog_scale = 0;
 	crr_scale.key = ct_scale;
 	crr_scale.duration = 0;
-	target_scale = target;
+	target_scale = { target.key,1./target.duration };
 }
 
 /**
- *	TODO
+ *	request a rotational change towards a target in a given time
+ *	\param target: animation key, holding rotation target & transition duration
  */
 void MeshJoint::request_rotation(const AnimKey<quat>& target)
 {
 	prog_rotation = 0;
 	crr_rotation.key = ct_rotation;
 	crr_rotation.duration = 0;
-	target_rotation = target;
+	target_rotation = { target.key,1./target.duration };
 }
 
 /**
@@ -245,12 +248,13 @@ void MeshJoint::interpolate()
 	prog_position += g_Frame.delta_time;
 	prog_scale += g_Frame.delta_time;
 	prog_rotation += g_Frame.delta_time;
-	// TODO when target is reached, make the transition stop! (this is not applying to running animations)
 
 	// calculate key progression
-	f32 dt_position = glm::clamp(prog_position/target_position.duration,.0,1.);
-	f32 dt_scale = glm::clamp(prog_scale/target_scale.duration,.0,1.);
-	f32 dt_rotation = glm::clamp(prog_rotation/target_rotation.duration,.0,1.);
+	f32 dt_position = glm::clamp(prog_position*target_position.duration,.0,1.);
+	f32 dt_scale = glm::clamp(prog_scale*target_scale.duration,.0,1.);
+	f32 dt_rotation = glm::clamp(prog_rotation*target_rotation.duration,.0,1.);
+	// FIXME also this darn clamping here has to be removed. this uses processing power for basically nothing?
+	// FIXME this is really slow! this approach has unique inversions everytime the ct key is stored.
 
 	// interpolation
 	ct_position = glm::mix(crr_position.key,target_position.key,dt_position);
