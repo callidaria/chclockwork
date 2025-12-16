@@ -239,9 +239,9 @@ struct GeometryBatch
 {
 	// utility
 	// batch geometry loading
-	u32 add_geometry(Mesh& mesh,vector<Texture*>& tex);
-	u32 add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex);
-	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
+	u32 add_geometry(Mesh& mesh,const vector<Texture*>& tex);
+	u32 add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex);
+	u32 add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex);
 	void load();
 
 	// data

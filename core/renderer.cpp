@@ -295,13 +295,10 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	MeshJoint& __Joint = joints.back();
 
 	// extract transformation components
-	decompose(__Joint.transform,__Joint.ct_position,__Joint.ct_scale,__Joint.ct_rotation);
-	__Joint.crr_position.key = __Joint.ct_position;
-	__Joint.crr_scale.key = __Joint.ct_scale;
-	__Joint.crr_rotation.key = __Joint.ct_rotation;
-	__Joint.target_position.key = __Joint.ct_position;
-	__Joint.target_scale.key = __Joint.ct_scale;
-	__Joint.target_rotation.key = __Joint.ct_rotation;
+	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
+	__Joint.target_position.key = __Joint.crr_position.key;
+	__Joint.target_scale.key = __Joint.crr_scale.key;
+	__Joint.target_rotation.key = __Joint.crr_rotation.key;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -511,15 +508,10 @@ f64 AnimatedMesh::get_progress()
  */
 template<typename T> AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64 progress)
 {
-	// find current key
 	u16 __Crr = 0;
 	while (keys[__Crr+1].duration<progress) __Crr++;
-	__Crr *= __Crr<keys.size()&&keys[__Crr].duration<progress;
-	f64 __Offset = progress-g_Frame.delta_time;
-
-	// determine key & adjust duration
 	AnimKey<T> __Out = keys[wrap_next(__Crr,keys.size())];
-	__Out.duration -= __Offset;
+	__Out.duration -= (progress-g_Frame.delta_time);
 	return __Out;
 }
 
@@ -539,6 +531,7 @@ void AnimatedMesh::animate()
 	}
 	// TODO exchange rigid control structure with a usable one, then maybe change back to fmod solution
 	// TODO transition from last to first in loop without jumping violently (this also happens when switching)
+	//		this is due to the progress resetting and the duration when looping being negative for the first key
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
@@ -594,7 +587,7 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 {
 	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
 }
@@ -605,7 +598,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
 	for (MeshJoint& p_Joint : mesh.joints)
@@ -621,7 +614,7 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex)
 {
 	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
