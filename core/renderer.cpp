@@ -562,8 +562,6 @@ void AnimatedMesh::update()
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
 }
-// FIXME the switch to a separated update method has jambled up some vertices in the test mesh...
-// TODO while animate is requested, this should be default always-active for all registered anim meshes!
 
 /**
  *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
