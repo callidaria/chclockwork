@@ -30,6 +30,17 @@ enum MovementState : u8
 	MOVE_CELEBRATING,
 };
 
+enum AnimationState : u8
+{
+	DANIM_JUMPING,
+	DANIM_ROLLING,
+	DANIM_WALKING,
+	DANIM_IDLE,
+	DANIM_UNUSED,
+	DANIM_CELEBRATE,
+	DANIM_COUNT
+};
+
 struct BallIndex
 {
 	vec3 position = vec3(0);
@@ -62,6 +73,9 @@ private:
 	vec3 m_PosDelta = vec3(.0f);
 	TargetMomentumSnap m_PlayerMomentum = TargetMomentumSnap(.15f);
 	TargetMomentumSnap m_PlayerAttitude = TargetMomentumSnap(.25f);
+
+	// positional correction
+	mat4* m_SpineJointTransform;
 };
 
 

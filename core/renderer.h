@@ -190,6 +190,7 @@ struct MeshJoint
 	// tree structure
 	vector<u16> children;
 };
+// TODO maybe instead of indices, pointers for children?
 
 class AnimatedMesh
 {
@@ -197,6 +198,7 @@ public:
 	AnimatedMesh(const char* path);
 	void set_default_animation(u8 id,f32 tt=.0f);
 	void set_animation(u8 id,f32 tt=.0f);
+	MeshJoint* find_joint(const string& id);
 	f64 get_progress();
 	void animate();
 	void update();
