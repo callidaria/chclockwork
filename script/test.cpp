@@ -100,7 +100,7 @@ TestScene::TestScene()
 	// standard setup
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Frame.time_factor = 2.f;
-	m_Dude.standard_animation = 3;
+	m_Dude.set_default_animation(3,.4f);
 	g_Renderer.animate(&m_Dude);
 
 	g_Wheel.call(this);
@@ -160,18 +160,18 @@ void TestScene::update()
 		if (g_Input.keyboard.keys[SDL_SCANCODE_SPACE])
 		{
 			m_MoveState = MOVE_JUMPING;
-			m_Dude.set_animation(0);
+			m_Dude.set_animation(0,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_LSHIFT])
 		{
 			m_MoveState = MOVE_ROLLING;
-			m_Dude.set_animation(1);
+			m_Dude.set_animation(1,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_E])
 		{
 			m_MoveState = MOVE_CELEBRATING;
 			m_PosDelta = vec3(.0f);
-			m_Dude.set_animation(5);
+			m_Dude.set_animation(5,.5f);
 		}
 	};
 

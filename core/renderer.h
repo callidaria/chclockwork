@@ -195,7 +195,8 @@ class AnimatedMesh
 {
 public:
 	AnimatedMesh(const char* path);
-	void set_animation(u8 id);
+	void set_default_animation(u8 id,f32 tt=.0f);
+	void set_animation(u8 id,f32 tt=.0f);
 	f64 get_progress();
 	void animate();
 	void update();
@@ -207,10 +208,13 @@ public:
 	vector<AnimationVertex> vertices;
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
-	u16 index_count = 0;
-	u16 standard_animation = 0;
-	u16 current_animation = 0;
-	f64 progress = .0;
+	u16 current_animation;
+
+private:
+	u16 m_StandardAnimation = 0;
+	f32 m_StandardTransitionTime = .0f;
+	f32 m_AnimationTransitionTime = .0f;
+	f64 m_Progress = .0;
 };
 // TODO do not load this into it's own animation mesh, rather than extract animations and attach to mesh later
 //		then again this can be done later, the related mesh probably will always be attached (weighing)
