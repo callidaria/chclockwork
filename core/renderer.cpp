@@ -483,7 +483,9 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 
 /**
- *	TODO
+ *	define standard animation loop
+ *	\param id: animation id
+ *	\param tt: transition time in seconds
  */
 void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 {
@@ -494,7 +496,7 @@ void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 /**
  *	switch active animation by id
  *	\param id: animation id
- *	TODO
+ *	\param tt: transition time in seconds
  */
 void AnimatedMesh::set_animation(u8 id,f32 tt)
 {
@@ -528,7 +530,6 @@ template<typename T> AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64
 }
 // FIXME documenting two problems with this:
 //		- there will be a negative here after the animation is looping
-//		- the animation will jump in-between switches sometimes because a switch has no duration per-se
 
 /**
  *	update active animation
