@@ -557,8 +557,6 @@ template<typename T> static inline AnimKey<T> _advance_keys(const vector<AnimKey
 	__Out.duration -= (progress-g_Frame.delta_time);
 	return __Out;
 }
-// FIXME documenting two problems with this:
-//		- there will be a negative here after the animation is looping
 
 /**
  *	update active animation
