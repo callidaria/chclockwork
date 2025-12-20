@@ -99,9 +99,12 @@ TestScene::TestScene()
 
 	// standard setup
 	m_PlayerMomentum.target = m_PlayerPosition;
-	g_Frame.time_factor = 2.f;
-	m_Dude.standard_animation = 3;
+	g_Frame.time_factor = 2.f;  // FIXME yes this is bad
+	m_Dude.set_default_animation(DANIM_IDLE,.4f);
 	g_Renderer.animate(&m_Dude);
+
+	// positional correction
+	m_SpineJointTransform = &m_Dude.find_joint("metarig_spine")->transform;
 
 	g_Wheel.call(this);
 }
@@ -112,7 +115,7 @@ TestScene::TestScene()
 void TestScene::update()
 {
 	// camera view geometry
-	vec3 __CenteredPosition = vec3(m_Dude.joints[2].transform[3]);
+	vec3 __CenteredPosition = vec3((*m_SpineJointTransform)[3]);
 	vec3 __Attitude = glm::normalize(vec3(g_Camera.target.x-g_Camera.position.x,
 										  g_Camera.target.y-g_Camera.position.y,0));
 	vec3 __OrthoAttitude = vec3(-__Attitude.y,__Attitude.x,0);
@@ -120,7 +123,6 @@ void TestScene::update()
 	switch (m_MoveState)
 	{
 	case MOVE_JUMPING:
-
 		// jumping movement
 		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
 				*vec3(m_Dude.get_progress()*(m_Dude.get_progress()<.9f)*TEST_JUMP_SPEED);
@@ -128,22 +130,23 @@ void TestScene::update()
 				*(m_Dude.get_progress()<.9f&&m_Dude.get_progress()>.5f)*TEST_JUMP_HEIGHT;
 
 		// state machine flow
-		if (m_Dude.current_animation!=0) m_MoveState = MOVE_STANDARD;
+		if (m_Dude.current_animation!=DANIM_JUMPING) m_MoveState = MOVE_STANDARD;
 		break;
-	case MOVE_ROLLING:
 
+	case MOVE_ROLLING:
 		// rolling movement
 		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
 				*vec3((m_Dude.get_progress()<.65f&&m_Dude.get_progress()>.25f)*TEST_ROLL_SPEED);
 
 		// state machine flow
-		if (m_Dude.current_animation!=1) m_MoveState = MOVE_STANDARD;
+		if (m_Dude.current_animation!=DANIM_ROLLING) m_MoveState = MOVE_STANDARD;
 		break;
-	case MOVE_CELEBRATING:
-		if (m_Dude.current_animation!=5) m_MoveState = MOVE_STANDARD;
-		break;
-	default:
 
+	case MOVE_CELEBRATING:
+		if (m_Dude.current_animation!=DANIM_CELEBRATE) m_MoveState = MOVE_STANDARD;
+		break;
+
+	default:
 		// walking movement
 		m_PlayerAttitude.target = (
 				f32(g_Input.keyboard.keys[SDL_SCANCODE_W]-g_Input.keyboard.keys[SDL_SCANCODE_S])*__Attitude
@@ -160,18 +163,18 @@ void TestScene::update()
 		if (g_Input.keyboard.keys[SDL_SCANCODE_SPACE])
 		{
 			m_MoveState = MOVE_JUMPING;
-			m_Dude.set_animation(0);
+			m_Dude.set_animation(DANIM_JUMPING,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_LSHIFT])
 		{
 			m_MoveState = MOVE_ROLLING;
-			m_Dude.set_animation(1);
+			m_Dude.set_animation(DANIM_ROLLING,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_E])
 		{
 			m_MoveState = MOVE_CELEBRATING;
 			m_PosDelta = vec3(.0f);
-			m_Dude.set_animation(5);
+			m_Dude.set_animation(DANIM_CELEBRATE,.5f);
 		}
 	};
 

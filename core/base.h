@@ -115,9 +115,10 @@ constexpr f32 MATH_CENTER_X = MATH_CARTESIAN_XRANGE*.5f;
 constexpr f32 MATH_CENTER_Y = MATH_CARTESIAN_YRANGE*.5f;
 constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
-constexpr f32 MATH_FRAMERATE_60Hz = 1/60.;
-constexpr f32 MATH_FRAMERATE_30Hz = 1/30.;
-constexpr f32 MATH_FRAMERATE_15Hz = 1/15.;
+constexpr f64 MATH_CONVERSION_MS_S = 1/1000.;
+constexpr f64 MATH_FRAMERATE_60Hz = 1/60.;
+constexpr f64 MATH_FRAMERATE_30Hz = 1/30.;
+constexpr f64 MATH_FRAMERATE_15Hz = 1/15.;
 
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT

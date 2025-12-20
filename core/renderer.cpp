@@ -413,8 +413,9 @@ AnimatedMesh::AnimatedMesh(const char* path)
 	}
 
 	// using element array to store correct vertex order
-	for (u32 i=0;i<__Mesh->mNumFaces;i++) index_count += __Mesh->mFaces[i].mNumIndices;
-	vertices.reserve(index_count);
+	u16 __IndexCount = 0;
+	for (u32 i=0;i<__Mesh->mNumFaces;i++) __IndexCount += __Mesh->mFaces[i].mNumIndices;
+	vertices.reserve(__IndexCount);
 	for (u32 i=0;i<__Mesh->mNumFaces;i++)
 	{
 		for (u32 j=0;j<__Mesh->mFaces[i].mNumIndices;j++)
@@ -482,13 +483,55 @@ AnimatedMesh::AnimatedMesh(const char* path)
 }
 
 /**
+ *	define standard animation loop
+ *	\param id: animation id
+ *	\param tt: transition time in seconds
+ */
+void AnimatedMesh::set_default_animation(u8 id,f32 tt)
+{
+	m_StandardAnimation = id;
+	m_StandardTransitionTime = tt;
+}
+
+/**
  *	switch active animation by id
  *	\param id: animation id
+ *	\param tt: transition time in seconds
  */
-void AnimatedMesh::set_animation(u8 id)
+void AnimatedMesh::set_animation(u8 id,f32 tt)
 {
 	current_animation = id;
-	progress = .0;
+	m_AnimationTransitionTime = tt;
+	m_Progress = .0;
+}
+
+/**
+ *	(called by AnimatedMesh::find_joint)
+ *	this recursively iterates flat mesh subtree of joints
+ *	\param joints: full flat tree of mesh joints
+ *	\param tr: index of root in joint subtree in process
+ *	\param id: string id of joint as described in armature editor
+ *	\returns pointer to found joint, else nullptr
+ */
+MeshJoint* _rc_find_joint(vector<MeshJoint>& joints,u16 tr,const string& id)
+{
+	if (joints[tr].id==id) return &joints[tr];
+	for (u16 i : joints[tr].children)
+	{
+		MeshJoint* p_Result = _rc_find_joint(joints,i,id);
+		if (p_Result) return p_Result;
+	}
+	return nullptr;
+}
+
+/**
+ *	extract joint from flat mesh joint tree
+ *	\param id: string id of joint as described in armature editor
+ *	\returns address of joint with given id, else nullptr
+ */
+MeshJoint* AnimatedMesh::find_joint(const string& id)
+{
+	return _rc_find_joint(joints,0,id);
 }
 
 /**
@@ -497,7 +540,7 @@ void AnimatedMesh::set_animation(u8 id)
  */
 f64 AnimatedMesh::get_progress()
 {
-	return progress*animations[current_animation].duration_inv;
+	return m_Progress*animations[current_animation].duration_inv;
 }
 
 /**
@@ -506,7 +549,7 @@ f64 AnimatedMesh::get_progress()
  *	\param progress: current progress of animation
  *	\returns current target animation key with adjusted key duration based on actual-time progress
  */
-template<typename T> AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64 progress)
+template<typename T> static inline AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64 progress)
 {
 	u16 __Crr = 0;
 	while (keys[__Crr+1].duration<progress) __Crr++;
@@ -523,15 +566,13 @@ void AnimatedMesh::animate()
 	Animation& p_Animation = animations[current_animation];
 
 	// interpolation delta & restore default animation after playback has finished
-	progress += g_Frame.delta_time;
-	if (progress>p_Animation.duration)
+	m_Progress += g_Frame.delta_time;
+	if (m_Progress>p_Animation.duration)
 	{
-		progress -= p_Animation.duration;
-		current_animation = standard_animation;
+		m_Progress -= p_Animation.duration;
+		set_animation(m_StandardAnimation,m_StandardTransitionTime);
 	}
 	// TODO exchange rigid control structure with a usable one, then maybe change back to fmod solution
-	// TODO transition from last to first in loop without jumping violently (this also happens when switching)
-	//		this is due to the progress resetting and the duration when looping being negative for the first key
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
@@ -539,15 +580,21 @@ void AnimatedMesh::animate()
 		MeshJoint& p_MJoint = joints[p_Joint.id];
 
 		// determine transformation keyframes
-		AnimKey<vec3> __TargetPosition = _advance_keys(p_Joint.position_keys,progress);
-		AnimKey<vec3> __TargetScale = _advance_keys(p_Joint.scaling_keys,progress);
-		AnimKey<quat> __TargetRotation = _advance_keys(p_Joint.rotation_keys,progress);
+		AnimKey<vec3> __TargetPosition = _advance_keys(p_Joint.position_keys,m_Progress);
+		AnimKey<vec3> __TargetScale = _advance_keys(p_Joint.scaling_keys,m_Progress);
+		AnimKey<quat> __TargetRotation = _advance_keys(p_Joint.rotation_keys,m_Progress);
+
+		// duration padding for transitions
+		__TargetPosition.duration += m_AnimationTransitionTime;
+		__TargetScale.duration += m_AnimationTransitionTime;
+		__TargetRotation.duration += m_AnimationTransitionTime;
 
 		// set joint transformation targets
 		p_MJoint.request_position(__TargetPosition);
 		p_MJoint.request_scale(__TargetScale);
 		p_MJoint.request_rotation(__TargetRotation);
 	}
+	m_AnimationTransitionTime = glm::max(m_AnimationTransitionTime-g_Frame.delta_time,.0f);
 }
 
 /**
