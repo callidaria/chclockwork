@@ -282,7 +282,7 @@ static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
 static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
 static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
 
-// matrixmath
+// matrix math
 static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
 {
 	p = m[3];

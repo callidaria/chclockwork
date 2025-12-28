@@ -91,7 +91,6 @@ TestScene::TestScene()
 	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT);
 	g_Renderer.register_shadow_batch(__BulbBatch);
 	__BulbBatch->ibo.bind();
-	__BulbBatch->ibo.allocate(TEST_LIGHTBULB_COUNT,BUFFER_TYPE_INDEX);
 	__BulbBatch->ibo.upload_vertices(__BulbIndices);
 
 	// lighting

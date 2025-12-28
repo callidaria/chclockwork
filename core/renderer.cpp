@@ -789,6 +789,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 	// auto-mapping particle shader pipeline
 	vao.bind();
 	vbo.allocate(geometry.size()*sizeof(f32));
+	ibo.allocate(particles,BUFFER_TYPE_INDEX);
 	vbo.bind();
 	vbo.upload_vertices(&geometry[0]);
 	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
