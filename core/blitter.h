@@ -43,6 +43,7 @@ private:
 public:
 
 	// time
+	std::chrono::steady_clock::time_point fstart = std::chrono::steady_clock::now();
 	f32 delta_time_real = .0f;
 	f32 delta_time = .0f;
 	f32 time_factor = 1.f;
@@ -54,7 +55,6 @@ private:
 
 	// time
 	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
-	std::chrono::steady_clock::time_point m_CurrentFrameTime = std::chrono::steady_clock::now();
 
 #ifdef DEBUG
 public:

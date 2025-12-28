@@ -73,7 +73,7 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// basetype definitions to n64 standard
+// Basetype Definitions to N64 Standard
 // unsigned data
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -95,6 +95,8 @@ typedef glm::vec2 vec2;
 typedef glm::vec3 vec3;
 typedef glm::vec4 vec4;
 typedef glm::quat quat;
+typedef glm::mat2 mat2;
+typedef glm::mat3 mat3;
 typedef glm::mat4 mat4;
 
 // basic magic
@@ -125,8 +127,10 @@ constexpr f32 MATH_CENTER_X = MATH_CARTESIAN_XRANGE*.5f;
 constexpr f32 MATH_CENTER_Y = MATH_CARTESIAN_YRANGE*.5f;
 constexpr f64 MATH_PI = 3.141592653;
 constexpr f64 MATH_E = 2.7182818284;
-constexpr f64 MATH_CONVERSION_MS = .000001;
-constexpr f64 MATH_CONVERSION_SC = .000000001;
+constexpr f64 MATH_CONVERSION_MS_S = 1/1000.;
+constexpr f64 MATH_FRAMERATE_60Hz = 1/60.;
+constexpr f64 MATH_FRAMERATE_30Hz = 1/30.;
+constexpr f64 MATH_FRAMERATE_15Hz = 1/15.;
 
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
@@ -141,7 +145,25 @@ constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
 
 // ----------------------------------------------------------------------------------------------------
-// logger
+// Utility
+
+// time
+inline f64 calculate_delta_time_s(std::chrono::steady_clock::time_point& t)
+{
+	return std::chrono::duration<f64>(std::chrono::steady_clock::now()-t).count();
+}
+inline f64 calculate_delta_time_ms(std::chrono::steady_clock::time_point& t)
+{
+	return std::chrono::duration<f64,std::milli>(std::chrono::steady_clock::now()-t).count();
+}
+
+// system utility
+bool check_file_exists(const char* path);
+void split_words(vector<string>& words,string& line);
+
+
+// ----------------------------------------------------------------------------------------------------
+// Logger
 #ifdef DEBUG
 
 // text colour
@@ -162,7 +184,7 @@ inline std::chrono::steady_clock::time_point log_delta = std::chrono::steady_clo
 static inline void reset_timestamp() { log_delta = std::chrono::steady_clock::now(); }
 static inline void produce_timestamp(bool padding=true)
 {
-	f64 delta = (std::chrono::steady_clock::now()-log_delta).count()*MATH_CONVERSION_MS;
+	f64 delta = calculate_delta_time_ms(log_delta);
 	printf("%s",LOG_TIMING[(u8)std::min(delta/LOG_FPS_ALERT,2.)]);
 	printf((padding) ? "%12fms%s" : "%fms%s\n",delta,LOG_CLEAR);
 	reset_timestamp();
@@ -199,7 +221,7 @@ struct RuntimeProfilerData
 };
 static inline void profiler_tick(RuntimeProfilerData* data)
 {
-	data->measurements[data->head] = (std::chrono::steady_clock::now()-data->last).count()*MATH_CONVERSION_MS;
+	data->measurements[data->head] = calculate_delta_time_ms(data->last);
 	data->head = (data->head+1)%PROFILER_FRAMES_RELEVANT_AVERAGE;
 	data->last = std::chrono::steady_clock::now();
 }
@@ -242,24 +264,43 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 #endif
 
 
-// system utility
+// ----------------------------------------------------------------------------------------------------
+// Utility
+
 bool check_file_exists(const char* path);
 char* read_file_binary(const char* path,u32& buffer_size);
 void split_words(vector<string>& words,string& line);
-inline f64 calculate_delta_time(std::chrono::steady_clock::time_point& t)
-{
-	return (std::chrono::steady_clock::now()-t).count()*MATH_CONVERSION_MS;
-}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Math
 
 // math
-vec3 halfway(vec3 a,vec3 b);
+static inline u32 wrap_next(u32 x,u32 n) { x++;return x*(x<n); }
+static inline f32 fast_exp2(f32 x) { return 1.f/(1.f+x+.48f*x*x); }
+static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
+static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
+static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
+
+// matrixmath
+static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
+{
+	p = m[3];
+	s = vec3(glm::length(m[0]),glm::length(m[1]),glm::length(m[2]));
+	mat3 __Rotation = mat3(vec3(m[0])/s.x,vec3(m[1])/s.y,vec3(m[2])/s.z);
+	r = glm::quat_cast(__Rotation);
+}
 
 // assimp conversion
 static inline vec2 to_vec2(aiVector3D& v) { return vec2(v.x,v.y); }
 static inline vec3 to_vec3(aiVector3D& v) { return vec3(v.x,v.y,v.z); }
 static inline quat to_quat(aiQuaternion& q) { return quat(q.w,q.x,q.y,q.z); }
 static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat4(&m.a1)); }
+// TODO this can be done way smoother
 
+
+// ----------------------------------------------------------------------------------------------------
+// Boolean Clusters
 
 class BitwiseWords
 {
@@ -277,6 +318,9 @@ private:
 	size_t m_Size;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Segmentless Datastructure
 
 template<typename T> class InPlaceArray
 {
@@ -316,6 +360,9 @@ private: u16 m_Size;
 };
 
 
+// ----------------------------------------------------------------------------------------------------
+// Common Thread Signaling Structure
+
 struct ThreadSignal
 {
 	// utility
@@ -335,6 +382,9 @@ struct ThreadSignal
 };
 
 
+// ----------------------------------------------------------------------------------------------------
+// Geometry Definition
+
 struct Rect
 {
 	// utility
@@ -345,6 +395,9 @@ struct Rect
 	vec2 extent;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Thematic Matrix Math
 
 struct Transform3D
 {
@@ -363,6 +416,7 @@ struct Transform3D
 	void rotate_z(f32 z);
 	void rotate(vec3 r);
 	void rotate(vec3 r,vec3 a);
+	void reset();
 
 	// data
 	vec3 position = vec3(.0f);
@@ -434,16 +488,15 @@ inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLU
 class TargetMomentumSnap
 {
 public:
-	TargetMomentumSnap(f32 ffactor);
+	TargetMomentumSnap(f32 t);
 	void update(vec3& pos,f32 dt);
 
 public:
 	vec3 target = vec3(0);
+	vec3 momentum = vec3(0);
 
 private:
-	vec3 m_Momentum = vec3(0);
-	f32 m_Stiff;
-	f32 m_Damp;
+	f32 m_Omega;
 };
 
 

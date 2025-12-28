@@ -932,16 +932,15 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,Texture
 /**
  *	automatically uploads the loaded subtextures to the gpu
  *	\param channel: texture channel
- *	\param fstart: time the current frame started
  *	NOTE this has to be run in main thread due to the gpu upload being context sensitive
  */
-void GPUPixelBuffer::gpu_upload(u8 channel,std::chrono::steady_clock::time_point& fstart)
+void GPUPixelBuffer::gpu_upload(u8 channel)
 {
 	atlas.bind(channel);
 	mutex_texture_requests.lock();
 
 	// iterate waiting requests
-	while (load_requests.size()&&calculate_delta_time(fstart)<FRAME_TIME_BUDGET_MS)
+	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
 	{
 		TextureData& p_Data = load_requests.front();
 		p_Data.gpu_upload_subtexture();

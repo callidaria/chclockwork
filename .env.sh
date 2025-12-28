@@ -4,8 +4,7 @@
 GPU_VULKAN_MODE=true
 GPU_BUILD_SUFFIX="-DVKBUILD"
 
-
-chcw_setup()
+cw_setup()
 {
 	echo "running linux project setup"
 
@@ -18,7 +17,9 @@ chcw_setup()
 			 libsdl2-dev \
 			 libglm-dev \
 			 libassimp-dev \
-			 libfreetype-dev
+			 libfreetype-dev \
+			 valgrind \
+			 kcachegrind
 
 	# i use arch & packman btw
 	elif [ -f /etc/arch_release ]; then
@@ -28,7 +29,9 @@ chcw_setup()
 			 sdl2 \
 			 glm \
 			 assimp \
-			 freetype
+			 freetype \
+			 valgrind \
+			 kcachegrind
 
 	# for my loved nix weirdos
 	elif command -v nix-shell &>/dev/null; then
@@ -114,11 +117,33 @@ sgl()
 }
 
 
-chcw_help()
+cw_memfix()
+{
+	valgrind --leak-check=full ./chcw
+}
+
+
+cw_profile()
+{
+	sudo valgrind --tool=callgrind --dump-instr=yes --simulate-cache=yes --collect-jumps=yes ./chcw
+	cgfile=$(ls -t callgrind.out.* | head -n 1)
+	if [ -f "$cgfile" ]; then
+		sudo chmod 777 "$cgfile"
+		kcachegrind "$cgfile"
+		rm "$cgfile"
+	else
+		echo "error creating profiler output"
+	fi
+}
+
+
+cw_help()
 {
 	printf "C. Hanson's Clockwork Environment Helpdesk:\n\n"
-	printf "%-15s - %s\n" "chcw_setup" "project setup for build & development purposes"
-	printf "%-15s - %s\n" "chcw_help" "i didn't need to tell you that for recursive reasons"
+	printf "%-15s - %s\n" "cw_help" "i didn't need to tell you that for recursive reasons"
+	printf "%-15s - %s\n" "cw_setup" "project setup for build & development purposes"
+	printf "%-15s - %s\n" "cw_memfix" "run the engine with memory checking enabled for console output"
+	printf "%-15s - %s\n" "cw_profile" "run the engine with cpu performance profiling & open for analysis after"
 	printf "%-15s - %s\n" "sgl" "switch graphics api library to specify next version build"
 	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"

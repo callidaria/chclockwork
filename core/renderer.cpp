@@ -230,8 +230,70 @@ Mesh::Mesh(const char* path)
 }
 
 /**
- *	load animation & mesh information from collada file
- *	\param path: path to .dae collada file
+ *	request a positional change towards a target in a given time
+ *	\param target: animation key, holding positional target & transition duration
+ */
+void MeshJoint::request_position(const AnimKey<vec3>& target)
+{
+	prog_position = 0;
+	crr_position.key = ct_position;
+	crr_position.duration = 0;
+	target_position = { target.key,1./target.duration };
+}
+
+/**
+ *	request a scaling change towards a target in a given time
+ *	\param target: animation key, holding scaling target & transition duration
+ */
+void MeshJoint::request_scale(const AnimKey<vec3>& target)
+{
+	prog_scale = 0;
+	crr_scale.key = ct_scale;
+	crr_scale.duration = 0;
+	target_scale = { target.key,1./target.duration };
+}
+
+/**
+ *	request a rotational change towards a target in a given time
+ *	\param target: animation key, holding rotation target & transition duration
+ */
+void MeshJoint::request_rotation(const AnimKey<quat>& target)
+{
+	prog_rotation = 0;
+	crr_rotation.key = ct_rotation;
+	crr_rotation.duration = 0;
+	target_rotation = { target.key,1./target.duration };
+}
+
+/**
+ * interpolate between joint transformation based on given data in struct
+ */
+void MeshJoint::interpolate()
+{
+	// time advancement
+	prog_position += g_Frame.delta_time;
+	prog_scale += g_Frame.delta_time;
+	prog_rotation += g_Frame.delta_time;
+
+	// calculate key progression
+	f32 dt_position = glm::clamp(prog_position*target_position.duration,.0,1.);
+	f32 dt_scale = glm::clamp(prog_scale*target_scale.duration,.0,1.);
+	f32 dt_rotation = glm::clamp(prog_rotation*target_rotation.duration,.0,1.);
+	// FIXME also this darn clamping here has to be removed. this uses processing power for basically nothing?
+	// FIXME this is really slow! this approach has unique inversions everytime the ct key is stored.
+
+	// interpolation
+	ct_position = glm::mix(crr_position.key,target_position.key,dt_position);
+	ct_scale = glm::mix(crr_scale.key,target_scale.key,dt_scale);
+	ct_rotation = glm::slerp(crr_rotation.key,target_rotation.key,dt_rotation);
+	transform = glm::translate(mat4(1.f),ct_position)*glm::scale(mat4(1.f),ct_scale)*glm::toMat4(ct_rotation);
+}
+
+/**
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	recursively counts joints in mesh tree structure
+ *	\param root: root node of counting subtree
+ *	\returns number of joints in this subtree counting parent, children and all subsequent children
  */
 u16 _rc_get_joint_count(aiNode* root)
 {
@@ -240,17 +302,29 @@ u16 _rc_get_joint_count(aiNode* root)
 	return __Result;
 }
 
+/**
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	recursively assemble joint hierarchy by transferring the tree into a flat structure by depthsearch
+ *	\param joints: reference to joint list, that will be filled by this function
+ *	\param root: root note of current subtree
+ */
 void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 {
 	// root joint translation
 	u16 __MemoryID = joints.size();
-	MeshJoint __Joint = {
-		.id = root->mName.C_Str(),
-		.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
-		.transform = to_mat4(root->mTransformation),
-		.children = vector<u16>(root->mNumChildren)
-	};
-	joints.push_back(__Joint);
+	joints.push_back({
+			.id = root->mName.C_Str(),
+			.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
+			.transform = to_mat4(root->mTransformation),
+			.children = vector<u16>(root->mNumChildren)
+		});
+	MeshJoint& __Joint = joints.back();
+
+	// extract transformation components
+	decompose(__Joint.transform,__Joint.crr_position.key,__Joint.crr_scale.key,__Joint.crr_rotation.key);
+	__Joint.target_position.key = __Joint.crr_position.key;
+	__Joint.target_scale.key = __Joint.crr_scale.key;
+	__Joint.target_rotation.key = __Joint.crr_rotation.key;
 
 	// recursively process children
 	for (u16 i=0;i<root->mNumChildren;i++)
@@ -260,13 +334,25 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	}
 }
 
-u16 _get_joint_id(vector<MeshJoint>& joints,string id)
+/**
+ *	(called by AnimatedMesh::AnimatedMesh())
+ *	aquire joint numerical id from joint list by it's joint string id
+ *	\param joints: list of joints
+ *	\param id: alphanumeric joint id as imported from file structure
+ *	\returns numerical joint id as given by depthsearch layout assembly
+ */
+u16 _get_joint_id(const vector<MeshJoint>& joints,string id)
 {
 	u16 i = 0;
 	while (id!=joints[i].id) i++;
 	return i;
 }
+// FIXME investigate if there is a better solution without iteration find after all
 
+/**
+ *	load animation & mesh information from collada file
+ *	\param path: path to .dae collada file
+ */
 AnimatedMesh::AnimatedMesh(const char* path)
 {
 	Assimp::Importer __Importer;
@@ -353,8 +439,9 @@ AnimatedMesh::AnimatedMesh(const char* path)
 	}
 
 	// using element array to store correct vertex order
-	for (u32 i=0;i<__Mesh->mNumFaces;i++) index_count += __Mesh->mFaces[i].mNumIndices;
-	vertices.reserve(index_count);
+	u16 __IndexCount = 0;
+	for (u32 i=0;i<__Mesh->mNumFaces;i++) __IndexCount += __Mesh->mFaces[i].mNumIndices;
+	vertices.reserve(__IndexCount);
 	for (u32 i=0;i<__Mesh->mNumFaces;i++)
 	{
 		for (u32 j=0;j<__Mesh->mFaces[i].mNumIndices;j++)
@@ -374,6 +461,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			.joints = vector<AnimationJoint>(__Animation->mNumChannels),
 			.duration = __Animation->mDuration*__TPSinv
 		};
+		animations[i].duration_inv = 1./animations[i].duration;
 
 		// process animation channels
 		for (u32 j=0;j<__Animation->mNumChannels;j++)
@@ -384,99 +472,175 @@ AnimatedMesh::AnimatedMesh(const char* path)
 			// process channel keys for related joint
 			__Joint = {
 				.id = _get_joint_id(joints,__Node->mNodeName.C_Str()),
-				.position_keys = vector<vec3>(__Node->mNumPositionKeys),
-				.scaling_keys = vector<vec3>(__Node->mNumScalingKeys),
-				.rotation_keys = vector<quat>(__Node->mNumRotationKeys),
-				.position_durations = vector<f64>(__Node->mNumPositionKeys),
-				.scaling_durations = vector<f64>(__Node->mNumScalingKeys),
-				.rotation_durations = vector<f64>(__Node->mNumRotationKeys)
+				.position_keys = vector<AnimKey<vec3>>(__Node->mNumPositionKeys),
+				.scaling_keys = vector<AnimKey<vec3>>(__Node->mNumScalingKeys),
+				.rotation_keys = vector<AnimKey<quat>>(__Node->mNumRotationKeys)
 			};
 			// FIXME what happens to memory during this loop is truly gruesome
 
 			// extract position keys
 			for (u32 k=0;k<__Node->mNumPositionKeys;k++)
 			{
-				__Joint.position_keys[k] = to_vec3(__Node->mPositionKeys[k].mValue);
-				__Joint.position_durations[k] = __Node->mPositionKeys[k].mTime*__TPSinv;
+				__Joint.position_keys[k] = {
+					.key = to_vec3(__Node->mPositionKeys[k].mValue),
+					.duration = __Node->mPositionKeys[k].mTime*__TPSinv
+				};
 			}
 
 			// extract scaling keys
 			for (u32 k=0;k<__Node->mNumScalingKeys;k++)
 			{
-				__Joint.scaling_keys[k] = to_vec3(__Node->mScalingKeys[k].mValue);
-				__Joint.scaling_durations[k] = __Node->mScalingKeys[k].mTime*__TPSinv;
+				__Joint.scaling_keys[k] = {
+					.key = to_vec3(__Node->mScalingKeys[k].mValue),
+					.duration = __Node->mScalingKeys[k].mTime*__TPSinv
+				};
 			}
 
 			// extract rotation keys
 			for (u32 k=0;k<__Node->mNumRotationKeys;k++)
 			{
-				__Joint.rotation_keys[k] = to_quat(__Node->mRotationKeys[k].mValue);
-				__Joint.rotation_durations[k] = __Node->mRotationKeys[k].mTime*__TPSinv;
+				__Joint.rotation_keys[k] = {
+					.key = to_quat(__Node->mRotationKeys[k].mValue),
+					.duration = __Node->mRotationKeys[k].mTime*__TPSinv
+				};
 			}
 		}
 	}
 }
 
 /**
- *	update active animation
+ *	define standard animation loop
+ *	\param id: animation id
+ *	\param tt: transition time in seconds
  */
-f32 _advance_keys(vector<f64>& durations,u16& crr,f64 progress)
+void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 {
-	while (durations[crr+1]<progress) crr++;
-	crr *= crr<durations.size()&&durations[crr]<progress;
-	return (progress-durations[crr])/(durations[crr+1]-durations[crr]);
+	m_StandardAnimation = id;
+	m_StandardTransitionTime = tt;
 }
 
-void AnimatedMesh::update()
+/**
+ *	switch active animation by id
+ *	\param id: animation id
+ *	\param tt: transition time in seconds
+ */
+void AnimatedMesh::set_animation(u8 id,f32 tt)
+{
+	current_animation = id;
+	m_AnimationTransitionTime = tt;
+	m_Progress = .0;
+}
+
+/**
+ *	(called by AnimatedMesh::find_joint)
+ *	this recursively iterates flat mesh subtree of joints
+ *	\param joints: full flat tree of mesh joints
+ *	\param tr: index of root in joint subtree in process
+ *	\param id: string id of joint as described in armature editor
+ *	\returns pointer to found joint, else nullptr
+ */
+MeshJoint* _rc_find_joint(vector<MeshJoint>& joints,u16 tr,const string& id)
+{
+	if (joints[tr].id==id) return &joints[tr];
+	for (u16 i : joints[tr].children)
+	{
+		MeshJoint* p_Result = _rc_find_joint(joints,i,id);
+		if (p_Result) return p_Result;
+	}
+	return nullptr;
+}
+
+/**
+ *	extract joint from flat mesh joint tree
+ *	\param id: string id of joint as described in armature editor
+ *	\returns address of joint with given id, else nullptr
+ */
+MeshJoint* AnimatedMesh::find_joint(const string& id)
+{
+	return _rc_find_joint(joints,0,id);
+}
+
+/**
+ *	aquire progress of current animation
+ *	\returns animation progress between 0 and 1
+ */
+f64 AnimatedMesh::get_progress()
+{
+	return m_Progress*animations[current_animation].duration_inv;
+}
+
+/**
+ *	(called by AnimatedMesh::animate()) advances through animation keys until current is found
+ *	\param keys: vector list of anim keys, iterated to find the current one
+ *	\param progress: current progress of animation
+ *	\returns current target animation key with adjusted key duration based on actual-time progress
+ */
+template<typename T> static inline AnimKey<T> _advance_keys(const vector<AnimKey<T>>& keys,f64 progress)
+{
+	u16 __Crr = 0;
+	while (keys[__Crr+1].duration<progress) __Crr++;
+	AnimKey<T> __Out = keys[wrap_next(__Crr,keys.size())];
+	__Out.duration -= (progress-g_Frame.delta_time);
+	return __Out;
+}
+
+/**
+ *	update active animation
+ */
+void AnimatedMesh::animate()
 {
 	Animation& p_Animation = animations[current_animation];
 
-	// interpolation delta
-	progress += g_Frame.delta_time;
-	progress = fmod(progress,p_Animation.duration);
+	// interpolation delta & restore default animation after playback has finished
+	m_Progress += g_Frame.delta_time;
+	if (m_Progress>p_Animation.duration)
+	{
+		m_Progress -= p_Animation.duration;
+		set_animation(m_StandardAnimation,m_StandardTransitionTime);
+	}
+	// TODO exchange rigid control structure with a usable one, then maybe change back to fmod solution
 
 	// iterate joints for location animation transformations
 	for (AnimationJoint& p_Joint : p_Animation.joints)
 	{
+		MeshJoint& p_MJoint = joints[p_Joint.id];
+
 		// determine transformation keyframes
-		f32 __TransformProgress = _advance_keys(p_Joint.position_durations,p_Joint.crr_position,progress);
-		f32 __ScalingProgress = _advance_keys(p_Joint.scaling_durations,p_Joint.crr_scale,progress);
-		f32 __RotationProgress = _advance_keys(p_Joint.rotation_durations,p_Joint.crr_rotation,progress);
+		AnimKey<vec3> __TargetPosition = _advance_keys(p_Joint.position_keys,m_Progress);
+		AnimKey<vec3> __TargetScale = _advance_keys(p_Joint.scaling_keys,m_Progress);
+		AnimKey<quat> __TargetRotation = _advance_keys(p_Joint.rotation_keys,m_Progress);
 
-		// interpolation between keyframes
-		// translations
-		vec3 __TranslateInterpolation = glm::mix(
-				p_Joint.position_keys[p_Joint.crr_position],
-				p_Joint.position_keys[p_Joint.crr_position+1],
-				__TransformProgress
-			);
+		// duration padding for transitions
+		__TargetPosition.duration += m_AnimationTransitionTime;
+		__TargetScale.duration += m_AnimationTransitionTime;
+		__TargetRotation.duration += m_AnimationTransitionTime;
 
-		// scaling
-		vec3 __ScaleInterpolation = glm::mix(
-				p_Joint.scaling_keys[p_Joint.crr_scale],
-				p_Joint.scaling_keys[p_Joint.crr_scale+1],
-				__ScalingProgress
-			);
-
-		// rotation
-		quat __RotateInterpolation = glm::slerp(
-				p_Joint.rotation_keys[p_Joint.crr_rotation],
-				p_Joint.rotation_keys[p_Joint.crr_rotation+1],
-				__RotationProgress
-			);
-
-		// transformation
-		joints[p_Joint.id].transform = glm::translate(mat4(1.f),__TranslateInterpolation)
-				* glm::scale(mat4(1.f),__ScaleInterpolation)
-				* glm::toMat4(__RotateInterpolation);
+		// set joint transformation targets
+		p_MJoint.request_position(__TargetPosition);
+		p_MJoint.request_scale(__TargetScale);
+		p_MJoint.request_rotation(__TargetRotation);
 	}
+	m_AnimationTransitionTime = glm::max(m_AnimationTransitionTime-g_Frame.delta_time,.0f);
+}
+
+/**
+ *	update joint transform based on current target & progression
+ */
+void AnimatedMesh::update()
+{
+	// iterate joints for location animation transformations
+	for (MeshJoint& p_Joint : joints) p_Joint.interpolate();
 
 	// calculate transform after parent influence
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
-	// FIXME it's unclear if joints[0] is always root node, this could lead to nasty consequences
 }
 
+/**
+ *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
+ *	\param joint: joint of current root in animation joint subtree
+ *	\param parent_transform: transformation basis inherited from parent joint
+ */
 void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
 {
 	mat4 __LocalTransform = parent_transform*joint.transform;
@@ -537,7 +701,7 @@ void Renderer::exit()
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 {
 	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
 }
@@ -548,11 +712,12 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,vector<Texture*>& tex)
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
 	for (MeshJoint& p_Joint : mesh.joints)
 		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	anim_meshes.push_back(&mesh);
 	return id;
 }
 
@@ -564,7 +729,7 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex)
  *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex)
 {
 	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
@@ -770,12 +935,28 @@ Renderer::Renderer()
 // TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
 
 /**
+ *	precalculating setup (before wheel system setup)
+ */
+void Renderer::precalculate()
+{
+	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
+	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+}
+
+/**
  *	render visual result
  */
 void Renderer::update()
 {
-	m_FrameStart = std::chrono::steady_clock::now();
-
 	// shadow projection
 	g_GPU.cull_backfaces(false);
 	g_Frame.set_viewport(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
@@ -1239,6 +1420,40 @@ void Renderer::reset_lighting()
 }
 
 /**
+ *	register animated mesh for automatic animation
+ *	\param mesh: address of mesh to automatically animate
+ */
+void Renderer::animate(AnimatedMesh* mesh)
+{
+	m_AnimatingMeshes.push_back(mesh);
+}
+
+/**
+ *	geometry realignment based on position
+ *	\param geom: intersection rectangle over aligning geometry
+ *	\param alignment: (default fullscreen neutral) target alignment within specified border
+ *	\returns new position of geometry after alignment process
+ */
+/*
+vec2 Renderer::align(Rect geom,Alignment alignment)
+{
+	// setup
+	vec2 __Position = geom.position;
+	vec2 __GeomCenter = geom.extent*vec2(.5f);
+	vec2 __BorderCenter = alignment.border.extent*vec2(.5f)+alignment.border.position;
+
+	// adjust vertical alignment
+	u8 vertical_alignment = 2-(alignment.align%3);
+	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
+
+	// adjust horizontal alignment
+	u8 horizontal_alignment = alignment.align/3;
+	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
+	return __Position;
+}
+*/
+
+/**
  *	update all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1368,12 +1583,12 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
  */
 void Renderer::_gpu_upload()
 {
-	m_GPUSpriteTextures.gpu_upload(RENDERER_TEXTURE_SPRITES,m_FrameStart);
-	m_GPUFontTextures.gpu_upload(RENDERER_TEXTURE_FONTS,m_FrameStart);
+	m_GPUSpriteTextures.gpu_upload(RENDERER_TEXTURE_SPRITES);
+	m_GPUFontTextures.gpu_upload(RENDERER_TEXTURE_FONTS);
 
 	// singular textures
 	m_MutexMeshTextureUpload.lock();
-	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time(m_FrameStart)<FRAME_TIME_BUDGET_MS)
+	while (m_MeshTextureUploadQueue.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
 		p_Tuple.texture->bind(RENDERER_TEXTURE_UNMAPPED);
@@ -1385,7 +1600,6 @@ void Renderer::_gpu_upload()
 	}
 	m_MutexMeshTextureUpload.unlock();
 }
-// FIXME the same is happening in buffer.cpp, it seems untidy and is worth another thought
 
 
 // ----------------------------------------------------------------------------------------------------

@@ -93,6 +93,34 @@ struct AnimationVertex
 
 
 // ----------------------------------------------------------------------------------------------------
+// Animations
+
+template<typename T> struct AnimKey
+{
+	T key;
+	f64 duration = .0;
+};
+
+struct AnimationJoint
+{
+	u16 id;
+	u16 crr_position = 0;
+	u16 crr_scale = 0;
+	u16 crr_rotation = 0;
+	vector<AnimKey<vec3>> position_keys;
+	vector<AnimKey<vec3>> scaling_keys;
+	vector<AnimKey<quat>> rotation_keys;
+};
+
+struct Animation
+{
+	vector<AnimationJoint> joints;
+	f64 duration;
+	f64 duration_inv;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Entity Data
 
 struct Text
@@ -131,39 +159,49 @@ public:
 
 struct MeshJoint
 {
+	// utility
+	void request_position(const AnimKey<vec3>& target);
+	void request_scale(const AnimKey<vec3>& target);
+	void request_rotation(const AnimKey<quat>& target);
+	void interpolate();
+
+	// data mapping
 	string id;
 	string uniform_location;
+
+	// transform data manipulation
+	f32 prog_position = .0f;
+	f32 prog_scale = .0f;
+	f32 prog_rotation = .0f;
+	vec3 ct_position;
+	vec3 ct_scale;
+	quat ct_rotation;
+	AnimKey<vec3> crr_position;
+	AnimKey<vec3> crr_scale;
+	AnimKey<quat> crr_rotation;
+	AnimKey<vec3> target_position;
+	AnimKey<vec3> target_scale;
+	AnimKey<quat> target_rotation;
+
+	// final transform
 	mat4 offset;
 	mat4 transform = mat4(1.f);
 	mat4 recursive_transform = mat4(1.f);
+
+	// tree structure
 	vector<u16> children;
 };
-
-struct AnimationJoint
-{
-	u16 id;
-	u16 crr_position = 0;
-	u16 crr_scale = 0;
-	u16 crr_rotation = 0;
-	vector<vec3> position_keys;
-	vector<vec3> scaling_keys;
-	vector<quat> rotation_keys;
-	vector<f64> position_durations;
-	vector<f64> scaling_durations;
-	vector<f64> rotation_durations;
-};
-// TODO maybe join duration & keys?
-
-struct Animation
-{
-	vector<AnimationJoint> joints;
-	f64 duration;
-};
+// TODO maybe instead of indices, pointers for children?
 
 class AnimatedMesh
 {
 public:
 	AnimatedMesh(const char* path);
+	void set_default_animation(u8 id,f32 tt=.0f);
+	void set_animation(u8 id,f32 tt=.0f);
+	MeshJoint* find_joint(const string& id);
+	f64 get_progress();
+	void animate();
 	void update();
 
 private:
@@ -173,9 +211,13 @@ public:
 	vector<AnimationVertex> vertices;
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
-	u16 index_count = 0;
-	u16 current_animation = 0;
-	f64 progress = .0;
+	u16 current_animation;
+
+private:
+	u16 m_StandardAnimation = 0;
+	f32 m_StandardTransitionTime = .0f;
+	f32 m_AnimationTransitionTime = .0f;
+	f64 m_Progress = .0;
 };
 // TODO do not load this into it's own animation mesh, rather than extract animations and attach to mesh later
 //		then again this can be done later, the related mesh probably will always be attached (weighing)
@@ -225,9 +267,9 @@ struct GeometryBatch
 {
 	// utility
 	// batch geometry loading
-	u32 add_geometry(Mesh& mesh,vector<Texture*>& tex);
-	u32 add_geometry(AnimatedMesh& mesh,vector<Texture*>& tex);
-	u32 add_geometry(void* verts,size_t vsize,size_t ssize,vector<Texture*>& tex);
+	u32 add_geometry(Mesh& mesh,const vector<Texture*>& tex);
+	u32 add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex);
+	u32 add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex);
 	void load();
 
 	// data
@@ -235,6 +277,7 @@ struct GeometryBatch
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
+	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
 //vector<u32> elements;
 	u32 geometry_cursor = 0;
@@ -310,6 +353,7 @@ class Renderer
 public:
 	Renderer();
 
+	void precalculate();
 	void update();
 	void exit();
 
@@ -352,6 +396,7 @@ public:
 	void reset_lighting();
 
 	// utility
+	void animate(AnimatedMesh* mesh);
 	static vec2 align(Rect geom,Alignment alignment);
 
 private:
@@ -374,7 +419,6 @@ private:
 #ifdef DEBUG
 	RuntimeProfilerData m_ProfilerFullFrame = PROF_CRT("full frametime");
 #endif
-	std::chrono::steady_clock::time_point m_FrameStart;
 
 	// ----------------------------------------------------------------------------------------------------
 	// Threading
@@ -431,6 +475,10 @@ private:
 	list<ParticleBatch> m_DeferredParticleBatches;
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
+
+	// animation
+	vector<AnimatedMesh*> m_AnimatingMeshes;
+	// FIXME figure out what happens to deleted animated meshes that are linked here and in geometry batch
 
 	// lighting
 	lptr<ShaderPipeline> m_GeometryPassPipeline;

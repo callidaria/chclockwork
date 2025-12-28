@@ -8,3 +8,6 @@ core/include/*
 lib/core/*
 lib/script/*
 *.o
+
+# resource
+res/private/*
