@@ -76,8 +76,7 @@ void Text::align()
  */
 void Text::load_buffer()
 {
-	bool reallocate = buffer.capacity()<data.size();
-	COMM_LOG_COND(reallocate,"allocating memory for text buffer");
+	COMM_LOG_COND(buffer.capacity()<data.size(),"allocating memory for text buffer");
 	buffer.resize(data.size());
 
 	// load font information for characters
@@ -1428,31 +1427,6 @@ void Renderer::animate(AnimatedMesh* mesh)
 {
 	m_AnimatingMeshes.push_back(mesh);
 }
-
-/**
- *	geometry realignment based on position
- *	\param geom: intersection rectangle over aligning geometry
- *	\param alignment: (default fullscreen neutral) target alignment within specified border
- *	\returns new position of geometry after alignment process
- */
-/*
-vec2 Renderer::align(Rect geom,Alignment alignment)
-{
-	// setup
-	vec2 __Position = geom.position;
-	vec2 __GeomCenter = geom.extent*vec2(.5f);
-	vec2 __BorderCenter = alignment.border.extent*vec2(.5f)+alignment.border.position;
-
-	// adjust vertical alignment
-	u8 vertical_alignment = 2-(alignment.align%3);
-	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
-
-	// adjust horizontal alignment
-	u8 horizontal_alignment = alignment.align/3;
-	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
-	return __Position;
-}
-*/
 
 /**
  *	update all registered sprites
