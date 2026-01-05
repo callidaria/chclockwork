@@ -150,12 +150,12 @@ private:
 	void _free();
 
 public:
-	u32 x,y;
-	s32 width,height;
+	u32 x = 0,y = 0;
+	s32 width = 0,height = 0;
 	u8* data;
 
 private:
-	TextureFormat m_Format;
+	TextureFormat m_Format = TEXTURE_FORMAT_RGBA;
 	bool m_TextureFlag = false;
 };
 
