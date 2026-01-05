@@ -675,7 +675,7 @@ void Renderer::update()
 	m_Framebuffer.start();
 	m_VertexArray.bind(m_Framebuffer);
 
-	// gpu drawcall
+	// drawcall
 	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
@@ -765,10 +765,11 @@ void GeometryBatch::load()
  *	setup particle batch by mesh geometry
  *	\param mesh: loaded mesh for explicit geometry information
  *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
  */
-void ParticleBatch::load(Mesh& mesh,u32 particles)
+void ParticleBatch::load(Mesh& mesh,u32 particles,size_t isize)
 {
-	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles);
+	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles,isize);
 }
 
 /**
@@ -777,8 +778,9 @@ void ParticleBatch::load(Mesh& mesh,u32 particles)
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
  *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
  */
-void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
+void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize)
 {
 	COMM_LOG("loading particle mesh geometry information");
 	size_t size = vsize*ssize;
@@ -788,7 +790,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 	// auto-mapping particle shader pipeline
 	vao.bind();
 	vbo.allocate(geometry.size()*sizeof(f32));
-	ibo.allocate(particles,BUFFER_TYPE_INDEX);
+	ibo.allocate(particles*isize,BUFFER_TYPE_INDEX);
 	vbo.bind();
 	vbo.upload_vertices(&geometry[0]);
 	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);

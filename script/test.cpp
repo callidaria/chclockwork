@@ -88,7 +88,7 @@ TestScene::TestScene()
 		{ vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
 	};
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
-	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT);
+	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
 	g_Renderer.register_shadow_batch(__BulbBatch);
 	__BulbBatch->ibo.bind();
 	__BulbBatch->ibo.upload_vertices(__BulbIndices);
@@ -102,6 +102,7 @@ TestScene::TestScene()
 	// standard setup
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Frame.time_factor = 2.f;  // FIXME yes this is bad
+	// TODO add a feature to accelerate animation on load so this can be avoided
 	m_Dude.set_default_animation(DANIM_IDLE,.4f);
 	g_Renderer.animate(&m_Dude);
 

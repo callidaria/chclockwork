@@ -289,8 +289,8 @@ struct GeometryBatch
 struct ParticleBatch
 {
 	// utility
-	void load(Mesh& mesh,u32 particles);
-	void load(void* verts,size_t vsize,size_t ssize,u32 particles);
+	void load(Mesh& mesh,u32 particles,size_t isize);
+	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
 
 	// data
 	VertexArray vao;
