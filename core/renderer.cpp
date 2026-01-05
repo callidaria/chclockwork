@@ -516,6 +516,7 @@ void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 {
 	m_StandardAnimation = id;
 	m_StandardTransitionTime = tt;
+	current_animation = id;
 }
 
 /**
@@ -1455,7 +1456,7 @@ void Renderer::_update_text()
 	// iterate text entities
 	for (Text& p_Text : m_Texts)
 	{
-		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0]);
+		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
 		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
 	}
 }

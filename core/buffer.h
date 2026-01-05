@@ -85,6 +85,7 @@ public:
 
 	// upload
 	void upload_vertices(void* vertices);
+	void upload_vertices(void* vertices,size_t size);
 	void upload_elements(u32* elements,size_t size);
 	void upload_elements(vector<u32> elements);
 

@@ -211,7 +211,7 @@ public:
 	vector<AnimationVertex> vertices;
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
-	u16 current_animation;
+	u16 current_animation = 0;
 
 private:
 	u16 m_StandardAnimation = 0;
@@ -397,7 +397,6 @@ public:
 
 	// utility
 	void animate(AnimatedMesh* mesh);
-	static vec2 align(Rect geom,Alignment alignment);
 
 private:
 

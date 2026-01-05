@@ -338,13 +338,21 @@ void VertexBuffer::allocate(size_t size,BufferType type)
  */
 void VertexBuffer::upload_vertices(void* verts)
 {
+	upload_vertices(verts,m_BufferSize);
+}
+
+/**
+ *	TODO
+ */
+void VertexBuffer::upload_vertices(void* verts,size_t size)
+{
 #ifdef VKBUILD
 	void* __Data;
-	vkMapMemory(g_GPU.gpu,m_Memory,0,m_BufferSize,0,&__Data);
-	memcpy(__Data,verts,m_BufferSize);
+	vkMapMemory(g_GPU.gpu,m_Memory,0,size,0,&__Data);
+	memcpy(__Data,verts,size);
 	vkUnmapMemory(g_GPU.gpu,m_Memory);
 #else
-	glBufferData(GL_ARRAY_BUFFER,m_BufferSize,verts,_memory_formats[m_BufferType]);
+	glBufferData(GL_ARRAY_BUFFER,size,verts,_memory_formats[m_BufferType]);
 #endif
 }
 
