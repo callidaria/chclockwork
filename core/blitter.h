@@ -11,7 +11,7 @@ constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 class Frame
 {
 public:
-	Frame(const char* title,u16 width,u16 height,bool vsync=true);
+	Frame();
 
 	// utilty
 	static void clear();
@@ -95,7 +95,7 @@ private:
 #endif
 };
 
-inline Frame g_Frame = Frame("C. Hanson's Clockwork",FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,FRAME_BLITTER_VSYNC);
+inline Frame g_Frame = Frame();
 
 
 #endif
