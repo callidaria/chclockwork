@@ -288,6 +288,7 @@ void GPU::free(VkPipelineLayout res) { vkDestroyPipelineLayout(gpu,res,nullptr);
 void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
 void GPU::free(VkImageView res) { vkDestroyImageView(gpu,res,nullptr); }
 void GPU::free(VkFramebuffer res) { vkDestroyFramebuffer(gpu,res,nullptr); }
+void GPU::free(VkCommandBuffer* res) { vkFreeCommandBuffers(gpu,cmd_pool,1,res); }
 void GPU::free(VkSemaphore res) { vkDestroySemaphore(gpu,res,nullptr); }
 void GPU::free(VkFence res) { vkDestroyFence(gpu,res,nullptr); }
 

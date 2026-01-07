@@ -663,7 +663,8 @@ Renderer::Renderer()
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
-	m_TestingPipeline.assemble(m_Framebuffer,"./core/shader/vulkan/bin/triangle.vert",
+	m_TestingPipeline.assemble(m_Framebuffer,
+							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
 	m_VertexBuffer.allocate(15*sizeof(f32));
 	m_VertexBuffer.upload_vertices(_verts);

@@ -91,6 +91,7 @@ struct GPU
 	void free(VkRenderPass res);
 	void free(VkImageView res);
 	void free(VkFramebuffer res);
+	void free(VkCommandBuffer* res);
 	void free(VkSemaphore res);
 	void free(VkFence res);
 

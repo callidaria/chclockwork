@@ -104,7 +104,9 @@ private:
 public:
 	VkBuffer vbo;
 private:
+	VkBuffer m_StagingVBO;
 	VkDeviceMemory m_Memory;
+	VkDeviceMemory m_StagingMemory;
 #else
 	u32 m_VBO;
 #endif

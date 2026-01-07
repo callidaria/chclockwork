@@ -70,13 +70,13 @@ Frame::Frame()
 #ifdef VKBUILD
 	COMM_MSG(LOG_CYAN,"opening vulkan window");
 	u8 did = 0;
-	m_Frame = SDL_CreateWindow(FRAME_GAME_NAME,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-							   width,height,/*SDL_WINDOW_RESIZABLE|*/SDL_WINDOW_VULKAN);
+	m_Frame = SDL_CreateWindow(FRAME_PROGRAM_TITLE,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
+							   FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,/*SDL_WINDOW_RESIZABLE|*/SDL_WINDOW_VULKAN);
 
 	// application info
 	VkApplicationInfo __ApplicationInfo = {  };
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	__ApplicationInfo.pApplicationName = FRAME_GAME_NAME;
+	__ApplicationInfo.pApplicationName = FRAME_PROGRAM_TITLE;
 	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
 	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
 	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);

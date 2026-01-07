@@ -285,17 +285,14 @@ GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
 /**
  *	TODO
  */
-void VertexBuffer::allocate(size_t size,BufferType type)
+inline void _generate_vertex_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+									VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
 {
-	m_BufferSize = size;
-	m_BufferType = type;
-
-#ifdef VKBUILD
 	// vertex buffer
 	VkBufferCreateInfo __BufferInfo = {  };
 	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	__BufferInfo.size = size;
-	__BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	__BufferInfo.usage = fusage;
 	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
@@ -309,8 +306,7 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	while (__MemoryIndex<g_GPU.device_info->memory_properties.memoryTypeCount)
 	{
 		if ((__MemoryRequirements.memoryTypeBits&(1<<__MemoryIndex))
-			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags
-			   &(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))) break;
+			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags&fproperty)) break;
 		__MemoryIndex++;
 	}
 	// TODO well this just has to be completely reworked before fully including this
@@ -321,17 +317,31 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	__MallocInfo.allocationSize = __MemoryRequirements.size;
 	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&m_Memory);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
 
 	// bind memory to vbo
-	vkBindBufferMemory(g_GPU.gpu,vbo,m_Memory,0);
+	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
+	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
+}
 
+/**
+ *	TODO
+ */
+void VertexBuffer::allocate(size_t size,BufferType type)
+{
+	m_BufferSize = size;
+	m_BufferType = type;
+
+#ifdef VKBUILD
+	_generate_vertex_buffer(vbo,m_Memory,m_BufferSize,
+							VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 #else
 	glGenBuffers(1,&m_VBO);
 #endif
 }
-// TODO buffer type only relevant for ogl version
+// TODO buffer type only relevant for ogl version (for now!)
 
 /**
  *	TODO
@@ -347,14 +357,58 @@ void VertexBuffer::upload_vertices(void* verts)
 void VertexBuffer::upload_vertices(void* verts,size_t size)
 {
 #ifdef VKBUILD
+	// fill staging buffer with vertex information
+	VkBuffer __StagingVBO;
+	VkDeviceMemory __StagingMemory;
+	_generate_vertex_buffer(__StagingVBO,__StagingMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	void* __Data;
-	vkMapMemory(g_GPU.gpu,m_Memory,0,size,0,&__Data);
-	memcpy(__Data,verts,size);
-	vkUnmapMemory(g_GPU.gpu,m_Memory);
+	vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
+	memcpy(__Data,verts,m_BufferSize);
+	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
+
+	// generate copy command buffer
+	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
+	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool;
+	__CmdBufferAllocInfo.commandBufferCount = 1;
+	VkCommandBuffer __CMDBuffer;
+	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&__CMDBuffer);
+	// FIXME this is repeating stuff from hardware.h
+
+	// copy vertex information to gpu
+	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
+	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(__CMDBuffer,&__CMDBeginInfo);
+	VkBufferCopy __BufferCopy = {  };
+	__BufferCopy.srcOffset = 0;
+	__BufferCopy.dstOffset = 0;
+	__BufferCopy.size = m_BufferSize;
+	vkCmdCopyBuffer(__CMDBuffer,__StagingVBO,vbo,1,&__BufferCopy);
+	vkEndCommandBuffer(__CMDBuffer);
+
+	// submit command buffer queue
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &__CMDBuffer;
+	vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
+	vkQueueWaitIdle(g_GPU.graphical_queue);
+	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
+
+	// cleanup
+	g_GPU.free(&__CMDBuffer);
+	g_GPU.free(__StagingVBO);
+	g_GPU.free(__StagingMemory);
+
 #else
 	glBufferData(GL_ARRAY_BUFFER,size,verts,_memory_formats[m_BufferType]);
 #endif
 }
+// FIXME do not! change size by parameter here. this is the worst practive. vulkan version will never need this
+//		remove this (...at once?)
 
 /**
  *	upload elements from array into buffer
@@ -366,6 +420,7 @@ void VertexBuffer::upload_elements(u32* elements,size_t size)
 {
 #ifdef VKBUILD
 	// TODO not sure if this will prevail, because the vulkan version will use element draw from the start
+	//		(will it though?)
 
 #else
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,size,elements,GL_STATIC_DRAW);
@@ -406,6 +461,7 @@ void VertexBuffer::bind()
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 }
 // FIXME there is no bind/unbind in vulkan. how do i replicate this phenomenon?
+//		i shall omit the bind/unbind in the legacy version and conform to the sister implementation architecture
 // TODO maybe just not allow to bind vertex buffer and solve through linking and direct value assignment
 
 /**
