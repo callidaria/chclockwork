@@ -275,12 +275,6 @@ VkBufferUsageFlagBits _buffer_formats[BUFFER_TYPE_COUNT] = {
 	VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 	VK_BUFFER_USAGE_INDEX_BUFFER_BIT
 };
-#else
-GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
-	GL_STATIC_DRAW,
-	GL_DYNAMIC_DRAW
-};
-#endif
 
 /**
  *	TODO
@@ -324,6 +318,13 @@ inline void _generate_vertex_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t siz
 	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
 	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
+
+#else
+GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
+	GL_STATIC_DRAW,
+	GL_DYNAMIC_DRAW
+};
+#endif
 
 /**
  *	TODO
