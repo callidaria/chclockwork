@@ -81,7 +81,7 @@ private:
 class VertexBuffer
 {
 public:
-	void allocate(size_t size,BufferType type=BUFFER_TYPE_VERTEX);
+	void allocate(size_t size,BufferType type);
 
 	// upload
 	void upload_vertices(void* vertices);
@@ -118,6 +118,7 @@ public:
 #ifdef VKBUILD
 	VertexArray(u8 size);
 	void link_buffer(VertexBuffer& vb,u64 offset);
+	void link_elements(VertexBuffer& eb);
 	void bind(Framebuffer& fb);
 #else
 	VertexArray();
@@ -127,6 +128,7 @@ public:
 private:
 #ifdef VKBUILD
 	vector<VkBuffer> m_Buffers;
+	VkBuffer m_ElementBuffer;
 	vector<u64> m_Offsets;
 #else
 	u32 m_VAO;

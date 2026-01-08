@@ -240,6 +240,7 @@ private:
 	ShaderPipeline m_TestingPipeline;
 	VertexArray m_VertexArray = VertexArray(1);
 	VertexBuffer m_VertexBuffer;
+	VertexBuffer m_IndexBuffer;
 	u8 m_ActiveBuffer = 0;
 };
 

@@ -332,17 +332,16 @@ GLenum _memory_formats[BUFFER_TYPE_COUNT] = {
 void VertexBuffer::allocate(size_t size,BufferType type)
 {
 	m_BufferSize = size;
-	m_BufferType = type;
+	m_BufferType = type;  // FIXME this is only stored for ogl later
 
 #ifdef VKBUILD
 	_generate_vertex_buffer(vbo,m_Memory,m_BufferSize,
-							VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+							VK_BUFFER_USAGE_TRANSFER_DST_BIT|_buffer_formats[type],
 							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 #else
 	glGenBuffers(1,&m_VBO);
 #endif
 }
-// TODO buffer type only relevant for ogl version (for now!)
 
 /**
  *	TODO
@@ -410,6 +409,9 @@ void VertexBuffer::upload_vertices(void* verts,size_t size)
 }
 // FIXME do not! change size by parameter here. this is the worst practive. vulkan version will never need this
 //		remove this (...at once?)
+// TODO rename to upload and make vertex/element non-specific. this should just work without user decision
+//		also rework the whole naming why are there element/indices overlapping and why are they all in a
+//		vertex buffer even though they are not vertices! frankly terrible!
 
 /**
  *	upload elements from array into buffer
@@ -498,11 +500,21 @@ void VertexArray::link_buffer(VertexBuffer& vb,u64 offset)
 }
 
 /**
+ *	TODO
+ */
+void VertexArray::link_elements(VertexBuffer& eb)
+{
+	m_ElementBuffer = eb.vbo;
+}
+
+/**
  *	bind vertex array
  */
 void VertexArray::bind(Framebuffer& fb)
 {
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_ElementBuffer,0,VK_INDEX_TYPE_UINT32);
+	// FIXME elements will not always exist. make this implementation less rigid
 }
 
 #else

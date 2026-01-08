@@ -655,20 +655,25 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
-	f32 _verts[] = {
+	f32 __Verts[] = {
 		-.5f,.5f,1.f,.0f,.0f,
 		.5f,.5f,.0f,1.f,.0f,
-		.0f,-.5f,.0f,.0f,1.f,
+		.5f,-.5f,.0f,.0f,1.f,
+		-.5f,-.5f,.0f,.0f,1.f,
 	};
+	u32 __Indices[] = { 0,1,2,2,3,0 };
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
-	m_VertexBuffer.allocate(15*sizeof(f32));
-	m_VertexBuffer.upload_vertices(_verts);
+	m_VertexBuffer.allocate(20*sizeof(f32),BUFFER_TYPE_VERTEX);
+	m_IndexBuffer.allocate(6*sizeof(u32),BUFFER_TYPE_INDEX);
+	m_VertexBuffer.upload_vertices(__Verts);
+	m_IndexBuffer.upload_vertices(__Indices);
 	m_VertexArray.link_buffer(m_VertexBuffer,0);
+	m_VertexArray.link_elements(m_IndexBuffer);
 }
 
 void Renderer::update()
@@ -678,7 +683,7 @@ void Renderer::update()
 	m_VertexArray.bind(m_Framebuffer);
 
 	// drawcall
-	vkCmdDraw(m_Framebuffer.cmd_buffer->buffer,3,1,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();
