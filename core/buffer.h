@@ -84,8 +84,7 @@ public:
 	void allocate(size_t size,BufferType type);
 
 	// upload
-	void upload_vertices(void* vertices);
-	void upload_vertices(void* vertices,size_t size);
+	void upload_vertices(void* vertices,size_t vsize,void* indices,size_t isize);
 	void upload_elements(u32* elements,size_t size);
 	void upload_elements(vector<u32> elements);
 
@@ -103,6 +102,7 @@ private:
 #ifdef VKBUILD
 public:
 	VkBuffer vbo;
+	size_t index_offset;  // TODO private later
 private:
 	VkBuffer m_StagingVBO;
 	VkDeviceMemory m_Memory;
@@ -116,9 +116,7 @@ class VertexArray
 {
 public:
 #ifdef VKBUILD
-	VertexArray(u8 size);
-	void link_buffer(VertexBuffer& vb,u64 offset);
-	void link_elements(VertexBuffer& eb);
+	void link_buffer(VertexBuffer& vb);
 	void bind(Framebuffer& fb);
 #else
 	VertexArray();
@@ -127,8 +125,8 @@ public:
 
 private:
 #ifdef VKBUILD
-	vector<VkBuffer> m_Buffers;
-	VkBuffer m_ElementBuffer;
+	VkBuffer m_Buffer;
+	size_t m_IndexOffset;
 	vector<u64> m_Offsets;
 #else
 	u32 m_VAO;

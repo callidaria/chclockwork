@@ -285,6 +285,7 @@ void GPU::free(VkSwapchainKHR res) { vkDestroySwapchainKHR(gpu,res,nullptr); }
 void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }
 void GPU::free(VkPipeline res) { vkDestroyPipeline(gpu,res,nullptr); }
 void GPU::free(VkPipelineLayout res) { vkDestroyPipelineLayout(gpu,res,nullptr); }
+void GPU::free(VkDescriptorSetLayout res) { vkDestroyDescriptorSetLayout(gpu,res,nullptr); }
 void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
 void GPU::free(VkImageView res) { vkDestroyImageView(gpu,res,nullptr); }
 void GPU::free(VkFramebuffer res) { vkDestroyFramebuffer(gpu,res,nullptr); }

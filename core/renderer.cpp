@@ -655,25 +655,29 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
+	// data
 	f32 __Verts[] = {
 		-.5f,.5f,1.f,.0f,.0f,
 		.5f,.5f,.0f,1.f,.0f,
 		.5f,-.5f,.0f,.0f,1.f,
-		-.5f,-.5f,.0f,.0f,1.f,
+		-.5f,-.5f,1.f,1.f,.0f,
 	};
 	u32 __Indices[] = { 0,1,2,2,3,0 };
+
+	// rendertarget
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
+
+	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
-	m_VertexBuffer.allocate(20*sizeof(f32),BUFFER_TYPE_VERTEX);
-	m_IndexBuffer.allocate(6*sizeof(u32),BUFFER_TYPE_INDEX);
-	m_VertexBuffer.upload_vertices(__Verts);
-	m_IndexBuffer.upload_vertices(__Indices);
-	m_VertexArray.link_buffer(m_VertexBuffer,0);
-	m_VertexArray.link_elements(m_IndexBuffer);
+
+	// vertex data
+	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices),BUFFER_TYPE_VERTEX);
+	m_VertexBuffer.upload_vertices(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
+	m_VertexArray.link_buffer(m_VertexBuffer);
 }
 
 void Renderer::update()
@@ -694,6 +698,7 @@ void Renderer::exit()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
+	m_IndexBuffer.vanish();
 }
 
 

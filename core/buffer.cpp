@@ -335,28 +335,24 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 	m_BufferType = type;  // FIXME this is only stored for ogl later
 
 #ifdef VKBUILD
-	_generate_vertex_buffer(vbo,m_Memory,m_BufferSize,
-							VK_BUFFER_USAGE_TRANSFER_DST_BIT|_buffer_formats[type],
+	_generate_vertex_buffer(vbo,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+							|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 #else
 	glGenBuffers(1,&m_VBO);
 #endif
 }
+// TODO actually implement buffer types for vulkan, this is very different due to index and vertex buffer
+//		having the same buffer handle in vulkan when using best practice. also differenciate uniforms
 
 /**
  *	TODO
  */
-void VertexBuffer::upload_vertices(void* verts)
-{
-	upload_vertices(verts,m_BufferSize);
-}
-
-/**
- *	TODO
- */
-void VertexBuffer::upload_vertices(void* verts,size_t size)
+void VertexBuffer::upload_vertices(void* vertices,size_t vsize,void* indices,size_t isize)
 {
 #ifdef VKBUILD
+	index_offset = vsize;
+
 	// fill staging buffer with vertex information
 	VkBuffer __StagingVBO;
 	VkDeviceMemory __StagingMemory;
@@ -364,8 +360,10 @@ void VertexBuffer::upload_vertices(void* verts,size_t size)
 							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	void* __Data;
 	vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
-	memcpy(__Data,verts,m_BufferSize);
+	memcpy(__Data,vertices,vsize);
+	memcpy(__Data+vsize,indices,isize);
 	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
+	// FIXME unmap ONCE. this is bad practice. just leave it be and synchronize
 
 	// generate copy command buffer
 	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
@@ -404,10 +402,10 @@ void VertexBuffer::upload_vertices(void* verts,size_t size)
 	g_GPU.free(__StagingMemory);
 
 #else
-	glBufferData(GL_ARRAY_BUFFER,size,verts,_memory_formats[m_BufferType]);
+	glBufferData(GL_ARRAY_BUFFER,size,vertices,_memory_formats[m_BufferType]);
 #endif
 }
-// FIXME do not! change size by parameter here. this is the worst practive. vulkan version will never need this
+// FIXME do not! change size by parameter here. this is the worst practice. vulkan version will never need this
 //		remove this (...at once?)
 // TODO rename to upload and make vertex/element non-specific. this should just work without user decision
 //		also rework the whole naming why are there element/indices overlapping and why are they all in a
@@ -422,9 +420,7 @@ void VertexBuffer::upload_vertices(void* verts,size_t size)
 void VertexBuffer::upload_elements(u32* elements,size_t size)
 {
 #ifdef VKBUILD
-	// TODO not sure if this will prevail, because the vulkan version will use element draw from the start
-	//		(will it though?)
-
+	// TODO
 #else
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,size,elements,GL_STATIC_DRAW);
 #endif
@@ -439,7 +435,6 @@ void VertexBuffer::upload_elements(vector<u32> elements)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,elements.size()*sizeof(u32),&elements[0],GL_STATIC_DRAW);
 #endif
@@ -482,39 +477,25 @@ void VertexBuffer::bind_elements()
 
 #ifdef VKBUILD
 /**
- *	create vertex array
- */
-VertexArray::VertexArray(u8 size)
-{
-	m_Buffers.reserve(size);
-	m_Offsets.reserve(size);
-}
-
-/**
  *	TODO
  */
-void VertexArray::link_buffer(VertexBuffer& vb,u64 offset)
+void VertexArray::link_buffer(VertexBuffer& vb/*,u64 offset*/)
 {
-	m_Buffers.push_back(vb.vbo);
-	m_Offsets.push_back(offset);
+	m_Buffer = vb.vbo;
+	m_IndexOffset = vb.index_offset;
+	m_Offsets = { 0 };
 }
-
-/**
- *	TODO
- */
-void VertexArray::link_elements(VertexBuffer& eb)
-{
-	m_ElementBuffer = eb.vbo;
-}
+// TODO no! one buffer for everything static!
+//		the prototype implementation exposes the necessaryless nature of this component
 
 /**
  *	bind vertex array
  */
 void VertexArray::bind(Framebuffer& fb)
 {
-	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_Buffers[0],&m_Offsets[0]);
-	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_ElementBuffer,0,VK_INDEX_TYPE_UINT32);
-	// FIXME elements will not always exist. make this implementation less rigid
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_Buffer,&m_Offsets[0]);
+	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffer,m_IndexOffset,VK_INDEX_TYPE_UINT32);
+	// FIXME elements will not always exist. make this implementation less rigid or just accept the bind as is
 }
 
 #else
