@@ -3,6 +3,7 @@
 
 GPU_VULKAN_MODE=true
 GPU_BUILD_SUFFIX="-DVKBUILD"
+GPU_CURRENT_MODE="vulkan mode (default)"
 
 cw_setup()
 {
@@ -103,17 +104,23 @@ sc()
 	done
 }
 
+cgl()
+{
+	echo "currently building ${GPU_CURRENT_MODE}"
+}
+
 sgl()
 {
 	if $GPU_VULKAN_MODE; then
 		GPU_VULKAN_MODE=false
 		GPU_BUILD_SUFFIX="-DGLBUILD"
-		echo "opengl mode enabled"
+		GPU_CURRENT_MODE="opengl mode"
 	else
 		GPU_VULKAN_MODE=true
 		GPU_BUILD_SUFFIX="-DVKBUILD"
-		echo "vulkan mode enabled"
+		GPU_CURRENT_MODE="vulkan mode"
 	fi
+	echo "${GPU_CURRENT_MODE} enabled"
 }
 
 
@@ -144,6 +151,7 @@ cw_help()
 	printf "%-15s - %s\n" "cw_setup" "project setup for build & development purposes"
 	printf "%-15s - %s\n" "cw_memfix" "run the engine with memory checking enabled for console output"
 	printf "%-15s - %s\n" "cw_profile" "run the engine with cpu performance profiling & open for analysis after"
+	printf "%-15s - %s\n" "cgl" "show currently active graphics library for next version build"
 	printf "%-15s - %s\n" "sgl" "switch graphics api library to specify next version build"
 	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"
