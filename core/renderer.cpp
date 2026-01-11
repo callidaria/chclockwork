@@ -664,7 +664,7 @@ Renderer::Renderer()
 	};
 	u32 __Indices[] = { 0,1,2,2,3,0 };
 
-	// rendertarget
+	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
@@ -676,15 +676,16 @@ Renderer::Renderer()
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices),BUFFER_TYPE_VERTEX);
-	m_VertexBuffer.upload_vertices(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
-	m_VertexArray.link_buffer(m_VertexBuffer);
+	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
+	//m_VertexArray.link_buffer(m_VertexBuffer);
 }
 
 void Renderer::update()
 {
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
-	m_VertexArray.bind(m_Framebuffer);
+	m_VertexBuffer.bind(m_Framebuffer);
+	//m_VertexArray.bind(m_Framebuffer);
 
 	// drawcall
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);

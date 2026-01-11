@@ -348,10 +348,10 @@ void VertexBuffer::allocate(size_t size,BufferType type)
 /**
  *	TODO
  */
-void VertexBuffer::upload_vertices(void* vertices,size_t vsize,void* indices,size_t isize)
+void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize)
 {
 #ifdef VKBUILD
-	index_offset = vsize;
+	m_IndexOffset = vsize;
 
 	// fill staging buffer with vertex information
 	VkBuffer __StagingVBO;
@@ -361,7 +361,7 @@ void VertexBuffer::upload_vertices(void* vertices,size_t vsize,void* indices,siz
 	void* __Data;
 	vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
 	memcpy(__Data,vertices,vsize);
-	memcpy(__Data+vsize,indices,isize);
+	memcpy((u8*)__Data+vsize,indices,isize);
 	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
 	// FIXME unmap ONCE. this is bad practice. just leave it be and synchronize
 
@@ -403,6 +403,7 @@ void VertexBuffer::upload_vertices(void* vertices,size_t vsize,void* indices,siz
 
 #else
 	glBufferData(GL_ARRAY_BUFFER,size,vertices,_memory_formats[m_BufferType]);
+	// TODO element upload
 #endif
 }
 // FIXME do not! change size by parameter here. this is the worst practice. vulkan version will never need this
@@ -417,6 +418,7 @@ void VertexBuffer::upload_vertices(void* vertices,size_t vsize,void* indices,siz
  *	\param size: size of array, holding the element indices
  *	NOTE vertex buffer has to be bound beforehand
  */
+/*
 void VertexBuffer::upload_elements(u32* elements,size_t size)
 {
 #ifdef VKBUILD
@@ -425,12 +427,14 @@ void VertexBuffer::upload_elements(u32* elements,size_t size)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,size,elements,GL_STATIC_DRAW);
 #endif
 }
+*/
 
 /**
  *	upload elements from vector into buffer
  *	\param elements: vector list of optional element indices to upload, mapping the vertex order
  *	NOTE vertex buffer has to be bound beforehand
  */
+/*
 void VertexBuffer::upload_elements(vector<u32> elements)
 {
 #ifdef VKBUILD
@@ -439,6 +443,24 @@ void VertexBuffer::upload_elements(vector<u32> elements)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,elements.size()*sizeof(u32),&elements[0],GL_STATIC_DRAW);
 #endif
 }
+*/
+
+/**
+ *	TODO
+ */
+#ifdef VKBUILD
+void VertexBuffer::bind(Framebuffer& fb)
+{
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&vbo,&m_Offsets[0]);
+	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,vbo,m_IndexOffset,VK_INDEX_TYPE_UINT32);
+}
+#else
+void VertexBuffer::bind()
+{
+	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
+	// TODO bind element buffer (?on condition?)
+}
+#endif
 
 #ifdef VKBUILD
 /**
@@ -449,15 +471,17 @@ void VertexBuffer::vanish()
 	g_GPU.free(vbo);
 	g_GPU.free(m_Memory);
 }
+#endif
 
-#else
 /**
  *	TODO
  */
+/*
 void VertexBuffer::bind()
 {
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 }
+*/
 // FIXME there is no bind/unbind in vulkan. how do i replicate this phenomenon?
 //		i shall omit the bind/unbind in the legacy version and conform to the sister implementation architecture
 // TODO maybe just not allow to bind vertex buffer and solve through linking and direct value assignment
@@ -465,57 +489,67 @@ void VertexBuffer::bind()
 /**
  *	TODO
  */
+/*
 void VertexBuffer::bind_elements()
 {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,m_VBO);
 }
-#endif
+*/
+//#endif
 
 
 // ----------------------------------------------------------------------------------------------------
 // Vertex Array
 
-#ifdef VKBUILD
+//#ifdef VKBUILD
 /**
  *	TODO
  */
-void VertexArray::link_buffer(VertexBuffer& vb/*,u64 offset*/)
+//void VertexArray::link_buffer(VertexBuffer& vb/*,u64 offset*/)
+/*
 {
 	m_Buffer = vb.vbo;
 	m_IndexOffset = vb.index_offset;
 	m_Offsets = { 0 };
 }
+*/
 // TODO no! one buffer for everything static!
 //		the prototype implementation exposes the necessaryless nature of this component
 
 /**
  *	bind vertex array
  */
+/*
 void VertexArray::bind(Framebuffer& fb)
 {
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_Buffer,&m_Offsets[0]);
 	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffer,m_IndexOffset,VK_INDEX_TYPE_UINT32);
 	// FIXME elements will not always exist. make this implementation less rigid or just accept the bind as is
 }
+*/
 
-#else
+//#else
 /**
  *	create vertex array
  */
+/*
 VertexArray::VertexArray()
 {
 	glGenVertexArrays(1,&m_VAO);
 }
+*/
 
 /**
  *	bind vertex array
  */
+/*
 void VertexArray::bind()
 {
 	glBindVertexArray(m_VAO);
 }
+*/
 
-#endif
+//#endif
 
 
 // ----------------------------------------------------------------------------------------------------

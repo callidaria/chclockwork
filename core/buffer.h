@@ -82,17 +82,13 @@ class VertexBuffer
 {
 public:
 	void allocate(size_t size,BufferType type);
-
-	// upload
-	void upload_vertices(void* vertices,size_t vsize,void* indices,size_t isize);
-	void upload_elements(u32* elements,size_t size);
-	void upload_elements(vector<u32> elements);
+	void upload(void* vertices,size_t vsize,void* indices=nullptr,size_t isize=0);
 
 #ifdef VKBUILD
+	void bind(Framebuffer& fb);
 	void vanish();
 #else
 	void bind();
-	void bind_elements();
 #endif
 
 private:
@@ -102,16 +98,18 @@ private:
 #ifdef VKBUILD
 public:
 	VkBuffer vbo;
-	size_t index_offset;  // TODO private later
 private:
 	VkBuffer m_StagingVBO;
 	VkDeviceMemory m_Memory;
 	VkDeviceMemory m_StagingMemory;
+	size_t m_IndexOffset;
+	vector<u64> m_Offsets = { 0 };  // FIXME dynamics
 #else
 	u32 m_VBO;
 #endif
 };
 
+/*
 class VertexArray
 {
 public:
@@ -132,6 +130,7 @@ private:
 	u32 m_VAO;
 #endif
 };
+*/
 // TODO this should be used automatically when implementing the vulkan correlation,
 //		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 

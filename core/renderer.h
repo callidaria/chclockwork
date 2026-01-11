@@ -238,7 +238,7 @@ public:
 private:
 	Framebuffer m_Framebuffer = Framebuffer(1);
 	ShaderPipeline m_TestingPipeline;
-	VertexArray m_VertexArray = VertexArray();
+	//VertexArray m_VertexArray = VertexArray();
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_IndexBuffer;
 	u8 m_ActiveBuffer = 0;
