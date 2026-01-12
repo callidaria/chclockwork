@@ -5,12 +5,8 @@
 #include "blitter.h"
 
 
-enum BufferType : u8
-{
-	BUFFER_TYPE_VERTEX,
-	BUFFER_TYPE_INDEX,
-	BUFFER_TYPE_COUNT
-};
+// ----------------------------------------------------------------------------------------------------
+// Types
 
 enum TextureFormat : u8
 {
@@ -81,7 +77,7 @@ private:
 class VertexBuffer
 {
 public:
-	void allocate(size_t size,BufferType type);
+	void allocate(size_t size);
 	void upload(void* vertices,size_t vsize,void* indices=nullptr,size_t isize=0);
 
 #ifdef VKBUILD
@@ -92,7 +88,6 @@ public:
 #endif
 
 private:
-	BufferType m_BufferType;
 	size_t m_BufferSize;
 
 #ifdef VKBUILD
@@ -108,31 +103,6 @@ private:
 	u32 m_VBO;
 #endif
 };
-
-/*
-class VertexArray
-{
-public:
-#ifdef VKBUILD
-	void link_buffer(VertexBuffer& vb);
-	void bind(Framebuffer& fb);
-#else
-	VertexArray();
-	void bind();
-#endif
-
-private:
-#ifdef VKBUILD
-	VkBuffer m_Buffer;
-	size_t m_IndexOffset;
-	vector<u64> m_Offsets;
-#else
-	u32 m_VAO;
-#endif
-};
-*/
-// TODO this should be used automatically when implementing the vulkan correlation,
-//		the struct itself should not be used outside the vertex buffer utility setup for the ogl version!
 
 
 // ----------------------------------------------------------------------------------------------------
