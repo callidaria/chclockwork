@@ -322,7 +322,7 @@ void VertexBuffer::allocate(size_t size)
 {
 	m_BufferSize = size;  // TODO this is not used in ogl version right now, remove after correlation done
 #ifdef VKBUILD
-	_generate_vertex_buffer(vbo,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+	_generate_vertex_buffer(m_VBO,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
 							|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 #else
@@ -370,7 +370,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	__BufferCopy.srcOffset = 0;
 	__BufferCopy.dstOffset = 0;
 	__BufferCopy.size = m_BufferSize;
-	vkCmdCopyBuffer(__CMDBuffer,__StagingVBO,vbo,1,&__BufferCopy);
+	vkCmdCopyBuffer(__CMDBuffer,__StagingVBO,m_VBO,1,&__BufferCopy);
 	vkEndCommandBuffer(__CMDBuffer);
 
 	// submit command buffer queue
@@ -407,8 +407,8 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 #ifdef VKBUILD
 void VertexBuffer::bind(Framebuffer& fb)
 {
-	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&vbo,&m_Offsets[0]);
-	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,vbo,m_IndexOffset,VK_INDEX_TYPE_UINT32);
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,1,&m_VBO,&m_Offsets[0]);
+	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_VBO,m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
 #else
 void VertexBuffer::bind()
@@ -417,14 +417,16 @@ void VertexBuffer::bind()
 }
 #endif
 
+#ifdef VKBUILD
 /**
  *	TODO
  */
 void VertexBuffer::vanish()
 {
-	g_GPU.free(vbo);
+	g_GPU.free(m_VBO);
 	g_GPU.free(m_Memory);
 }
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------

@@ -764,10 +764,8 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vao.bind();
 	vbo.allocate(geometry.size()*sizeof(f32));
-	vbo.bind();
-	vbo.upload_vertices(&geometry[0]);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
 	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 }
 
@@ -798,11 +796,9 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	memcpy(&geometry[0],verts,size);
 
 	// auto-mapping particle shader pipeline
-	vao.bind();
 	vbo.allocate(geometry.size()*sizeof(f32));
-	ibo.allocate(particles*isize,BUFFER_TYPE_INDEX);
-	vbo.bind();
-	vbo.upload_vertices(&geometry[0]);
+	//ibo.allocate(particles*isize);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
 	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// store geometry information
@@ -854,29 +850,25 @@ Renderer::Renderer()
 
 	COMM_LOG("assembling pipelines:");
 	COMM_LOG("sprite pipeline");
+	/*
 	m_SpritePipeline.assemble(__SpriteVertexShader,__DirectFragmentShader);
-	m_SpriteVertexArray.bind();
 	m_SpriteVertexBuffer.allocate(24*sizeof(f32));
 	m_SpriteInstanceBuffer.allocate(BUFFER_MAXIMUM_TEXTURE_COUNT*sizeof(Sprite),BUFFER_TYPE_INDEX);
-	m_SpriteVertexBuffer.bind();
-	m_SpriteVertexBuffer.upload_vertices(__QuadVertices);
+	m_SpriteVertexBuffer.upload(__QuadVertices);
 	m_SpritePipeline.map(RENDERER_TEXTURE_SPRITES,&m_SpriteVertexBuffer,&m_SpriteInstanceBuffer);
 	m_SpritePipeline.upload_coordinate_system();
 
 	COMM_LOG("text pipeline");
 	m_TextPipeline.assemble(__TextVertexShader,__TextFragmentShader);
-	m_TextVertexArray.bind();
 	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter),BUFFER_TYPE_INDEX);
-	m_SpriteVertexBuffer.bind();
 	m_TextPipeline.map(RENDERER_TEXTURE_FONTS,&m_SpriteVertexBuffer,&m_TextInstanceBuffer);
 	m_TextPipeline.upload_coordinate_system();
+	*/
 
 	COMM_LOG("canvas pipeline");
 	m_CanvasPipeline.assemble(__CanvasVertexShader,__LightingPassFragmentShader);
-	m_CanvasVertexArray.bind();
 	m_CanvasVertexBuffer.allocate(24*sizeof(f32));
-	m_CanvasVertexBuffer.bind();
-	m_CanvasVertexBuffer.upload_vertices(__CanvasVertices);
+	m_CanvasVertexBuffer.upload(__CanvasVertices,sizeof(__CanvasVertices));  // FIXME duplicate?!??
 	m_CanvasPipeline.map(RENDERER_TEXTURE_FORWARD,&m_CanvasVertexBuffer);
 
 	COMM_LOG("geometry pass pipelines");
@@ -1445,11 +1437,13 @@ void Renderer::animate(AnimatedMesh* mesh)
  */
 void Renderer::_update_sprites()
 {
+	/*
 	m_SpriteVertexArray.bind();
 	m_SpriteInstanceBuffer.bind();
 	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
 	m_SpritePipeline.enable();
 	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
+	*/
 }
 
 /**
@@ -1457,6 +1451,7 @@ void Renderer::_update_sprites()
  */
 void Renderer::_update_text()
 {
+	/*
 	// prepare gpu
 	m_TextVertexArray.bind();
 	m_TextInstanceBuffer.bind();
@@ -1468,6 +1463,7 @@ void Renderer::_update_text()
 		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
 		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
 	}
+	*/
 }
 
 /**
@@ -1475,7 +1471,8 @@ void Renderer::_update_text()
  */
 void Renderer::_update_canvas()
 {
-	m_CanvasVertexArray.bind();
+	//m_CanvasVertexArray.bind();
+	m_CanvasVertexBuffer.bind();
 	m_CanvasPipeline.enable();
 	m_ForwardFrameBuffer.bind_colour_component(RENDERER_TEXTURE_FORWARD,0);
 	m_DeferredFrameBuffer.bind_colour_component(RENDERER_TEXTURE_DEFERRED_COLOUR,0);
@@ -1505,7 +1502,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 	for (GeometryBatch& p_Batch : gb)
 	{
 		p_Batch.shader->enable();
-		p_Batch.vao.bind();
+		p_Batch.vbo.bind();
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
 			// texture upload
@@ -1524,13 +1521,15 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
 
 	// iterate particle geometry
+	/*
 	for (ParticleBatch& p_Batch : pb)
 	{
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera();
-		p_Batch.vao.bind();
+		p_Batch.vbo.bind();
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.vertex_count,p_Batch.active_particles);
 	}
+	*/
 }
 
 /**
@@ -1545,7 +1544,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	{
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
-		p_Batch.batch->vao.bind();
+		p_Batch.batch->vbo.bind();
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
@@ -1556,6 +1555,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	}
 
 	// iterate particle geometry
+	/*
 	for (ShadowParticleBatch& p_Batch : pb)
 	{
 		p_Batch.shader->enable();
@@ -1563,6 +1563,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.batch->vao.bind();
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
 	}
+	*/
 }
 
 /**

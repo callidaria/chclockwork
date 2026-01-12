@@ -91,15 +91,14 @@ private:
 	size_t m_BufferSize;
 
 #ifdef VKBUILD
-public:
-	VkBuffer vbo;
-private:
+	VkBuffer m_VBO;
 	VkBuffer m_StagingVBO;
 	VkDeviceMemory m_Memory;
 	VkDeviceMemory m_StagingMemory;
 	size_t m_IndexOffset;
 	vector<u64> m_Offsets = { 0 };  // FIXME dynamics
 #else
+	u32 m_VAO;
 	u32 m_VBO;
 #endif
 };

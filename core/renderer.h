@@ -272,7 +272,6 @@ struct GeometryBatch
 	void load();
 
 	// data
-	VertexArray vao;
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
@@ -292,7 +291,6 @@ struct ParticleBatch
 	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
 
 	// data
-	VertexArray vao;
 	VertexBuffer vbo;
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
@@ -426,10 +424,6 @@ private:
 
 	// ----------------------------------------------------------------------------------------------------
 	// Data Management & Pipelines
-
-	VertexArray m_SpriteVertexArray;
-	VertexArray m_TextVertexArray;
-	VertexArray m_CanvasVertexArray;
 
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_CanvasVertexBuffer;

@@ -77,7 +77,7 @@ TestScene::TestScene()
 	__PhysicalBatch->objects[__BoxID1].texel = 2.f;
 
 	// lightbulbs
-	BallIndex __BulbIndices[] = {
+	BallIndex __BulbIndices[TEST_LIGHTBULB_COUNT] = {
 		{ vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) },
 		{ vec3(9,-9,.7f),.2f,vec3(1,1,0),vec2(0,.4f) },
 		{ vec3(-9,9,1.2f),.2f,vec3(0,1,0),vec2(0,.4f) },
@@ -87,11 +87,13 @@ TestScene::TestScene()
 		{ vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) },
 		{ vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
 	};
+	/*
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
 	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
 	g_Renderer.register_shadow_batch(__BulbBatch);
 	__BulbBatch->ibo.bind();
 	__BulbBatch->ibo.upload_vertices(__BulbIndices);
+	*/
 
 	// lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1),.5f);
