@@ -117,6 +117,7 @@ public:
 private:
 #ifdef VKBUILD
 	// program
+	VkDescriptorSetLayout m_DSetLayout;
 	VkPipelineLayout m_PipelineLayout;
 #else
 	u32 m_ShaderProgram;

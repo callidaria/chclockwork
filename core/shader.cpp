@@ -56,18 +56,12 @@ u32 Shader::compile(const char* path,GLenum type)
 	return shader;
 }
 
-#endif
-
 /**
  *	create a vertex shader from source
  *	\param path: path to GLSL vertex source file
  */
 VertexShader::VertexShader(const char* path)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	shader = Shader::compile(path,GL_VERTEX_SHADER);
 	if (!shader)
 	{
@@ -104,7 +98,6 @@ VertexShader::VertexShader(const char* path)
 	// convert widths to byte format
 	vbo_width *= SHADER_UPLOAD_VALUE_SIZE;
 	ibo_width *= SHADER_UPLOAD_VALUE_SIZE;
-#endif
 }
 
 /**
@@ -113,10 +106,6 @@ VertexShader::VertexShader(const char* path)
  */
 FragmentShader::FragmentShader(const char* path)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	shader = Shader::compile(path,GL_FRAGMENT_SHADER);
 	if (!shader)
 	{
@@ -139,8 +128,10 @@ FragmentShader::FragmentShader(const char* path)
 		tokens[2].pop_back();
 		sampler_attribs.push_back(tokens[2]);
 	}
-#endif
 }
+
+
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -156,6 +147,22 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
 void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
+	// uniform binding definition
+	VkDescriptorSetLayoutBinding __OTBinding = {};
+	__OTBinding.binding = 0;
+	__OTBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__OTBinding.descriptorCount = 1;
+	__OTBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	__OTBinding.pImmutableSamplers = nullptr;
+
+	// uniform layout
+	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {};
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	__LayoutInfo.bindingCount = 1;
+	__LayoutInfo.pBindings = &__OTBinding;
+	VkResult __Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+
 	// read precompiled shader binaries
 	u32 __ShaderSizeVS,__ShaderSizeFS;
 	char* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
@@ -169,7 +176,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// vertex shader
 	__ModuleInfo.codeSize = __ShaderSizeVS;
 	__ModuleInfo.pCode = (u32*)__ShaderVS;
-	VkResult __Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	__Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
 
 	// fragment shader
@@ -300,8 +307,8 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	__LayoutInfo.setLayoutCount = 0;
-	__LayoutInfo.pSetLayouts = nullptr;
+	__LayoutInfo.setLayoutCount = 1;
+	__LayoutInfo.pSetLayouts = &m_DSetLayout;
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
@@ -409,6 +416,7 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(m_PipelineLayout);
+	g_GPU.free(m_DSetLayout);
 #endif
 }
 

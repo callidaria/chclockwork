@@ -105,6 +105,24 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
+class UniformBuffer
+{
+public:
+	UniformBuffer(size_t size);
+	void vanish();
+
+private:
+	VkBuffer m_UBO[GPU_BUFFER_COUNT];
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+};
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
 // Colour Buffers
 
 struct TextureData

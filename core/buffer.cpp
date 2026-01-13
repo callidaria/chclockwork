@@ -274,8 +274,8 @@ void Framebuffer::link_output()
 /**
  *	TODO
  */
-inline void _generate_vertex_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
-									VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
+inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+							 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
 {
 	// vertex buffer
 	VkBufferCreateInfo __BufferInfo = {  };
@@ -322,9 +322,9 @@ void VertexBuffer::allocate(size_t size)
 {
 	m_BufferSize = size;  // TODO this is not used in ogl version right now, remove after correlation done
 #ifdef VKBUILD
-	_generate_vertex_buffer(m_VBO,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
-							|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	_generate_buffer(m_VBO,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+					 |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 #else
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
@@ -342,8 +342,8 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// fill staging buffer with vertex information
 	VkBuffer __StagingVBO;
 	VkDeviceMemory __StagingMemory;
-	_generate_vertex_buffer(__StagingVBO,__StagingMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	_generate_buffer(__StagingVBO,__StagingMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	void* __Data;
 	vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
 	memcpy(__Data,vertices,vsize);
@@ -426,6 +426,41 @@ void VertexBuffer::vanish()
 	g_GPU.free(m_VBO);
 	g_GPU.free(m_Memory);
 }
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+UniformBuffer::UniformBuffer(size_t size)
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		_generate_buffer(size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_HOST_COHERENT_BIT,
+						 m_UBO[i],m_UBOMemory[i]);
+		vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,m_BufferSize,0,&m_UBOMapped[i]);
+	}
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::vanish()
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		g_GPU.free(m_UBO[i]);
+		g_GPU.free(m_UBOMemory[i]);
+	}
+}
+
 #endif
 
 

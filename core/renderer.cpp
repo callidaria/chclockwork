@@ -651,6 +651,13 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 
 #ifdef VKBUILD
 
+struct ObjectTransformation
+{
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+};
+
 // TODO those are all prototype implementations!
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
@@ -1471,7 +1478,6 @@ void Renderer::_update_text()
  */
 void Renderer::_update_canvas()
 {
-	//m_CanvasVertexArray.bind();
 	m_CanvasVertexBuffer.bind();
 	m_CanvasPipeline.enable();
 	m_ForwardFrameBuffer.bind_colour_component(RENDERER_TEXTURE_FORWARD,0);
