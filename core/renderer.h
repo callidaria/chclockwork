@@ -228,6 +228,13 @@ private:
 
 #ifdef VKBUILD
 
+struct ObjectTransformation
+{
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+};
+
 class Renderer
 {
 public:
@@ -239,7 +246,11 @@ private:
 	Framebuffer m_Framebuffer = Framebuffer(1);
 	ShaderPipeline m_TestingPipeline;
 	VertexBuffer m_VertexBuffer;
-	u8 m_ActiveBuffer = 0;
+	UniformBuffer m_UniformBuffer = UniformBuffer(sizeof(ObjectTransformation));
+
+	// testing
+	ObjectTransformation m_Trafo;
+	f32 m_Rotation = .0f;
 };
 
 

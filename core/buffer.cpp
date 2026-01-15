@@ -451,6 +451,16 @@ UniformBuffer::UniformBuffer(size_t size)
 
 /**
  *	TODO
+ *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
+ */
+void UniformBuffer::update(void* data,size_t size)
+{
+	memcpy(m_UBOMapped[g_GPU].active_buffer,data,size);
+}
+// FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
+
+/**
+ *	TODO
  */
 void UniformBuffer::vanish()
 {

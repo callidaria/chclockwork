@@ -112,6 +112,7 @@ class UniformBuffer
 {
 public:
 	UniformBuffer(size_t size);
+	void update(void* data,size_t size);
 	void vanish();
 
 private:

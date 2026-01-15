@@ -651,13 +651,6 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 
 #ifdef VKBUILD
 
-struct ObjectTransformation
-{
-	mat4 model;
-	mat4 view;
-	mat4 proj;
-};
-
 // TODO those are all prototype implementations!
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
@@ -684,6 +677,11 @@ Renderer::Renderer()
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
 	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
+
+	// testing
+	m_Trafo.view = glm::lookAt(vec3(2.f),vec3(.0f),vec3(0,0,1));
+	m_Trafo.proj = glm::perspective(glm::radians(45.f),FRAME_RESOLUTION_X/(f32)FRAME_RESOLUTION_Y,.1f,1000.f);
+	m_Trafo.proj[1][1] *= -1;
 }
 
 void Renderer::update()
@@ -691,6 +689,11 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
 	m_VertexBuffer.bind(m_Framebuffer);
+
+	// prototype update tbr
+	m_Rotation += g_Frame.delta_time*glm::radians(90.f);
+	m_Trafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
+	m_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
 	// drawcall
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);
@@ -704,6 +707,7 @@ void Renderer::exit()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
+	m_UniformBuffer.vanish();
 }
 
 

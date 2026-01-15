@@ -26,6 +26,7 @@ struct SwapChain
 	VkExtent2D extent;
 	VkSurfaceFormatKHR format;
 };
+// FIXME never used!
 
 struct CommandBuffer
 {
