@@ -439,13 +439,70 @@ void VertexBuffer::vanish()
  */
 UniformBuffer::UniformBuffer(size_t size)
 {
+	// generate buffer
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		_generate_buffer(size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_HOST_COHERENT_BIT,
-						 m_UBO[i],m_UBOMemory[i]);
-		vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,m_BufferSize,0,&m_UBOMapped[i]);
+		_generate_buffer(m_UBO[i],m_UBOMemory[i],size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,size,0,&m_UBOMapped[i]);
+	}
+
+	// descriptor pool
+	VkDescriptorPoolSize __PSize = {};
+	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	VkDescriptorPoolCreateInfo __DPoolInfo = {};
+	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	__DPoolInfo.poolSizeCount = 1;
+	__DPoolInfo.pPoolSizes = &__PSize;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT;
+	__DPoolInfo.flags = 0;
+	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
+
+	// uniform binding definition
+	VkDescriptorSetLayoutBinding __OTBinding = {};
+	__OTBinding.binding = 0;
+	__OTBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__OTBinding.descriptorCount = 1;
+	__OTBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO non-static
+	__OTBinding.pImmutableSamplers = nullptr;
+
+	// uniform layout
+	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {};
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	__LayoutInfo.bindingCount = 1;
+	__LayoutInfo.pBindings = &__OTBinding;
+	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+
+	// descriptor sets
+	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,m_DSetLayout);
+	VkDescriptorSetAllocateInfo __DSetAllocInfo = {};
+	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
+	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
+
+	// descriptor info template	
+	VkDescriptorBufferInfo __DescriptorInfo = {};
+	__DescriptorInfo.offset = 0;
+	__DescriptorInfo.range = size;
+
+	// descriptors
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		__DescriptorInfo.buffer = m_UBO[i];
+		VkWriteDescriptorSet __WriteDescriptor = {};
+		__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		__WriteDescriptor.dstSet = m_DSets[i];
+		__WriteDescriptor.dstBinding = 0;
+		__WriteDescriptor.dstArrayElement = 0;
+		__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		__WriteDescriptor.descriptorCount = 1;
+		__WriteDescriptor.pBufferInfo = &__DescriptorInfo;
+		vkUpdateDescriptorSets(g_GPU.gpu,1,&__WriteDescriptor,0,nullptr);
 	}
 }
 
@@ -455,7 +512,7 @@ UniformBuffer::UniformBuffer(size_t size)
  */
 void UniformBuffer::update(void* data,size_t size)
 {
-	memcpy(m_UBOMapped[g_GPU].active_buffer,data,size);
+	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 
@@ -469,7 +526,10 @@ void UniformBuffer::vanish()
 		g_GPU.free(m_UBO[i]);
 		g_GPU.free(m_UBOMemory[i]);
 	}
+	g_GPU.free(m_DescriptorPool);
+	g_GPU.free(m_DSetLayout);
 }
+// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
 #endif
 

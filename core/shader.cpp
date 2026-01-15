@@ -144,25 +144,9 @@ FragmentShader::FragmentShader(const char* path)
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
 #endif
-void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
+void ShaderPipeline::assemble(Framebuffer& target,UniformBuffer& ubo,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
-	// uniform binding definition
-	VkDescriptorSetLayoutBinding __OTBinding = {};
-	__OTBinding.binding = 0;
-	__OTBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__OTBinding.descriptorCount = 1;
-	__OTBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	__OTBinding.pImmutableSamplers = nullptr;
-
-	// uniform layout
-	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {};
-	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__LayoutInfo.bindingCount = 1;
-	__LayoutInfo.pBindings = &__OTBinding;
-	VkResult __Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
-
 	// read precompiled shader binaries
 	u32 __ShaderSizeVS,__ShaderSizeFS;
 	char* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
@@ -176,7 +160,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// vertex shader
 	__ModuleInfo.codeSize = __ShaderSizeVS;
 	__ModuleInfo.pCode = (u32*)__ShaderVS;
-	__Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	VkResult __Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
 
 	// fragment shader
@@ -308,10 +292,10 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
-	__LayoutInfo.pSetLayouts = &m_DSetLayout;
+	__LayoutInfo.pSetLayouts = &ubo.m_DSetLayout;
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
-	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_PipelineLayout);
+	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
 
 	// combine pipeline components into final graphics pipeline
@@ -327,7 +311,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__PipelineInfo.pDepthStencilState = nullptr;
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
-	__PipelineInfo.layout = m_PipelineLayout;
+	__PipelineInfo.layout = pipeline_layout;
 	__PipelineInfo.renderPass = target.render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -415,8 +399,7 @@ void ShaderPipeline::vanish()
 #ifdef VKBUILD
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
-	g_GPU.free(m_PipelineLayout);
-	g_GPU.free(m_DSetLayout);
+	g_GPU.free(pipeline_layout);
 #endif
 }
 

@@ -113,12 +113,18 @@ class UniformBuffer
 public:
 	UniformBuffer(size_t size);
 	void update(void* data,size_t size);
+	void bind(Framebuffer& fb);
 	void vanish();
+
+public:
+	VkDescriptorSetLayout m_DSetLayout;
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 
 private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
+	VkDescriptorPool m_DescriptorPool;
 };
 #endif
 

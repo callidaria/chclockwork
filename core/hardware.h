@@ -89,6 +89,7 @@ struct GPU
 	void free(VkShaderModule res);
 	void free(VkPipeline res);
 	void free(VkPipelineLayout res);
+	void free(VkDescriptorPool res);
 	void free(VkDescriptorSetLayout res);
 	void free(VkRenderPass res);
 	void free(VkImageView res);

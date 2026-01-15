@@ -670,7 +670,7 @@ Renderer::Renderer()
 	m_Framebuffer.link_output();
 
 	// pipeline
-	m_TestingPipeline.assemble(m_Framebuffer,
+	m_TestingPipeline.assemble(m_Framebuffer,m_UniformBuffer,
 							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
 
@@ -681,7 +681,6 @@ Renderer::Renderer()
 	// testing
 	m_Trafo.view = glm::lookAt(vec3(2.f),vec3(.0f),vec3(0,0,1));
 	m_Trafo.proj = glm::perspective(glm::radians(45.f),FRAME_RESOLUTION_X/(f32)FRAME_RESOLUTION_Y,.1f,1000.f);
-	m_Trafo.proj[1][1] *= -1;
 }
 
 void Renderer::update()
@@ -696,6 +695,9 @@ void Renderer::update()
 	m_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
 	// drawcall
+	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
+							m_TestingPipeline.pipeline_layout,0,1,
+							&m_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 

@@ -76,7 +76,7 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
-	void assemble(Framebuffer& target,const char* vs,const char* fs);
+	void assemble(Framebuffer& target,UniformBuffer& ubo,const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
 	void vanish();  // §testing
@@ -112,13 +112,13 @@ private:
 public:
 #ifdef VKBUILD
 	VkPipeline pipeline;
+	VkPipelineLayout pipeline_layout;
 #endif
 
 private:
 #ifdef VKBUILD
 	// program
-	VkDescriptorSetLayout m_DSetLayout;
-	VkPipelineLayout m_PipelineLayout;
+	//VkPipelineLayout m_PipelineLayout;
 #else
 	u32 m_ShaderProgram;
 #endif
