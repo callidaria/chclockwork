@@ -3,7 +3,6 @@
 #ifdef DEBUG
 
 
-#ifndef VKBUILD  // §§prototyping remove
 
 #include "../core/blitter.h"
 #include "../core/renderer.h"
@@ -24,20 +23,27 @@ constexpr f32 CLOCKWORK_ROTATION_FLOATFACTOR = .1f;
 class Clockwork
 {
 public:
+#ifdef VKBUILD  // §§prototyping remove
+	Clockwork();
+#else
 	Clockwork(Font* font);
+#endif
 	void update();
 
 private:
 
 	TargetMomentumSnap m_CameraPosition = TargetMomentumSnap(CLOCKWORK_MVMT_FLOATFACTOR);
 	TargetMomentumSnap m_CameraRotation = TargetMomentumSnap(CLOCKWORK_ROTATION_FLOATFACTOR);
+#ifdef VKBUILD
+	vec3 m_TargetingVector = vec3(0);
+#else
 	vec3 m_TargetingVector = vec3(0,25.f,0);
 
 	// measurements
 	lptr<Text> m_FPS;
+#endif
 };
 
 
-#endif
 #endif
 #endif

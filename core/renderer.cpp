@@ -679,8 +679,10 @@ Renderer::Renderer()
 	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
 
 	// testing
+	/*
 	m_Trafo.view = glm::lookAt(vec3(2.f),vec3(.0f),vec3(0,0,1));
 	m_Trafo.proj = glm::perspective(glm::radians(45.f),FRAME_RESOLUTION_X/(f32)FRAME_RESOLUTION_Y,.1f,1000.f);
+	*/
 }
 
 void Renderer::update()
@@ -688,6 +690,10 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
 	m_VertexBuffer.bind(m_Framebuffer);
+
+	// camera update test
+	m_Trafo.view = g_Camera.view;
+	m_Trafo.proj = g_Camera.proj;
 
 	// prototype update tbr
 	m_Rotation += g_Frame.delta_time*glm::radians(90.f);
@@ -714,6 +720,7 @@ void Renderer::exit()
 
 
 #else
+
 // ----------------------------------------------------------------------------------------------------
 // Geometry Batching
 

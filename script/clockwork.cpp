@@ -2,22 +2,27 @@
 #ifdef DEBUG
 
 
-#ifndef VKBUILD  // §§prototyping remove
 
 /**
  *	setup origin camera projection
  */
+#ifdef VKBUILD
+Clockwork::Clockwork()
+#else
 Clockwork::Clockwork(Font* font)
+#endif
 {
 	// camera setup
 	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch,g_Camera.distance);
 	m_CameraRotation.target = m_TargetingVector;
 
+#ifndef VKBUILD  // §§prototyping remove
 	// fps display
 	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,0),15,vec4(1),
 								  Alignment{ .alignment=SCREEN_ALIGN_TOPRIGHT });
 
 	g_Wheel.call(this);
+#endif
 }
 
 /**
@@ -36,12 +41,13 @@ void Clockwork::update()
 	g_Camera.pitch = glm::radians(m_TargetingVector.y);
 	g_Camera.distance = m_TargetingVector.z;
 
+#ifndef VKBUILD
 	// fps display
 	m_FPS->data = "FPS "+std::to_string(g_Frame.fps);
 	m_FPS->align();
 	m_FPS->load_buffer();
+#endif
 }
 
 
-#endif
 #endif

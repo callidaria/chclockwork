@@ -15,6 +15,7 @@
 s32 main(s32 argc,char** argv)
 {
 #ifdef VKBUILD
+	Clockwork __Clockwork = Clockwork();
 	bool running = true;
 	while (running)
 	{
