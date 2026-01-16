@@ -417,6 +417,7 @@ void Camera3D::roll(f32 r)
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
  *	\param t: amount of time in seconds the momentum takes to snap to target position
+ *	WARNING: this is not intended for usage with character movement! you can, but the user will loose precision.
  */
 TargetMomentumSnap::TargetMomentumSnap(f32 t)
 	: m_Omega(2.f/t) {  }

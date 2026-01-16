@@ -144,7 +144,7 @@ FragmentShader::FragmentShader(const char* path)
 constexpr u32 _dynamic_state_count = 2;
 VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
 #endif
-void ShaderPipeline::assemble(Framebuffer& target,UniformBuffer& ubo,const char* vs,const char* fs)
+void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
 	// read precompiled shader binaries
@@ -292,7 +292,7 @@ void ShaderPipeline::assemble(Framebuffer& target,UniformBuffer& ubo,const char*
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
-	__LayoutInfo.pSetLayouts = &ubo.m_DSetLayout;
+	__LayoutInfo.pSetLayouts = &g_UniformBuffer.m_DSetLayout;
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);

@@ -246,7 +246,6 @@ private:
 	Framebuffer m_Framebuffer = Framebuffer(1);
 	ShaderPipeline m_TestingPipeline;
 	VertexBuffer m_VertexBuffer;
-	UniformBuffer m_UniformBuffer = UniformBuffer(sizeof(ObjectTransformation));
 
 	// testing
 	ObjectTransformation m_Trafo;

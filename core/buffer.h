@@ -126,6 +126,7 @@ private:
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 	VkDescriptorPool m_DescriptorPool;
 };
+inline UniformBuffer g_UniformBuffer = UniformBuffer(BUFFER_UNIFORM_ALLOCATION_SIZE);
 #endif
 
 

@@ -670,19 +670,13 @@ Renderer::Renderer()
 	m_Framebuffer.link_output();
 
 	// pipeline
-	m_TestingPipeline.assemble(m_Framebuffer,m_UniformBuffer,
+	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
 	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
-
-	// testing
-	/*
-	m_Trafo.view = glm::lookAt(vec3(2.f),vec3(.0f),vec3(0,0,1));
-	m_Trafo.proj = glm::perspective(glm::radians(45.f),FRAME_RESOLUTION_X/(f32)FRAME_RESOLUTION_Y,.1f,1000.f);
-	*/
 }
 
 void Renderer::update()
@@ -694,16 +688,18 @@ void Renderer::update()
 	// camera update test
 	m_Trafo.view = g_Camera.view;
 	m_Trafo.proj = g_Camera.proj;
+	// TODO also create the ability the link a camera to the uniform
+	//		right now this happens for both matrices individually, which is not appropriate
 
 	// prototype update tbr
 	m_Rotation += g_Frame.delta_time*glm::radians(90.f);
 	m_Trafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
-	m_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
+	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
 	// drawcall
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
-							&m_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
+							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
@@ -715,7 +711,7 @@ void Renderer::exit()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
-	m_UniformBuffer.vanish();
+	g_UniformBuffer.vanish();
 }
 
 
