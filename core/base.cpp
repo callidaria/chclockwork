@@ -389,6 +389,9 @@ void Camera3D::force_position()
 void Camera3D::project()
 {
 	proj = glm::perspective(glm::radians(fov),m_Ratio,near,far);
+#ifdef VKBUILD
+	proj[1][1] *= -1;
+#endif
 }
 
 /**
