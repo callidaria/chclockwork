@@ -393,7 +393,6 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 #endif
 }
 // TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping.
-//		it might be possible but harder to implement. oh well, it's still very doable
 
 void ShaderPipeline::vanish()
 {

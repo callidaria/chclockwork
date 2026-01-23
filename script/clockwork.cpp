@@ -2,7 +2,6 @@
 #ifdef DEBUG
 
 
-
 /**
  *	setup origin camera projection
  */
@@ -13,7 +12,7 @@ Clockwork::Clockwork(Font* font)
 #endif
 {
 	// camera setup
-	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch,g_Camera.distance);
+	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch+25.f,g_Camera.distance);
 	m_CameraRotation.target = m_TargetingVector;
 
 #ifndef VKBUILD  // §§prototyping remove

@@ -230,9 +230,9 @@ private:
 
 struct ObjectTransformation
 {
-	mat4 model;
-	mat4 view;
-	mat4 proj;
+	mat4 model __attribute__((aligned(16)));
+	mat4 view __attribute__((aligned(16)));
+	mat4 proj __attribute__((aligned(16)));
 };
 
 class Renderer
