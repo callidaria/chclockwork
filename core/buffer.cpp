@@ -909,9 +909,56 @@ void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,
 	memcpy(__Data,__TextureData.data,__TextureData.width*__TextureData.height*4);
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
 
+	// setup memory barrier
+	VkImageMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.image = m_Texture;
+	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__Barrier.subresourceRange.baseMipLevel = 0;
+	__Barrier.subresourceRange.levelCount = 1;
+	__Barrier.subresourceRange.baseArrayLayer = 0;
+	__Barrier.subresourceRange.layerCount = 1;
+
+	// layout first transition
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+	// buffer copy
+	VkBufferImageCopy __BufferCopy = {  };
+	__BufferCopy.bufferOffset = 0;
+	__BufferCopy.bufferRowLength = 0;
+	__BufferCopy.bufferImageHeight = 0;
+	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__BufferCopy.imageSubresource.mipLevel = 0;
+	__BufferCopy.imageSubresource.baseArrayLayer = 0;
+	__BufferCopy.imageSubresource.layoutCount = 1;
+	__BufferCopy.imageOffset = { 0,0,0 };
+	__BufferCopy.imageExtent = { __TextureData.width,__TextureData.height,1 };
+
 	// upload image
-	
+	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,nullptr,0,nullptr,1,&__Barrier);
+	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+						   1,&__BufferCopy);
+
+	// second transition
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
+	GPU::execute_command_buffer(__CMDBuffer);
+
+	// cleanup
 	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this is not to be directly ported
+	g_GPU.free(m_StagingBuffer);
+	g_GPU.free(m_StagingMemory);
 
 #else
 	__TextureData.load(path);

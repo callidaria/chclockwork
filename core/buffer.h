@@ -221,7 +221,7 @@ struct GPUPixelBuffer
 #ifdef VKBUILD
 	VkBuffer m_StagingBuffer;
 	VkImage m_Texture;
-	VkDeviceMemory m_StagingMemory;
+	VkDeviceMemory m_StagingMemory;  // remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
 
 #else
