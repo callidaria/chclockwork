@@ -2,6 +2,67 @@
 
 
 // ----------------------------------------------------------------------------------------------------
+// Common Procedures
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+inline u32 _choose_memory_type(VkMemoryPropertyFlags props,u32 type)
+{
+	u32 __MemoryIndex = 0;
+	for (u32 i=0;i<g_GPU.device_info->memory_properties.memoryTypeCount;i++)
+	{
+		if ((type&(1<<__MemoryIndex))
+			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags&props)==props)
+			return i;
+		__MemoryIndex++;
+	}
+	COMM_ERR("failed to select memory by type. this is a fatal issue!");
+	return 0;
+}
+// TODO well this just has to be completely reworked before fully including this
+// TODO optimize, do not rely on coherent bit and flush explicitly later
+
+/**
+ *	TODO
+ */
+inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+							 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
+{
+	// vertex buffer
+	VkBufferCreateInfo __BufferInfo = {  };
+	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	__BufferInfo.size = size;
+	__BufferInfo.usage = fusage;
+	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
+
+	// analyze memory type
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
+	u32 __MemoryIndex = _choose_memory_type(fproperty,__MemoryRequirements.memoryTypeBits);
+	// TODO iterate memory
+
+	// buffer memory allocation
+	VkMemoryAllocateInfo __MallocInfo = {  };
+	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MallocInfo.allocationSize = __MemoryRequirements.size;
+	__MallocInfo.memoryTypeIndex = __MemoryIndex;
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
+
+	// bind memory to vbo
+	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
+	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
+}
+
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
 // Rendertarget Colour Buffers
 
 /**
@@ -270,51 +331,6 @@ void Framebuffer::link_output()
 // ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
 
-#ifdef VKBUILD
-/**
- *	TODO
- */
-inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
-							 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
-{
-	// vertex buffer
-	VkBufferCreateInfo __BufferInfo = {  };
-	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	__BufferInfo.size = size;
-	__BufferInfo.usage = fusage;
-	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
-
-	// analyze memory type
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
-
-	// iterate memory
-	u32 __MemoryIndex = 0;
-	while (__MemoryIndex<g_GPU.device_info->memory_properties.memoryTypeCount)
-	{
-		if ((__MemoryRequirements.memoryTypeBits&(1<<__MemoryIndex))
-			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags&fproperty)) break;
-		__MemoryIndex++;
-	}
-	// TODO well this just has to be completely reworked before fully including this
-	// TODO optimize, do not rely on coherent bit and flush explicitly later
-
-	// buffer memory allocation
-	VkMemoryAllocateInfo __MallocInfo = {  };
-	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MallocInfo.allocationSize = __MemoryRequirements.size;
-	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
-
-	// bind memory to vbo
-	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
-	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
-}
-#endif
-
 /**
  *	TODO
  */
@@ -351,39 +367,16 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
 	// FIXME unmap ONCE. this is bad practice. just leave it be and synchronize
 
-	// generate copy command buffer
-	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
-	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool;
-	__CmdBufferAllocInfo.commandBufferCount = 1;
-	VkCommandBuffer __CMDBuffer;
-	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&__CMDBuffer);
-	// FIXME this is repeating stuff from hardware.h
-
 	// copy vertex information to gpu
-	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
-	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	vkBeginCommandBuffer(__CMDBuffer,&__CMDBeginInfo);
+	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
 	VkBufferCopy __BufferCopy = {  };
 	__BufferCopy.srcOffset = 0;
 	__BufferCopy.dstOffset = 0;
 	__BufferCopy.size = m_BufferSize;
 	vkCmdCopyBuffer(__CMDBuffer,__StagingVBO,m_VBO,1,&__BufferCopy);
-	vkEndCommandBuffer(__CMDBuffer);
-
-	// submit command buffer queue
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &__CMDBuffer;
-	vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
-	vkQueueWaitIdle(g_GPU.graphical_queue);
-	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
+	GPU::execute_command_buffer(__CMDBuffer);
 
 	// cleanup
-	g_GPU.free(&__CMDBuffer);
 	g_GPU.free(__StagingVBO);
 	g_GPU.free(__StagingMemory);
 
@@ -857,7 +850,37 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 		});
 
 #ifdef VKBUILD
-	// TODO
+	// image buffer
+	_generate_buffer(m_StagingBuffer,m_StagingMemory,width*height*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	VkImageCreateInfo __ImageInfo = {  };
+	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+	__ImageInfo.extent.width = width;
+	__ImageInfo.extent.height = height;
+	__ImageInfo.extent.depth = 1;
+	__ImageInfo.mipLevels = 1;
+	__ImageInfo.arrayLayers = 1;
+	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // TODO look into staging images, this is worrying for gl port
+	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO not really clear to me why anything else
+	__ImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	__ImageInfo.flags = 0;  // TODO research options here
+	vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
+
+	// memory
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetImageMemoryRequirements(g_GPU.gpu,m_Texture,&__MemoryRequirements);
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirement.size;
+	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+													   __MemoryRequirements.memoryTypeBits);
+	VkResult __Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
+	vkBindImageMemory(g_GPU.gpu,m_Texture,m_TextureMemory,0);
 
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,
@@ -878,11 +901,23 @@ void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,
 {
 	// load information from texture file
 	TextureData __TextureData;
-	__TextureData.load(path);
-	gpb->signal.proceed();
 
 	// upload to gpu memory & signal data safety
+#ifdef VKBUILD  // §§ prototyping, remove later
+	void* __Data;
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,m_ImageSize,0,&__Data);
+	memcpy(__Data,__TextureData.data,__TextureData.width*__TextureData.height*4);
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+
+	// upload image
+	
+	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this is not to be directly ported
+
+#else
+	__TextureData.load(path);
+	gpb->signal.proceed();
 	_load(gpb,pbc,&__TextureData);
+#endif
 }
 
 /**

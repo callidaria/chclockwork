@@ -276,6 +276,45 @@ CommandBuffer* GPU::aquire_command_buffer()
 }
 
 /**
+ *	TODO
+ */
+VkCommandBuffer GPU::start_command_buffer()
+{
+	// create buffer
+	VkCommandBuffer cmdb;
+	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
+	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool;
+	__CmdBufferAllocInfo.commandBufferCount = 1;
+	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&cmdb);
+
+	// start buffer
+	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
+	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(__CMDBuffer,&__CMDBeginInfo);
+	return cmdb;
+}
+// TODO use a CommandBuffer pointer instead so semaphore procedure is also happening when using one-time cmds
+
+/**
+ *	TODO
+ */
+void GPU::execute_command_buffer(VkCommandBuffer cmd)
+{
+	vkEndCommandBuffer(cmd);
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &__CMDBuffer;
+	vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
+	vkQueueWaitIdle(g_GPU.graphical_queue);
+	free(&cmd);
+	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
+}
+
+/**
  *	free given gpu related resources
  *	\param res: resource of any supported type, that will be removed
  */

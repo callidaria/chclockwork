@@ -218,6 +218,13 @@ struct GPUPixelBuffer
 	// FIXME format can be assigned when allocating but load instructions are format dependent
 
 	// data
+#ifdef VKBUILD
+	VkBuffer m_StagingBuffer;
+	VkImage m_Texture;
+	VkDeviceMemory m_StagingMemory;
+	VkDeviceMemory m_TextureMemory;
+
+#else
 	Texture atlas;
 	vec2 dimensions_inv;
 	vector<PixelBufferComponent> memory_segments;
@@ -227,6 +234,7 @@ struct GPUPixelBuffer
 	std::mutex mutex_texture_requests;
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
+#endif
 };
 
 
