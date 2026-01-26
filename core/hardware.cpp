@@ -319,6 +319,7 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
  *	\param res: resource of any supported type, that will be removed
  */
 void GPU::free(VkBuffer res) { vkDestroyBuffer(gpu,res,nullptr); }
+void GPU::free(VkImage res) { vkDestroyImage(gpu,res,nullptr); }
 void GPU::free(VkDeviceMemory res) { vkFreeMemory(gpu,res,nullptr); }
 void GPU::free(VkSwapchainKHR res) { vkDestroySwapchainKHR(gpu,res,nullptr); }
 void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }

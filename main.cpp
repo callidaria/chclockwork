@@ -52,7 +52,7 @@ s32 main(s32 argc,char** argv)
 	}
 #endif
 
-	g_Renderer.exit();
+	g_Renderer.vanish();
 	g_Frame.close();
 	return 0;
 }

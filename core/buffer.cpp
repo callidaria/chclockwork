@@ -856,8 +856,10 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 // TODO i don't believe all this schnickschnack is necessary for the vulkan version at all.
 //		vulkan allows for a way more direct malloc procedure, this might be the biggest discrepancy in the vers
 
-// §§prototyping
+
 #ifdef VKBUILD
+
+// §§prototyping
 void GPUPixelBuffer::load_texture(const char* path)
 {
 	// load texture data
@@ -954,7 +956,18 @@ void GPUPixelBuffer::load_texture(const char* path)
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
 }
+
+/**
+ *	TODO
+ */
+void GPUPixelBuffer::vanish()
+{
+	g_GPU.free(m_Texture);
+	g_GPU.free(m_TextureMemory);
+}
+
 #endif
+
 
 /**
  *	load texture from path and finally upload to gpu memory

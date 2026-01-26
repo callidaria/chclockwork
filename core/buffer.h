@@ -208,6 +208,7 @@ struct GPUPixelBuffer
 {
 #ifdef VKBUILD
 	void load_texture(const char* path);
+	void vanish();
 #endif
 
 	// utilty

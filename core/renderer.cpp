@@ -709,11 +709,12 @@ void Renderer::update()
 	m_Framebuffer.stop();
 }
 
-void Renderer::exit()
+void Renderer::vanish()
 {
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
+	m_PixelBuffer.vanish();
 	g_UniformBuffer.vanish();
 }
 
@@ -1011,7 +1012,7 @@ void Renderer::update()
 /**
  *	exit renderer and end all it's subprocesses
  */
-void Renderer::exit()
+void Renderer::vanish()
 {
 	/*
 	_sprite_texture_signal.exit();

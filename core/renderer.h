@@ -240,7 +240,7 @@ class Renderer
 public:
 	Renderer();
 	void update();
-	void exit();
+	void vanish();
 
 private:
 	Framebuffer m_Framebuffer = Framebuffer(1);
@@ -363,7 +363,7 @@ public:
 
 	void precalculate();
 	void update();
-	void exit();
+	void vanish();
 
 	// sprite
 	PixelBufferComponent* register_sprite_texture(const char* path);
