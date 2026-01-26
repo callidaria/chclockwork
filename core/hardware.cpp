@@ -293,7 +293,7 @@ VkCommandBuffer GPU::start_command_buffer()
 	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
 	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	vkBeginCommandBuffer(__CMDBuffer,&__CMDBeginInfo);
+	vkBeginCommandBuffer(cmdb,&__CMDBeginInfo);
 	return cmdb;
 }
 // TODO use a CommandBuffer pointer instead so semaphore procedure is also happening when using one-time cmds
@@ -307,10 +307,10 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &__CMDBuffer;
+	__SubmitInfo.pCommandBuffers = &cmd;
 	vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
 	vkQueueWaitIdle(g_GPU.graphical_queue);
-	free(&cmd);
+	g_GPU.free(&cmd);
 	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
 }
 

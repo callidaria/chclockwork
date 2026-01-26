@@ -206,6 +206,10 @@ struct Font
 
 struct GPUPixelBuffer
 {
+#ifdef VKBUILD
+	void load_texture(const char* path);
+#endif
+
 	// utilty
 	void allocate(u32 width,u32 height,TextureFormat format);
 	static void load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path);
@@ -223,8 +227,8 @@ struct GPUPixelBuffer
 	VkImage m_Texture;
 	VkDeviceMemory m_StagingMemory;  // remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
+#endif
 
-#else
 	Texture atlas;
 	vec2 dimensions_inv;
 	vector<PixelBufferComponent> memory_segments;
@@ -234,7 +238,6 @@ struct GPUPixelBuffer
 	std::mutex mutex_texture_requests;
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
-#endif
 };
 
 

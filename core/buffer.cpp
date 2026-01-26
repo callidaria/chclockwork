@@ -848,16 +848,31 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 			.offset = vec2(0,0),
 			.dimensions = vec2(width,height)
 		});
+#ifndef VKBUILD
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,
+				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
+#endif
+}
+// TODO i don't believe all this schnickschnack is necessary for the vulkan version at all.
+//		vulkan allows for a way more direct malloc procedure, this might be the biggest discrepancy in the vers
 
+// §§prototyping
 #ifdef VKBUILD
+void GPUPixelBuffer::load_texture(const char* path)
+{
+	// load texture data
+	TextureData __TextureData;
+	__TextureData.load(path);
+	size_t __ImageSize = __TextureData.width*__TextureData.height*4;
+
 	// image buffer
-	_generate_buffer(m_StagingBuffer,m_StagingMemory,width*height*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	_generate_buffer(m_StagingBuffer,m_StagingMemory,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = width;
-	__ImageInfo.extent.height = height;
+	__ImageInfo.extent.width = __TextureData.width;
+	__ImageInfo.extent.height = __TextureData.height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = 1;
 	__ImageInfo.arrayLayers = 1;
@@ -875,38 +890,17 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	vkGetImageMemoryRequirements(g_GPU.gpu,m_Texture,&__MemoryRequirements);
 	VkMemoryAllocateInfo __MemoryInfo = {  };
 	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirement.size;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
 	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 													   __MemoryRequirements.memoryTypeBits);
 	VkResult __Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
 	vkBindImageMemory(g_GPU.gpu,m_Texture,m_TextureMemory,0);
 
-#else
-	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,
-				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
-#endif
-}
-// TODO i don't believe all this schnickschnack is necessary for the vulkan version at all.
-//		vulkan allows for a way more direct malloc procedure, this might be the biggest discrepancy in the vers
-
-/**
- *	load texture from path and finally upload to gpu memory
- *	\param gpb: target pixel buffer
- *	\param pbc: pointer to atlas component information, this will be overwritten
- *	\param path: path to texture file
- *	NOTE this is supposed to run as a subthread, hence the mutex and load request queue pointer
- */
-void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path)
-{
-	// load information from texture file
-	TextureData __TextureData;
-
-	// upload to gpu memory & signal data safety
-#ifdef VKBUILD  // §§ prototyping, remove later
+	// map texture data
 	void* __Data;
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,m_ImageSize,0,&__Data);
-	memcpy(__Data,__TextureData.data,__TextureData.width*__TextureData.height*4);
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,__ImageSize,0,&__Data);
+	memcpy(__Data,__TextureData.data,__ImageSize);
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
 
 	// setup memory barrier
@@ -935,14 +929,14 @@ void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__BufferCopy.imageSubresource.mipLevel = 0;
 	__BufferCopy.imageSubresource.baseArrayLayer = 0;
-	__BufferCopy.imageSubresource.layoutCount = 1;
+	__BufferCopy.imageSubresource.layerCount = 1;
 	__BufferCopy.imageOffset = { 0,0,0 };
-	__BufferCopy.imageExtent = { __TextureData.width,__TextureData.height,1 };
+	__BufferCopy.imageExtent = { (u32)__TextureData.width,(u32)__TextureData.height,1 };
 
 	// upload image
 	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-						 0,nullptr,0,nullptr,1,&__Barrier);
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						   1,&__BufferCopy);
 
@@ -956,15 +950,25 @@ void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,
 	GPU::execute_command_buffer(__CMDBuffer);
 
 	// cleanup
-	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this is not to be directly ported
+	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this will be removed later.
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
+}
+#endif
 
-#else
+/**
+ *	load texture from path and finally upload to gpu memory
+ *	\param gpb: target pixel buffer
+ *	\param pbc: pointer to atlas component information, this will be overwritten
+ *	\param path: path to texture file
+ *	NOTE this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ */
+void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path)
+{
+	TextureData __TextureData;
 	__TextureData.load(path);
 	gpb->signal.proceed();
 	_load(gpb,pbc,&__TextureData);
-#endif
 }
 
 /**

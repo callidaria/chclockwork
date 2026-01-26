@@ -677,6 +677,9 @@ Renderer::Renderer()
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
 	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
+
+	// texture
+	m_PixelBuffer.load_texture("./res/test/cld.jpeg");
 }
 
 void Renderer::update()
