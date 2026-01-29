@@ -228,6 +228,8 @@ struct GPUPixelBuffer
 	VkImage m_Texture;
 	VkDeviceMemory m_StagingMemory;  // remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
+	VkImageView m_ImageView;
+	VkSampler m_Sampler;
 #endif
 
 	Texture atlas;

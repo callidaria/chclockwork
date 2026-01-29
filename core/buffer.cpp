@@ -951,17 +951,64 @@ void GPUPixelBuffer::load_texture(const char* path)
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	GPU::execute_command_buffer(__CMDBuffer);
 
-	// cleanup
+	// cleanup staging memory
 	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this will be removed later.
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
+
+	// image view
+	VkImageViewCreateInfo __ImageViewInfo = {  };
+	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__ImageViewInfo.image = m_Texture;
+	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+	__ImageViewInfo.subresourceRange.levelCount = 1;
+	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_ImageView);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
+	// FIXME code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
+
+	// texture sampler
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_LINEAR;
+	__SamplerInfo.minFilter = VK_FILTER_LINEAR;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.anisotropyEnable = !!(g_GPU.device_info->supported&GPU_FEATURE_SUPPORT_ANISOTROPY);
+	__SamplerInfo.maxAnisotropy = g_GPU.device_info->properties.limits.maxSamplerAnisotropy;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;  // TODO arbitrary colour not possible?
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;  // TODO research, this is an interesting feature
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = .0f;
+	__SamplerInfo.maxLod = .0f;
+	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_Sampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
+	// TODO this will be the texture settings++ from ogl version
 }
+// TODO put this back into the multithreading texture load system & also use vulcanous advantages
+// TODO choose how texture streaming will be done in the future utilizing vulkan (prealloc like in ogl?)
 
 /**
  *	TODO
  */
 void GPUPixelBuffer::vanish()
 {
+	g_GPU.free(m_Sampler);
+	g_GPU.free(m_ImageView);
 	g_GPU.free(m_Texture);
 	g_GPU.free(m_TextureMemory);
 }

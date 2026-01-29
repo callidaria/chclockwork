@@ -27,6 +27,7 @@ void GPUDevice::select()
 
 	// device features
 	VkPhysicalDeviceFeatures __DeviceFeatures = {  };  // TODO
+	__DeviceFeatures.samplerAnisotropy = !!(supported&GPU_FEATURE_SUPPORT_ANISOTROPY);
 
 	// device creation specifics
 	VkDeviceCreateInfo __DeviceInfo = {  };
@@ -124,8 +125,9 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		set<string> __RequiredExtensions = set<string>(g_GPUExtensions.begin(),g_GPUExtensions.end());
 		for (VkExtensionProperties& __Extension : gpus[i].extensions)
 			__RequiredExtensions.erase(__Extension.extensionName);
-		gpus[i].supported = __RequiredExtensions.empty()*GPU_FEATURE_SUPPORT_BASIC;
-		if (!gpus[i].supported)
+		gpus[i].supported = (__RequiredExtensions.empty()*GPU_FEATURE_SUPPORT_BASIC)
+				| gpus[i].features.samplerAnisotropy*GPU_FEATURE_SUPPORT_ANISOTROPY;
+		if (!(gpus[i].supported&GPU_FEATURE_SUPPORT_BASIC))
 		{
 			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);
 			continue;
@@ -136,6 +138,10 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
 		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
+
+		// some info about gpu features
+		COMM_MSG_COND(!(gpus[i].supported&GPU_FEATURE_SUPPORT_ANISOTROPY),
+					  LOG_YELLOW,"Warning: anisotropy not supported by this gpu");
 
 		// get swap chain format capabilities
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpus[i].gpu,surface,&gpus[i].swapchain_info.capabilities);
@@ -320,6 +326,7 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
  */
 void GPU::free(VkBuffer res) { vkDestroyBuffer(gpu,res,nullptr); }
 void GPU::free(VkImage res) { vkDestroyImage(gpu,res,nullptr); }
+void GPU::free(VkSampler res) { vkDestroySampler(gpu,res,nullptr); }
 void GPU::free(VkDeviceMemory res) { vkFreeMemory(gpu,res,nullptr); }
 void GPU::free(VkSwapchainKHR res) { vkDestroySwapchainKHR(gpu,res,nullptr); }
 void GPU::free(VkShaderModule res) { vkDestroyShaderModule(gpu,res,nullptr); }
