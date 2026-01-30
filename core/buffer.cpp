@@ -440,37 +440,53 @@ UniformBuffer::UniformBuffer(size_t size)
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,size,0,&m_UBOMapped[i]);
 	}
 
-	// descriptor pool
-	VkDescriptorPoolSize __PSize = {};
-	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT;
-	VkDescriptorPoolCreateInfo __DPoolInfo = {};
+	// descriptor pool sizes
+	const u8 BINDING_SIZE = 2;
+	VkDescriptorPoolSize __PSizes[BINDING_SIZE] = {  };
+	__PSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__PSizes[0].descriptorCount = GPU_BUFFER_COUNT;
+	__PSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__PSizes[1].descriptorCount = GPU_BUFFER_COUNT;
+
+	// descriptor pool creation
+	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	__DPoolInfo.poolSizeCount = 1;
-	__DPoolInfo.pPoolSizes = &__PSize;
+	__DPoolInfo.poolSizeCount = BINDING_SIZE;
+	__DPoolInfo.pPoolSizes = __PSizes;
 	__DPoolInfo.maxSets = GPU_BUFFER_COUNT;
 	__DPoolInfo.flags = 0;
 	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
-	// uniform binding definition
-	VkDescriptorSetLayoutBinding __OTBinding = {};
-	__OTBinding.binding = 0;
-	__OTBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__OTBinding.descriptorCount = 1;
-	__OTBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO non-static
-	__OTBinding.pImmutableSamplers = nullptr;
+	// starting uniform binding definitions
+	VkDescriptorSetLayoutBinding __Bindings[BINDING_SIZE] = {  };
+
+	// uniform binding definitions
+	__Bindings[0].binding = 0;
+	__Bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__Bindings[0].descriptorCount = 1;
+	__Bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	__Bindings[0].pImmutableSamplers = nullptr;
+
+	// uniform binding definition for sampler
+	__Bindings[1].binding = 1;
+	__Bindings[1].descriptorCount = 1;
+	__Bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__Bindings[1].pImmutableSamplers = nullptr;
+	__Bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	// TODO non-static uniforms in general soon
 
 	// uniform layout
-	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {};
+	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__LayoutInfo.bindingCount = 1;
-	__LayoutInfo.pBindings = &__OTBinding;
+	__LayoutInfo.bindingCount = BINDING_SIZE;
+	__LayoutInfo.pBindings = __Bindings;
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 
 	// descriptor sets
 	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,m_DSetLayout);
-	VkDescriptorSetAllocateInfo __DSetAllocInfo = {};
+	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
 	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
@@ -478,24 +494,38 @@ UniformBuffer::UniformBuffer(size_t size)
 	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
-	// descriptor info template	
-	VkDescriptorBufferInfo __DescriptorInfo = {};
-	__DescriptorInfo.offset = 0;
-	__DescriptorInfo.range = size;
+	// descriptor info
+	VkDescriptorBufferInfo __BufferInfo = {  };
+	__BufferInfo.offset = 0;
+	__BufferInfo.range = size;
+	VkDescriptorImageInfo __ImageInfo = {  };
+	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__ImageInfo.imageView = m_ImageView;
+	__ImageInfo.sampler = m_Sampler;
+
+	// descriptor set write setup
+	VkWriteDescriptorSet __WriteDescriptors[BINDING_SIZE] = {  };
+	__WriteDescriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptors[0].dstBinding = 0;
+	__WriteDescriptors[0].dstArrayElement = 0;
+	__WriteDescriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__WriteDescriptors[0].descriptorCount = 1;
+
+	__WriteDescriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptors[1].dstBinding = 1;
+	__WriteDescriptors[1].dstArrayElement = 0;
+	__WriteDescriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptors[1].descriptorCount = 1;
 
 	// descriptors
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		__DescriptorInfo.buffer = m_UBO[i];
-		VkWriteDescriptorSet __WriteDescriptor = {};
-		__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		__WriteDescriptor.dstSet = m_DSets[i];
-		__WriteDescriptor.dstBinding = 0;
-		__WriteDescriptor.dstArrayElement = 0;
-		__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		__WriteDescriptor.descriptorCount = 1;
-		__WriteDescriptor.pBufferInfo = &__DescriptorInfo;
-		vkUpdateDescriptorSets(g_GPU.gpu,1,&__WriteDescriptor,0,nullptr);
+		__BufferInfo.buffer = m_UBO[i];
+		__WriteDescriptors[0].dstSet = m_DSets[i];
+		__WriteDescriptors[0].pBufferInfo = &__BufferInfo;
+		__WriteDescriptors[1].dstSet = m_DSets[i];
+		__WriteDescriptors[1].pBufferInfo = &__ImageInfo;
+		vkUpdateDescriptorSets(g_GPU.gpu,BINDING_SIZE,&__WriteDescriptors,0,nullptr);
 	}
 }
 
