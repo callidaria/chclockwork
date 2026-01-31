@@ -498,10 +498,12 @@ UniformBuffer::UniformBuffer(size_t size)
 	VkDescriptorBufferInfo __BufferInfo = {  };
 	__BufferInfo.offset = 0;
 	__BufferInfo.range = size;
+	/*
 	VkDescriptorImageInfo __ImageInfo = {  };
 	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__ImageInfo.imageView = m_ImageView;
 	__ImageInfo.sampler = m_Sampler;
+	*/
 
 	// descriptor set write setup
 	VkWriteDescriptorSet __WriteDescriptors[BINDING_SIZE] = {  };
@@ -511,11 +513,13 @@ UniformBuffer::UniformBuffer(size_t size)
 	__WriteDescriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	__WriteDescriptors[0].descriptorCount = 1;
 
+	/*
 	__WriteDescriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	__WriteDescriptors[1].dstBinding = 1;
 	__WriteDescriptors[1].dstArrayElement = 0;
 	__WriteDescriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__WriteDescriptors[1].descriptorCount = 1;
+	*/
 
 	// descriptors
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -523,9 +527,11 @@ UniformBuffer::UniformBuffer(size_t size)
 		__BufferInfo.buffer = m_UBO[i];
 		__WriteDescriptors[0].dstSet = m_DSets[i];
 		__WriteDescriptors[0].pBufferInfo = &__BufferInfo;
+		/*
 		__WriteDescriptors[1].dstSet = m_DSets[i];
 		__WriteDescriptors[1].pBufferInfo = &__ImageInfo;
-		vkUpdateDescriptorSets(g_GPU.gpu,BINDING_SIZE,&__WriteDescriptors,0,nullptr);
+		*/
+		vkUpdateDescriptorSets(g_GPU.gpu,BINDING_SIZE,__WriteDescriptors,0,nullptr);
 	}
 }
 

@@ -118,7 +118,7 @@ public:
 
 public:
 	VkDescriptorSetLayout m_DSetLayout;
-	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
@@ -226,7 +226,7 @@ struct GPUPixelBuffer
 #ifdef VKBUILD
 	VkBuffer m_StagingBuffer;
 	VkImage m_Texture;
-	VkDeviceMemory m_StagingMemory;  // remove staging memory & buffer from here
+	VkDeviceMemory m_StagingMemory;  // TODO remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
 	VkImageView m_ImageView;
 	VkSampler m_Sampler;
