@@ -430,7 +430,18 @@ void VertexBuffer::vanish()
 /**
  *	TODO
  */
-UniformBuffer::UniformBuffer(size_t size)
+void UniformBuffer::add_pixel_buffer(VkImageView iv,VkSampler smp)
+{
+	m_ImageViews = iv;
+	m_Samplers = smp;
+}
+// TODO pseudo implementation of a future feature (maybe)
+// TODO also imaginable is to generalize all memory (vbo, ibo, ubo, textures) and then go from there with alloc
+
+/**
+ *	TODO
+ */
+void UniformBuffer::setup(size_t size)
 {
 	// generate buffer
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -498,12 +509,11 @@ UniformBuffer::UniformBuffer(size_t size)
 	VkDescriptorBufferInfo __BufferInfo = {  };
 	__BufferInfo.offset = 0;
 	__BufferInfo.range = size;
-	/*
+	
 	VkDescriptorImageInfo __ImageInfo = {  };
 	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__ImageInfo.imageView = m_ImageView;
-	__ImageInfo.sampler = m_Sampler;
-	*/
+	__ImageInfo.imageView = m_ImageViews;
+	__ImageInfo.sampler = m_Samplers;
 
 	// descriptor set write setup
 	VkWriteDescriptorSet __WriteDescriptors[BINDING_SIZE] = {  };
@@ -513,13 +523,12 @@ UniformBuffer::UniformBuffer(size_t size)
 	__WriteDescriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	__WriteDescriptors[0].descriptorCount = 1;
 
-	/*
 	__WriteDescriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	__WriteDescriptors[1].dstBinding = 1;
 	__WriteDescriptors[1].dstArrayElement = 0;
 	__WriteDescriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__WriteDescriptors[1].descriptorCount = 1;
-	*/
+	__WriteDescriptors[1].pImageInfo = &__ImageInfo;
 
 	// descriptors
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -527,10 +536,7 @@ UniformBuffer::UniformBuffer(size_t size)
 		__BufferInfo.buffer = m_UBO[i];
 		__WriteDescriptors[0].dstSet = m_DSets[i];
 		__WriteDescriptors[0].pBufferInfo = &__BufferInfo;
-		/*
 		__WriteDescriptors[1].dstSet = m_DSets[i];
-		__WriteDescriptors[1].pBufferInfo = &__ImageInfo;
-		*/
 		vkUpdateDescriptorSets(g_GPU.gpu,BINDING_SIZE,__WriteDescriptors,0,nullptr);
 	}
 }
@@ -1034,6 +1040,9 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_Sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
 	// TODO this will be the texture settings++ from ogl version
+
+	// add to memory concept
+	g_UniformBuffer.add_pixel_buffer(m_ImageView,m_Sampler);
 }
 // TODO put this back into the multithreading texture load system & also use vulcanous advantages
 // TODO choose how texture streaming will be done in the future utilizing vulkan (prealloc like in ogl?)

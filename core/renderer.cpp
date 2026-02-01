@@ -657,10 +657,10 @@ Renderer::Renderer()
 {
 	// data
 	f32 __Verts[] = {
-		-.5f,.5f,1.f,.0f,.0f,
-		.5f,.5f,.0f,1.f,.0f,
-		.5f,-.5f,.0f,.0f,1.f,
-		-.5f,-.5f,1.f,1.f,.0f,
+		-.5f,.5f, 1.f,.0f,.0f, 1.f,.0f,
+		.5f,.5f, .0f,1.f,.0f, .0f,.0f,
+		.5f,-.5f, .0f,.0f,1.f, .0f,1.f,
+		-.5f,-.5f, 1.f,1.f,.0f, 1.f,1.f,
 	};
 	u32 __Indices[] = { 0,1,2,2,3,0 };
 
@@ -669,17 +669,20 @@ Renderer::Renderer()
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
 
-	// pipeline
-	m_TestingPipeline.assemble(m_Framebuffer,
-							   "./core/shader/vulkan/bin/triangle.vert",
-							   "./core/shader/vulkan/bin/triangle.frag");
-
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
 	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
 
 	// texture
 	m_PixelBuffer.load_texture("./res/test/cld.jpeg");
+
+	// §§testing
+	g_UniformBuffer.setup(BUFFER_UNIFORM_ALLOCATION_SIZE);
+
+	// pipeline
+	m_TestingPipeline.assemble(m_Framebuffer,
+							   "./core/shader/vulkan/bin/triangle.vert",
+							   "./core/shader/vulkan/bin/triangle.frag");
 }
 
 void Renderer::update()

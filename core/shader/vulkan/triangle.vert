@@ -3,8 +3,10 @@
 
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec3 colour;
+layout(location = 2) in vec2 texCoords;
 
 layout(location = 0) out vec3 Colour;
+layout(location = 1) out vec2 TexCoords;
 
 layout(binding = 0) uniform ObjectTransformation {
 	mat4 model;
@@ -17,4 +19,5 @@ void main()
 {
 	gl_Position = ot.proj*ot.view*ot.model*vec4(position,.0,1.);
 	Colour = colour;
+	TexCoords = texCoords;
 }

@@ -111,9 +111,17 @@ private:
 class UniformBuffer
 {
 public:
-	UniformBuffer(size_t size);
+	UniformBuffer() {  }
+
+	// setup
+	void add_pixel_buffer(VkImageView iv,VkSampler smp);
+	void setup(size_t size);
+
+	// action
 	void update(void* data,size_t size);
 	void bind(Framebuffer& fb);
+
+	// final
 	void vanish();
 
 public:
@@ -124,10 +132,13 @@ private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
+	VkImageView m_ImageViews;	// §§prototype
+	VkSampler m_Samplers;		// §§prototype
 	VkDescriptorPool m_DescriptorPool;
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(BUFFER_UNIFORM_ALLOCATION_SIZE);
+inline UniformBuffer g_UniformBuffer = UniformBuffer();
 #endif
+// TODO maybe this is hardware (memory) in general and should be moved there
 
 
 // ----------------------------------------------------------------------------------------------------
