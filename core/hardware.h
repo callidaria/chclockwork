@@ -79,6 +79,9 @@ struct GPU
 	void disable_feature(GPUFeature feature);
 
 #ifdef VKBUILD
+	// formats
+	VkFormat choose_texture_format(const vector<VkFormat>& fs,VkImageTiling tile,VkFormatFeatureFlags feat);
+
 	// command buffers
 	void setup_command_buffers();
 	CommandBuffer* aquire_command_buffer();

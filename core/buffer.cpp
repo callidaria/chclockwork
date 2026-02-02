@@ -69,12 +69,72 @@ inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
  *	allocate memory for framebuffer
  *	\param count: number of components, that will be defined for this framebuffer
  */
-Framebuffer::Framebuffer(u8 count)
+Framebuffer::Framebuffer(u8 count,bool depth)
+	: m_DepthChannel(count), m_HasDepth(depth)
 {
-	m_ColourComponents.resize(count);
+	m_ColourComponents.resize(count+depth);
 #ifdef VKBUILD
-	m_ColourComponentSetup = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
+	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
 	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
+
+	// setup depth buffer
+	VkFormat m_DepthStencilFormat = g_GPU.choose_texture_format(
+			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT,},
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_DEPTH_STENCIL_ATTACHMENT_BIT
+		);
+	VkImageCreateInfo __ImageInfo = {  };
+	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+	__ImageInfo.extent.width = g_Blitter.swapchain.extent.width;
+	__ImageInfo.extent.height = g_Blitter.swapchain.extent.height;
+	__ImageInfo.extent.depth = 1;
+	__ImageInfo.mipLevels = 1;
+	__ImageInfo.arrayLayers = 1;
+	__ImageInfo.format = m_DepthStencilFormat;
+	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	__ImageInfo.flags = 0;
+	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
+	// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
+
+	// setup depth buffer image view
+	VkImageViewCreateInfo __ImageViewInfo = {  };
+	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__ImageViewInfo.image = m_DepthStencilBuffer;
+	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.format = m_DepthStencilFormat;
+	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+	__ImageViewInfo.subresourceRange.levelCount = 1;
+	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+	// FIXME another code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
+	// TODO this is much more abstractable, but also not really?
+
+	// memory
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
+	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+													   __MemoryRequirements.memoryTypeBits);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+	vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
+	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
+
 #else
 	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(count,&m_ColourComponents[0]);
@@ -128,11 +188,26 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 #ifdef VKBUILD
-	m_DepthComponentSetup = (VkAttachmentDescription*)malloc(sizeof(VkAttachmentDescription));
 	m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
-	m_DepthComponentSetup = {};
+
+	// depth component
+	m_ColourComponentSetup[m_DepthChannel] = {};
+	m_ColourComponentSetup[m_DepthChannel].format = m_DepthStencilFormat;
+	m_ColourComponentSetup[m_DepthChannel].samples = VK_SAMPLE_COUNT_1_BIT;
+	m_ColourComponentSetup[m_DepthChannel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	m_ColourComponentSetup[m_DepthChannel].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[m_DepthChannel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	m_ColourComponentSetup[m_DepthChannel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[m_DepthChannel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_ColourComponentSetup[m_DepthChannel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// define as depth stencil component
 	m_DepthComponentReference = {};
-	// TODO
+	m_DepthComponentReference.attachment = m_DepthChannel;
+	m_DepthComponentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// enable depth
+	m_HasDepth = true;
 
 #else
 	glGenTextures(1,&m_DepthComponent);
@@ -156,21 +231,25 @@ void Framebuffer::finalize()
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
 	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
+	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? m_DepthComponentReference : nullptr;
 
 	// subpass dependency
 	VkSubpassDependency __SubpassDependency = {  };
 	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.srcAccessMask = 0;
-	__SubpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	__SubpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	__SubpassDependency.srcStageMask
+			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	__SubpassDependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	__SubpassDependency.dstStageMask
+			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	__SubpassDependency.dstAccessMask
+			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	// TODO implement feature according to the todo placed in header file
 
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = m_ColourComponents.size();
+	__RPInfo.attachmentCount = m_ColourComponents.size();  // FIXME holy hell this is broken!
 	__RPInfo.pAttachments = m_ColourComponentSetup;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
@@ -180,9 +259,8 @@ void Framebuffer::finalize()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// clear setup memory
-	free(m_ColourComponentSetup);
+	free(m_ColourComponentSetup);  // FIXME this is broken most obviously
 	free(m_ColourComponentReference);
-	free(m_DepthComponentSetup);
 	free(m_DepthComponentReference);
 
 #else
@@ -921,13 +999,13 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__ImageInfo.mipLevels = 1;
 	__ImageInfo.arrayLayers = 1;
 	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // TODO look into staging images, this is worrying for gl port
+	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // TODO look into staging images, this is worrying for port
 	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO not really clear to me why anything else
 	__ImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.flags = 0;  // TODO research options here
-	vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
+	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
 
 	// memory
 	VkMemoryRequirements __MemoryRequirements;
@@ -937,7 +1015,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__MemoryInfo.allocationSize = __MemoryRequirements.size;
 	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 													   __MemoryRequirements.memoryTypeBits);
-	VkResult __Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
 	vkBindImageMemory(g_GPU.gpu,m_Texture,m_TextureMemory,0);
 

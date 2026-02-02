@@ -224,6 +224,21 @@ void GPU::disable_feature(GPUFeature feature)
 /**
  *	TODO
  */
+VkFormat GPU::choose_texture_format(const vector<VkFormat>& fs,VkImageTiling tile,VkFormatFeatureFlags feat)
+{
+	for (VkFormat __Format : fs)
+	{
+		VkFormatProperties __Properties;
+		vkGetPhysicalDeviceFormatProperties(gpu,__Format,&__Properties);
+		if (tile==VK_IMAGE_TILING_LINEAR&&(__Properties.linearTilingFeatures&feat)==feat) return __Format;
+		else if (tile==VK_IMAGE_TILING_OPTIMAL&&(__Properties.optimalTilingFeatures&feat)==feat) return __Format;
+	}
+	COMM_ERR("no format in list supports desired features");
+}
+
+/**
+ *	TODO
+ */
 void GPU::setup_command_buffers()
 {
 	// setup command pool

@@ -31,7 +31,7 @@ __fbuffer_component;
 class Framebuffer
 {
 public:
-	Framebuffer(u8 count);
+	Framebuffer(u8 count,bool depth);
 	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height);
 	void finalize();
@@ -56,8 +56,13 @@ public:
 private:
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
-	VkAttachmentDescription* m_DepthComponentSetup;
 	VkAttachmentReference* m_DepthComponentReference;
+	VkFormat m_DepthStencilFormat;
+	VkImage m_DepthStencilBuffer;
+	VkDeviceMemory m_DepthBufferMemory;
+	VkImageView m_DepthBufferView;
+	u8 m_DepthChannel = 0;
+	bool m_HasDepth = false;
 #else
 	u32 m_Buffer;
 #endif

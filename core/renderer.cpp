@@ -657,15 +657,20 @@ Renderer::Renderer()
 {
 	// data
 	f32 __Verts[] = {
-		-.5f,.5f, 1.f,.0f,.0f, 1.f,.0f,
-		.5f,.5f, .0f,1.f,.0f, .0f,.0f,
-		.5f,-.5f, .0f,.0f,1.f, .0f,1.f,
-		-.5f,-.5f, 1.f,1.f,.0f, 1.f,1.f,
+		-.5f,.5f,.0f, 1.f,.0f,.0f, 1.f,.0f,
+		.5f,.5f,.0f, .0f,1.f,.0f, .0f,.0f,
+		.5f,-.5f,.0f, .0f,.0f,1.f, .0f,1.f,
+		-.5f,-.5f,.0f, 1.f,1.f,.0f, 1.f,1.f,
+		-.5f,.5f,-.5f, 1.f,.0f,.0f, 1.f,.0f,
+		.5f,.5f,-.5f, .0f,1.f,.0f, .0f,.0f,
+		.5f,-.5f,-.5f, .0f,.0f,1.f, .0f,1.f,
+		-.5f,-.5f,-.5f, 1.f,1.f,.0f, 1.f,1.f,
 	};
-	u32 __Indices[] = { 0,1,2,2,3,0 };
+	u32 __Indices[] = { 0,1,2,2,3,0,4,5,6,6,7,4 };
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_Framebuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
 
@@ -706,7 +711,7 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,6,1,0,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,12,1,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();
