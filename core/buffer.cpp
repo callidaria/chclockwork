@@ -68,25 +68,26 @@ inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 /**
  *	allocate memory for framebuffer
  *	\param count: number of components, that will be defined for this framebuffer
+ *	\param depth: (default false) true when framebuffer has a depth-stencil component
  */
 Framebuffer::Framebuffer(u8 count,bool depth)
-	: m_DepthChannel(count), m_HasDepth(depth)
+	: m_DepthChannel(count),m_HasDepth(depth)
 {
 	m_ColourComponents.resize(count+depth);
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
-	m_ColourComponentReference = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
+	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
 
 	// setup depth buffer
-	VkFormat m_DepthStencilFormat = g_GPU.choose_texture_format(
+	m_DepthStencilFormat = g_GPU.choose_texture_format(
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT,},
-			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_DEPTH_STENCIL_ATTACHMENT_BIT
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = g_Blitter.swapchain.extent.width;
-	__ImageInfo.extent.height = g_Blitter.swapchain.extent.height;
+	__ImageInfo.extent.width = g_Frame.swapchain.extent.width;
+	__ImageInfo.extent.height = g_Frame.swapchain.extent.height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = 1;
 	__ImageInfo.arrayLayers = 1;
@@ -99,6 +100,19 @@ Framebuffer::Framebuffer(u8 count,bool depth)
 	__ImageInfo.flags = 0;
 	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
 	// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
+
+	// memory
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
+	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+													   __MemoryRequirements.memoryTypeBits);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+	vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
+	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
 	// setup depth buffer image view
 	VkImageViewCreateInfo __ImageViewInfo = {  };
@@ -121,19 +135,6 @@ Framebuffer::Framebuffer(u8 count,bool depth)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 	// FIXME another code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
 	// TODO this is much more abstractable, but also not really?
-
-	// memory
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-													   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-	vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
-	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
 #else
 	glGenFramebuffers(1,&m_Buffer);
@@ -188,7 +189,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 #ifdef VKBUILD
-	m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
+	//m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
 
 	// depth component
 	m_ColourComponentSetup[m_DepthChannel] = {};
@@ -231,7 +232,7 @@ void Framebuffer::finalize()
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
 	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
-	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? m_DepthComponentReference : nullptr;
+	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? &m_DepthComponentReference : nullptr;
 
 	// subpass dependency
 	VkSubpassDependency __SubpassDependency = {  };
@@ -261,7 +262,7 @@ void Framebuffer::finalize()
 	// clear setup memory
 	free(m_ColourComponentSetup);  // FIXME this is broken most obviously
 	free(m_ColourComponentReference);
-	free(m_DepthComponentReference);
+	//free(m_DepthComponentReference);
 
 #else
 	u32 __Attachments[m_ColourComponents.size()];

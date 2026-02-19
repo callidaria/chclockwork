@@ -243,7 +243,7 @@ public:
 	void vanish();
 
 private:
-	Framebuffer m_Framebuffer = Framebuffer(1);
+	Framebuffer m_Framebuffer = Framebuffer(1,true);
 	ShaderPipeline m_TestingPipeline;
 	VertexBuffer m_VertexBuffer;
 	GPUPixelBuffer m_PixelBuffer;
