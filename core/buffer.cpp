@@ -274,6 +274,12 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
+	if (m_HasDepth)
+	{
+		g_GPU.free(m_DepthBufferView);
+		g_GPU.free(m_DepthBufferMemory);
+		g_GPU.free(m_DepthStencilBuffer);
+	}
 	g_GPU.free(render_pass);
 #endif
 }

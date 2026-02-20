@@ -14,7 +14,7 @@ else
 	TARGET = chcw
 endif
 
-DEBUG_SUFFIX = -pg -g -O0 -DDEBUG
+DEBUG_SUFFIX = -O0 -DDEBUG  # -pg -g
 RELEASE_SUFFIX = -O3 -fno-gcse
 GPUAPI_SUFFIX ?= -DVKBUILD
 
