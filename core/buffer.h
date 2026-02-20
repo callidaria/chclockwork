@@ -56,13 +56,12 @@ public:
 private:
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
-	VkAttachmentReference m_DepthComponentReference;
 	VkFormat m_DepthStencilFormat;
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
-	u8 m_DepthChannel = 0;
-	bool m_HasDepth = false;
+	u8 m_DepthChannel;
+	bool m_HasDepth;
 #else
 	u32 m_Buffer;
 #endif

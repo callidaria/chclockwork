@@ -189,8 +189,6 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbu
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 #ifdef VKBUILD
-	//m_DepthComponentReference = (VkAttachmentReference*)malloc(sizeof(VkAttachmentReference));
-
 	// depth component
 	m_ColourComponentSetup[m_DepthChannel] = {};
 	m_ColourComponentSetup[m_DepthChannel].format = m_DepthStencilFormat;
@@ -203,9 +201,9 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 	m_ColourComponentSetup[m_DepthChannel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	// define as depth stencil component
-	m_DepthComponentReference = {};
-	m_DepthComponentReference.attachment = m_DepthChannel;
-	m_DepthComponentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	m_ColourComponentReference[m_DepthChannel] = {};
+	m_ColourComponentReference[m_DepthChannel].attachment = m_DepthChannel;
+	m_ColourComponentReference[m_DepthChannel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	// enable depth
 	m_HasDepth = true;
@@ -230,21 +228,21 @@ void Framebuffer::finalize()
 	// specify graphical subpass
 	VkSubpassDescription __SubpassDesc = {  };
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = m_ColourComponents.size();
+	__SubpassDesc.colorAttachmentCount = m_DepthChannel;
 	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
-	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? &m_DepthComponentReference : nullptr;
+	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? &m_ColourComponentReference[m_DepthChannel] : nullptr;
 
 	// subpass dependency
 	VkSubpassDependency __SubpassDependency = {  };
 	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	__SubpassDependency.dstSubpass = 0;
 	__SubpassDependency.srcStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	__SubpassDependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	__SubpassDependency.dstStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	__SubpassDependency.dstAccessMask
-			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 	// TODO implement feature according to the todo placed in header file
 
 	// render pass
@@ -262,7 +260,6 @@ void Framebuffer::finalize()
 	// clear setup memory
 	free(m_ColourComponentSetup);  // FIXME this is broken most obviously
 	free(m_ColourComponentReference);
-	//free(m_DepthComponentReference);
 
 #else
 	u32 __Attachments[m_ColourComponents.size()];
