@@ -190,33 +190,38 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBinding = {  };
 	__InputBinding.binding = 0;
-	__InputBinding.stride = sizeof(f32)*8;
+	__InputBinding.stride = sizeof(f32)*11;
 	__InputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	// TODO dynamizise
 
 	// vertex attribute setup
-	VkVertexInputAttributeDescription __AttributeDesc[3] = { {},{},{} };
+	VkVertexInputAttributeDescription __AttributeDesc[4] = { {},{},{},{} };
 	__AttributeDesc[0].binding = 0;
 	__AttributeDesc[0].location = 0;
 	__AttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	__AttributeDesc[0].offset = 0;
-	
+
 	__AttributeDesc[1].binding = 0;
 	__AttributeDesc[1].location = 1;
-	__AttributeDesc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	__AttributeDesc[1].format = VK_FORMAT_R32G32_SFLOAT;
 	__AttributeDesc[1].offset = sizeof(f32)*3;
-	
+
 	__AttributeDesc[2].binding = 0;
 	__AttributeDesc[2].location = 2;
-	__AttributeDesc[2].format = VK_FORMAT_R32G32_SFLOAT;
-	__AttributeDesc[2].offset = sizeof(f32)*6;
+	__AttributeDesc[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+	__AttributeDesc[2].offset = sizeof(f32)*5;
+
+	__AttributeDesc[3].binding = 0;
+	__AttributeDesc[3].location = 3;
+	__AttributeDesc[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+	__AttributeDesc[3].offset = sizeof(f32)*8;
 
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
 	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	__InputInfo.vertexBindingDescriptionCount = 1;
 	__InputInfo.pVertexBindingDescriptions = &__InputBinding;
-	__InputInfo.vertexAttributeDescriptionCount = 3;
+	__InputInfo.vertexAttributeDescriptionCount = 4;
 	__InputInfo.pVertexAttributeDescriptions = __AttributeDesc;
 	// TODO implement instancing switch here later!
 

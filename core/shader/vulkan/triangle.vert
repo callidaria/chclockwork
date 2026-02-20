@@ -2,11 +2,13 @@
 
 
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 colour;
-layout(location = 2) in vec2 texCoords;
+layout(location = 1) in vec2 uv;
+layout(location = 2) in vec3 normal;
+layout(location = 3) in vec3 tangent;
 
-layout(location = 0) out vec3 Colour;
-layout(location = 1) out vec2 TexCoords;
+layout(location = 0) out vec2 UV;
+layout(location = 1) out vec3 Normal;
+layout(location = 2) out mat3 TBN;
 
 layout(binding = 0) uniform ObjectTransformation {
 	mat4 model;
@@ -18,6 +20,12 @@ layout(binding = 0) uniform ObjectTransformation {
 void main()
 {
 	gl_Position = ot.proj*ot.view*ot.model*vec4(position,1.);
-	Colour = colour;
-	TexCoords = texCoords;
+
+	// pass
+	UV = uv;
+	Normal = normal;
+
+	// gram-schmidt reorthogonalization
+	vec3 Tangent = normalize(tangent-dot(tangent,normal)*normal);
+	TBN = mat3(Tangent,cross(normal,Tangent),normal);
 }
