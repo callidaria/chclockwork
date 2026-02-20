@@ -398,7 +398,7 @@ void Framebuffer::bind_depth_component(u8 channel)
  */
 void Framebuffer::link_output()
 {
-	g_Frame.link_result(render_pass);
+	g_Frame.link_result(render_pass,m_DepthBufferView);
 }
 
 #endif

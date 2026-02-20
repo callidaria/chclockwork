@@ -351,9 +351,13 @@ void Frame::rebuild_swapchain()
 /**
  *	TODO
  */
-void Frame::link_result(VkRenderPass render_pass)
+void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
 {
 	COMM_LOG("registration of final result pipeline");
+
+	// depth buffer reference
+	m_DepthBuffer = depth_buffer;
+	// TODO this is not the way. keep all the framebuffer things in one basket
 
 	// generate framebuffers
 	p_RenderPass = render_pass;
@@ -526,7 +530,7 @@ void Frame::_finalize_swapchain()
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	__FramebufferInfo.renderPass = p_RenderPass;
-	__FramebufferInfo.attachmentCount = 1;
+	__FramebufferInfo.attachmentCount = 2;
 	__FramebufferInfo.width = swapchain.extent.width;
 	__FramebufferInfo.height = swapchain.extent.height;
 	__FramebufferInfo.layers = 1;
@@ -536,7 +540,8 @@ void Frame::_finalize_swapchain()
 	framebuffers.resize(image_views.size());
 	for (u32 i=0;i<image_views.size();i++)
 	{
-		__FramebufferInfo.pAttachments = &image_views[i];
+		VkImageView __Attachments[] = { image_views[i],m_DepthBuffer };
+		__FramebufferInfo.pAttachments = __Attachments;
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}

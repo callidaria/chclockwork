@@ -29,7 +29,7 @@ public:
 
 #ifdef VKBUILD
 	void rebuild_swapchain();
-	void link_result(VkRenderPass render_pass);
+	void link_result(VkRenderPass render_pass,VkImageView depth_buffer);
 #endif
 
 private:
@@ -86,6 +86,7 @@ private:
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
 	VkRenderPass p_RenderPass;
+	VkImageView m_DepthBuffer;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
