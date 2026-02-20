@@ -295,6 +295,15 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__MSAAInfo.alphaToCoverageEnable = VK_FALSE;
 	__MSAAInfo.alphaToOneEnable = VK_FALSE;
 
+	// depth stencil
+	VkPipelineDepthStencilStateCreateInfo __DepthStencilInfo = {  };
+	__DepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	__DepthStencilInfo.depthTestEnable = VK_TRUE;
+	__DepthStencilInfo.depthWriteEnable = VK_TRUE;
+	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this. we need stencil trickery
+
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -315,7 +324,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__PipelineInfo.pViewportState = &__ViewportInfo;
 	__PipelineInfo.pRasterizationState = &__RasterInfo;
 	__PipelineInfo.pMultisampleState = &__MSAAInfo;
-	__PipelineInfo.pDepthStencilState = nullptr;
+	__PipelineInfo.pDepthStencilState = &__DepthStencilInfo;
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = pipeline_layout;

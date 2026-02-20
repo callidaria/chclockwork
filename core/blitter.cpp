@@ -268,7 +268,8 @@ void Frame::close()
 void Frame::set_clear_colour(vec3 colour)
 {
 #ifdef VKBUILD
-	clear_colour = {{{ colour.r,colour.g,colour.b,1.f }}};
+	clear_colour[0] = {{ colour.r,colour.g,colour.b,1.f }};
+	clear_colour[1] = { 1.f,.0f };
 #else
 	glClearColor(colour.r,colour.g,colour.b,0);
 #endif

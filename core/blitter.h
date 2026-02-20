@@ -69,7 +69,7 @@ public:
 	SwapChain swapchain;
 	VkViewport viewport;
 	VkRect2D scissor;
-	VkClearValue clear_colour;  // TODO make this private, this should not be relevant outside frame
+	VkClearValue clear_colour[2];  // TODO make this private, this should not be relevant outside frame
 
 	// image buffers
 	vector<VkImage> images;

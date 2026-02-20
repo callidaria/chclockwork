@@ -310,8 +310,8 @@ void Framebuffer::start()
 	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
-	__RPBeginInfo.clearValueCount = 1;
-	__RPBeginInfo.pClearValues = &g_Frame.clear_colour;
+	__RPBeginInfo.clearValueCount = 2;
+	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
 	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
 	// TODO very rigid. this expects graphical output, which is kindergarten
