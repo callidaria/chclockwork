@@ -656,6 +656,7 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 Renderer::Renderer()
 {
 	// data
+	/*
 	f32 __Verts[] = {
 		-.5f,.5f,.0f, 1.f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
 		.5f,.5f,.0f, .0f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
@@ -667,6 +668,17 @@ Renderer::Renderer()
 		-.5f,-.5f,-.5f, 1.f,1.f, .0f,1.f,.0f, 1.f,1.f,1.f,
 	};
 	u32 __Indices[] = { 0,1,2,2,3,0,4,5,6,6,7,4 };
+	*/
+	Mesh __Mesh = Mesh::cube();
+	vector<u32> __Indices(__Mesh.vertices.size());
+	std::iota(__Indices.begin(),__Indices.end(),0);
+	m_RenderSize = __Indices.size();
+	for (u8 i=0;i<12;i++)
+	{
+		Vertex& v = __Mesh.vertices[i*11];
+		COMM_LOG("vertex: p %f %f %f, v %f %f",v.position.x,v.position.y,v.position.z,v.uv.x,v.uv.y);
+		COMM_LOG("index: %d",__Indices[i]);
+	}
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
@@ -675,8 +687,10 @@ Renderer::Renderer()
 	m_Framebuffer.link_output();
 
 	// vertex data
-	m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
-	m_VertexBuffer.upload(__Verts,sizeof(__Verts),__Indices,sizeof(__Indices));
+	//m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
+	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size());
+	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
+						  &__Indices[0],sizeof(u32)*__Indices.size());
 
 	// texture
 	m_PixelBuffer.load_texture("./res/test/cld.jpeg");
@@ -711,7 +725,7 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,12,1,0,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,1,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();

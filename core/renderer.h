@@ -2,6 +2,7 @@
 #define CORE_RENDERER_HEADER
 
 
+#include <numeric>
 #include "buffer.h"
 #include "shader.h"
 
@@ -251,6 +252,7 @@ private:
 	// testing
 	ObjectTransformation m_Trafo;
 	f32 m_Rotation = .0f;
+	u32 m_RenderSize = 0;
 };
 
 
