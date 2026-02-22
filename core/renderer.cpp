@@ -716,6 +716,8 @@ Renderer::Renderer()
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./core/shader/vulkan/bin/triangle.vert",
 							   "./core/shader/vulkan/bin/triangle.frag");
+
+	m_Rotation = glm::radians(-120.f);
 }
 
 void Renderer::update()
@@ -731,7 +733,7 @@ void Renderer::update()
 	//		right now this happens for both matrices individually, which is not appropriate
 
 	// prototype update tbr
-	m_Rotation += g_Frame.delta_time*glm::radians(4.f);
+	//m_Rotation += g_Frame.delta_time*glm::radians(4.f);
 	m_Trafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
 	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
