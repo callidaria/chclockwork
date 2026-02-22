@@ -188,7 +188,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// vertex binding setup
-	VkVertexInputBindingDescription __InputBindings[2] = {  };
+	VkVertexInputBindingDescription __InputBindings[2] = { {},{} };
 	__InputBindings[0].binding = 0;
 	__InputBindings[0].stride = sizeof(f32)*11;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -198,7 +198,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// TODO dynamizise
 
 	// vertex attribute setup
-	VkVertexInputAttributeDescription __AttributeDesc[4] = { {},{},{},{} };
+	VkVertexInputAttributeDescription __AttributeDesc[5] = { {},{},{},{},{} };
 	__AttributeDesc[0].binding = 0;
 	__AttributeDesc[0].location = 0;
 	__AttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;

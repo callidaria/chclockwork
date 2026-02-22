@@ -460,7 +460,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	_generate_buffer(__StagingIBO,__StagingInstanceMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	void* __InstanceData;
-	vkMapMemory(g_GPU.gpu,__StagingInstanceMemory,0,m_InstanceBufferSize,0,&__Data);
+	vkMapMemory(g_GPU.gpu,__StagingInstanceMemory,0,m_InstanceBufferSize,0,&__InstanceData);
 	memcpy(__InstanceData,instances,nsize);
 	vkUnmapMemory(g_GPU.gpu,__StagingInstanceMemory);
 
@@ -479,7 +479,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 
 	// cleanup
 	g_GPU.free(__StagingVBO);
+	g_GPU.free(__StagingIBO);
 	g_GPU.free(__StagingMemory);
+	g_GPU.free(__StagingInstanceMemory);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -518,7 +520,9 @@ void VertexBuffer::bind()
 void VertexBuffer::vanish()
 {
 	g_GPU.free(m_VBO);
+	g_GPU.free(m_IBO);
 	g_GPU.free(m_Memory);
+	g_GPU.free(m_InstanceMemory);
 }
 #endif
 

@@ -671,6 +671,26 @@ Renderer::Renderer()
 		{ vec3(2,0,-2) },
 		{ vec3(-2,0,2) },
 		{ vec3(-2,0,-2) },
+		
+		{ vec3(0,-2,0) },
+		{ vec3(2,-2,0) },
+		{ vec3(-2,-2,0) },
+		{ vec3(0,-2,2) },
+		{ vec3(0,-2,-2) },
+		{ vec3(2,-2,2) },
+		{ vec3(2,-2,-2) },
+		{ vec3(-2,-2,2) },
+		{ vec3(-2,-2,-2) },
+		
+		{ vec3(0,2,0) },
+		{ vec3(2,2,0) },
+		{ vec3(-2,2,0) },
+		{ vec3(0,2,2) },
+		{ vec3(0,2,-2) },
+		{ vec3(2,2,2) },
+		{ vec3(2,2,-2) },
+		{ vec3(-2,2,2) },
+		{ vec3(-2,2,-2) },
 	};
 
 	// render target
@@ -719,7 +739,7 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,9,0,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,27,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();
