@@ -1061,6 +1061,16 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__BufferCopy.imageOffset = { 0,0,0 };
 	__BufferCopy.imageExtent = { (u32)__TextureData.width,(u32)__TextureData.height,1 };
 
+	// test for blitting support based on image format
+#ifdef DEBUG
+	VkFormatProperties __FormatProperties;
+	vkGetPhysicalDeviceFormatProperties(g_GPU.device_info->gpu,VK_FORMAT_R8G8B8A8_SRGB,&__FormatProperties);
+	COMM_ERR_COND(!(__FormatProperties.optimalTilingFeatures&VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT),
+				  "texture format does not support blitting for mipmap generation purposes");
+	// TODO and then maybe do something about it outside of debug cases... we are in trouble should this happen
+	//		this is not a problem should the mip levels be pre-processed in addition to improved load times
+#endif
+
 	// mipmap generation
 	VkImageMemoryBarrier __MMBarrier = {  };
 	__MMBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1082,6 +1092,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__MMBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__MMBlit.dstSubresource.baseArrayLayer = 0;
 	__MMBlit.dstSubresource.layerCount = 1;
+	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// upload image
 	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
@@ -1177,7 +1188,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	__SamplerInfo.mipLodBias = .0f;
 	__SamplerInfo.minLod = .0f;
-	__SamplerInfo.maxLod = .0f;
+	__SamplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_Sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
 	// TODO this will be the texture settings++ from ogl version
