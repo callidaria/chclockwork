@@ -236,6 +236,11 @@ struct ObjectTransformation
 	mat4 proj __attribute__((aligned(16)));
 };
 
+struct ObjectInstance
+{
+	vec3 position;
+};
+
 class Renderer
 {
 public:

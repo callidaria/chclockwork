@@ -188,10 +188,13 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// vertex binding setup
-	VkVertexInputBindingDescription __InputBinding = {  };
-	__InputBinding.binding = 0;
-	__InputBinding.stride = sizeof(f32)*11;
-	__InputBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	VkVertexInputBindingDescription __InputBindings[2] = {  };
+	__InputBindings[0].binding = 0;
+	__InputBindings[0].stride = sizeof(f32)*11;
+	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	__InputBindings[1].binding = 1;
+	__InputBindings[1].stride = sizeof(f32)*3;
+	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 	// TODO dynamizise
 
 	// vertex attribute setup
@@ -216,12 +219,17 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	__AttributeDesc[3].format = VK_FORMAT_R32G32B32_SFLOAT;
 	__AttributeDesc[3].offset = sizeof(f32)*8;
 
+	__AttributeDesc[4].binding = 1;
+	__AttributeDesc[4].location = 4;
+	__AttributeDesc[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+	__AttributeDesc[4].offset = 0;
+
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
 	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	__InputInfo.vertexBindingDescriptionCount = 1;
-	__InputInfo.pVertexBindingDescriptions = &__InputBinding;
-	__InputInfo.vertexAttributeDescriptionCount = 4;
+	__InputInfo.vertexBindingDescriptionCount = 2;
+	__InputInfo.pVertexBindingDescriptions = __InputBindings;
+	__InputInfo.vertexAttributeDescriptionCount = 5;
 	__InputInfo.pVertexAttributeDescriptions = __AttributeDesc;
 	// TODO implement instancing switch here later!
 

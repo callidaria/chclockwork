@@ -655,24 +655,23 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
-	// data
-	/*
-	f32 __Verts[] = {
-		-.5f,.5f,.0f, 1.f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		.5f,.5f,.0f, .0f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		.5f,-.5f,.0f, .0f,1.f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		-.5f,-.5f,.0f, 1.f,1.f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		-.5f,.5f,-.5f, 1.f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		.5f,.5f,-.5f, .0f,.0f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		.5f,-.5f,-.5f, .0f,1.f, .0f,1.f,.0f, 1.f,1.f,1.f,
-		-.5f,-.5f,-.5f, 1.f,1.f, .0f,1.f,.0f, 1.f,1.f,1.f,
-	};
-	u32 __Indices[] = { 0,1,2,2,3,0,4,5,6,6,7,4 };
-	*/
 	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
 	std::iota(__Indices.begin(),__Indices.end(),0);
 	m_RenderSize = __Indices.size();
+
+	// instances
+	ObjectInstance __Instances[] = {
+		{ vec3(0,0,0) },
+		{ vec3(2,0,0) },
+		{ vec3(-2,0,0) },
+		{ vec3(0,0,2) },
+		{ vec3(0,0,-2) },
+		{ vec3(2,0,2) },
+		{ vec3(2,0,-2) },
+		{ vec3(-2,0,2) },
+		{ vec3(-2,0,-2) },
+	};
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
@@ -681,10 +680,11 @@ Renderer::Renderer()
 	m_Framebuffer.link_output();
 
 	// vertex data
-	//m_VertexBuffer.allocate(sizeof(__Verts)+sizeof(__Indices));
-	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size());
+	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),
+							sizeof(__Instances));
 	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
-						  &__Indices[0],sizeof(u32)*__Indices.size());
+						  &__Indices[0],sizeof(u32)*__Indices.size(),
+						  __Instances,sizeof(__Instances));
 
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
@@ -719,7 +719,7 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,1,0,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,9,0,0,0);
 	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();

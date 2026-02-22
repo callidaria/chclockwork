@@ -6,6 +6,8 @@ layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec3 tangent;
 
+layout(location = 4) in vec3 offset;
+
 layout(location = 0) out vec2 UV;
 layout(location = 1) out vec3 Normal;
 layout(location = 2) out mat3 TBN;
@@ -19,7 +21,7 @@ layout(binding = 0) uniform ObjectTransformation {
 
 void main()
 {
-	gl_Position = ot.proj*ot.view*ot.model*vec4(position,1.);
+	gl_Position = ot.proj*ot.view*ot.model*vec4(position+offset,1.);
 
 	// pass
 	UV = uv;
