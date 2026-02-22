@@ -669,16 +669,10 @@ Renderer::Renderer()
 	};
 	u32 __Indices[] = { 0,1,2,2,3,0,4,5,6,6,7,4 };
 	*/
-	Mesh __Mesh = Mesh::cube();
+	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
 	std::iota(__Indices.begin(),__Indices.end(),0);
 	m_RenderSize = __Indices.size();
-	for (u8 i=0;i<12;i++)
-	{
-		Vertex& v = __Mesh.vertices[i*11];
-		COMM_LOG("vertex: p %f %f %f, v %f %f",v.position.x,v.position.y,v.position.z,v.uv.x,v.uv.y);
-		COMM_LOG("index: %d",__Indices[i]);
-	}
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
@@ -693,7 +687,7 @@ Renderer::Renderer()
 						  &__Indices[0],sizeof(u32)*__Indices.size());
 
 	// texture
-	m_PixelBuffer.load_texture("./res/test/cld.jpeg");
+	m_PixelBuffer.load_texture("./res/private/test.png");
 
 	// §§testing
 	g_UniformBuffer.setup(BUFFER_UNIFORM_ALLOCATION_SIZE);
@@ -717,7 +711,7 @@ void Renderer::update()
 	//		right now this happens for both matrices individually, which is not appropriate
 
 	// prototype update tbr
-	m_Rotation += g_Frame.delta_time*glm::radians(90.f);
+	m_Rotation += g_Frame.delta_time*glm::radians(4.f);
 	m_Trafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
 	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 

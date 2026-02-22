@@ -163,6 +163,9 @@ private:
 public:
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
+#ifdef VKBUILD
+	u16 mipcount;
+#endif
 	u8* data;
 
 private:

@@ -683,8 +683,11 @@ TextureData::TextureData(TextureFormat format)
 void TextureData::load(const char* path)
 {
 	COMM_ERR_COND(!check_file_exists(path),"texture %s could not be found",path);
-	stbi_set_flip_vertically_on_load(true);
+	stbi_set_flip_vertically_on_load(true);  // FIXME this belongs in initialization
 	data = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
+#ifdef VKBUILD
+	mipcount = std::floor(std::log2(std::max(width,height)))+1;
+#endif
 	m_TextureFlag = true;
 }
 
@@ -1000,12 +1003,13 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__ImageInfo.extent.width = __TextureData.width;
 	__ImageInfo.extent.height = __TextureData.height;
 	__ImageInfo.extent.depth = 1;
-	__ImageInfo.mipLevels = 1;
+	__ImageInfo.mipLevels = __TextureData.mipcount;
 	__ImageInfo.arrayLayers = 1;
 	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // TODO look into staging images, this is worrying for port
 	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO not really clear to me why anything else
-	__ImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	__ImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_TRANSFER_DST_BIT
+			|VK_IMAGE_USAGE_SAMPLED_BIT;
 	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.flags = 0;  // TODO research options here
@@ -1037,11 +1041,9 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__Barrier.image = m_Texture;
 	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.levelCount = 1;
+	__Barrier.subresourceRange.levelCount = __TextureData.mipcount;
 	__Barrier.subresourceRange.baseArrayLayer = 0;
 	__Barrier.subresourceRange.layerCount = 1;
-
-	// layout first transition
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -1059,6 +1061,28 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__BufferCopy.imageOffset = { 0,0,0 };
 	__BufferCopy.imageExtent = { (u32)__TextureData.width,(u32)__TextureData.height,1 };
 
+	// mipmap generation
+	VkImageMemoryBarrier __MMBarrier = {  };
+	__MMBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__MMBarrier.image = m_Texture;
+	__MMBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MMBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MMBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__MMBarrier.subresourceRange.baseArrayLayer = 0;
+	__MMBarrier.subresourceRange.layerCount = 1;
+	__MMBarrier.subresourceRange.levelCount = 1;
+
+	// mipmap blit
+	VkImageBlit __MMBlit = {  };
+	__MMBlit.srcOffsets[0] = { 0,0,0 };
+	__MMBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__MMBlit.srcSubresource.baseArrayLayer = 0;
+	__MMBlit.srcSubresource.layerCount = 1;
+	__MMBlit.dstOffsets[0] = { 0,0,0 };
+	__MMBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__MMBlit.dstSubresource.baseArrayLayer = 0;
+	__MMBlit.dstSubresource.layerCount = 1;
+
 	// upload image
 	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -1066,14 +1090,49 @@ void GPUPixelBuffer::load_texture(const char* path)
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						   1,&__BufferCopy);
 
-	// second transition
-	__Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	__Barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	// generate mipmaps
+	s32 __MMWidth = __TextureData.width;
+	s32 __MMHeight = __TextureData.height;
+	for (u16 i=1;i<__TextureData.mipcount;i++)
+	{
+		// memory barrier blit
+		__MMBarrier.subresourceRange.baseMipLevel = i-1;
+		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		__MMBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+
+		// blitting
+		__MMBlit.srcOffsets[1] = { __MMWidth,__MMHeight,1 };
+		__MMBlit.srcSubresource.mipLevel = i-1;
+		__MMWidth = (__MMWidth>1)?__MMWidth>>1:1;
+		__MMHeight = (__MMHeight>1)?__MMHeight>>1:1;
+		__MMBlit.dstOffsets[1] = { __MMWidth,__MMHeight,1 };
+		__MMBlit.dstSubresource.mipLevel = i;
+		vkCmdBlitImage(__CMDBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					   m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__MMBlit,VK_FILTER_LINEAR);
+
+		// memory barrier to read after blit
+		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+	}
+
+	// seal final blit
+	__MMBarrier.subresourceRange.baseMipLevel = __TextureData.mipcount-1;
+	__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__Barrier);
+						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
 	GPU::execute_command_buffer(__CMDBuffer);
+	// TODO dedicated transfer queues for vtx buffers & also for this one. look it up and find heaven
 
 	// cleanup staging memory
 	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this will be removed later.
@@ -1088,7 +1147,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__ImageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-	__ImageViewInfo.subresourceRange.levelCount = 1;
+	__ImageViewInfo.subresourceRange.levelCount = __TextureData.mipcount;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
 	__ImageViewInfo.subresourceRange.layerCount = 1;
 	__ImageViewInfo.components = {
