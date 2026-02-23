@@ -415,7 +415,7 @@ swap_chain_selection_extent:
 	s32 __Width,__Height;
 	if (g_GPU.device_info->swapchain_info.capabilities.currentExtent.width!=UINT32_MAX)
 	{
-		COMM_MSG(LOG_YELLOW,"WARNING: vulkan refuses the swapchain extent override, using fixed extent instead");
+		COMM_MSG(LOG_BLUE,"INFO: device refuses the swapchain extent override, using fixed extent instead");
 		swapchain.extent = g_GPU.device_info->swapchain_info.capabilities.currentExtent;
 		goto swap_chain_creation;
 	}
