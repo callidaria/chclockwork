@@ -121,6 +121,12 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		gpus[i].extensions.resize(__ExtensionCount);
 		vkEnumerateDeviceExtensionProperties(gpus[i].gpu,nullptr,&__ExtensionCount,&gpus[i].extensions[0]);
 
+		// get device specifics
+		vkGetPhysicalDeviceProperties(gpus[i].gpu,&gpus[i].properties);
+		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
+		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
+		// TODO later, read the capabilities of the selected device, allow to change it and change features
+
 		// checking extension support
 		set<string> __RequiredExtensions = set<string>(g_GPUExtensions.begin(),g_GPUExtensions.end());
 		for (VkExtensionProperties& __Extension : gpus[i].extensions)
@@ -132,12 +138,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);
 			continue;
 		}
-
-		// get device specifics
-		vkGetPhysicalDeviceProperties(gpus[i].gpu,&gpus[i].properties);
-		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
-		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
-		// TODO later, read the capabilities of the selected device, allow to change it and change features
 
 		// some info about gpu features
 		COMM_MSG_COND(!(gpus[i].supported&GPU_FEATURE_SUPPORT_ANISOTROPY),
