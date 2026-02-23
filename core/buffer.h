@@ -60,11 +60,11 @@ private:
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
-	u8 m_DepthChannel;
-	bool m_HasDepth;
 #else
 	u32 m_Buffer;
 #endif
+	u8 m_DepthChannel;
+	bool m_HasDepth;
 
 	// textures
 	vector<__fbuffer_component> m_ColourComponents;

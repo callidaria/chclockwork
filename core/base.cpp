@@ -20,14 +20,14 @@ bool check_file_exists(const char* path)
  *	TODO
  *	NOTE returned memory has to be freed after using
  */
-char* read_file_binary(const char* path,u32& buffer_size)
+u8* read_file_binary(const char* path,u32& buffer_size)
 {
 	FILE* __File = fopen(path,"rb");
 	COMM_ERR_COND(!__File,"could not open file to read binary information from");
 	fseek(__File,0,SEEK_END);
 	buffer_size = ftell(__File);
 	rewind(__File);
-	char* __Buffer = (char*)malloc(buffer_size);
+	u8* __Buffer = (u8*)malloc(buffer_size);
 	fread(__Buffer,1,buffer_size,__File);
 	fclose(__File);
 	return __Buffer;

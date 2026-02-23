@@ -149,8 +149,8 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 #ifdef VKBUILD
 	// read precompiled shader binaries
 	u32 __ShaderSizeVS,__ShaderSizeFS;
-	char* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
-	char* __ShaderFS = read_file_binary(fs,__ShaderSizeFS);
+	u8* __ShaderVS = read_file_binary(vs,__ShaderSizeVS);
+	u8* __ShaderFS = read_file_binary(fs,__ShaderSizeFS);
 
 	// setup shader info
 	VkShaderModule __VertexShader,__FragmentShader;

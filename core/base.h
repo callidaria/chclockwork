@@ -268,7 +268,7 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 // Utility
 
 bool check_file_exists(const char* path);
-char* read_file_binary(const char* path,u32& buffer_size);
+u8* read_file_binary(const char* path,u32& buffer_size);
 void split_words(vector<string>& words,string& line);
 
 
