@@ -132,7 +132,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		for (VkExtensionProperties& __Extension : gpus[i].extensions)
 			__RequiredExtensions.erase(__Extension.extensionName);
 		gpus[i].supported = (__RequiredExtensions.empty()*GPU_FEATURE_SUPPORT_BASIC)
-				| gpus[i].features.samplerAnisotropy*GPU_FEATURE_SUPPORT_ANISOTROPY;
+				| (gpus[i].features.samplerAnisotropy*GPU_FEATURE_SUPPORT_ANISOTROPY);
 		if (!(gpus[i].supported&GPU_FEATURE_SUPPORT_BASIC))
 		{
 			COMM_ERR("interrupting GPU read at index %i, the device is missing crucial extensions",i);

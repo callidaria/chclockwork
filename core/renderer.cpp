@@ -671,7 +671,7 @@ Renderer::Renderer()
 		{ vec3(2,0,-2) },
 		{ vec3(-2,0,2) },
 		{ vec3(-2,0,-2) },
-		
+
 		{ vec3(0,-2,0) },
 		{ vec3(2,-2,0) },
 		{ vec3(-2,-2,0) },
@@ -681,7 +681,7 @@ Renderer::Renderer()
 		{ vec3(2,-2,-2) },
 		{ vec3(-2,-2,2) },
 		{ vec3(-2,-2,-2) },
-		
+
 		{ vec3(0,2,0) },
 		{ vec3(2,2,0) },
 		{ vec3(-2,2,0) },
@@ -746,6 +746,40 @@ void Renderer::update()
 
 	m_Framebuffer.stop();
 }
+
+/**
+ *	sorting out how this makes most sense:
+ *
+ *	1st the buffers
+ *		creating a buffer should be done by generating a buffer, uploading to it and having a few options
+ *		options when and if to include index buffers might be offered here, but that really just happens at bind
+ *		if is a buffer staged, mapped and unmapped is a hugely important distinction
+ *		there is a difference between vertex buffers only in the case of upload additional index information
+ *		vertex buffers (as they are) only hold geometrical information, fed to the shaders. this is their purpose
+ *		the vertex buffer should store it's offset, so that authoritative callers can utilize them when uploading
+ *		maybe it should be possible to store multiple geometric buffers into a single vbo??
+ *		research if streaming into a single global vbo for all equi-material wg is an efficient alternative
+ *
+ *	2nd the "vertex array"
+ *		to bind and upload the buffers they will be called by bind vertex/index buffer commands descriptively
+ *		the vertex array should not be a distict structure or class, it only acts as an analogue to ogl
+ *		during the bind process, the cmd_buffer in framebuffer will be used to store the command until execution
+ *		this raises the important question if the framebuffer as such should take care of buffer upload
+ *
+ *	3rd the static pipeline
+ *		the pipeline should work with the buffers and uniforms, but it should NOT be defined by them.
+ *		the pipeline setup will consist of only direct decisions and automatically analyzed shader states
+ *		an example of the latter is already implemented in the ogl version:
+ *		the pipeline will read the defined needs by the shader and adopt the desired upload structure
+ *		it is then the duty of the buffers to provide the requested data, they have no influence over the demands
+ *
+ *	4th the framebuffer rendertarget
+ *		the rendertarget is supposed to be !the! command authority. all draw commands belong to a target
+ *		a rendertarget should also stand on it's own feet and should not obey any other authority, besides mutex
+ *		this should suggest that the framebuffer rendertarget and the blitter are to be unified into one
+ *		for each target there is a respective command buffer, as there should be when flipping asynchronously
+ *		but right now blitter and framebuffer are in a dire war over resource authority, that should be sorted
+ */
 
 void Renderer::vanish()
 {
