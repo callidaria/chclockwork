@@ -700,11 +700,16 @@ Renderer::Renderer()
 	m_Framebuffer.link_output();
 
 	// vertex data
-	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),
-							sizeof(__Instances));
+	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
 	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
-						  &__Indices[0],sizeof(u32)*__Indices.size(),
-						  __Instances,sizeof(__Instances));
+						  &__Indices[0],sizeof(u32)*__Indices.size());
+	m_VertexBuffer.update();
+	m_VertexBuffer.free();
+
+	// instance data
+	m_InstanceBuffer.allocate(sizeof(__Instances));
+	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
+	// TODO
 
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
@@ -725,6 +730,7 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
 	m_VertexBuffer.bind(m_Framebuffer);
+	m_InstanceBuffer.update();
 
 	// camera update test
 	m_Trafo.view = g_Camera.view;
@@ -759,6 +765,12 @@ void Renderer::update()
  *		the vertex buffer should store it's offset, so that authoritative callers can utilize them when uploading
  *		maybe it should be possible to store multiple geometric buffers into a single vbo??
  *		research if streaming into a single global vbo for all equi-material wg is an efficient alternative
+ *		the default case for upload is always through a staging buffer. this seems to be the fastest way
+ *		this includes all vbs, those that stay the same throughout and also dynamic instance data buffers
+ *		vertex buffer memory is static and can be freed immediately, while instance memory needs to stay active
+ *		this suggests, that the staging/upload and the unmap/free call are to be separated, depending on usage
+ *		also there must be a feature to directly update data in-memory
+ *		copy must be part of an update function, that can be called once in case of vb or per-frame in case of ib
  *
  *	2nd the "vertex array"
  *		to bind and upload the buffers they will be called by bind vertex/index buffer commands descriptively
@@ -797,6 +809,8 @@ void Renderer::vanish()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
+	m_IndexBuffer.free();
+	m_IndexBuffer.vanish();
 	m_PixelBuffer.vanish();
 	g_UniformBuffer.vanish();
 }

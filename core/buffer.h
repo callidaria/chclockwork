@@ -81,7 +81,7 @@ private:
 class VertexBuffer
 {
 public:
-	void allocate(size_t size,size_t nsize=0);
+	void allocate(size_t size,bool indexed=false);
 	void upload(void* vertices,size_t vsize,void* indices=nullptr,size_t isize=0,
 				void* instances=nullptr,size_t nsize=0);
 
@@ -93,20 +93,15 @@ public:
 #endif
 
 private:
-	size_t m_BufferSize;
-	size_t m_InstanceBufferSize;
 
 #ifdef VKBUILD
 	VkBuffer m_VBO;
-	VkBuffer m_IBO;  // this cannot be moved! memory position depends on immediate location after vertex buffer
 	VkBuffer m_StagingVBO;
-	VkBuffer m_StagingIBO;
 	VkDeviceMemory m_Memory;
 	VkDeviceMemory m_StagingMemory;
-	VkDeviceMemory m_InstanceMemory;
-	VkDeviceMemory m_StagingInstanceMemory;
 	size_t m_IndexOffset;
-	vector<u64> m_Offsets = { 0,0 };  // FIXME dynamics
+	void* m_Data;
+	VkBufferCopy m_BufferCopy = {  };
 #else
 	u32 m_VAO;
 	u32 m_VBO;

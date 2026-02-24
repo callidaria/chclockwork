@@ -416,17 +416,24 @@ void Framebuffer::link_output()
 /**
  *	TODO
  */
-void VertexBuffer::allocate(size_t size,size_t nsize)
+void VertexBuffer::allocate(size_t size,bool indexed)
 {
-	m_BufferSize = size;  // TODO this is not used in ogl version right now, remove after correlation done
-	m_InstanceBufferSize = nsize;
 #ifdef VKBUILD
-	_generate_buffer(m_VBO,m_Memory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_DST_BIT
-					 |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+
+	// generate buffers for host & device memory
+	_generate_buffer(m_VBO,m_Memory,size,
+					 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+					 |VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
 					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	_generate_buffer(m_IBO,m_InstanceMemory,m_InstanceBufferSize,
-					 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	_generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&m_Data);
+
+	// assemble buffer copy info
+	m_BufferCopy.srcOffset = 0;
+	m_BufferCopy.dstOffset = 0;
+	m_BufferCopy.size = size;
+
 #else
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
@@ -436,52 +443,30 @@ void VertexBuffer::allocate(size_t size,size_t nsize)
 /**
  *	TODO
  */
-void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize,void* instances,size_t nsize)
+void VertexBuffer::upload(void* vertices,size_t vsize)
+{
+#ifdef VKBUILD
+	memcpy(m_Data,vertices,vsize);
+	// TODO is it possible to skip this memcpy here and to directly reference, to be able to address in cpu code?
+#else
+	// TODO correlate
+#endif
+}
+// TODO then also store the threshold for written vertex information, when uploading again it can be amended
+// TODO also directly write to certain segments in memory, maybe to overwrite a section of geometry or to
+//		update instance information on the fly. there are a lot of interesting use-cases for this.
+
+/**
+ *	TODO
+ */
+void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize)
 {
 #ifdef VKBUILD
 	m_IndexOffset = vsize;
 
 	// fill staging buffer with vertex information
-	VkBuffer __StagingVBO;
-	VkDeviceMemory __StagingMemory;
-	_generate_buffer(__StagingVBO,__StagingMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	void* __Data;
-	vkMapMemory(g_GPU.gpu,__StagingMemory,0,m_BufferSize,0,&__Data);
 	memcpy(__Data,vertices,vsize);
 	memcpy((u8*)__Data+vsize,indices,isize);
-	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
-	// FIXME maybe unmap ONCE. just leave it and synchronize (i've read windows doesn't like that though)
-	// TODO research if this is even a great idea for this kind of geometry upload, maybe without staging?
-
-	// fill index buffer (§prototyping, to be removed later)
-	VkBuffer __StagingIBO;
-	VkDeviceMemory __StagingInstanceMemory;
-	_generate_buffer(__StagingIBO,__StagingInstanceMemory,m_BufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	void* __InstanceData;
-	vkMapMemory(g_GPU.gpu,__StagingInstanceMemory,0,m_InstanceBufferSize,0,&__InstanceData);
-	memcpy(__InstanceData,instances,nsize);
-	vkUnmapMemory(g_GPU.gpu,__StagingInstanceMemory);
-
-	// copy vertex information to gpu
-	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
-	VkBufferCopy __BufferCopy = {  };
-	__BufferCopy.srcOffset = 0;
-	__BufferCopy.dstOffset = 0;
-	__BufferCopy.size = m_BufferSize;
-	vkCmdCopyBuffer(__CMDBuffer,__StagingVBO,m_VBO,1,&__BufferCopy);
-
-	// copy instance information to gpu
-	__BufferCopy.size = m_InstanceBufferSize;
-	vkCmdCopyBuffer(__CMDBuffer,__StagingIBO,m_IBO,1,&__BufferCopy);
-	GPU::execute_command_buffer(__CMDBuffer);
-
-	// cleanup
-	g_GPU.free(__StagingVBO);
-	g_GPU.free(__StagingIBO);
-	g_GPU.free(__StagingMemory);
-	g_GPU.free(__StagingInstanceMemory);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -496,6 +481,28 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 // TODO rename to upload and make vertex/element non-specific. this should just work without user decision
 //		also rework the whole naming why are there element/indices overlapping and why are they all in a
 //		vertex buffer even though they are not vertices! frankly terrible!
+// TODO consider a ring buffer system for multi-frame processing
+
+/**
+ *	TODO
+ */
+void VertexBuffer::update()
+{
+	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
+	vkCmdCopyBuffer(___CMDBuffer,m_StagingVBO,1,&m_BufferCopy);
+	GPU::execute_command_buffer(__CMDBuffer);
+}
+// FIXME performance, starting a distict command buffer every frame for instance data buffers
+
+/**
+ *	TODO
+ */
+void VertexBuffer::free()
+{
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	g_GPU.free(m_StagingVBO);
+	g_GPU.free(m_StagingMemory);
+}
 
 /**
  *	TODO
@@ -506,6 +513,7 @@ void VertexBuffer::bind(Framebuffer& fb)
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_VBO,&m_Offsets[0]);
 	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_VBO,m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
+// TODO this bind is supposed to be inverted! give the vb and ib to the rendertarget and associate with cmdbfr
 #else
 void VertexBuffer::bind()
 {
@@ -520,9 +528,7 @@ void VertexBuffer::bind()
 void VertexBuffer::vanish()
 {
 	g_GPU.free(m_VBO);
-	g_GPU.free(m_IBO);
 	g_GPU.free(m_Memory);
-	g_GPU.free(m_InstanceMemory);
 }
 #endif
 
