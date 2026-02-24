@@ -82,24 +82,31 @@ class VertexBuffer
 {
 public:
 	void allocate(size_t size,bool indexed=false);
-	void upload(void* vertices,size_t vsize,void* indices=nullptr,size_t isize=0,
-				void* instances=nullptr,size_t nsize=0);
+	void upload(void* vertices,size_t vsize);
+	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
 
 #ifdef VKBUILD
-	void bind(Framebuffer& fb);
+	void update();
+	void free();
+	//void bind(Framebuffer& fb);
 	void vanish();
 #else
 	void bind();
 #endif
 
+public:
+
+#ifdef VKBUILD
+	VkBuffer vbo;
+	size_t index_offset;
+#endif
+
 private:
 
 #ifdef VKBUILD
-	VkBuffer m_VBO;
 	VkBuffer m_StagingVBO;
 	VkDeviceMemory m_Memory;
 	VkDeviceMemory m_StagingMemory;
-	size_t m_IndexOffset;
 	void* m_Data;
 	VkBufferCopy m_BufferCopy = {  };
 #else
@@ -107,6 +114,31 @@ private:
 	u32 m_VBO;
 #endif
 };
+
+
+#ifdef VKBUILD
+class VertexArray
+{
+public:
+
+	// setup
+	void allocate(u8 size);
+	void register_buffer(const VertexBuffer& vb);
+	void register_buffer_indexed(const VertexBuffer& vb);
+
+	// update
+	void bind(const Framebuffer& fb);
+	void bind_indexed(const Framebuffer& fb);
+
+private:
+	vector<VkBuffer> m_Buffers;
+	vector<size_t> m_Offsets;
+	size_t m_IndexOffset = 0;
+	s16 m_IndexSource = -1;
+};
+// TODO this is a testing solution, think about dedicated command buffer per target and bind once at creation
+//		right now i'm not sure if this is performant or even possible in this case, so i'll leave this todo here
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------

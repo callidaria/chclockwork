@@ -709,7 +709,12 @@ Renderer::Renderer()
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
-	// TODO
+	m_InstanceBuffer.update();
+
+	// vertex array
+	m_VertexArray.allocate(2);
+	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
+	m_VertexArray.register_buffer(m_InstanceBuffer);
 
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
@@ -729,8 +734,8 @@ void Renderer::update()
 {
 	m_TestingPipeline.enable();
 	m_Framebuffer.start();
-	m_VertexBuffer.bind(m_Framebuffer);
-	m_InstanceBuffer.update();
+	//m_VertexBuffer.bind(m_Framebuffer);
+	m_VertexArray.bind_indexed(m_Framebuffer);
 
 	// camera update test
 	m_Trafo.view = g_Camera.view;
@@ -809,8 +814,8 @@ void Renderer::vanish()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	m_VertexBuffer.vanish();
-	m_IndexBuffer.free();
-	m_IndexBuffer.vanish();
+	m_InstanceBuffer.free();
+	m_InstanceBuffer.vanish();
 	m_PixelBuffer.vanish();
 	g_UniformBuffer.vanish();
 }

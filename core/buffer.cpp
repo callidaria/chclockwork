@@ -421,7 +421,7 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 #ifdef VKBUILD
 
 	// generate buffers for host & device memory
-	_generate_buffer(m_VBO,m_Memory,size,
+	_generate_buffer(vbo,m_Memory,size,
 					 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
 					 |VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
 					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -436,7 +436,7 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 
 #else
 	glGenVertexArrays(1,&m_VAO);
-	glGenBuffers(1,&m_VBO);
+	glGenBuffers(1,&vbo);
 #endif
 }
 
@@ -447,11 +447,11 @@ void VertexBuffer::upload(void* vertices,size_t vsize)
 {
 #ifdef VKBUILD
 	memcpy(m_Data,vertices,vsize);
-	// TODO is it possible to skip this memcpy here and to directly reference, to be able to address in cpu code?
 #else
 	// TODO correlate
 #endif
 }
+// TODO is it possible to skip this memcpy here and to directly reference, to be able to address in cpu code?
 // TODO then also store the threshold for written vertex information, when uploading again it can be amended
 // TODO also directly write to certain segments in memory, maybe to overwrite a section of geometry or to
 //		update instance information on the fly. there are a lot of interesting use-cases for this.
@@ -462,11 +462,11 @@ void VertexBuffer::upload(void* vertices,size_t vsize)
 void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize)
 {
 #ifdef VKBUILD
-	m_IndexOffset = vsize;
+	index_offset = vsize;
 
 	// fill staging buffer with vertex information
-	memcpy(__Data,vertices,vsize);
-	memcpy((u8*)__Data+vsize,indices,isize);
+	memcpy(m_Data,vertices,vsize);
+	memcpy((u8*)m_Data+vsize,indices,isize);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -476,11 +476,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// TODO element upload (find out if a size of 0 will be guarded and is well defined) (?on condition?)
 #endif
 }
-// FIXME do not! change size by parameter here. this is the worst practice. vulkan version will never need this
-//		remove this (...at once?)
-// TODO rename to upload and make vertex/element non-specific. this should just work without user decision
-//		also rework the whole naming why are there element/indices overlapping and why are they all in a
-//		vertex buffer even though they are not vertices! frankly terrible!
+// TODO rename to upload and make vertex/element non-specific. ?this should just work without user decision?
 // TODO consider a ring buffer system for multi-frame processing
 
 /**
@@ -489,7 +485,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 void VertexBuffer::update()
 {
 	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
-	vkCmdCopyBuffer(___CMDBuffer,m_StagingVBO,1,&m_BufferCopy);
+	vkCmdCopyBuffer(__CMDBuffer,m_StagingVBO,vbo,1,&m_BufferCopy);
 	GPU::execute_command_buffer(__CMDBuffer);
 }
 // FIXME performance, starting a distict command buffer every frame for instance data buffers
@@ -504,17 +500,10 @@ void VertexBuffer::free()
 	g_GPU.free(m_StagingMemory);
 }
 
+#ifndef VKBUILD
 /**
  *	TODO
  */
-#ifdef VKBUILD
-void VertexBuffer::bind(Framebuffer& fb)
-{
-	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_VBO,&m_Offsets[0]);
-	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_VBO,m_IndexOffset,VK_INDEX_TYPE_UINT32);
-}
-// TODO this bind is supposed to be inverted! give the vb and ib to the rendertarget and associate with cmdbfr
-#else
 void VertexBuffer::bind()
 {
 	glBindVertexArray(m_VAO);
@@ -527,9 +516,60 @@ void VertexBuffer::bind()
  */
 void VertexBuffer::vanish()
 {
-	g_GPU.free(m_VBO);
+	g_GPU.free(vbo);
 	g_GPU.free(m_Memory);
 }
+#endif
+
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+void VertexArray::allocate(u8 size)
+{
+	m_Buffers.reserve(size);
+	m_Offsets = vector<size_t>(size,0);
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::register_buffer(const VertexBuffer& vb)
+{
+	m_Buffers.push_back(vb.vbo);
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
+{
+	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index offset");
+	m_IndexSource = m_Buffers.size();
+	m_Buffers.push_back(vb.vbo);
+	m_IndexOffset = vb.index_offset;
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::bind(const Framebuffer& fb)
+{
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::bind_indexed(const Framebuffer& fb)
+{
+	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
+	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
+}
+
 #endif
 
 

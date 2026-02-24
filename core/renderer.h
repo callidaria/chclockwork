@@ -252,6 +252,8 @@ private:
 	Framebuffer m_Framebuffer = Framebuffer(1,true);
 	ShaderPipeline m_TestingPipeline;
 	VertexBuffer m_VertexBuffer;
+	VertexBuffer m_InstanceBuffer;
+	VertexArray m_VertexArray;
 	GPUPixelBuffer m_PixelBuffer;
 
 	// testing
