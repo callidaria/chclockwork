@@ -779,6 +779,17 @@ void Renderer::update()
  *		this should suggest that the framebuffer rendertarget and the blitter are to be unified into one
  *		for each target there is a respective command buffer, as there should be when flipping asynchronously
  *		but right now blitter and framebuffer are in a dire war over resource authority, that should be sorted
+ *
+ *	5th the blitter
+ *		the blitter should only receive what is designated as the final result in form of a rendertarget
+ *		first it has to create the frame, setup swapchain et cetera and then it should draw the target
+ *		this is the full extent of the blitters purpose
+ *
+ *	6th the hardware interface
+ *		the hardware interface is supposed to be handling all frees and mundane creations
+ *		creations that require a complex info struct setup are not to be misinterpreted as mundane
+ *		the hi is supposed to automatically scan for relevant hardware and test it for support upon inclusion
+ *		also the hi should globally store the gpu, so that it is accessible to all following components
  */
 
 void Renderer::vanish()
