@@ -488,7 +488,7 @@ void VertexBuffer::update()
 	vkCmdCopyBuffer(__CMDBuffer,m_StagingVBO,vbo,1,&m_BufferCopy);
 	GPU::execute_command_buffer(__CMDBuffer);
 }
-// FIXME performance, starting a distict command buffer every frame for instance data buffers
+// FIXME performance! starting a distict command buffer every frame for instance data buffers
 
 /**
  *	TODO

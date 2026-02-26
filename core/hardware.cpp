@@ -51,6 +51,7 @@ void GPUDevice::select()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
 
 	// initialize queues
+	vkGetDeviceQueue(g_GPU.gpu,transfer_queue,0,&g_GPU.transfer_queue);
 	vkGetDeviceQueue(g_GPU.gpu,graphical_queue,0,&g_GPU.graphical_queue);
 	vkGetDeviceQueue(g_GPU.gpu,presentation_queue,0,&g_GPU.presentation_queue);
 	// TODO pack this setup into gpu maybe?
@@ -87,25 +88,72 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vector<VkQueueFamilyProperties> __Queues(__QueueCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(gpus[i].gpu,&__QueueCount,&__Queues[0]);
 
-		// iterate queue families & extract ids
+		// iterate queue families & extract ids based on utility
+		vector<u32> __TransferQueues,__GraphicalQueues,__PresentationQueues;
+		__TransferQueues.reserve(__QueueCount);
+		__GraphicalQueues.reserve(__QueueCount);
+		__PresentationQueues.reserve(__QueueCount);
 		for (u32 j=0;j<__QueueCount;j++)
 		{
-			// check for graphical support
-			if (__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT) gpus[i].graphical_queue = j;
-
 			// check for presentation support
-			VkBool32 __PresentingQueue = false;
+			VkBool32 __PresentingQueue = VK_FALSE;
 			vkGetPhysicalDeviceSurfaceSupportKHR(gpus[i].gpu,j,surface,&__PresentingQueue);
-			if (__PresentingQueue) gpus[i].presentation_queue = j;
+			if (__PresentingQueue) __PresentationQueues.push_back(j);
+			if (__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT) __GraphicalQueues.push_back(j);
+			if (__Queues[j].queueFlags&VK_QUEUE_TRANSFER_BIT) __TransferQueues.push_back(j);
+			COMM_LOG("queue %d: (presentation: %d, graphics: %d, transfer: %d)",j,__PresentingQueue,
+					 !!(__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT),
+					 !!(__Queues[j].queueFlags&VK_QUEUE_TRANSFER_BIT));
+		}
 
-			// check for sufficient queue support & abort to align graphical queue with presenting queue
-			if (gpus[i].graphical_queue!=-1&&gpus[i].presentation_queue!=-1)
-			{
-				gpus[i].queues = { (u32)gpus[i].graphical_queue,(u32)gpus[i].presentation_queue };
-				gpus[i].supported = GPU_FEATURE_SUPPORT_BASIC;
-				break;
-			}
-			// TODO iterate fully & check for aligning ids, to avoid queue split in edge-cases
+		// assign appropriate queues to their respective tasks
+		// this procedure should try to SPLIT graphics and transfer queue if supported by hardware, but
+		// conversely it should also try to use a SINGLE queue for graphics and presentation to avoid overhead
+		vector<u32> __JoinedGraphicalQueues,__UniqueTransferQueues;
+		__JoinedGraphicalQueues.resize(__QueueCount);
+		__UniqueTransferQueues.resize(__QueueCount);
+		std::set_intersection(__GraphicalQueues.begin(),__GraphicalQueues.end(),
+							  __PresentationQueues.begin(),__PresentationQueues.end(),
+							  __JoinedGraphicalQueues.begin());
+		std::set_difference(__TransferQueues.begin(),__TransferQueues.end(),
+							__JoinedGraphicalQueues.begin(),__JoinedGraphicalQueues.end(),
+							__UniqueTransferQueues.begin());
+
+		// select graphical and presentation queue
+		if (__JoinedGraphicalQueues.empty())
+		{
+			COMM_MSG(LOG_BLUE,"[INFO] failed to assign presentation and graphical queue to the same id");
+			gpus[i].presentation_queue = (__PresentationQueues.empty())?__PresentationQueues[0]:-1;
+			gpus[i].graphical_queue = (__GraphicalQueues.empty())?__GraphicalQueues[0]:-1;
+		}
+		for (u32 qid : __JoinedGraphicalQueues)
+		{
+			bool __PreferredWithoutTransfer = !(__Queues[qid].queueFlags&VK_QUEUE_TRANSFER_BIT);
+			if (gpus[i].graphical_queue!=-1&&!__PreferredWithoutTransfer) continue;
+			gpus[i].presentation_queue = qid;
+			gpus[i].graphical_queue = qid;
+			if (__PreferredWithoutTransfer) break;
+		}
+
+		// attempt to select a split transfer queue
+		if (!__UniqueTransferQueues.empty()) gpus[i].transfer_queue = __UniqueTransferQueues[0];
+		for (u32 qid : __TransferQueues)
+		{
+			bool __PreferredSplit = (qid!=gpus[i].presentation_queue)&&(qid!=gpus[i].graphical_queue);
+			if (gpus[i].transfer_queue!=-1&&!__PreferredSplit) continue;
+			gpus[i].transfer_queue = qid;
+			if (__PreferredSplit) break;
+		}
+
+		// check for sufficient queue support
+		if (gpus[i].transfer_queue!=-1&&gpus[i].graphical_queue!=-1&&gpus[i].presentation_queue!=-1)
+		{
+			gpus[i].queues = {
+				(u32)gpus[i].transfer_queue,
+				(u32)gpus[i].graphical_queue,
+				(u32)gpus[i].presentation_queue,
+			};
+			gpus[i].supported = GPU_FEATURE_SUPPORT_BASIC;
 		}
 
 		// interrupt gpu read should queue support not be sufficient
@@ -125,6 +173,8 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceProperties(gpus[i].gpu,&gpus[i].properties);
 		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
 		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
+		COMM_LOG("(presentation: %ld, graphics: %ld, transfer %ld)",
+				 gpus[i].presentation_queue,gpus[i].graphical_queue,gpus[i].transfer_queue);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 
 		// checking extension support

@@ -709,7 +709,6 @@ Renderer::Renderer()
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
-	m_InstanceBuffer.update();
 
 	// vertex array
 	m_VertexArray.allocate(2);
@@ -733,6 +732,7 @@ Renderer::Renderer()
 void Renderer::update()
 {
 	m_TestingPipeline.enable();
+	m_InstanceBuffer.update();
 	m_Framebuffer.start();
 	//m_VertexBuffer.bind(m_Framebuffer);
 	m_VertexArray.bind_indexed(m_Framebuffer);

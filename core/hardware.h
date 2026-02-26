@@ -48,6 +48,7 @@ struct GPUDevice
 	vector<VkExtensionProperties> extensions;
 	SwapChainInfo swapchain_info;
 	set<u32> queues;
+	s64 transfer_queue = -1;
 	s64 graphical_queue = -1;
 	s64 presentation_queue = -1;
 	VkPhysicalDeviceMemoryProperties memory_properties;
@@ -114,6 +115,7 @@ struct GPU
 	// device
 	GPUDevice* device_info;
 	VkDevice gpu;
+	VkQueue transfer_queue;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
 
