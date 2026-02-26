@@ -85,9 +85,12 @@ struct GPU
 
 	// command buffers
 	void setup_command_buffers();
-	CommandBuffer* aquire_command_buffer();
-	static VkCommandBuffer start_command_buffer();
-	static void execute_command_buffer(VkCommandBuffer cmd);
+	CommandBuffer* aquire_command_buffer_graphics();
+	CommandBuffer* aquire_command_buffer_transfer();
+	static VkCommandBuffer start_graphical_command_buffer();
+	static VkCommandBuffer start_transfer_command_buffer();
+	static void execute_graphical_command_buffer(VkCommandBuffer cmd);
+	static void execute_transfer_command_buffer(VkCommandBuffer cmd);
 
 	// resources
 	void free(VkBuffer res);
@@ -103,7 +106,8 @@ struct GPU
 	void free(VkRenderPass res);
 	void free(VkImageView res);
 	void free(VkFramebuffer res);
-	void free(VkCommandBuffer* res);
+	void free_graphical(VkCommandBuffer* res);
+	void free_transfer(VkCommandBuffer* res);
 	void free(VkSemaphore res);
 	void free(VkFence res);
 
@@ -120,9 +124,9 @@ struct GPU
 	VkQueue presentation_queue;
 
 	// gpu commands
-	VkCommandPool cmd_pool;
-	CommandBuffer cmd_buffers[GPU_BUFFER_COUNT];
-	u8 active_buffer = 0;
+	VkCommandPool cmd_pool_gfx,cmd_pool_trf;
+	CommandBuffer cmd_buffers_gfx[GPU_BUFFER_COUNT],cmd_buffers_trf[GPU_TRANSFER_COUNT];
+	u8 active_buffer_gfx = 0,active_buffer_trf = 0;
 #endif
 };
 

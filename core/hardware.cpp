@@ -101,9 +101,6 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			if (__PresentingQueue) __PresentationQueues.push_back(j);
 			if (__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT) __GraphicalQueues.push_back(j);
 			if (__Queues[j].queueFlags&VK_QUEUE_TRANSFER_BIT) __TransferQueues.push_back(j);
-			COMM_LOG("queue %d: (presentation: %d, graphics: %d, transfer: %d)",j,__PresentingQueue,
-					 !!(__Queues[j].queueFlags&VK_QUEUE_GRAPHICS_BIT),
-					 !!(__Queues[j].queueFlags&VK_QUEUE_TRANSFER_BIT));
 		}
 
 		// assign appropriate queues to their respective tasks
@@ -144,6 +141,8 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 			gpus[i].transfer_queue = qid;
 			if (__PreferredSplit) break;
 		}
+		// TODO mark gpus that fulfill the preferred assignment as preferred by the engine,
+		//		this will be extremely useful to guide automatic device selection later
 
 		// check for sufficient queue support
 		if (gpus[i].transfer_queue!=-1&&gpus[i].graphical_queue!=-1&&gpus[i].presentation_queue!=-1)
@@ -292,25 +291,39 @@ VkFormat GPU::choose_texture_format(const vector<VkFormat>& fs,VkImageTiling til
  */
 void GPU::setup_command_buffers()
 {
-	// setup command pool
+	// setup graphical command pool
 	VkCommandPoolCreateInfo __CMDPoolInfo = {  };
 	__CMDPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	__CMDPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	__CMDPoolInfo.queueFamilyIndex = device_info->graphical_queue;
-	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmd_pool);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vulkan command pool");
+	VkResult __Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmd_pool_gfx);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create graphical command pool");
 
-	// setup command buffer
+	// setup transfer command pool
+	__CMDPoolInfo.queueFamilyIndex = device_info->transfer_queue;
+	__Result = vkCreateCommandPool(gpu,&__CMDPoolInfo,nullptr,&cmd_pool_trf);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create transfer command pool");
+	// TODO consider only making a second pool if graphical_queue != transfer_queue
+
+	// setup graphical command buffers
 	VkCommandBuffer __CommandBuffers[GPU_BUFFER_COUNT];
 	VkCommandBufferAllocateInfo __CMDBufferInfo = {  };
 	__CMDBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	__CMDBufferInfo.commandPool = cmd_pool;
+	__CMDBufferInfo.commandPool = cmd_pool_gfx;
 	__CMDBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	__CMDBufferInfo.commandBufferCount = GPU_BUFFER_COUNT;
 	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__CommandBuffers);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate vulkan command buffer");
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) cmd_buffers[i].buffer = __CommandBuffers[i];
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate graphical command buffers");
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) cmd_buffers_gfx[i].buffer = __CommandBuffers[i];
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
+
+	// setup transfer command buffers
+	VkCommandBuffer __TransferBuffers[GPU_TRANSFER_COUNT];
+	__CMDBufferInfo.commandPool = cmd_pool_trf;
+	__CMDBufferInfo.commandBufferCount = GPU_TRANSFER_COUNT;
+	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__TransferBuffers);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate transfer command buffers");
+	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++) cmd_buffers_trf[i].buffer = __CommandBuffers[i];
 
 	// setup buffer threading constraints info
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
@@ -319,27 +332,40 @@ void GPU::setup_command_buffers()
 	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	// iterate buffer semaphore creation
+	// iterate buffer semaphore creations for graphics
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		// create command buffer semaphore
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers[i].ready);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u",i);
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].ready);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for graphics",i);
 
 		// create command buffer fence
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers[i].processing);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_gfx[i].processing);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for graphics",i);
+	}
+
+	// iterate buffer semaphore creations for transfer
+	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++)
+	{
+		// create command buffer semaphore
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_trf[i].ready);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for transfer",i);
+
+		// create command buffer fence
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_trf[i].processing);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
 	}
 }
+// FIXME a lot of code repetition
 
 /**
  *	TODO
  */
-CommandBuffer* GPU::aquire_command_buffer()
+CommandBuffer* GPU::aquire_command_buffer_graphics()
 {
 	// tick command buffer
-	CommandBuffer* out = &cmd_buffers[active_buffer];
-	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
+	CommandBuffer* out = &cmd_buffers_gfx[active_buffer_gfx];
+	active_buffer_gfx = (active_buffer_gfx+1)%GPU_BUFFER_COUNT;
 
 	// wait until draw is ready
 	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
@@ -350,14 +376,30 @@ CommandBuffer* GPU::aquire_command_buffer()
 /**
  *	TODO
  */
-VkCommandBuffer GPU::start_command_buffer()
+CommandBuffer* GPU::aquire_command_buffer_transfer()
+{
+	// tick command buffer
+	CommandBuffer* out = &cmd_buffers_trf[active_buffer_trf];
+	active_buffer_trf = (active_buffer_trf+1)%GPU_BUFFER_COUNT;
+
+	// wait until draw is ready
+	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(gpu,1,&out->processing);
+	return out;
+}
+// FIXME a lot of code repetition again and again
+
+/**
+ *	TODO
+ */
+VkCommandBuffer GPU::start_graphical_command_buffer()
 {
 	// create buffer
 	VkCommandBuffer cmdb;
 	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
 	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool;
+	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool_gfx;
 	__CmdBufferAllocInfo.commandBufferCount = 1;
 	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&cmdb);
 
@@ -373,7 +415,29 @@ VkCommandBuffer GPU::start_command_buffer()
 /**
  *	TODO
  */
-void GPU::execute_command_buffer(VkCommandBuffer cmd)
+VkCommandBuffer GPU::start_transfer_command_buffer()
+{
+	// create buffer
+	VkCommandBuffer cmdb;
+	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
+	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool_trf;
+	__CmdBufferAllocInfo.commandBufferCount = 1;
+	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&cmdb);
+
+	// start buffer
+	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
+	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(cmdb,&__CMDBeginInfo);
+	return cmdb;
+}
+
+/**
+ *	TODO
+ */
+void GPU::execute_graphical_command_buffer(VkCommandBuffer cmd)
 {
 	vkEndCommandBuffer(cmd);
 	VkSubmitInfo __SubmitInfo = {  };
@@ -382,9 +446,26 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
 	__SubmitInfo.pCommandBuffers = &cmd;
 	vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
 	vkQueueWaitIdle(g_GPU.graphical_queue);
-	g_GPU.free(&cmd);
+	g_GPU.free_graphical(&cmd);
 	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
 }
+
+/**
+ *	TODO
+ */
+void GPU::execute_transfer_command_buffer(VkCommandBuffer cmd)
+{
+	vkEndCommandBuffer(cmd);
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &cmd;
+	vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
+	vkQueueWaitIdle(g_GPU.transfer_queue);
+	g_GPU.free_transfer(&cmd);
+	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
+}
+// FIXME and yet, more code repetition
 
 /**
  *	free given gpu related resources
@@ -403,7 +484,8 @@ void GPU::free(VkDescriptorSetLayout res) { vkDestroyDescriptorSetLayout(gpu,res
 void GPU::free(VkRenderPass res) { vkDestroyRenderPass(gpu,res,nullptr); }
 void GPU::free(VkImageView res) { vkDestroyImageView(gpu,res,nullptr); }
 void GPU::free(VkFramebuffer res) { vkDestroyFramebuffer(gpu,res,nullptr); }
-void GPU::free(VkCommandBuffer* res) { vkFreeCommandBuffers(gpu,cmd_pool,1,res); }
+void GPU::free_graphical(VkCommandBuffer* res) { vkFreeCommandBuffers(gpu,cmd_pool_gfx,1,res); }
+void GPU::free_transfer(VkCommandBuffer* res) { vkFreeCommandBuffers(gpu,cmd_pool_trf,1,res); }
 void GPU::free(VkSemaphore res) { vkDestroySemaphore(gpu,res,nullptr); }
 void GPU::free(VkFence res) { vkDestroyFence(gpu,res,nullptr); }
 
@@ -422,10 +504,16 @@ void GPU::stop()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		free(cmd_buffers[i].ready);
-		free(cmd_buffers[i].processing);
+		free(cmd_buffers_gfx[i].ready);
+		free(cmd_buffers_gfx[i].processing);
 	}
-	vkDestroyCommandPool(gpu,cmd_pool,nullptr);
+	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++)
+	{
+		free(cmd_buffers_trf[i].ready);
+		free(cmd_buffers_trf[i].processing);
+	}
+	vkDestroyCommandPool(gpu,cmd_pool_gfx,nullptr);
+	vkDestroyCommandPool(gpu,cmd_pool_trf,nullptr);
 	vkDestroyDevice(gpu,nullptr);
 }
 

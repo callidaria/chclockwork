@@ -4,6 +4,7 @@
 
 // gpu
 #define GPU_BUFFER_COUNT 2
+#define GPU_TRANSFER_COUNT 4
 
 // blitter
 #define FRAME_PROGRAM_TITLE "C. Hansen's Counter-Clockwork"

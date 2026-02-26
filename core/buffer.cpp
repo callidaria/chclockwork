@@ -291,7 +291,7 @@ void Framebuffer::start()
 {
 #ifdef VKBUILD
 	// aquire next command buffer & reset
-	cmd_buffer = g_GPU.aquire_command_buffer();
+	cmd_buffer = g_GPU.aquire_command_buffer_graphics();
 	vkResetCommandBuffer(cmd_buffer->buffer,0);
 
 	// get next swapchain image
@@ -484,9 +484,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::update()
 {
-	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
+	VkCommandBuffer __CMDBuffer = GPU::start_transfer_command_buffer();
 	vkCmdCopyBuffer(__CMDBuffer,m_StagingVBO,vbo,1,&m_BufferCopy);
-	GPU::execute_command_buffer(__CMDBuffer);
+	GPU::execute_transfer_command_buffer(__CMDBuffer);
 }
 // FIXME performance! starting a distict command buffer every frame for instance data buffers
 
@@ -698,7 +698,7 @@ void UniformBuffer::setup(size_t size)
  */
 void UniformBuffer::update(void* data,size_t size)
 {
-	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
+	memcpy(m_UBOMapped[g_GPU.active_buffer_gfx],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 
@@ -1164,7 +1164,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// upload image
-	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
+	VkCommandBuffer __CMDBuffer = GPU::start_graphical_command_buffer();
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1211,7 +1211,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
-	GPU::execute_command_buffer(__CMDBuffer);
+	GPU::execute_graphical_command_buffer(__CMDBuffer);
 	// TODO dedicated transfer queues for vtx buffers & also for this one. look it up and find heaven
 
 	// cleanup staging memory
