@@ -80,16 +80,44 @@ Frame::Frame()
 	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
 	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
 	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
+
+	// api version selection with fallback to 1.0 if necessary
+	if (vkEnumerateInstanceVersion) vkEnumerateInstanceVersion(&__ApplicationInfo.apiVersion);
+	else
+	{
+		COMM_MSG(LOG_BLUE,"[INFO] failed to aquire api version through enumeration, falling back to 1.0.0");
+		__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
+	}
+	COMM_MSG(LOG_GREEN,"vulkan version: (%d) v%d.%d.%d",
+			 VK_API_VERSION_VARIANT(__ApplicationInfo.apiVersion),
+			 VK_API_VERSION_MAJOR(__ApplicationInfo.apiVersion),
+			 VK_API_VERSION_MINOR(__ApplicationInfo.apiVersion),
+			 VK_API_VERSION_PATCH(__ApplicationInfo.apiVersion));
 
 	// extensions
 	u32 __ExtensionCount;
 	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,nullptr);
 	vector<const char*> __Extensions(__ExtensionCount);
 	SDL_Vulkan_GetInstanceExtensions(m_Frame,&__ExtensionCount,&__Extensions[0]);
+
 #ifdef DEBUG
 	VkDebugUtilsMessengerCreateInfoEXT __DebugMessengerInfo = {  };
 	__DebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+
+	// additional validation features
+#if LOG_STRICTNESS_CONSERVATIVE
+	VkValidationFeatureEnableEXT __ValidationFeaturesEnabled[] = {
+		VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT
+	};
+	VkValidationFeaturesEXT __ValidationFeatures = {  };
+	__ValidationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+	__ValidationFeatures.enabledValidationFeatureCount = 2;
+	__ValidationFeatures.pEnabledValidationFeatures = __ValidationFeaturesEnabled;
+	__DebugMessengerInfo.pNext = &__ValidationFeatures;
+#endif
+
+	// debug messenger
 	__DebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
 			|VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;

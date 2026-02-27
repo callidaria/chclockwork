@@ -2,6 +2,9 @@
 #define CORE_CONFIG_HEADER
 
 
+// behaviour
+#define LOG_STRICTNESS_CONSERVATIVE 1
+
 // gpu
 #define GPU_BUFFER_COUNT 2
 #define GPU_TRANSFER_COUNT 4

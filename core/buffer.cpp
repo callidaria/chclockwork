@@ -284,12 +284,12 @@ void Framebuffer::vanish()
 #endif
 }
 
+#ifdef VKBUILD
 /**
- *	clear buffer and start recording process
+ *	TODO
  */
 void Framebuffer::start()
 {
-#ifdef VKBUILD
 	cmd_buffer = g_GPU.aquire_graphical_command_buffer();
 
 	// get next swapchain image
@@ -306,7 +306,15 @@ void Framebuffer::start()
 	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later
+}
+#endif
 
+/**
+ *	clear buffer and start recording process
+ */
+void Framebuffer::record()
+{
+#ifdef VKBUILD
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -616,11 +624,18 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 /**
  *	TODO
  */
-void VertexArray::bind(const Framebuffer& fb)
+void VertexArray::transfer_ownership(const Framebuffer& fb)
 {
 	vkCmdPipelineBarrier(fb.cmd_buffer->buffer,
 						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
 						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
+}
+
+/**
+ *	TODO
+ */
+void VertexArray::bind(const Framebuffer& fb)
+{
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 }
 
@@ -629,9 +644,6 @@ void VertexArray::bind(const Framebuffer& fb)
  */
 void VertexArray::bind_indexed(const Framebuffer& fb)
 {
-	vkCmdPipelineBarrier(fb.cmd_buffer->buffer,
-						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
-						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);

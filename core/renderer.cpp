@@ -734,6 +734,8 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_InstanceBuffer.update();
 	m_Framebuffer.start();
+	m_VertexArray.transfer_ownership(m_Framebuffer);
+	m_Framebuffer.record();
 	m_VertexArray.bind_indexed(m_Framebuffer);
 
 	// camera update test

@@ -39,6 +39,7 @@ public:
 
 	// usage
 	void start();  // TODO retire start/stop
+	void record();
 	void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
@@ -128,6 +129,7 @@ public:
 	void register_buffer_indexed(const VertexBuffer& vb);
 
 	// update
+	void transfer_ownership(const Framebuffer& fb);
 	void bind(const Framebuffer& fb);
 	void bind_indexed(const Framebuffer& fb);
 
