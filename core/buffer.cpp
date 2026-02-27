@@ -290,9 +290,7 @@ void Framebuffer::vanish()
 void Framebuffer::start()
 {
 #ifdef VKBUILD
-	// aquire next command buffer & reset
-	cmd_buffer = g_GPU.aquire_command_buffer_graphics();
-	vkResetCommandBuffer(cmd_buffer->buffer,0);
+	cmd_buffer = g_GPU.aquire_graphical_command_buffer();
 
 	// get next swapchain image
 	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,cmd_buffer->ready,
@@ -306,7 +304,7 @@ void Framebuffer::start()
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
 	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while registering a command");
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later
 
 	// setup begin draw
@@ -484,11 +482,38 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::update()
 {
-	VkCommandBuffer __CMDBuffer = GPU::start_transfer_command_buffer();
-	vkCmdCopyBuffer(__CMDBuffer,m_StagingVBO,vbo,1,&m_BufferCopy);
-	GPU::execute_transfer_command_buffer(__CMDBuffer);
+	CommandBuffer* __CMDBuffer = g_GPU.aquire_transfer_command_buffer();
+
+	// start command buffer for transfer
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	VkResult __Result = vkBeginCommandBuffer(__CMDBuffer->buffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
+
+	// copy buffer
+	vkCmdCopyBuffer(__CMDBuffer->buffer,m_StagingVBO,vbo,1,&m_BufferCopy);
+	__Result = vkEndCommandBuffer(__CMDBuffer->buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully setup transfer command buffer");
+
+	// submit buffer
+	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_VERTEX_SHADER_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 0;
+	//__SubmitInfo.pWaitSemaphores = &__CMDBuffer->ready;
+	__SubmitInfo.pWaitDstStageMask = __StageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &__CMDBuffer->buffer;
+	__SubmitInfo.signalSemaphoreCount = 0;  //1;
+	//__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
+	__Result = vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,__CMDBuffer->processing);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 }
+// TODO consider using inheritance info to work with secondary command buffers
 // FIXME performance! starting a distict command buffer every frame for instance data buffers
+// FIXME code repetition
 
 /**
  *	TODO
@@ -1164,7 +1189,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// upload image
-	VkCommandBuffer __CMDBuffer = GPU::start_graphical_command_buffer();
+	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1211,7 +1236,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
-	GPU::execute_graphical_command_buffer(__CMDBuffer);
+	GPU::execute_command_buffer(__CMDBuffer);
 	// TODO dedicated transfer queues for vtx buffers & also for this one. look it up and find heaven
 
 	// cleanup staging memory

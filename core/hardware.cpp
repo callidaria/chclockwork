@@ -323,7 +323,7 @@ void GPU::setup_command_buffers()
 	__CMDBufferInfo.commandBufferCount = GPU_TRANSFER_COUNT;
 	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__TransferBuffers);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate transfer command buffers");
-	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++) cmd_buffers_trf[i].buffer = __CommandBuffers[i];
+	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++) cmd_buffers_trf[i].buffer = __TransferBuffers[i];
 
 	// setup buffer threading constraints info
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
@@ -361,7 +361,7 @@ void GPU::setup_command_buffers()
 /**
  *	TODO
  */
-CommandBuffer* GPU::aquire_command_buffer_graphics()
+CommandBuffer* GPU::aquire_graphical_command_buffer()
 {
 	// tick command buffer
 	CommandBuffer* out = &cmd_buffers_gfx[active_buffer_gfx];
@@ -370,13 +370,14 @@ CommandBuffer* GPU::aquire_command_buffer_graphics()
 	// wait until draw is ready
 	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
 	vkResetFences(gpu,1,&out->processing);
+	vkResetCommandBuffer(out->buffer,0);
 	return out;
 }
 
 /**
  *	TODO
  */
-CommandBuffer* GPU::aquire_command_buffer_transfer()
+CommandBuffer* GPU::aquire_transfer_command_buffer()
 {
 	// tick command buffer
 	CommandBuffer* out = &cmd_buffers_trf[active_buffer_trf];
@@ -392,7 +393,7 @@ CommandBuffer* GPU::aquire_command_buffer_transfer()
 /**
  *	TODO
  */
-VkCommandBuffer GPU::start_graphical_command_buffer()
+VkCommandBuffer GPU::start_command_buffer()
 {
 	// create buffer
 	VkCommandBuffer cmdb;
@@ -415,29 +416,7 @@ VkCommandBuffer GPU::start_graphical_command_buffer()
 /**
  *	TODO
  */
-VkCommandBuffer GPU::start_transfer_command_buffer()
-{
-	// create buffer
-	VkCommandBuffer cmdb;
-	VkCommandBufferAllocateInfo __CmdBufferAllocInfo = {  };
-	__CmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	__CmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	__CmdBufferAllocInfo.commandPool = g_GPU.cmd_pool_trf;
-	__CmdBufferAllocInfo.commandBufferCount = 1;
-	vkAllocateCommandBuffers(g_GPU.gpu,&__CmdBufferAllocInfo,&cmdb);
-
-	// start buffer
-	VkCommandBufferBeginInfo __CMDBeginInfo = {  };
-	__CMDBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	vkBeginCommandBuffer(cmdb,&__CMDBeginInfo);
-	return cmdb;
-}
-
-/**
- *	TODO
- */
-void GPU::execute_graphical_command_buffer(VkCommandBuffer cmd)
+void GPU::execute_command_buffer(VkCommandBuffer cmd)
 {
 	vkEndCommandBuffer(cmd);
 	VkSubmitInfo __SubmitInfo = {  };
@@ -449,23 +428,7 @@ void GPU::execute_graphical_command_buffer(VkCommandBuffer cmd)
 	g_GPU.free_graphical(&cmd);
 	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
 }
-
-/**
- *	TODO
- */
-void GPU::execute_transfer_command_buffer(VkCommandBuffer cmd)
-{
-	vkEndCommandBuffer(cmd);
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &cmd;
-	vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,VK_NULL_HANDLE);
-	vkQueueWaitIdle(g_GPU.transfer_queue);
-	g_GPU.free_transfer(&cmd);
-	// TODO also fence this etc to allow for more parallelism even while vertex buffer upload is happening
-}
-// FIXME and yet, more code repetition
+// TODO remove this feature entirely. excluding the rest of the upload/draw processing, shall be prohibited
 
 /**
  *	free given gpu related resources

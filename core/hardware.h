@@ -85,12 +85,10 @@ struct GPU
 
 	// command buffers
 	void setup_command_buffers();
-	CommandBuffer* aquire_command_buffer_graphics();
-	CommandBuffer* aquire_command_buffer_transfer();
-	static VkCommandBuffer start_graphical_command_buffer();
-	static VkCommandBuffer start_transfer_command_buffer();
-	static void execute_graphical_command_buffer(VkCommandBuffer cmd);
-	static void execute_transfer_command_buffer(VkCommandBuffer cmd);
+	CommandBuffer* aquire_graphical_command_buffer();
+	CommandBuffer* aquire_transfer_command_buffer();
+	static VkCommandBuffer start_command_buffer();
+	static void execute_command_buffer(VkCommandBuffer cmd);
 
 	// resources
 	void free(VkBuffer res);
