@@ -1,6 +1,6 @@
 #ifndef SCRIPT_CLOCKWORK_HEADER
 #define SCRIPT_CLOCKWORK_HEADER
-#ifdef DEBUG
+//#ifdef DEBUG
 
 
 
@@ -45,5 +45,5 @@ private:
 };
 
 
-#endif
+//#endif
 #endif

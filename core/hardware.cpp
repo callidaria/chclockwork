@@ -386,6 +386,7 @@ CommandBuffer* GPU::aquire_transfer_command_buffer()
 	// wait until draw is ready
 	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
 	vkResetFences(gpu,1,&out->processing);
+	vkResetCommandBuffer(out->buffer,0);
 	return out;
 }
 // FIXME a lot of code repetition again and again

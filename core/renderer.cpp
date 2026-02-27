@@ -734,7 +734,6 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_InstanceBuffer.update();
 	m_Framebuffer.start();
-	//m_VertexBuffer.bind(m_Framebuffer);
 	m_VertexArray.bind_indexed(m_Framebuffer);
 
 	// camera update test
@@ -753,7 +752,6 @@ void Renderer::update()
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer_gfx],0,nullptr);
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,27,0,0,0);
-	// TODO it seems like this call controls the instance switch by value. this is WAY nicer than ogl, abuse this
 
 	m_Framebuffer.stop();
 }

@@ -482,19 +482,35 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::update()
 {
-	CommandBuffer* __CMDBuffer = g_GPU.aquire_transfer_command_buffer();
+	m_CMDBuffer = g_GPU.aquire_transfer_command_buffer();
 
 	// start command buffer for transfer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
 	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
-	VkResult __Result = vkBeginCommandBuffer(__CMDBuffer->buffer,&__CMDInfo);
+	VkResult __Result = vkBeginCommandBuffer(m_CMDBuffer->buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 
 	// copy buffer
-	vkCmdCopyBuffer(__CMDBuffer->buffer,m_StagingVBO,vbo,1,&m_BufferCopy);
-	__Result = vkEndCommandBuffer(__CMDBuffer->buffer);
+	vkCmdCopyBuffer(m_CMDBuffer->buffer,m_StagingVBO,vbo,1,&m_BufferCopy);
+
+	// memory barrier to access from graphics queue
+	VkBufferMemoryBarrier __MemoryBarrier = {  };
+	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MemoryBarrier.dstAccessMask = 0;
+	__MemoryBarrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
+	__MemoryBarrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
+	__MemoryBarrier.buffer = vbo;
+	__MemoryBarrier.offset = 0;
+	__MemoryBarrier.size = VK_WHOLE_SIZE;
+	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
+						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
+						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
+
+	// end recording
+	__Result = vkEndCommandBuffer(m_CMDBuffer->buffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully setup transfer command buffer");
 
 	// submit buffer
@@ -502,18 +518,17 @@ void VertexBuffer::update()
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 0;
-	//__SubmitInfo.pWaitSemaphores = &__CMDBuffer->ready;
+	//__SubmitInfo.pWaitSemaphores = &m_CMDBuffer->ready;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &__CMDBuffer->buffer;
+	__SubmitInfo.pCommandBuffers = &m_CMDBuffer->buffer;
 	__SubmitInfo.signalSemaphoreCount = 0;  //1;
 	//__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
-	__Result = vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,__CMDBuffer->processing);
+	__Result = vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,m_CMDBuffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 }
 // TODO consider using inheritance info to work with secondary command buffers
-// FIXME performance! starting a distict command buffer every frame for instance data buffers
-// FIXME code repetition
+// FIXME code repetition & unfortunate recurring setup during loop
 
 /**
  *	TODO
@@ -521,6 +536,7 @@ void VertexBuffer::update()
 void VertexBuffer::free()
 {
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	vkWaitForFences(g_GPU.gpu,1,&m_CMDBuffer->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingVBO);
 	g_GPU.free(m_StagingMemory);
 }
@@ -555,7 +571,24 @@ void VertexBuffer::vanish()
 void VertexArray::allocate(u8 size)
 {
 	m_Buffers.reserve(size);
+	m_Barriers.reserve(size);
 	m_Offsets = vector<size_t>(size,0);
+}
+
+/**
+ *	TODO
+ */
+inline static VkBufferMemoryBarrier _generate_memory_barrier()
+{
+	VkBufferMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	__Barrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
+	__Barrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
+	__Barrier.offset = 0;
+	__Barrier.size = VK_WHOLE_SIZE;
+	return __Barrier;
 }
 
 /**
@@ -564,6 +597,9 @@ void VertexArray::allocate(u8 size)
 void VertexArray::register_buffer(const VertexBuffer& vb)
 {
 	m_Buffers.push_back(vb.vbo);
+	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier();
+	__Barrier.buffer = vb.vbo;
+	m_Barriers.push_back(__Barrier);
 }
 
 /**
@@ -582,6 +618,9 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
  */
 void VertexArray::bind(const Framebuffer& fb)
 {
+	vkCmdPipelineBarrier(fb.cmd_buffer->buffer,
+						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
+						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 }
 
@@ -590,10 +629,14 @@ void VertexArray::bind(const Framebuffer& fb)
  */
 void VertexArray::bind_indexed(const Framebuffer& fb)
 {
+	vkCmdPipelineBarrier(fb.cmd_buffer->buffer,
+						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
+						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
 	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
+// TODO upload sync by semaphore
 
 #endif
 

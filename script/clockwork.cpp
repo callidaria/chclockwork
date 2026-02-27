@@ -1,5 +1,5 @@
 #include "clockwork.h"
-#ifdef DEBUG
+//#ifdef DEBUG
 
 
 /**
@@ -49,4 +49,4 @@ void Clockwork::update()
 }
 
 
-#endif
+//#endif

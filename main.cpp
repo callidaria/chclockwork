@@ -5,9 +5,9 @@
 #include "core/wheel.h"
 
 // engine
-#ifdef DEBUG
+//#ifdef DEBUG
 #include "script/clockwork.h"
-#endif
+//#endif
 
 #include "script/test.h"
 
@@ -31,9 +31,9 @@ s32 main(s32 argc,char** argv)
 	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",20);
 
 	// engine components
-#ifdef DEBUG
+//#ifdef DEBUG
 	Clockwork __Clockwork = Clockwork(__Ubuntu);
-#endif
+//#endif
 
 	// scripts
 	TestScene __Test = TestScene();

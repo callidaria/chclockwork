@@ -99,6 +99,7 @@ public:
 #ifdef VKBUILD
 	VkBuffer vbo;
 	size_t index_offset;
+	CommandBuffer* m_CMDBuffer;
 #endif
 
 private:
@@ -132,6 +133,7 @@ public:
 
 private:
 	vector<VkBuffer> m_Buffers;
+	vector<VkBufferMemoryBarrier> m_Barriers;
 	vector<size_t> m_Offsets;
 	size_t m_IndexOffset = 0;
 	s16 m_IndexSource = -1;
