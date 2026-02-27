@@ -3,7 +3,7 @@
 
 
 // behaviour
-#define LOG_STRICTNESS_CONSERVATIVE 1
+#define LOG_STRICTNESS_CONSERVATIVE 0
 
 // gpu
 #define GPU_BUFFER_COUNT 2

@@ -500,19 +500,27 @@ void VertexBuffer::update()
 	VkResult __Result = vkBeginCommandBuffer(m_CMDBuffer->buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 
+	// memory barrier
+	VkBufferMemoryBarrier __MemoryBarrier = {  };
+	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MemoryBarrier.buffer = vbo;
+	__MemoryBarrier.offset = 0;
+	__MemoryBarrier.size = VK_WHOLE_SIZE;
+	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
+						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
+						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
+
 	// copy buffer
 	vkCmdCopyBuffer(m_CMDBuffer->buffer,m_StagingVBO,vbo,1,&m_BufferCopy);
 
 	// memory barrier to access from graphics queue
-	VkBufferMemoryBarrier __MemoryBarrier = {  };
-	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	__MemoryBarrier.dstAccessMask = 0;
 	__MemoryBarrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
 	__MemoryBarrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
-	__MemoryBarrier.buffer = vbo;
-	__MemoryBarrier.offset = 0;
-	__MemoryBarrier.size = VK_WHOLE_SIZE;
 	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
 						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
 						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
