@@ -543,6 +543,8 @@ void VertexBuffer::update()
 }
 // TODO consider using inheritance info to work with secondary command buffers
 // FIXME code repetition & unfortunate recurring setup during loop
+// TODO in order to prevent gpu-side performance issues reduce the amount of per-frame submits to 1 for uploads
+//		parallelism and even multi-passes are not organized through separate submits and command buffers
 
 /**
  *	TODO

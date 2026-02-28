@@ -90,6 +90,9 @@ struct GPU
 	static VkCommandBuffer start_command_buffer();
 	static void execute_command_buffer(VkCommandBuffer cmd);
 
+	// update
+	void update();
+
 	// resources
 	void free(VkBuffer res);
 	void free(VkImage res);
@@ -123,7 +126,7 @@ struct GPU
 
 	// gpu commands
 	VkCommandPool cmd_pool_gfx,cmd_pool_trf;
-	CommandBuffer cmd_buffers_gfx[GPU_BUFFER_COUNT],cmd_buffers_trf[GPU_TRANSFER_COUNT];
+	CommandBuffer cmd_buffers_gfx[GPU_BUFFER_COUNT],cmd_buffers_trf[GPU_BUFFER_COUNT];
 	u8 active_buffer_gfx = 0,active_buffer_trf = 0;
 #endif
 };

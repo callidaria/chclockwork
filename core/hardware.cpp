@@ -318,12 +318,12 @@ void GPU::setup_command_buffers()
 	// TODO pre-store certain usual commands as secondary... yeah some research in the future about this one
 
 	// setup transfer command buffers
-	VkCommandBuffer __TransferBuffers[GPU_TRANSFER_COUNT];
+	VkCommandBuffer __TransferBuffers[GPU_BUFFER_COUNT];
 	__CMDBufferInfo.commandPool = cmd_pool_trf;
-	__CMDBufferInfo.commandBufferCount = GPU_TRANSFER_COUNT;
+	__CMDBufferInfo.commandBufferCount = GPU_BUFFER_COUNT;
 	__Result = vkAllocateCommandBuffers(gpu,&__CMDBufferInfo,__TransferBuffers);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate transfer command buffers");
-	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++) cmd_buffers_trf[i].buffer = __TransferBuffers[i];
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) cmd_buffers_trf[i].buffer = __TransferBuffers[i];
 
 	// setup buffer threading constraints info
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
@@ -338,20 +338,12 @@ void GPU::setup_command_buffers()
 		// create command buffer semaphore
 		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].ready);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for graphics",i);
-
-		// create command buffer fence
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_gfx[i].processing);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for graphics",i);
-	}
-
-	// iterate buffer semaphore creations for transfer
-	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++)
-	{
-		// create command buffer semaphore
 		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_trf[i].ready);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for transfer",i);
 
 		// create command buffer fence
+		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_gfx[i].processing);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for graphics",i);
 		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_trf[i].processing);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
 	}
@@ -363,15 +355,7 @@ void GPU::setup_command_buffers()
  */
 CommandBuffer* GPU::aquire_graphical_command_buffer()
 {
-	// tick command buffer
-	CommandBuffer* out = &cmd_buffers_gfx[active_buffer_gfx];
-	active_buffer_gfx = (active_buffer_gfx+1)%GPU_BUFFER_COUNT;
-
-	// wait until draw is ready
-	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
-	vkResetFences(gpu,1,&out->processing);
-	vkResetCommandBuffer(out->buffer,0);
-	return out;
+	return &cmd_buffers_gfx[active_buffer_gfx];
 }
 
 /**
@@ -380,14 +364,7 @@ CommandBuffer* GPU::aquire_graphical_command_buffer()
 CommandBuffer* GPU::aquire_transfer_command_buffer()
 {
 	// tick command buffer
-	CommandBuffer* out = &cmd_buffers_trf[active_buffer_trf];
-	active_buffer_trf = (active_buffer_trf+1)%GPU_BUFFER_COUNT;
-
-	// wait until draw is ready
-	vkWaitForFences(gpu,1,&out->processing,VK_TRUE,UINT64_MAX);
-	vkResetFences(gpu,1,&out->processing);
-	vkResetCommandBuffer(out->buffer,0);
-	return out;
+	return &cmd_buffers_trf[active_buffer_trf];
 }
 // FIXME a lot of code repetition again and again
 
@@ -432,6 +409,29 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
 // TODO remove this feature entirely. excluding the rest of the upload/draw processing, shall be prohibited
 
 /**
+ *	TODO
+ */
+static inline void _swap_buffer(VkDevice& gpu,CommandBuffer* buffers,u8& crr_index)
+{
+	// swap buffer memory index
+	crr_index = (crr_index+1)%GPU_BUFFER_COUNT;
+
+	// wait for next buffer to finish processing
+	vkWaitForFences(gpu,1,&buffers[crr_index].processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(gpu,1,&buffers[crr_index].processing);
+	vkResetCommandBuffer(buffers[crr_index].buffer,0);
+}
+
+/**
+ *	TODO
+ */
+void GPU::update()
+{
+	_swap_buffer(gpu,cmd_buffers_gfx,active_buffer_gfx);
+	_swap_buffer(gpu,cmd_buffers_trf,active_buffer_trf);
+}
+
+/**
  *	free given gpu related resources
  *	\param res: resource of any supported type, that will be removed
  */
@@ -470,9 +470,6 @@ void GPU::stop()
 	{
 		free(cmd_buffers_gfx[i].ready);
 		free(cmd_buffers_gfx[i].processing);
-	}
-	for (u8 i=0;i<GPU_TRANSFER_COUNT;i++)
-	{
 		free(cmd_buffers_trf[i].ready);
 		free(cmd_buffers_trf[i].processing);
 	}

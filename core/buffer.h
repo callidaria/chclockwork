@@ -89,7 +89,6 @@ public:
 #ifdef VKBUILD
 	void update();
 	void free();
-	//void bind(Framebuffer& fb);
 	void vanish();
 #else
 	void bind();
