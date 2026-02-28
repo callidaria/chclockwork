@@ -650,6 +650,11 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 
 
 #ifdef VKBUILD
+const s32 TEST_INSTANCE_AMOUNT_X = 3;
+const s32 TEST_INSTANCE_AMOUNT_Y = 3;
+const s32 TEST_INSTANCE_AMOUNT_Z = 3;
+const s32 TEST_INSTANCE_AMOUNT_GENERAL
+			= TEST_INSTANCE_AMOUNT_X*TEST_INSTANCE_AMOUNT_Y*TEST_INSTANCE_AMOUNT_Z;
 
 // TODO those are all prototype implementations!
 //		doc will be created later down the line when everything is in order
@@ -661,37 +666,19 @@ Renderer::Renderer()
 	m_RenderSize = __Indices.size();
 
 	// instances
-	ObjectInstance __Instances[] = {
-		{ vec3(0,0,0) },
-		{ vec3(2,0,0) },
-		{ vec3(-2,0,0) },
-		{ vec3(0,0,2) },
-		{ vec3(0,0,-2) },
-		{ vec3(2,0,2) },
-		{ vec3(2,0,-2) },
-		{ vec3(-2,0,2) },
-		{ vec3(-2,0,-2) },
-
-		{ vec3(0,-2,0) },
-		{ vec3(2,-2,0) },
-		{ vec3(-2,-2,0) },
-		{ vec3(0,-2,2) },
-		{ vec3(0,-2,-2) },
-		{ vec3(2,-2,2) },
-		{ vec3(2,-2,-2) },
-		{ vec3(-2,-2,2) },
-		{ vec3(-2,-2,-2) },
-
-		{ vec3(0,2,0) },
-		{ vec3(2,2,0) },
-		{ vec3(-2,2,0) },
-		{ vec3(0,2,2) },
-		{ vec3(0,2,-2) },
-		{ vec3(2,2,2) },
-		{ vec3(2,2,-2) },
-		{ vec3(-2,2,2) },
-		{ vec3(-2,2,-2) },
-	};
+	u32 i = 0;
+	ObjectInstance __Instances[TEST_INSTANCE_AMOUNT_GENERAL] = { };
+	for (s32 z=-TEST_INSTANCE_AMOUNT_Z/2;z<(TEST_INSTANCE_AMOUNT_Z/2)+TEST_INSTANCE_AMOUNT_Z%2;z++)
+	{
+		for (s32 y=-TEST_INSTANCE_AMOUNT_Y/2;y<(TEST_INSTANCE_AMOUNT_Y/2)+TEST_INSTANCE_AMOUNT_Y%2;y++)
+		{
+			for (s32 x=-TEST_INSTANCE_AMOUNT_X/2;x<(TEST_INSTANCE_AMOUNT_X/2)+TEST_INSTANCE_AMOUNT_Z%2;x++)
+			{
+				__Instances[i] = { vec3(x*2,y*2,z*2) };
+				i++;
+			}
+		}
+	}
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
@@ -753,7 +740,7 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer_gfx],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,27,0,0,0);
+	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 
 	m_Framebuffer.stop();
 }

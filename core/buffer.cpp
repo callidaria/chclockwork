@@ -498,9 +498,9 @@ void VertexBuffer::update()
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
 	VkResult __Result = vkBeginCommandBuffer(m_CMDBuffer->buffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a transfer command buffer");
 
-	// memory barrier
+	// memory barrier access after last transfer
 	VkBufferMemoryBarrier __MemoryBarrier = {  };
 	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -534,12 +534,10 @@ void VertexBuffer::update()
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 0;
-	//__SubmitInfo.pWaitSemaphores = &m_CMDBuffer->ready;
 	__SubmitInfo.pWaitDstStageMask = __StageFlags;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &m_CMDBuffer->buffer;
-	__SubmitInfo.signalSemaphoreCount = 0;  //1;
-	//__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
+	__SubmitInfo.signalSemaphoreCount = 0;
 	__Result = vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,m_CMDBuffer->processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 }

@@ -172,7 +172,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 		vkGetPhysicalDeviceProperties(gpus[i].gpu,&gpus[i].properties);
 		vkGetPhysicalDeviceFeatures(gpus[i].gpu,&gpus[i].features);
 		COMM_SCC("found supported GPU %s",gpus[i].properties.deviceName);
-		COMM_LOG("(presentation: %ld, graphics: %ld, transfer %ld)",
+		COMM_LOG("(presentation: %ld, graphics: %ld, transfer: %ld)",
 				 gpus[i].presentation_queue,gpus[i].graphical_queue,gpus[i].transfer_queue);
 		// TODO later, read the capabilities of the selected device, allow to change it and change features
 
