@@ -660,6 +660,8 @@ const s32 TEST_INSTANCE_AMOUNT_GENERAL
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
+	g_GPU.swap();
+
 	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
 	std::iota(__Indices.begin(),__Indices.end(),0);
@@ -691,7 +693,6 @@ Renderer::Renderer()
 	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
 						  &__Indices[0],sizeof(u32)*__Indices.size());
 	m_VertexBuffer.update();
-	m_VertexBuffer.free();
 
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
@@ -720,8 +721,7 @@ void Renderer::update()
 {
 	m_TestingPipeline.enable();
 	m_InstanceBuffer.update();
-	m_Framebuffer.start();
-	m_VertexArray.transfer_ownership(m_Framebuffer);
+	m_VertexArray.transfer_ownership();
 	m_Framebuffer.record();
 	m_VertexArray.bind_indexed(m_Framebuffer);
 
@@ -739,7 +739,7 @@ void Renderer::update()
 	// drawcall
 	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
-							&g_UniformBuffer.m_DSets[g_GPU.active_buffer_gfx],0,nullptr);
+							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 
 	m_Framebuffer.stop();
@@ -800,6 +800,8 @@ void Renderer::vanish()
 {
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
+	m_VertexBuffer.free();
+	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
 	m_VertexBuffer.vanish();
 	m_InstanceBuffer.free();
 	m_InstanceBuffer.vanish();

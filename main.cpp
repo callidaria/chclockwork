@@ -24,7 +24,12 @@ s32 main(s32 argc,char** argv)
 		g_Wheel.update();
 		g_Camera.update();
 		g_Renderer.update();
+		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);
 		g_Frame.update();
+		g_GPU.swap();
+		// TODO this is not quite efficient to do it right after frame update, but it's circumventing a flaw
+		//		in the render system right now, where initial uploads are executed at construction before loop
+		//		this will naturally solve itself, once a real streaming system is setup, due to upload scheduling
 	}
 
 #else
@@ -43,7 +48,6 @@ s32 main(s32 argc,char** argv)
 	{
 		g_Frame.clear();
 		g_Input.update(running);
-		g_GPU.update();
 		g_Renderer.precalculate();
 		g_Wheel.update();
 		g_Camera.update();

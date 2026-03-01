@@ -284,12 +284,12 @@ void Framebuffer::vanish()
 #endif
 }
 
-#ifdef VKBUILD
 /**
- *	TODO
+ *	clear buffer and start recording process
  */
-void Framebuffer::start()
+void Framebuffer::record()
 {
+#ifdef VKBUILD
 	cmd_buffer = g_GPU.aquire_graphical_command_buffer();
 
 	// get next swapchain image
@@ -298,23 +298,6 @@ void Framebuffer::start()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 	// TODO never write to frame directly in and buffer method
 
-	// start command buffer
-	VkCommandBufferBeginInfo __CMDInfo = {  };
-	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDInfo.flags = 0;
-	__CMDInfo.pInheritanceInfo = nullptr;
-	__Result = vkBeginCommandBuffer(cmd_buffer->buffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
-	// TODO the creation info can be pre-cached instead and then just used based on registration type later
-}
-#endif
-
-/**
- *	clear buffer and start recording process
- */
-void Framebuffer::record()
-{
-#ifdef VKBUILD
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -349,23 +332,8 @@ void Framebuffer::stop()
 	vkCmdEndRenderPass(cmd_buffer->buffer);
 	VkResult __Result = vkEndCommandBuffer(cmd_buffer->buffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
-	// TODO outsource appropriately to pipeline probably
-
-	// submit buffer
-	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.waitSemaphoreCount = 1;
-	__SubmitInfo.pWaitSemaphores = &cmd_buffer->ready;
-	__SubmitInfo.pWaitDstStageMask = __StageFlags;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &cmd_buffer->buffer;
-	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = &g_Frame.render_done[g_Frame.frame_id];
-	__Result = vkQueueSubmit(g_GPU.graphical_queue,1,&__SubmitInfo,cmd_buffer->processing);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 	// TODO again, using all framebuffers like final render targets does not hold up
-
+	// TODO outsource appropriately to pipeline probably
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
 #endif
@@ -492,14 +460,6 @@ void VertexBuffer::update()
 {
 	m_CMDBuffer = g_GPU.aquire_transfer_command_buffer();
 
-	// start command buffer for transfer
-	VkCommandBufferBeginInfo __CMDInfo = {  };
-	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	__CMDInfo.flags = 0;
-	__CMDInfo.pInheritanceInfo = nullptr;
-	VkResult __Result = vkBeginCommandBuffer(m_CMDBuffer->buffer,&__CMDInfo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a transfer command buffer");
-
 	// memory barrier access after last transfer
 	VkBufferMemoryBarrier __MemoryBarrier = {  };
 	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -524,22 +484,6 @@ void VertexBuffer::update()
 	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
 						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
 						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
-
-	// end recording
-	__Result = vkEndCommandBuffer(m_CMDBuffer->buffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully setup transfer command buffer");
-
-	// submit buffer
-	VkPipelineStageFlags __StageFlags[] = { VK_PIPELINE_STAGE_VERTEX_SHADER_BIT };
-	VkSubmitInfo __SubmitInfo = {  };
-	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	__SubmitInfo.waitSemaphoreCount = 0;
-	__SubmitInfo.pWaitDstStageMask = __StageFlags;
-	__SubmitInfo.commandBufferCount = 1;
-	__SubmitInfo.pCommandBuffers = &m_CMDBuffer->buffer;
-	__SubmitInfo.signalSemaphoreCount = 0;
-	__Result = vkQueueSubmit(g_GPU.transfer_queue,1,&__SubmitInfo,m_CMDBuffer->processing);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 }
 // TODO consider using inheritance info to work with secondary command buffers
 // FIXME code repetition & unfortunate recurring setup during loop
@@ -632,12 +576,14 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 /**
  *	TODO
  */
-void VertexArray::transfer_ownership(const Framebuffer& fb)
+void VertexArray::transfer_ownership()
 {
-	vkCmdPipelineBarrier(fb.cmd_buffer->buffer,
-						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
+	VkCommandBuffer cmd_buffer = g_GPU.aquire_graphical_command_buffer()->buffer;
+	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
 						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 }
+// FIXME this will just do a barrier for all memory, even though most of it will be only uploaded ONCE
+//		maybe only request a barrier when uploading, it will loose out this combined barrier command though
 
 /**
  *	TODO
@@ -786,7 +732,7 @@ void UniformBuffer::setup(size_t size)
  */
 void UniformBuffer::update(void* data,size_t size)
 {
-	memcpy(m_UBOMapped[g_GPU.active_buffer_gfx],data,size);
+	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 

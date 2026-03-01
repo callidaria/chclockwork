@@ -355,7 +355,7 @@ void GPU::setup_command_buffers()
  */
 CommandBuffer* GPU::aquire_graphical_command_buffer()
 {
-	return &cmd_buffers_gfx[active_buffer_gfx];
+	return &cmd_buffers_gfx[active_buffer];
 }
 
 /**
@@ -364,7 +364,7 @@ CommandBuffer* GPU::aquire_graphical_command_buffer()
 CommandBuffer* GPU::aquire_transfer_command_buffer()
 {
 	// tick command buffer
-	return &cmd_buffers_trf[active_buffer_trf];
+	return &cmd_buffers_trf[active_buffer];
 }
 // FIXME a lot of code repetition again and again
 
@@ -411,24 +411,67 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
 /**
  *	TODO
  */
-static inline void _swap_buffer(VkDevice& gpu,CommandBuffer* buffers,u8& crr_index)
+static inline void _swap_buffer(VkDevice& gpu,CommandBuffer* buffers,u8 crr_index)
 {
-	// swap buffer memory index
-	crr_index = (crr_index+1)%GPU_BUFFER_COUNT;
-
-	// wait for next buffer to finish processing
+	// host synchronization
 	vkWaitForFences(gpu,1,&buffers[crr_index].processing,VK_TRUE,UINT64_MAX);
 	vkResetFences(gpu,1,&buffers[crr_index].processing);
 	vkResetCommandBuffer(buffers[crr_index].buffer,0);
+
+	// begin command buffer
+	VkCommandBufferBeginInfo __CMDInfo = {  };
+	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	__CMDInfo.flags = 0;
+	__CMDInfo.pInheritanceInfo = nullptr;
+	VkResult __Result = vkBeginCommandBuffer(buffers[crr_index].buffer,&__CMDInfo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
+	// TODO the creation info can be pre-cached instead and then just used based on registration type later?
 }
 
 /**
  *	TODO
  */
-void GPU::update()
+void GPU::swap()
 {
-	_swap_buffer(gpu,cmd_buffers_gfx,active_buffer_gfx);
-	_swap_buffer(gpu,cmd_buffers_trf,active_buffer_trf);
+	_swap_buffer(gpu,cmd_buffers_trf,active_buffer);
+	_swap_buffer(gpu,cmd_buffers_gfx,active_buffer);
+}
+
+/**
+ *	TODO
+ */
+void GPU::update(VkSemaphore* blit_ready)
+{
+	// end recording
+	VkResult __Result = vkEndCommandBuffer(cmd_buffers_trf[active_buffer].buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully finalize transfer command buffer");
+	__Result = vkEndCommandBuffer(cmd_buffers_gfx[active_buffer].buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully finalize graphical command buffer");
+
+	// submit to transfer queue
+	VkPipelineStageFlags __TransferStageFlags[] = { VK_PIPELINE_STAGE_VERTEX_SHADER_BIT };
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SubmitInfo.waitSemaphoreCount = 0;
+	__SubmitInfo.pWaitDstStageMask = __TransferStageFlags;
+	__SubmitInfo.commandBufferCount = 1;
+	__SubmitInfo.pCommandBuffers = &cmd_buffers_trf[active_buffer].buffer;
+	__SubmitInfo.signalSemaphoreCount = 0;
+	__Result = vkQueueSubmit(transfer_queue,1,&__SubmitInfo,cmd_buffers_trf[active_buffer].processing);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+
+	// submit to graphical queue
+	VkPipelineStageFlags __GraphicalStageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	__SubmitInfo.waitSemaphoreCount = 1;
+	__SubmitInfo.pWaitSemaphores = &cmd_buffers_gfx[active_buffer].ready;
+	__SubmitInfo.pWaitDstStageMask = __GraphicalStageFlags;
+	__SubmitInfo.pCommandBuffers = &cmd_buffers_gfx[active_buffer].buffer;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = blit_ready;
+	__Result = vkQueueSubmit(graphical_queue,1,&__SubmitInfo,cmd_buffers_gfx[active_buffer].processing);
+
+	// swap buffer memory index
+	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
 }
 
 /**
