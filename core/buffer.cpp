@@ -1195,7 +1195,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// upload image
-	VkCommandBuffer __CMDBuffer = GPU::start_command_buffer();
+	VkCommandBuffer& __CMDBuffer = g_GPU.aquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1242,13 +1242,9 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
-	GPU::execute_command_buffer(__CMDBuffer);
-	// TODO dedicated transfer queues for vtx buffers & also for this one. look it up and find heaven
 
 	// cleanup staging memory
 	__TextureData.gpu_upload();  // TODO this is only to trigger the memfree, this will be removed later.
-	g_GPU.free(m_StagingBuffer);
-	g_GPU.free(m_StagingMemory);
 
 	// image view
 	VkImageViewCreateInfo __ImageViewInfo = {  };
@@ -1304,6 +1300,9 @@ void GPUPixelBuffer::load_texture(const char* path)
  */
 void GPUPixelBuffer::vanish()
 {
+	g_GPU.free(m_StagingBuffer);
+	g_GPU.free(m_StagingMemory);
+	// TODO do the staging removal right after upload?
 	g_GPU.free(m_Sampler);
 	g_GPU.free(m_ImageView);
 	g_GPU.free(m_Texture);

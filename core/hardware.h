@@ -93,8 +93,6 @@ struct GPU
 	void setup_command_buffers();
 	CommandBufferGFX* aquire_graphical_command_buffer();
 	CommandBufferTRF* aquire_transfer_command_buffer();
-	static VkCommandBuffer start_command_buffer();
-	static void execute_command_buffer(VkCommandBuffer cmd);
 
 	// update
 	void swap();
