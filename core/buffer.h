@@ -51,7 +51,6 @@ private:
 #ifdef VKBUILD
 public:
 	VkRenderPass render_pass;
-	CommandBuffer* cmd_buffer;
 	// TODO switch back to private and somehow add to pipeline?
 private:
 	VkAttachmentDescription* m_ColourComponentSetup;
@@ -98,7 +97,6 @@ public:
 #ifdef VKBUILD
 	VkBuffer vbo;
 	size_t index_offset;
-	CommandBuffer* m_CMDBuffer;
 #endif
 
 private:
@@ -109,6 +107,7 @@ private:
 	VkDeviceMemory m_StagingMemory;
 	void* m_Data;
 	VkBufferCopy m_BufferCopy = {  };
+	CommandBufferTRF* m_CMDBuffer;  // TODO evaluate if this is good and use it for both vb and fb
 #else
 	u32 m_VAO;
 	u32 m_VBO;

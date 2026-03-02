@@ -338,7 +338,7 @@ void GPU::setup_command_buffers()
 		// create command buffer semaphore
 		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].ready);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for graphics",i);
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_trf[i].ready);
+		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].transferred);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for transfer",i);
 
 		// create command buffer fence
@@ -353,7 +353,7 @@ void GPU::setup_command_buffers()
 /**
  *	TODO
  */
-CommandBuffer* GPU::aquire_graphical_command_buffer()
+CommandBufferGFX* GPU::aquire_graphical_command_buffer()
 {
 	return &cmd_buffers_gfx[active_buffer];
 }
@@ -361,7 +361,7 @@ CommandBuffer* GPU::aquire_graphical_command_buffer()
 /**
  *	TODO
  */
-CommandBuffer* GPU::aquire_transfer_command_buffer()
+CommandBufferTRF* GPU::aquire_transfer_command_buffer()
 {
 	// tick command buffer
 	return &cmd_buffers_trf[active_buffer];
@@ -411,30 +411,39 @@ void GPU::execute_command_buffer(VkCommandBuffer cmd)
 /**
  *	TODO
  */
-static inline void _swap_buffer(VkDevice& gpu,CommandBuffer* buffers,u8 crr_index)
+static inline void _swap_buffer(VkDevice& gpu,VkCommandBuffer& buffer,VkFence* processing)
 {
 	// host synchronization
-	vkWaitForFences(gpu,1,&buffers[crr_index].processing,VK_TRUE,UINT64_MAX);
-	vkResetFences(gpu,1,&buffers[crr_index].processing);
-	vkResetCommandBuffer(buffers[crr_index].buffer,0);
+	vkWaitForFences(gpu,1,processing,VK_TRUE,UINT64_MAX);
+	vkResetFences(gpu,1,processing);
+	vkResetCommandBuffer(buffer,0);
 
 	// begin command buffer
 	VkCommandBufferBeginInfo __CMDInfo = {  };
 	__CMDInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	__CMDInfo.flags = 0;
 	__CMDInfo.pInheritanceInfo = nullptr;
-	VkResult __Result = vkBeginCommandBuffer(buffers[crr_index].buffer,&__CMDInfo);
+	VkResult __Result = vkBeginCommandBuffer(buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 	// TODO the creation info can be pre-cached instead and then just used based on registration type later?
 }
+// TODO so sort graphical submissions in two different categories and maybe submit twice?
+//		that would allow static geometry draw while transfer for dynamic objects still takes place
+//		in addition to transfer taking place, while graphics is working on the previous frame...
+//		then instanced draws (which is most of it) takes over, using a second submit
+//		unfortunately heavy shading will probably have to wait for all geometry to finish, but that is ok due to
+//		the fact that transfer for the next frame happens during those operations.
+//		(1f buffer stall ipl should not be a problem, when this engine targets a very high frequency anyways)
+// TODO a mode to reduce gpu parallelism for buffer upload while frame processing in exchange for zero
+//		input lag rates. but the user is not recommended to actually use it!! for danmaku nerds only!!
 
 /**
  *	TODO
  */
 void GPU::swap()
 {
-	_swap_buffer(gpu,cmd_buffers_trf,active_buffer);
-	_swap_buffer(gpu,cmd_buffers_gfx,active_buffer);
+	_swap_buffer(gpu,cmd_buffers_trf[active_buffer].buffer,&cmd_buffers_trf[active_buffer].processing);
+	_swap_buffer(gpu,cmd_buffers_gfx[active_buffer].buffer,&cmd_buffers_gfx[active_buffer].processing);
 }
 
 /**
@@ -456,13 +465,17 @@ void GPU::update(VkSemaphore* blit_ready)
 	__SubmitInfo.pWaitDstStageMask = __TransferStageFlags;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_trf[active_buffer].buffer;
-	__SubmitInfo.signalSemaphoreCount = 0;
+	__SubmitInfo.signalSemaphoreCount = 1;
+	__SubmitInfo.pSignalSemaphores = &cmd_buffers_gfx[active_buffer].transferred;
 	__Result = vkQueueSubmit(transfer_queue,1,&__SubmitInfo,cmd_buffers_trf[active_buffer].processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
 
 	// submit to graphical queue
-	VkPipelineStageFlags __GraphicalStageFlags[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	__SubmitInfo.waitSemaphoreCount = 1;
+	VkPipelineStageFlags __GraphicalStageFlags[] = {
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+	};
+	__SubmitInfo.waitSemaphoreCount = 2;
 	__SubmitInfo.pWaitSemaphores = &cmd_buffers_gfx[active_buffer].ready;
 	__SubmitInfo.pWaitDstStageMask = __GraphicalStageFlags;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_gfx[active_buffer].buffer;
@@ -512,8 +525,8 @@ void GPU::stop()
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		free(cmd_buffers_gfx[i].ready);
+		free(cmd_buffers_gfx[i].transferred);
 		free(cmd_buffers_gfx[i].processing);
-		free(cmd_buffers_trf[i].ready);
 		free(cmd_buffers_trf[i].processing);
 	}
 	vkDestroyCommandPool(gpu,cmd_pool_gfx,nullptr);

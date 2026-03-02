@@ -243,7 +243,6 @@ void Framebuffer::finalize()
 			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	__SubpassDependency.dstAccessMask
 			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	// TODO implement feature according to the todo placed in header file
 
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
@@ -290,11 +289,11 @@ void Framebuffer::vanish()
 void Framebuffer::record()
 {
 #ifdef VKBUILD
-	cmd_buffer = g_GPU.aquire_graphical_command_buffer();
+	CommandBufferGFX* __CMDBuffer = g_GPU.aquire_graphical_command_buffer();
 
 	// get next swapchain image
-	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,cmd_buffer->ready,
-											  VK_NULL_HANDLE,&g_Frame.frame_id);
+	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,
+											  __CMDBuffer->ready,VK_NULL_HANDLE,&g_Frame.frame_id);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
 	// TODO never write to frame directly in and buffer method
 
@@ -307,13 +306,13 @@ void Framebuffer::record()
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
 	__RPBeginInfo.clearValueCount = 2;
 	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
-	vkCmdBeginRenderPass(cmd_buffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
+	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
 	// TODO very rigid. this expects graphical output, which is kindergarten
 
 	// viewport setup
-	vkCmdSetViewport(cmd_buffer->buffer,0,1,&g_Frame.viewport);
-	vkCmdSetScissor(cmd_buffer->buffer,0,1,&g_Frame.scissor);
+	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&g_Frame.viewport);
+	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&g_Frame.scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else
@@ -328,10 +327,7 @@ void Framebuffer::record()
 void Framebuffer::stop()
 {
 #ifdef VKBUILD
-	// finish buffer registration
-	vkCmdEndRenderPass(cmd_buffer->buffer);
-	VkResult __Result = vkEndCommandBuffer(cmd_buffer->buffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully write command buffer");
+	vkCmdEndRenderPass(g_GPU.aquire_graphical_command_buffer()->buffer);
 	// TODO again, using all framebuffers like final render targets does not hold up
 	// TODO outsource appropriately to pipeline probably
 #else
@@ -590,7 +586,7 @@ void VertexArray::transfer_ownership()
  */
 void VertexArray::bind(const Framebuffer& fb)
 {
-	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindVertexBuffers(g_GPU.aquire_graphical_command_buffer()->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 }
 
 /**
@@ -599,8 +595,9 @@ void VertexArray::bind(const Framebuffer& fb)
 void VertexArray::bind_indexed(const Framebuffer& fb)
 {
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
-	vkCmdBindVertexBuffers(fb.cmd_buffer->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
-	vkCmdBindIndexBuffer(fb.cmd_buffer->buffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
+	VkCommandBuffer& __CMDBuffer = g_GPU.aquire_graphical_command_buffer()->buffer;
+	vkCmdBindVertexBuffers(__CMDBuffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindIndexBuffer(__CMDBuffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
 // TODO upload sync by semaphore
 

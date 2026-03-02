@@ -737,10 +737,11 @@ void Renderer::update()
 	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
 	// drawcall
-	vkCmdBindDescriptorSets(m_Framebuffer.cmd_buffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
+	vkCmdBindDescriptorSets(g_GPU.aquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(m_Framebuffer.cmd_buffer->buffer,m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
+	vkCmdDrawIndexed(g_GPU.aquire_graphical_command_buffer()->buffer,
+					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 
 	m_Framebuffer.stop();
 }

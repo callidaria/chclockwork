@@ -29,10 +29,16 @@ struct SwapChain
 };
 // FIXME never used!
 
-struct CommandBuffer
+struct CommandBufferGFX
 {
 	VkCommandBuffer buffer;
-	VkSemaphore ready;
+	VkSemaphore ready,transferred;  // order matters, semaphores are to stay consecutively in memory
+	VkFence processing;
+};
+
+struct CommandBufferTRF
+{
+	VkCommandBuffer buffer;
 	VkFence processing;
 };
 
@@ -85,8 +91,8 @@ struct GPU
 
 	// command buffers
 	void setup_command_buffers();
-	CommandBuffer* aquire_graphical_command_buffer();
-	CommandBuffer* aquire_transfer_command_buffer();
+	CommandBufferGFX* aquire_graphical_command_buffer();
+	CommandBufferTRF* aquire_transfer_command_buffer();
 	static VkCommandBuffer start_command_buffer();
 	static void execute_command_buffer(VkCommandBuffer cmd);
 
@@ -127,7 +133,8 @@ struct GPU
 
 	// gpu commands
 	VkCommandPool cmd_pool_gfx,cmd_pool_trf;
-	CommandBuffer cmd_buffers_gfx[GPU_BUFFER_COUNT],cmd_buffers_trf[GPU_BUFFER_COUNT];
+	CommandBufferGFX cmd_buffers_gfx[GPU_BUFFER_COUNT];
+	CommandBufferTRF cmd_buffers_trf[GPU_BUFFER_COUNT];
 	u8 active_buffer = 0;
 #endif
 };
