@@ -534,4 +534,5 @@ void GPU::stop()
 	vkDestroyDevice(gpu,nullptr);
 }
 
+
 #endif

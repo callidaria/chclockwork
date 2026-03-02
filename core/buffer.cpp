@@ -492,7 +492,7 @@ void VertexBuffer::update()
 void VertexBuffer::free()
 {
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
-	vkWaitForFences(g_GPU.gpu,1,&m_CMDBuffer->processing,VK_TRUE,UINT64_MAX);
+	vkWaitForFences(g_GPU.gpu,1,&g_GPU.aquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingVBO);
 	g_GPU.free(m_StagingMemory);
 }

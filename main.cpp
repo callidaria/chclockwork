@@ -26,10 +26,11 @@ s32 main(s32 argc,char** argv)
 		g_Renderer.update();
 		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);
 		g_Frame.update();
-		g_GPU.swap();
+		if (running) g_GPU.swap();
 		// TODO this is not quite efficient to do it right after frame update, but it's circumventing a flaw
 		//		in the render system right now, where initial uploads are executed at construction before loop
 		//		this will naturally solve itself, once a real streaming system is setup, due to upload scheduling
+		// FIXME also the condition is a workaround for the same reasons
 	}
 
 #else
