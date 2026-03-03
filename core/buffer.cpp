@@ -691,7 +691,7 @@ void UniformBuffer::setup(size_t size)
 	VkDescriptorBufferInfo __BufferInfo = {  };
 	__BufferInfo.offset = 0;
 	__BufferInfo.range = size;
-	
+
 	VkDescriptorImageInfo __ImageInfo = {  };
 	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__ImageInfo.imageView = m_ImageViews;
@@ -1099,21 +1099,37 @@ void GPUPixelBuffer::load_texture(const char* path)
 					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	__ImageInfo.flags = 0;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
 	__ImageInfo.extent.width = __TextureData.width;
 	__ImageInfo.extent.height = __TextureData.height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = __TextureData.mipcount;
 	__ImageInfo.arrayLayers = 1;
-	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;  // TODO look into staging images, this is worrying for port
-	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;  // TODO not really clear to me why anything else
-	__ImageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_TRANSFER_DST_BIT
-			|VK_IMAGE_USAGE_SAMPLED_BIT;
-	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	__ImageInfo.flags = 0;  // TODO research options here
+	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	__ImageInfo.usage
+			= VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
+	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
+	// TODO as a possible late-stage optimization look into image unionization for multiple image destinations
+	//		utilizing the same memory by setting an initialLayout and an alias
+
+	/**
+	 *	TODO so basically to port the new streaming system:
+	 *		the vulkan system will also stream to a dynamic texture atlas, to ensure backwards compatibility
+	 *		then areas are batched together by theme and streamed into memory on demand like in the ogl version
+	 *		-> making all this run on very low-end systems, while being fast on modern systems
+	 *		data streaming throttle cannot be decided by upload time and skipped on the fly like in ogl
+	 *		-> the command buffer submission is uploaded once and unchangeable and will work independetly
+	 *		-> this is very nice but makes it impossible to skip based on live frame data
+	 *		-> gpu uploads will be throttled by data size instead.
+	 *		-> initial load will measure base data throughput values to decide streaming capabilities
+	 *		-> then when streaming data the value will be updated and modified to dynamically throttly
+	 *	FIXME this also poses the question how to optimize dynamic atlasses for low-vram systems (case T450)
+	 */
 
 	// memory
 	VkMemoryRequirements __MemoryRequirements;
