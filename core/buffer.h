@@ -264,6 +264,22 @@ struct GPUPixelBuffer
 // Uniform Buffer
 
 #ifdef VKBUILD
+enum DescriptorType : u8
+{
+	DESCRIPTOR_TYPE_BUFFER,
+	DESCRIPTOR_TYPE_IMAGE
+};
+
+struct DescriptorInfo
+{
+	DescriptorType type;
+	union
+	{
+		VkDescriptorBufferInfo buffer;
+		VkDescriptorImageInfo image;
+	} info;
+};
+
 class UniformBuffer
 {
 public:
@@ -295,7 +311,7 @@ private:
 	vector<VkDescriptorPoolSize> m_PSizes;
 	vector<VkDescriptorSetLayoutBinding> m_Bindings;
 	vector<VkWriteDescriptorSet> m_Writes;
-	vector<VkDescriptorBufferInfo> m_BufferInfos;
+	vector<DescriptorInfo> m_DescriptorInfos;
 	size_t m_Size = 0;
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer(2);

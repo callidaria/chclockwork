@@ -1353,7 +1353,7 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	m_PSizes.reserve(binding_count);
 	m_Bindings.reserve(binding_count);
 	m_Writes.reserve(binding_count);
-	m_BufferInfos.reserve(binding_count);
+	m_DescriptorInfos.reserve(binding_count);
 	// TODO those can be free'd after setup has finished
 }
 
@@ -1383,10 +1383,12 @@ void UniformBuffer::define(u32 location,size_t size)
 	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
 
 	// buffer info
-	VkDescriptorBufferInfo __BufferInfo = {  };
-	__BufferInfo.offset = m_Size;
-	__BufferInfo.range = size;
-	m_BufferInfos.push_back(__BufferInfo);
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = m_Size;
+	__Desc.info.buffer.range = size;
+	m_DescriptorInfos.push_back(__Desc);
 	m_Size += size;
 
 	// write descriptors
@@ -1423,15 +1425,14 @@ void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
 	m_Bindings.push_back(__Binding);
 	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
 
-	// buffer info
-	m_BufferInfos.push_back({  });
-	// TODO much like whoever defined pBufferInfo as const, this needs to be violently removed forever
-
 	// image info
-	VkDescriptorImageInfo __ImageInfo = {  };
-	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__ImageInfo.imageView = texture.image_view;
-	__ImageInfo.sampler = texture.sampler;
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Desc.info.image.imageView = texture.image_view;
+	__Desc.info.image.sampler = texture.sampler;
+	m_DescriptorInfos.push_back(__Desc);
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -1440,8 +1441,6 @@ void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
 	__WriteDescriptor.dstArrayElement = 0;
 	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__WriteDescriptor.descriptorCount = 1;
-	__WriteDescriptor.pImageInfo = &__ImageInfo;
-	__WriteDescriptor.pBufferInfo = nullptr;  // TODO remove
 	m_Writes.push_back(__WriteDescriptor);
 }
 
@@ -1495,8 +1494,15 @@ void UniformBuffer::assemble()
 		for (size_t j=0;j<m_Writes.size();j++)
 		{
 			m_Writes[j].dstSet = m_DSets[i];
-			m_BufferInfos[j].buffer = m_UBO[i];
-			m_Writes[j].pBufferInfo = &m_BufferInfos[j];
+			switch (m_DescriptorInfos[j].type)
+			{
+			case DESCRIPTOR_TYPE_BUFFER:
+				m_DescriptorInfos[j].info.buffer.buffer = m_UBO[i];
+				m_Writes[j].pBufferInfo = &m_DescriptorInfos[j].info.buffer;
+				break;
+			case DESCRIPTOR_TYPE_IMAGE: m_Writes[j].pImageInfo = &m_DescriptorInfos[j].info.image;
+				break;
+			}
 			// FIXME this buffer shenanigans is very funny, but let's not actually do this in the final solution
 		}
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
