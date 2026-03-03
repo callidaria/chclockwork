@@ -143,43 +143,6 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
-
-#ifdef VKBUILD
-class UniformBuffer
-{
-public:
-	UniformBuffer() {  }
-
-	// setup
-	void add_pixel_buffer(VkImageView iv,VkSampler smp);
-	void setup(size_t size);
-
-	// action
-	void update(void* data,size_t size);
-	void bind(Framebuffer& fb);
-
-	// final
-	void vanish();
-
-public:
-	VkDescriptorSetLayout m_DSetLayout;
-	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
-
-private:
-	VkBuffer m_UBO[GPU_BUFFER_COUNT];
-	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
-	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	VkImageView m_ImageViews;	// §§prototype
-	VkSampler m_Samplers;		// §§prototype
-	VkDescriptorPool m_DescriptorPool;
-};
-inline UniformBuffer g_UniformBuffer = UniformBuffer();
-#endif
-// TODO maybe this is hardware (memory) in general and should be moved there
-
-
-// ----------------------------------------------------------------------------------------------------
 // Colour Buffers
 
 struct TextureData
@@ -280,9 +243,10 @@ struct GPUPixelBuffer
 	VkImage m_Texture;
 	VkDeviceMemory m_StagingMemory;  // TODO remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
-	VkImageView m_ImageView;
-	VkSampler m_Sampler;
+	VkImageView image_view;
+	VkSampler sampler;
 #endif
+	// FIXME wait just a second GPUPixelBuffer is a struct and i act as if it's a class. obey the coding laws!
 
 	Texture atlas;
 	vec2 dimensions_inv;
@@ -294,6 +258,49 @@ struct GPUPixelBuffer
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
 };
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
+class UniformBuffer
+{
+public:
+	UniformBuffer(u32 binding_count);
+
+	// setup
+	void define(u32 location,size_t size);
+	void define(u32 location,GPUPixelBuffer& texture);
+	void assemble();
+
+	// action
+	void update(void* data,size_t size);
+	void bind(Framebuffer& fb);
+
+	// final
+	void vanish();
+
+public:
+	VkDescriptorSetLayout m_DSetLayout;
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
+
+private:
+	VkBuffer m_UBO[GPU_BUFFER_COUNT];
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+	VkImageView m_ImageViews;	// §§prototype
+	VkSampler m_Samplers;		// §§prototype
+	VkDescriptorPool m_DescriptorPool;
+	vector<VkDescriptorPoolSize> m_PSizes;
+	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<VkDescriptorBufferInfo> m_BufferInfos;
+	size_t m_Size = 0;
+};
+inline UniformBuffer g_UniformBuffer = UniformBuffer(2);
+#endif
+// TODO definition through config or something else, that the developer is capable to easily find & change
 
 
 #endif

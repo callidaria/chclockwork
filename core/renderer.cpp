@@ -707,7 +707,9 @@ Renderer::Renderer()
 	m_PixelBuffer.load_texture("./res/private/test.png");
 
 	// §§testing
-	g_UniformBuffer.setup(BUFFER_UNIFORM_ALLOCATION_SIZE);
+	g_UniformBuffer.define(0,sizeof(ObjectTransformation));
+	g_UniformBuffer.define(1,m_PixelBuffer);
+	g_UniformBuffer.assemble();
 
 	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,

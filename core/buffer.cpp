@@ -605,153 +605,6 @@ void VertexArray::bind_indexed(const Framebuffer& fb)
 
 
 // ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
-
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-void UniformBuffer::add_pixel_buffer(VkImageView iv,VkSampler smp)
-{
-	m_ImageViews = iv;
-	m_Samplers = smp;
-}
-// TODO pseudo implementation of a future feature (maybe)
-// TODO also imaginable is to generalize all memory (vbo, ibo, ubo, textures) and then go from there with alloc
-
-/**
- *	TODO
- */
-void UniformBuffer::setup(size_t size)
-{
-	// generate buffer
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		_generate_buffer(m_UBO[i],m_UBOMemory[i],size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,size,0,&m_UBOMapped[i]);
-	}
-
-	// descriptor pool sizes
-	const u8 BINDING_SIZE = 2;
-	VkDescriptorPoolSize __PSizes[BINDING_SIZE] = {  };
-	__PSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__PSizes[0].descriptorCount = GPU_BUFFER_COUNT;
-	__PSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__PSizes[1].descriptorCount = GPU_BUFFER_COUNT;
-
-	// descriptor pool creation
-	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
-	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	__DPoolInfo.poolSizeCount = BINDING_SIZE;
-	__DPoolInfo.pPoolSizes = __PSizes;
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT;
-	__DPoolInfo.flags = 0;
-	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
-
-	// starting uniform binding definitions
-	VkDescriptorSetLayoutBinding __Bindings[BINDING_SIZE] = {  };
-
-	// uniform binding definitions
-	__Bindings[0].binding = 0;
-	__Bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__Bindings[0].descriptorCount = 1;
-	__Bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	__Bindings[0].pImmutableSamplers = nullptr;
-
-	// uniform binding definition for sampler
-	__Bindings[1].binding = 1;
-	__Bindings[1].descriptorCount = 1;
-	__Bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__Bindings[1].pImmutableSamplers = nullptr;
-	__Bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	// TODO non-static uniforms in general soon
-
-	// uniform layout
-	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {  };
-	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__LayoutInfo.bindingCount = BINDING_SIZE;
-	__LayoutInfo.pBindings = __Bindings;
-	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
-
-	// descriptor sets
-	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,m_DSetLayout);
-	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
-	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
-	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
-	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
-	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
-
-	// descriptor info
-	VkDescriptorBufferInfo __BufferInfo = {  };
-	__BufferInfo.offset = 0;
-	__BufferInfo.range = size;
-
-	VkDescriptorImageInfo __ImageInfo = {  };
-	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__ImageInfo.imageView = m_ImageViews;
-	__ImageInfo.sampler = m_Samplers;
-
-	// descriptor set write setup
-	VkWriteDescriptorSet __WriteDescriptors[BINDING_SIZE] = {  };
-	__WriteDescriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptors[0].dstBinding = 0;
-	__WriteDescriptors[0].dstArrayElement = 0;
-	__WriteDescriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__WriteDescriptors[0].descriptorCount = 1;
-
-	__WriteDescriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptors[1].dstBinding = 1;
-	__WriteDescriptors[1].dstArrayElement = 0;
-	__WriteDescriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__WriteDescriptors[1].descriptorCount = 1;
-	__WriteDescriptors[1].pImageInfo = &__ImageInfo;
-
-	// descriptors
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		__BufferInfo.buffer = m_UBO[i];
-		__WriteDescriptors[0].dstSet = m_DSets[i];
-		__WriteDescriptors[0].pBufferInfo = &__BufferInfo;
-		__WriteDescriptors[1].dstSet = m_DSets[i];
-		vkUpdateDescriptorSets(g_GPU.gpu,BINDING_SIZE,__WriteDescriptors,0,nullptr);
-	}
-}
-
-/**
- *	TODO
- *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
- */
-void UniformBuffer::update(void* data,size_t size)
-{
-	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
-}
-// FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
-
-/**
- *	TODO
- */
-void UniformBuffer::vanish()
-{
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		g_GPU.free(m_UBO[i]);
-		g_GPU.free(m_UBOMemory[i]);
-	}
-	g_GPU.free(m_DescriptorPool);
-	g_GPU.free(m_DSetLayout);
-}
-// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
-
-#endif
-
-
-// ----------------------------------------------------------------------------------------------------
 // Colour Buffers
 
 #ifndef VKBUILD
@@ -1116,6 +969,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
 	// TODO as a possible late-stage optimization look into image unionization for multiple image destinations
 	//		utilizing the same memory by setting an initialLayout and an alias
+	//		this will probably just be useful for rendertarget results that do not overlap in timing
 
 	/**
 	 *	TODO so basically to port the new streaming system:
@@ -1279,11 +1133,12 @@ void GPUPixelBuffer::load_texture(const char* path)
 		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
 	};
-	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_ImageView);
+	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&image_view);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
 	// FIXME code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
 
 	// texture sampler
+	// decided against custom border colour extensions, due to missing reasons for higher support complexity
 	VkSamplerCreateInfo __SamplerInfo = {  };
 	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	__SamplerInfo.magFilter = VK_FILTER_LINEAR;
@@ -1293,20 +1148,18 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	__SamplerInfo.anisotropyEnable = !!(g_GPU.device_info->supported&GPU_FEATURE_SUPPORT_ANISOTROPY);
 	__SamplerInfo.maxAnisotropy = g_GPU.device_info->properties.limits.maxSamplerAnisotropy;
-	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;  // TODO arbitrary colour not possible?
-	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;  // TODO research, this is an interesting feature
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	// TODO research, this is an interesting feature. unfortunately only works with nearest
 	__SamplerInfo.compareEnable = VK_FALSE;
 	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	__SamplerInfo.mipLodBias = .0f;
 	__SamplerInfo.minLod = 0;
 	__SamplerInfo.maxLod = VK_LOD_CLAMP_NONE;
-	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_Sampler);
+	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
 	// TODO this will be the texture settings++ from ogl version
-
-	// add to memory concept
-	g_UniformBuffer.add_pixel_buffer(m_ImageView,m_Sampler);
 }
 // TODO put this back into the multithreading texture load system & also use vulcanous advantages
 // TODO choose how texture streaming will be done in the future utilizing vulkan (prealloc like in ogl?)
@@ -1319,8 +1172,8 @@ void GPUPixelBuffer::vanish()
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
 	// TODO do the staging removal right after upload?
-	g_GPU.free(m_Sampler);
-	g_GPU.free(m_ImageView);
+	g_GPU.free(sampler);
+	g_GPU.free(image_view);
 	g_GPU.free(m_Texture);
 	g_GPU.free(m_TextureMemory);
 }
@@ -1485,3 +1338,196 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	Texture::generate_mipmap();
 }
 // FIXME performance will suffer when generating mipmap every time the loop condition breaks
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+UniformBuffer::UniformBuffer(u32 binding_count)
+{
+	m_PSizes.reserve(binding_count);
+	m_Bindings.reserve(binding_count);
+	m_Writes.reserve(binding_count);
+	m_BufferInfos.reserve(binding_count);
+	// TODO those can be free'd after setup has finished
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define(u32 location,size_t size)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __PSize = {  };
+	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	m_PSizes.push_back(__PSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizeing!
+	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO dynamics. what for? just to be sure i guess.
+	__Binding.pImmutableSamplers = nullptr;  // TODO research
+	m_Bindings.push_back(__Binding);
+	// TODO debug level map if location is a duplicate to easily check development time mismatch!
+	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
+
+	// buffer info
+	VkDescriptorBufferInfo __BufferInfo = {  };
+	__BufferInfo.offset = m_Size;
+	__BufferInfo.range = size;
+	m_BufferInfos.push_back(__BufferInfo);
+	m_Size += size;
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;  // TODO research
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __PSize = {  };
+	__PSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	m_PSizes.push_back(__PSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorCount = 1;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__Binding.pImmutableSamplers = nullptr;
+	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	m_Bindings.push_back(__Binding);
+	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
+
+	// buffer info
+	m_BufferInfos.push_back({  });
+	// TODO much like whoever defined pBufferInfo as const, this needs to be violently removed forever
+
+	// image info
+	VkDescriptorImageInfo __ImageInfo = {  };
+	__ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__ImageInfo.imageView = texture.image_view;
+	__ImageInfo.sampler = texture.sampler;
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorCount = 1;
+	__WriteDescriptor.pImageInfo = &__ImageInfo;
+	__WriteDescriptor.pBufferInfo = nullptr;  // TODO remove
+	m_Writes.push_back(__WriteDescriptor);
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::assemble()
+{
+	COMM_AWT("allocating the uniform buffer");
+
+	// generate buffer
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		_generate_buffer(m_UBO[i],m_UBOMemory[i],m_Size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,m_Size,0,&m_UBOMapped[i]);
+	}
+	// TODO stage this too? host_visible? i don't think so bröther
+
+	// descriptor pool creation
+	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
+	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	__DPoolInfo.poolSizeCount = m_PSizes.size();
+	__DPoolInfo.pPoolSizes = &m_PSizes[0];
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT;
+	__DPoolInfo.flags = 0;
+	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
+
+	// uniform layout
+	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {  };
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	__LayoutInfo.bindingCount = m_Bindings.size();
+	__LayoutInfo.pBindings = &m_Bindings[0];
+	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&m_DSetLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+
+	// descriptor sets
+	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,m_DSetLayout);
+	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
+	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
+	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
+
+	// descriptors
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		for (size_t j=0;j<m_Writes.size();j++)
+		{
+			m_Writes[j].dstSet = m_DSets[i];
+			m_BufferInfos[j].buffer = m_UBO[i];
+			m_Writes[j].pBufferInfo = &m_BufferInfos[j];
+			// FIXME this buffer shenanigans is very funny, but let's not actually do this in the final solution
+		}
+		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
+	}
+
+	COMM_CNF();
+}
+
+/**
+ *	TODO
+ *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
+ */
+void UniformBuffer::update(void* data,size_t size)
+{
+	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
+}
+// FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
+
+/**
+ *	TODO
+ */
+void UniformBuffer::vanish()
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		g_GPU.free(m_UBO[i]);
+		g_GPU.free(m_UBOMemory[i]);
+	}
+	g_GPU.free(m_DescriptorPool);
+	g_GPU.free(m_DSetLayout);
+}
+// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
+
+#endif
