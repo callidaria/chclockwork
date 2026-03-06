@@ -305,8 +305,6 @@ private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	VkImageView m_ImageViews;	// §§prototype
-	VkSampler m_Samplers;		// §§prototype
 	VkDescriptorPool m_DescriptorPool;
 	vector<VkDescriptorPoolSize> m_PSizes;
 	vector<VkDescriptorSetLayoutBinding> m_Bindings;

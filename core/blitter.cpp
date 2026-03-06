@@ -85,7 +85,7 @@ Frame::Frame()
 	if (vkEnumerateInstanceVersion) vkEnumerateInstanceVersion(&__ApplicationInfo.apiVersion);
 	else
 	{
-		COMM_MSG(LOG_BLUE,"[INFO] failed to aquire api version through enumeration, falling back to 1.0.0");
+		COMM_MSG(LOG_BLUE,"[INFO] failed to acquire api version through enumeration, falling back to 1.0.0");
 		__ApplicationInfo.apiVersion = VK_API_VERSION_1_0;
 	}
 	COMM_MSG(LOG_GREEN,"vulkan (%d) v%d.%d.%d",

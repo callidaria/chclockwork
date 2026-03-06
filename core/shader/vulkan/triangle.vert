@@ -12,7 +12,8 @@ layout(location = 0) out vec2 UV;
 layout(location = 1) out vec3 Normal;
 layout(location = 2) out mat3 TBN;
 
-layout(binding = 0) uniform ObjectTransformation {
+layout(binding = 0) uniform ObjectTransformation
+{
 	mat4 model;
 	mat4 view;
 	mat4 proj;

@@ -335,7 +335,7 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 
 /**
  *	(called by AnimatedMesh::AnimatedMesh())
- *	aquire joint numerical id from joint list by it's joint string id
+ *	acquire joint numerical id from joint list by it's joint string id
  *	\param joints: list of joints
  *	\param id: alphanumeric joint id as imported from file structure
  *	\returns numerical joint id as given by depthsearch layout assembly
@@ -561,7 +561,7 @@ MeshJoint* AnimatedMesh::find_joint(const string& id)
 }
 
 /**
- *	aquire progress of current animation
+ *	acquire progress of current animation
  *	\returns animation progress between 0 and 1
  */
 f64 AnimatedMesh::get_progress()
@@ -739,10 +739,10 @@ void Renderer::update()
 	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
 
 	// drawcall
-	vkCmdBindDescriptorSets(g_GPU.aquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
+	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDrawIndexed(g_GPU.aquire_graphical_command_buffer()->buffer,
+	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 
 	m_Framebuffer.stop();

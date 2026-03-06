@@ -289,12 +289,12 @@ void Framebuffer::vanish()
 void Framebuffer::record()
 {
 #ifdef VKBUILD
-	CommandBufferGFX* __CMDBuffer = g_GPU.aquire_graphical_command_buffer();
+	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
 
 	// get next swapchain image
 	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,
 											  __CMDBuffer->ready,VK_NULL_HANDLE,&g_Frame.frame_id);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be aquired");
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be acquired");
 	// TODO never write to frame directly in and buffer method
 
 	// setup begin draw
@@ -327,7 +327,7 @@ void Framebuffer::record()
 void Framebuffer::stop()
 {
 #ifdef VKBUILD
-	vkCmdEndRenderPass(g_GPU.aquire_graphical_command_buffer()->buffer);
+	vkCmdEndRenderPass(g_GPU.acquire_graphical_command_buffer()->buffer);
 	// TODO again, using all framebuffers like final render targets does not hold up
 	// TODO outsource appropriately to pipeline probably
 #else
@@ -454,7 +454,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::update()
 {
-	m_CMDBuffer = g_GPU.aquire_transfer_command_buffer();
+	m_CMDBuffer = g_GPU.acquire_transfer_command_buffer();
 
 	// memory barrier access after last transfer
 	VkBufferMemoryBarrier __MemoryBarrier = {  };
@@ -492,7 +492,7 @@ void VertexBuffer::update()
 void VertexBuffer::free()
 {
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
-	vkWaitForFences(g_GPU.gpu,1,&g_GPU.aquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
+	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingVBO);
 	g_GPU.free(m_StagingMemory);
 }
@@ -574,7 +574,7 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
  */
 void VertexArray::transfer_ownership()
 {
-	VkCommandBuffer cmd_buffer = g_GPU.aquire_graphical_command_buffer()->buffer;
+	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
 						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 }
@@ -586,7 +586,7 @@ void VertexArray::transfer_ownership()
  */
 void VertexArray::bind(const Framebuffer& fb)
 {
-	vkCmdBindVertexBuffers(g_GPU.aquire_graphical_command_buffer()->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 }
 
 /**
@@ -595,7 +595,7 @@ void VertexArray::bind(const Framebuffer& fb)
 void VertexArray::bind_indexed(const Framebuffer& fb)
 {
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
-	VkCommandBuffer& __CMDBuffer = g_GPU.aquire_graphical_command_buffer()->buffer;
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdBindVertexBuffers(__CMDBuffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(__CMDBuffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
@@ -1065,7 +1065,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// upload image
-	VkCommandBuffer& __CMDBuffer = g_GPU.aquire_graphical_command_buffer()->buffer;
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

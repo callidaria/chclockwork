@@ -353,7 +353,7 @@ void GPU::setup_command_buffers()
 /**
  *	TODO
  */
-CommandBufferGFX* GPU::aquire_graphical_command_buffer()
+CommandBufferGFX* GPU::acquire_graphical_command_buffer()
 {
 	return &cmd_buffers_gfx[active_buffer];
 }
@@ -361,7 +361,7 @@ CommandBufferGFX* GPU::aquire_graphical_command_buffer()
 /**
  *	TODO
  */
-CommandBufferTRF* GPU::aquire_transfer_command_buffer()
+CommandBufferTRF* GPU::acquire_transfer_command_buffer()
 {
 	// tick command buffer
 	return &cmd_buffers_trf[active_buffer];

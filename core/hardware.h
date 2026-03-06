@@ -91,8 +91,8 @@ struct GPU
 
 	// command buffers
 	void setup_command_buffers();
-	CommandBufferGFX* aquire_graphical_command_buffer();
-	CommandBufferTRF* aquire_transfer_command_buffer();
+	CommandBufferGFX* acquire_graphical_command_buffer();
+	CommandBufferTRF* acquire_transfer_command_buffer();
 
 	// update
 	void swap();
