@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 
 enum AutodocOutputFormat
@@ -21,8 +22,16 @@ enum AutodocGenflags
 };
 
 
-void _generate_submodule(const char* name,const char* path);
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 void generate_documentation(AutodocOutputFormat format,AutodocGenflags genflags);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

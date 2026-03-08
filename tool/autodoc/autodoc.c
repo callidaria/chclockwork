@@ -9,7 +9,7 @@
  */
 void _generate_submodule(const char* name,const char* path,AutodocOutputFormat format)
 {
-	printf("generating submodule \"%s\" from source path \"%s\"",name,path);
+	printf("generating submodule \"%s\" from source path \"%s\"\n",name,path);
 	// TODO
 }
 // TODO do not expose in header and inline
@@ -24,14 +24,14 @@ void _generate_submodule(const char* name,const char* path,AutodocOutputFormat f
 void generate_documentation(AutodocOutputFormat format,AutodocGenflags genflags)
 {
 	// generate core document
-	if (genflags|AUTODOC_GENERATE_CORE) _generate_submodule("Core","core/");
-	else printf("skipping document generation for core submodule.");
+	if (genflags&AUTODOC_GENERATE_CORE) _generate_submodule("Core","core/",format);
+	else printf("skipping document generation for core submodule.\n");
 
 	// generate script document
-	if (genflags|AUTODOC_GENERATE_SCRIPT) _generate_submodule("Scripts","script/");
-	else printf("skipping document generation for script submodule.");
+	if (genflags&AUTODOC_GENERATE_SCRIPT) _generate_submodule("Scripts","script/",format);
+	else printf("skipping document generation for script submodule.\n");
 
 	// generate tool document
-	if (genflags|AUTODOC_GENERATE_TOOL) _generate_submodule("Tools","/tool");
-	else printf("skipping document generation for tool submodule.");
+	if (genflags&AUTODOC_GENERATE_TOOL) _generate_submodule("Tools","/tool",format);
+	else printf("skipping document generation for tool submodule.\n");
 }
