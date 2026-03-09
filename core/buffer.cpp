@@ -406,7 +406,7 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 
 #else
 	glGenVertexArrays(1,&m_VAO);
-	glGenBuffers(1,&vbo);
+	glGenBuffers(1,&m_VBO);
 #endif
 }
 
@@ -418,7 +418,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize)
 #ifdef VKBUILD
 	memcpy(m_Data,vertices,vsize);
 #else
-	// TODO correlate
+	glBindVertexArray(m_VAO);
+	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
+	glBufferData(GL_ARRAY_BUFFER,vsize,vertices,GL_STATIC_DRAW);
 #endif
 }
 // TODO is it possible to skip this memcpy here and to directly reference, to be able to address in cpu code?
@@ -442,12 +444,14 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 	glBufferData(GL_ARRAY_BUFFER,vsize,vertices,GL_STATIC_DRAW);
-	//glBufferData(GL_ARRAY_BUFFER,isize,indices,GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER,isize,indices,GL_STATIC_DRAW);
 	// TODO element upload (find out if a size of 0 will be guarded and is well defined) (?on condition?)
 #endif
 }
 // TODO rename to upload and make vertex/element non-specific. ?this should just work without user decision?
 // TODO consider a ring buffer system for multi-frame processing
+
+#ifdef VKBUILD
 
 /**
  *	TODO
@@ -497,17 +501,6 @@ void VertexBuffer::free()
 	g_GPU.free(m_StagingMemory);
 }
 
-#ifndef VKBUILD
-/**
- *	TODO
- */
-void VertexBuffer::bind()
-{
-	glBindVertexArray(m_VAO);
-}
-#endif
-
-#ifdef VKBUILD
 /**
  *	TODO
  */
@@ -516,6 +509,17 @@ void VertexBuffer::vanish()
 	g_GPU.free(vbo);
 	g_GPU.free(m_Memory);
 }
+
+#else
+
+/**
+ *	TODO
+ */
+void VertexBuffer::bind()
+{
+	glBindVertexArray(m_VAO);
+}
+
 #endif
 
 
