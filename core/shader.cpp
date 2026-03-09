@@ -124,8 +124,8 @@ VertexShader::VertexShader(const char* path)
 	_shader_interface_automap(path,interface);
 
 	// convert widths to byte format
-	vbo_width *= SHADER_UPLOAD_VALUE_SIZE;
-	ibo_width *= SHADER_UPLOAD_VALUE_SIZE;
+	interface.vbo_width *= SHADER_UPLOAD_VALUE_SIZE;
+	interface.ibo_width *= SHADER_UPLOAD_VALUE_SIZE;
 }
 
 /**
@@ -165,20 +165,20 @@ FragmentShader::FragmentShader(const char* path)
 // ----------------------------------------------------------------------------------------------------
 // Pipelines
 
+#ifdef VKBUILD
 const VkFormat _vertex_shader_input_formats[4] = {
 	VK_FORMAT_R32_SFLOAT,
 	VK_FORMAT_R32G32_SFLOAT,
 	VK_FORMAT_R32G32B32_SFLOAT,
 	VK_FORMAT_R32G32B32A32_SFLOAT,
 };
+constexpr u32 _dynamic_state_count = 2;
+VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
+#endif
 
 /**
  *	TODO
  */
-#ifdef VKBUILD
-constexpr u32 _dynamic_state_count = 2;
-VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
-#endif
 void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
@@ -441,12 +441,12 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 #ifndef VKBUILD
 	// vertex buffer
 	COMM_LOG("mapping shader (vbo = %lu:%lu,ibo = %lu:%lu) utilizing %lu texture channels",
-			 m_VertexShader.vbo_attribs.size(),m_VertexShader.vbo_width,
-			 m_VertexShader.ibo_attribs.size(),m_VertexShader.ibo_width,
+			 m_VertexShader.interface.vbo_attribs.size(),m_VertexShader.interface.vbo_width,
+			 m_VertexShader.interface.ibo_attribs.size(),m_VertexShader.interface.ibo_width,
 			 m_FragmentShader.sampler_attribs.size()
 		);
 	enable();
-	for (ShaderAttribute& attrib : m_VertexShader.vbo_attribs) _define_attribute(attrib);
+	for (ShaderAttribute& attrib : m_VertexShader.interface.vbo_attribs) _define_attribute(attrib);
 	m_VertexCursor = 0;
 
 	// texture mapping
@@ -454,9 +454,9 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 		upload(m_FragmentShader.sampler_attribs[i].c_str(),channel+i);
 
 	// index buffer
-	if (ibo==nullptr||!m_VertexShader.ibo_attribs.size()) return;
+	if (ibo==nullptr||!m_VertexShader.interface.ibo_attribs.size()) return;
 	ibo->bind();
-	for (ShaderAttribute& attrib : m_VertexShader.ibo_attribs) _define_index_attribute(attrib);
+	for (ShaderAttribute& attrib : m_VertexShader.interface.ibo_attribs) _define_index_attribute(attrib);
 	m_IndexCursor = 0;
 #endif
 }
@@ -619,12 +619,12 @@ void ShaderPipeline::upload_camera(Camera3D& c)
  */
 void ShaderPipeline::_define_attribute(ShaderAttribute attrib)
 {
-	COMM_ERR_COND(m_VertexCursor+attrib.dim*SHADER_UPLOAD_VALUE_SIZE>m_VertexShader.vbo_width,
+	COMM_ERR_COND(m_VertexCursor+attrib.dim*SHADER_UPLOAD_VALUE_SIZE>m_VertexShader.interface.vbo_width,
 				  "attribute dimension violates upload width");
 
 	s32 __Attribute = _handle_attribute_location_by_name(attrib.name.c_str());
 	glVertexAttribPointer(__Attribute,attrib.dim,GL_FLOAT,GL_FALSE,
-						  m_VertexShader.vbo_width,(void*)m_VertexCursor);
+						  m_VertexShader.interface.vbo_width,(void*)m_VertexCursor);
 	m_VertexCursor += attrib.dim*SHADER_UPLOAD_VALUE_SIZE;
 }
 
@@ -635,12 +635,12 @@ void ShaderPipeline::_define_attribute(ShaderAttribute attrib)
  */
 void ShaderPipeline::_define_index_attribute(ShaderAttribute attrib)
 {
-	COMM_ERR_COND(m_IndexCursor+attrib.dim*SHADER_UPLOAD_VALUE_SIZE>m_VertexShader.ibo_width,
+	COMM_ERR_COND(m_IndexCursor+attrib.dim*SHADER_UPLOAD_VALUE_SIZE>m_VertexShader.interface.ibo_width,
 				  "index dimension violates upload width");
 
 	s32 __Attribute = _handle_attribute_location_by_name(attrib.name.c_str());
 	glVertexAttribPointer(__Attribute,attrib.dim,GL_FLOAT,GL_FALSE,
-						  m_VertexShader.ibo_width,(void*)m_IndexCursor);
+						  m_VertexShader.interface.ibo_width,(void*)m_IndexCursor);
 	glVertexAttribDivisor(__Attribute,1);
 	m_IndexCursor += attrib.dim*SHADER_UPLOAD_VALUE_SIZE;
 }
