@@ -173,3 +173,8 @@ else
 	alias e="./chcw"
 	alias ea="valgrind --suppressions=gfxapi.supp ./chcw"
 fi
+
+
+# standard actions
+cgl
+sc

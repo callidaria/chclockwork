@@ -13,4 +13,5 @@ lib/script/*
 res/private/*
 
 # results
+core/shader/vulkan/bin/*
 chcw

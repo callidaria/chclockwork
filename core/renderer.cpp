@@ -713,8 +713,8 @@ Renderer::Renderer()
 
 	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,
-							   "./core/shader/vulkan/bin/triangle.vert",
-							   "./core/shader/vulkan/bin/triangle.frag");
+							   "./core/shader/vulkan/bin/mesh.vert",
+							   "./core/shader/vulkan/bin/mesh.frag");
 
 	m_Rotation = glm::radians(-120.f);
 }
