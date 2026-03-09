@@ -2,6 +2,56 @@
 
 
 // ----------------------------------------------------------------------------------------------------
+// Tools
+
+/**
+ *	TODO
+ */
+static inline void _shader_interface_automap(const char* path,ShaderInterface& interface)
+{
+	// setup attribute write head for vertex components until engine annotation overwrites to instance
+	vector<ShaderAttribute>* __WriteHead = &interface.vbo_attribs;
+	size_t* __WidthHead = &interface.vbo_width;
+
+	// assess input pattern for vbo/ibo automapping
+	std::ifstream __File(path);
+	string __Line;
+	while (!__File.eof())
+	{
+		std::getline(__File,__Line);
+
+		// linetrim for layout prefix
+		if (__Line.find("layout")==0)
+		{
+			size_t __Until = __Line.find(')');
+			if (__Until!=std::string::npos) __Line = __Line.substr(__Until+2);
+		}
+		// TODO also read forced bindings for 450 core vulkan shaders
+
+		// definition processing
+		if (__Line.find("// engine: ibo")==0)
+		{
+			__WriteHead = &interface.ibo_attribs;
+			__WidthHead = &interface.ibo_width;
+			continue;
+		}
+		else if (__Line.find("in")!=0) continue;
+		else if (__Line.find("void")==0) break;
+
+		// extract input information
+		vector<string> tokens;
+		split_words(tokens,__Line);
+		tokens[2].pop_back();
+
+		// interpret input definition line
+		u8 dim = (tokens[1]=="float") ? 1 : tokens[1][3]-0x30;
+		__WriteHead->push_back({ tokens[2],(*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,dim });
+		(*__WidthHead) += dim;
+	}
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Shaders
 
 #ifndef VKBUILD
@@ -62,38 +112,16 @@ u32 Shader::compile(const char* path,GLenum type)
  */
 VertexShader::VertexShader(const char* path)
 {
+	// compile shader
 	shader = Shader::compile(path,GL_VERTEX_SHADER);
+
+	// map interface
 	if (!shader)
 	{
 		COMM_ERR("[SHADER] skipping input parser, vertex shader is corrupted");
 		return;
 	}
-
-	// assess input pattern for vbo/ibo automapping
-	std::ifstream __File(path);
-	string __Line;
-	while (!__File.eof())
-	{
-		std::getline(__File,__Line);
-		if (__Line.find("// engine: ibo")==0)
-		{
-			write_head = &ibo_attribs;
-			width_head = &ibo_width;
-			continue;
-		}
-		else if (__Line.find("in")!=0) continue;
-		else if (__Line.find("void main()")==0) break;
-
-		// extract input information
-		vector<string> tokens;
-		split_words(tokens,__Line);
-		tokens[2].pop_back();
-
-		// interpret input definition line
-		u8 dim = (tokens[1]=="float") ? 1 : tokens[1][3]-0x30;
-		write_head->push_back({ dim,tokens[2] });
-		(*width_head) += dim;
-	}
+	_shader_interface_automap(path,interface);
 
 	// convert widths to byte format
 	vbo_width *= SHADER_UPLOAD_VALUE_SIZE;
@@ -136,6 +164,13 @@ FragmentShader::FragmentShader(const char* path)
 
 // ----------------------------------------------------------------------------------------------------
 // Pipelines
+
+const VkFormat _vertex_shader_input_formats[4] = {
+	VK_FORMAT_R32_SFLOAT,
+	VK_FORMAT_R32G32_SFLOAT,
+	VK_FORMAT_R32G32B32_SFLOAT,
+	VK_FORMAT_R32G32B32A32_SFLOAT,
+};
 
 /**
  *	TODO
@@ -187,50 +222,54 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	VkPipelineShaderStageCreateInfo __ShaderStages[] = { __VertexStageInfo,__FragmentStageInfo };
 	// TODO outsource those shader specific creations to their correlating shader structs
 
+	// shader interface automapping for input definition
+	ShaderInterface __Interface;
+	std::filesystem::path __VertexSource(vs);
+	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
+							  __Interface);
+
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[2] = { {},{} };
 	__InputBindings[0].binding = 0;
-	__InputBindings[0].stride = sizeof(f32)*11;
+	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = sizeof(f32)*3;
+	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.ibo_width;
 	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-	// TODO dynamizise
+	// TODO find out if this has performance implications
 
 	// vertex attribute setup
-	VkVertexInputAttributeDescription __AttributeDesc[5] = { {},{},{},{},{} };
-	__AttributeDesc[0].binding = 0;
-	__AttributeDesc[0].location = 0;
-	__AttributeDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	__AttributeDesc[0].offset = 0;
+	u32 __Location = 0;
+	u32 __AttributeCount = __Interface.vbo_attribs.size()+__Interface.ibo_attribs.size();
+	vector<VkVertexInputAttributeDescription> __AttributeDesc(__AttributeCount);
+	for (ShaderAttribute& __Attrib : __Interface.vbo_attribs)
+	{
+		__AttributeDesc[__Location] = {  };
+		__AttributeDesc[__Location].binding = 0;
+		__AttributeDesc[__Location].location = __Location;
+		__AttributeDesc[__Location].format = _vertex_shader_input_formats[__Attrib.dim];
+		__AttributeDesc[__Location].offset = __Attrib.offset;
+		__Location++;
+	}
 
-	__AttributeDesc[1].binding = 0;
-	__AttributeDesc[1].location = 1;
-	__AttributeDesc[1].format = VK_FORMAT_R32G32_SFLOAT;
-	__AttributeDesc[1].offset = sizeof(f32)*3;
-
-	__AttributeDesc[2].binding = 0;
-	__AttributeDesc[2].location = 2;
-	__AttributeDesc[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-	__AttributeDesc[2].offset = sizeof(f32)*5;
-
-	__AttributeDesc[3].binding = 0;
-	__AttributeDesc[3].location = 3;
-	__AttributeDesc[3].format = VK_FORMAT_R32G32B32_SFLOAT;
-	__AttributeDesc[3].offset = sizeof(f32)*8;
-
-	__AttributeDesc[4].binding = 1;
-	__AttributeDesc[4].location = 4;
-	__AttributeDesc[4].format = VK_FORMAT_R32G32B32_SFLOAT;
-	__AttributeDesc[4].offset = 0;
+	// instance attribute setup
+	for (ShaderAttribute& __Attrib : __Interface.ibo_attribs)
+	{
+		__AttributeDesc[__Location] = {  };
+		__AttributeDesc[__Location].binding = 1;
+		__AttributeDesc[__Location].location = __Location;
+		__AttributeDesc[__Location].format = _vertex_shader_input_formats[__Attrib.dim];
+		__AttributeDesc[__Location].offset = __Attrib.offset;
+		__Location++;
+	}
 
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
 	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	__InputInfo.vertexBindingDescriptionCount = 2;
 	__InputInfo.pVertexBindingDescriptions = __InputBindings;
-	__InputInfo.vertexAttributeDescriptionCount = 5;
-	__InputInfo.pVertexAttributeDescriptions = __AttributeDesc;
+	__InputInfo.vertexAttributeDescriptionCount = __AttributeCount;
+	__InputInfo.pVertexAttributeDescriptions = &__AttributeDesc[0];
 	// TODO implement instancing switch here later!
 
 	// fixed function input assembly

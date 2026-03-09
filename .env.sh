@@ -5,6 +5,7 @@ GPU_VULKAN_MODE=true
 GPU_BUILD_SUFFIX="-DVKBUILD"
 GPU_CURRENT_MODE="vulkan mode (default)"
 
+
 cw_setup()
 {
 	echo "running linux project setup"
@@ -123,12 +124,10 @@ sgl()
 	echo "${GPU_CURRENT_MODE} enabled"
 }
 
-
 cw_memfix()
 {
 	valgrind --leak-check=full ./chcw
 }
-
 
 cw_profile()
 {
@@ -142,7 +141,6 @@ cw_profile()
 		echo "error creating profiler output"
 	fi
 }
-
 
 cw_help()
 {
@@ -162,6 +160,7 @@ cw_help()
 }
 
 
+# settings
 alias d='make debug GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
 alias da='make debug -B GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
 alias r='make release GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
@@ -175,6 +174,6 @@ else
 fi
 
 
-# standard actions
+# setup actions
 cgl
 sc

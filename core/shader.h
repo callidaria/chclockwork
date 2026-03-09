@@ -8,13 +8,22 @@
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
-constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(float);
+constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 
 struct ShaderAttribute
 {
-	u8 dim;
 	string name;
+	size_t offset;
+	u8 dim;
+};
+
+struct ShaderInterface
+{
+	vector<ShaderAttribute> vbo_attribs;
+	vector<ShaderAttribute> ibo_attribs;
+	size_t vbo_width = 0;
+	size_t ibo_width = 0;
 };
 
 #ifndef VKBUILD
@@ -33,14 +42,7 @@ public:
 
 public:
 	u32 shader;
-	vector<ShaderAttribute> vbo_attribs;
-	vector<ShaderAttribute> ibo_attribs;
-	size_t vbo_width = 0;
-	size_t ibo_width = 0;
-
-private:
-	vector<ShaderAttribute>* write_head = &vbo_attribs;
-	size_t* width_head = &vbo_width;
+	ShaderInterface interface;
 };
 
 class FragmentShader

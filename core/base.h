@@ -28,6 +28,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <filesystem>
 
 // graphics
 #ifdef VKBUILD
