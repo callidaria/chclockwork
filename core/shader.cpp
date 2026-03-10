@@ -27,6 +27,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			if (__Until!=std::string::npos) __Line = __Line.substr(__Until+2);
 		}
 		// TODO also read forced bindings for 450 core vulkan shaders
+		//		for vulkan switch location name to id through macro when type is defined
 
 		// definition processing
 		if (__Line.find("// engine: ibo")==0)

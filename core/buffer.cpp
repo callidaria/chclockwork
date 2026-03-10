@@ -550,6 +550,7 @@ inline static VkBufferMemoryBarrier _generate_memory_barrier()
 	__Barrier.size = VK_WHOLE_SIZE;
 	return __Barrier;
 }
+// TODO this belongs at the beginning of the file
 
 /**
  *	TODO
