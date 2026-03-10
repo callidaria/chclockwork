@@ -998,13 +998,15 @@ Renderer::Renderer()
 
 	COMM_LOG("allocating sprite memory");
 	m_GPUSpriteTextures.atlas.bind(RENDERER_TEXTURE_SPRITES);
-	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_RGBA);
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
+								 TEXTURE_FORMAT_RGBA);
 	Texture::set_texture_parameter_linear_mipmap();
 	Texture::set_texture_parameter_clamp_to_edge();
 
 	COMM_LOG("allocating font memory");
 	m_GPUFontTextures.atlas.bind(RENDERER_TEXTURE_FONTS);
-	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,TEXTURE_FORMAT_MONOCHROME);
+	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
+							   TEXTURE_FORMAT_MONOCHROME);
 	Texture::set_texture_parameter_linear_mipmap();
 	Texture::set_texture_parameter_clamp_to_edge();
 
