@@ -72,7 +72,7 @@ cw_setup()
 sc()
 {
 	# filesystem stuffs
-	SHADER_DIR="./core/shader/vulkan/"
+	SHADER_DIR="./shader/vulkan/"
 	BINARY_DIR="$SHADER_DIR"bin/
 	mkdir -p "$BINARY_DIR"
 

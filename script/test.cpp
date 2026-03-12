@@ -36,12 +36,12 @@ TestScene::TestScene()
 	Mesh __Cube = Mesh::cube();
 
 	// shaders
-	VertexShader __AnimationVertexShader = VertexShader("./core/shader/animation.vert");
-	VertexShader __AnimationShadowShader = VertexShader("./core/shader/animation_shadow.vert");
-	VertexShader __BulbVertexShader = VertexShader("./core/shader/bulb.vert");
-	FragmentShader __AnimationFragmentShader = FragmentShader("./core/shader/gpass.frag");
-	FragmentShader __ShadowShader = FragmentShader("./core/shader/shadow.frag");
-	FragmentShader __BulbFragmentShader = FragmentShader("./core/shader/bulb.frag");
+	VertexShader __AnimationVertexShader = VertexShader("./shader/animation.vert");
+	VertexShader __AnimationShadowShader = VertexShader("./shader/animation_shadow.vert");
+	VertexShader __BulbVertexShader = VertexShader("./shader/bulb.vert");
+	FragmentShader __AnimationFragmentShader = FragmentShader("./shader/gpass.frag");
+	FragmentShader __ShadowShader = FragmentShader("./shader/shadow.frag");
+	FragmentShader __BulbFragmentShader = FragmentShader("./shader/bulb.frag");
 	lptr<ShaderPipeline> __AnimationShader = g_Renderer.register_pipeline(__AnimationVertexShader,
 																		  __AnimationFragmentShader);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(__AnimationShadowShader,

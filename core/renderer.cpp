@@ -714,8 +714,8 @@ Renderer::Renderer()
 
 	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,
-							   "./core/shader/vulkan/bin/mesh.vert",
-							   "./core/shader/vulkan/bin/mesh.frag");
+							   "./shader/vulkan/bin/mesh.vert",
+							   "./shader/vulkan/bin/mesh.frag");
 
 	m_Rotation = glm::radians(-120.f);
 }
@@ -947,19 +947,19 @@ Renderer::Renderer()
 	};
 
 	COMM_LOG("compiling shaders");
-	VertexShader __SpriteVertexShader = VertexShader("core/shader/sprite.vert");
-	FragmentShader __DirectFragmentShader = FragmentShader("core/shader/sprite.frag");
-	VertexShader __TextVertexShader = VertexShader("core/shader/text.vert");
-	FragmentShader __TextFragmentShader = FragmentShader("core/shader/text.frag");
-	VertexShader __CanvasVertexShader = VertexShader("core/shader/canvas.vert");
-	FragmentShader __LightingPassFragmentShader = FragmentShader("core/shader/pbs.frag");
-	VertexShader __GeometryPassVertexShader = VertexShader("core/shader/gpass.vert");
-	FragmentShader __GeometryPassFragmentShader = FragmentShader("core/shader/gpass.frag");
-	VertexShader __ParticlePassVertexShader = VertexShader("core/shader/ipass.vert");
-	FragmentShader __ParticlePassFragmentShader = FragmentShader("core/shader/ipass.frag");
-	VertexShader __GeometryShadowVertexShader = VertexShader("core/shader/gshadow.vert");
-	VertexShader __ParticleShadowVertexShader = VertexShader("core/shader/ishadow.vert");
-	FragmentShader __ShadowFragmentShader = FragmentShader("core/shader/shadow.frag");
+	VertexShader __SpriteVertexShader = VertexShader("shader/sprite.vert");
+	FragmentShader __DirectFragmentShader = FragmentShader("shader/sprite.frag");
+	VertexShader __TextVertexShader = VertexShader("shader/text.vert");
+	FragmentShader __TextFragmentShader = FragmentShader("shader/text.frag");
+	VertexShader __CanvasVertexShader = VertexShader("shader/canvas.vert");
+	FragmentShader __LightingPassFragmentShader = FragmentShader("shader/pbs.frag");
+	VertexShader __GeometryPassVertexShader = VertexShader("shader/gpass.vert");
+	FragmentShader __GeometryPassFragmentShader = FragmentShader("shader/gpass.frag");
+	VertexShader __ParticlePassVertexShader = VertexShader("shader/ipass.vert");
+	FragmentShader __ParticlePassFragmentShader = FragmentShader("shader/ipass.frag");
+	VertexShader __GeometryShadowVertexShader = VertexShader("shader/gshadow.vert");
+	VertexShader __ParticleShadowVertexShader = VertexShader("shader/ishadow.vert");
+	FragmentShader __ShadowFragmentShader = FragmentShader("shader/shadow.frag");
 
 	// ----------------------------------------------------------------------------------------------------
 	// Sprite Pipeline
