@@ -13,7 +13,12 @@ constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 struct ShaderAttribute
 {
-	string name;
+#ifdef VKBUILD
+	u32
+#else
+	string
+#endif
+	location;
 	size_t offset;
 	u8 dim;
 };

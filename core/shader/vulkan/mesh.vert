@@ -7,7 +7,7 @@ layout(location = 2) in vec3 normal;
 layout(location = 3) in vec3 tangent;
 
 // engine: ibo
-layout(location = 4) in vec3 offset;
+layout(location = 10) in vec3 offset;
 
 layout(location = 0) out vec2 UV;
 layout(location = 1) out vec3 Normal;

@@ -20,14 +20,24 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 	{
 		std::getline(__File,__Line);
 
-		// linetrim for layout prefix
+		// line trim for layout prefix
+#ifdef VKBUILD
+		s64 __Location = -1;
 		if (__Line.find("layout")==0)
 		{
+			size_t __LocationDef = __Line.find('=')+1;
 			size_t __Until = __Line.find(')');
+
+			// extract data input location
+			__Location = stoi(__Line.substr(__LocationDef,__Until));
+			COMM_ERR_COND(__Location<0,"no location extracted, this will lead to faulty data reads in shader");
+			// FIXME this will also read location from uniforms, which is unnecessary
+
+			// trim
 			if (__Until!=std::string::npos) __Line = __Line.substr(__Until+2);
+			// FIXME this will break when there is no whitespace between the location and in signifier
 		}
-		// TODO also read forced bindings for 450 core vulkan shaders
-		//		for vulkan switch location name to id through macro when type is defined
+#endif
 
 		// definition processing
 		if (__Line.find("// engine: ibo")==0)
@@ -42,11 +52,23 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// extract input information
 		vector<string> tokens;
 		split_words(tokens,__Line);
+
+		// trim location
+#ifdef GLBUILD
 		tokens[2].pop_back();
+#endif
 
 		// interpret input definition line
 		u8 dim = (tokens[1]=="float") ? 1 : tokens[1][3]-0x30;
-		__WriteHead->push_back({ tokens[2],(*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,dim });
+		__WriteHead->push_back({
+#ifdef VKBUILD
+				.location = (u32)__Location,
+#else
+				.location = tokens[2],
+#endif
+				.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
+				.dim = dim
+			});
 		(*__WidthHead) += dim;
 	}
 }
@@ -248,7 +270,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 0;
-		__AttributeDesc[__Location].location = __Location;
+		__AttributeDesc[__Location].location = __Attrib.location;
 		__AttributeDesc[__Location].format = _vertex_shader_input_formats[__Attrib.dim];
 		__AttributeDesc[__Location].offset = __Attrib.offset;
 		__Location++;
@@ -259,7 +281,7 @@ void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 1;
-		__AttributeDesc[__Location].location = __Location;
+		__AttributeDesc[__Location].location = __Attrib.location;
 		__AttributeDesc[__Location].format = _vertex_shader_input_formats[__Attrib.dim];
 		__AttributeDesc[__Location].offset = __Attrib.offset;
 		__Location++;
