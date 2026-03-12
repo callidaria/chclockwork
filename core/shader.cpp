@@ -167,7 +167,8 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 #ifdef VKBUILD
-const VkFormat _vertex_shader_input_formats[4] = {
+const VkFormat _vertex_shader_input_formats[5] = {
+	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_R32_SFLOAT,
 	VK_FORMAT_R32G32_SFLOAT,
 	VK_FORMAT_R32G32B32_SFLOAT,

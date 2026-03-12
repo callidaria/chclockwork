@@ -677,10 +677,6 @@ Renderer::Renderer()
 			for (s32 x=-TEST_INSTANCE_AMOUNT_X/2;x<(TEST_INSTANCE_AMOUNT_X/2)+TEST_INSTANCE_AMOUNT_Z%2;x++)
 			{
 				__Instances[i] = { .position = vec3(x*2,y*2,z*2) };
-				COMM_LOG("%d: %f, %f, %f",i,
-						 __Instances[i].position.x,
-						 __Instances[i].position.y,
-						 __Instances[i].position.z);
 				i++;
 			}
 		}
@@ -701,6 +697,7 @@ Renderer::Renderer()
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
+	m_InstanceBuffer.update();
 
 	// vertex array
 	m_VertexArray.allocate(2);
@@ -746,12 +743,8 @@ void Renderer::update()
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_TestingPipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	/*
 	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
-	*/
-	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
-					 m_RenderSize,1,0,0,13);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 	m_Framebuffer.stop();
