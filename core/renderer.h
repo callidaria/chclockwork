@@ -236,6 +236,13 @@ struct ObjectTransformation
 	mat4 proj __attribute__((aligned(16)));
 };
 
+struct PictureTransformation
+{
+	mat4 model __attribute__((aligned(16)));
+	mat4 view __attribute__((aligned(16)));
+	mat4 proj __attribute__((aligned(16)));
+};
+
 struct ObjectInstance
 {
 	vec3 position;
@@ -251,10 +258,14 @@ public:
 private:
 	Framebuffer m_Framebuffer = Framebuffer(1,true);
 	ShaderPipeline m_TestingPipeline;
+	ShaderPipeline m_PortraitPipeline;
 	VertexBuffer m_VertexBuffer;
+	VertexBuffer m_PortraitBuffer;
 	VertexBuffer m_InstanceBuffer;
 	VertexArray m_VertexArray;
+	VertexArray m_PortraitArray;
 	GPUPixelBuffer m_PixelBuffer;
+	GPUPixelBuffer m_PortraitTexture;
 
 	// testing
 	ObjectTransformation m_Trafo;

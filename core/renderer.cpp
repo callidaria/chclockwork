@@ -707,7 +707,7 @@ Renderer::Renderer()
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
 
-	// §§testing
+	// uniform buffer
 	g_UniformBuffer.define(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define(1,m_PixelBuffer);
 	g_UniformBuffer.assemble();
@@ -756,7 +756,7 @@ void Renderer::update()
  *	1st the buffers
  *		creating a buffer should be done by generating a buffer, uploading to it and having a few options
  *		options when and if to include index buffers might be offered here, but that really just happens at bind
- *		if is a buffer staged, mapped and unmapped is a hugely important distinction
+ *		if a buffer is staged, mapped and unmapped is a hugely important distinction
  *		there is a difference between vertex buffers only in the case of upload additional index information
  *		vertex buffers (as they are) only hold geometrical information, fed to the shaders. this is their purpose
  *		the vertex buffer should store it's offset, so that authoritative callers can utilize them when uploading
@@ -947,19 +947,19 @@ Renderer::Renderer()
 	};
 
 	COMM_LOG("compiling shaders");
-	VertexShader __SpriteVertexShader = VertexShader("shader/sprite.vert");
-	FragmentShader __DirectFragmentShader = FragmentShader("shader/sprite.frag");
-	VertexShader __TextVertexShader = VertexShader("shader/text.vert");
-	FragmentShader __TextFragmentShader = FragmentShader("shader/text.frag");
-	VertexShader __CanvasVertexShader = VertexShader("shader/canvas.vert");
-	FragmentShader __LightingPassFragmentShader = FragmentShader("shader/pbs.frag");
-	VertexShader __GeometryPassVertexShader = VertexShader("shader/gpass.vert");
-	FragmentShader __GeometryPassFragmentShader = FragmentShader("shader/gpass.frag");
-	VertexShader __ParticlePassVertexShader = VertexShader("shader/ipass.vert");
-	FragmentShader __ParticlePassFragmentShader = FragmentShader("shader/ipass.frag");
-	VertexShader __GeometryShadowVertexShader = VertexShader("shader/gshadow.vert");
-	VertexShader __ParticleShadowVertexShader = VertexShader("shader/ishadow.vert");
-	FragmentShader __ShadowFragmentShader = FragmentShader("shader/shadow.frag");
+	VertexShader __SpriteVertexShader = VertexShader("shader/ogl/sprite.vert");
+	FragmentShader __DirectFragmentShader = FragmentShader("shader/ogl/sprite.frag");
+	VertexShader __TextVertexShader = VertexShader("shader/ogl/text.vert");
+	FragmentShader __TextFragmentShader = FragmentShader("shader/ogl/text.frag");
+	VertexShader __CanvasVertexShader = VertexShader("shader/ogl/canvas.vert");
+	FragmentShader __LightingPassFragmentShader = FragmentShader("shader/ogl/pbs.frag");
+	VertexShader __GeometryPassVertexShader = VertexShader("shader/ogl/gpass.vert");
+	FragmentShader __GeometryPassFragmentShader = FragmentShader("shader/ogl/gpass.frag");
+	VertexShader __ParticlePassVertexShader = VertexShader("shader/ogl/ipass.vert");
+	FragmentShader __ParticlePassFragmentShader = FragmentShader("shader/ogl/ipass.frag");
+	VertexShader __GeometryShadowVertexShader = VertexShader("shader/ogl/gshadow.vert");
+	VertexShader __ParticleShadowVertexShader = VertexShader("shader/ogl/ishadow.vert");
+	FragmentShader __ShadowFragmentShader = FragmentShader("shader/ogl/shadow.frag");
 
 	// ----------------------------------------------------------------------------------------------------
 	// Sprite Pipeline
