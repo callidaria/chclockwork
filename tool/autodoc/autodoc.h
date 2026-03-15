@@ -5,12 +5,15 @@
 #include <stdlib.h>
 #include <cstring>
 
+#define AUTODOC_PATH_INDEX "../doc/"
+
 
 enum AutodocOutputFormat
 {
 	AUTODOC_FORMAT_MARKDOWN,
 	AUTODOC_FORMAT_HTML,
 	AUTODOC_FORMAT_ORGMODE,
+	AUTODOC_FORMAT_COUNT
 };
 
 
