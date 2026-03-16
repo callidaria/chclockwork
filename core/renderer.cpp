@@ -714,8 +714,9 @@ Renderer::Renderer()
 
 	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,
-							   "./shader/vulkan/bin/mesh.vert",
-							   "./shader/vulkan/bin/mesh.frag");
+							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
+	m_PortraitPipeline.assemble(m_Framebuffer,
+								"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	m_Rotation = glm::radians(-120.f);
 }
