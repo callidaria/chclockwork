@@ -11,3 +11,7 @@ lib/script/*
 
 # resource
 res/private/*
+
+# result
+tool/chcctool
+doc/*
