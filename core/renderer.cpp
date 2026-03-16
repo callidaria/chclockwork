@@ -662,6 +662,14 @@ Renderer::Renderer()
 {
 	g_GPU.swap();
 
+	// sprite data
+	f32 __QuadVertices[] = {
+		-.5f,.5f,.0f,.0f, .5f,-.5f,1.f,1.f, .5f,.5f,1.f,.0f,
+		.5f,-.5f,1.f,1.f, -.5f,.5f,.0f,.0f, -.5f,-.5f,.0f,1.f
+	};
+	f32 __QuadInstances[] = { 100,100,0, 1,1, 0, 1, 0,0, 10,10 };
+
+	// load mesh data
 	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
 	std::iota(__Indices.begin(),__Indices.end(),0);
@@ -694,51 +702,76 @@ Renderer::Renderer()
 						  &__Indices[0],sizeof(u32)*__Indices.size());
 	m_VertexBuffer.update();
 
+	// sprite vertex data
+	m_SpriteBuffer.allocate(sizeof(__QuadVertices));
+	m_SpriteBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
+	m_SpriteBuffer.update();
+
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
 	m_InstanceBuffer.update();
+
+	// instance sprite data
+	m_SpriteInstances.allocate(sizeof(__QuadInstances));
+	m_SpriteInstances.upload(__QuadInstances,sizeof(__QuadInstances));
+	m_SpriteInstances.update();
 
 	// vertex array
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
 	m_VertexArray.register_buffer(m_InstanceBuffer);
 
+	// sprite vertex array
+	m_SpriteArray.allocate(2);
+	m_SpriteArray.register_buffer(m_SpriteBuffer);
+	m_SpriteArray.register_buffer(m_SpriteInstances);
+
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
+	m_SpriteTexture.load_texture("./res/test/cld.jpeg");
 
 	// uniform buffer
 	g_UniformBuffer.define(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define(1,m_PixelBuffer);
+	g_UniformBuffer.define(2,m_SpriteTexture);
+	g_UniformBuffer.define(3,sizeof(SpriteTransformation));
 	g_UniformBuffer.assemble();
+	// TODO automatically assess those definitions from shader as well and communicate definition conflics
 
 	// pipeline
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_PortraitPipeline.assemble(m_Framebuffer,
-								"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_SpritePipeline.assemble(m_Framebuffer,
+							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+
+	// upload 2D coordinate system
+	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
+	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
 	m_Rotation = glm::radians(-120.f);
 }
 
 void Renderer::update()
 {
-	m_TestingPipeline.enable();
 	m_InstanceBuffer.update();
+	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership();
+	m_SpriteArray.transfer_ownership();
+	m_TestingPipeline.enable();
 	m_Framebuffer.record();
 	m_VertexArray.bind_indexed(m_Framebuffer);
 
 	// camera update test
-	m_Trafo.view = g_Camera.view;
-	m_Trafo.proj = g_Camera.proj;
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
 	// TODO also create the ability the link a camera to the uniform
 	//		right now this happens for both matrices individually, which is not appropriate
 
 	// prototype update tbr
 	//m_Rotation += g_Frame.delta_time*glm::radians(4.f);
-	m_Trafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
-	g_UniformBuffer.update(&m_Trafo,sizeof(m_Trafo));
+	m_UBufferMem.otrafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// drawcall
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -747,6 +780,14 @@ void Renderer::update()
 	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
+
+	// draw sprite
+	m_SpritePipeline.enable();
+	m_SpriteArray.bind(m_Framebuffer);
+	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
+							m_SpritePipeline.pipeline_layout,0,1,
+							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	m_Framebuffer.stop();
 }
@@ -804,14 +845,20 @@ void Renderer::update()
 
 void Renderer::vanish()
 {
+	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
+	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
+	m_SpriteBuffer.vanish();
 	m_VertexBuffer.vanish();
 	m_InstanceBuffer.free();
+	m_SpriteInstances.free();
 	m_InstanceBuffer.vanish();
+	m_SpriteInstances.vanish();
 	m_PixelBuffer.vanish();
+	m_SpriteTexture.vanish();
 	g_UniformBuffer.vanish();
 }
 

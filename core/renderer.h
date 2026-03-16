@@ -236,11 +236,16 @@ struct ObjectTransformation
 	mat4 proj __attribute__((aligned(16)));
 };
 
-struct PictureTransformation
+struct SpriteTransformation
 {
-	mat4 model __attribute__((aligned(16)));
 	mat4 view __attribute__((aligned(16)));
 	mat4 proj __attribute__((aligned(16)));
+};
+
+struct UniformBufferMemory
+{
+	ObjectTransformation otrafo;
+	SpriteTransformation strafo;
 };
 
 struct ObjectInstance
@@ -258,17 +263,18 @@ public:
 private:
 	Framebuffer m_Framebuffer = Framebuffer(1,true);
 	ShaderPipeline m_TestingPipeline;
-	ShaderPipeline m_PortraitPipeline;
+	ShaderPipeline m_SpritePipeline;
 	VertexBuffer m_VertexBuffer;
-	VertexBuffer m_PortraitBuffer;
+	VertexBuffer m_SpriteBuffer;
 	VertexBuffer m_InstanceBuffer;
+	VertexBuffer m_SpriteInstances;
 	VertexArray m_VertexArray;
-	VertexArray m_PortraitArray;
+	VertexArray m_SpriteArray;
 	GPUPixelBuffer m_PixelBuffer;
-	GPUPixelBuffer m_PortraitTexture;
+	GPUPixelBuffer m_SpriteTexture;
 
 	// testing
-	ObjectTransformation m_Trafo;
+	UniformBufferMemory m_UBufferMem;
 	f32 m_Rotation = .0f;
 	u32 m_RenderSize = 0;
 };

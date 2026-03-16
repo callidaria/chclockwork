@@ -4,8 +4,7 @@
 
 - porting render features to vulkan
 - architectural improvements
-- program configuration through extern file
-- tooling: autogenerate documentation
+
 
 ### v0.0.1 (WIN)
 

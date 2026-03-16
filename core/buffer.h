@@ -312,7 +312,7 @@ private:
 	vector<DescriptorInfo> m_DescriptorInfos;
 	size_t m_Size = 0;
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(2);
+inline UniformBuffer g_UniformBuffer = UniformBuffer(4);
 #endif
 // TODO definition through config or something else, that the developer is capable to easily find & change
 
