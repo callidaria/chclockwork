@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <cstring>
 
-#define AUTODOC_PATH_INDEX "../doc/"
-
 
 enum AutodocOutputFormat
 {
@@ -15,7 +13,6 @@ enum AutodocOutputFormat
 	AUTODOC_FORMAT_ORGMODE,
 	AUTODOC_FORMAT_COUNT
 };
-
 
 enum AutodocGenflags
 {

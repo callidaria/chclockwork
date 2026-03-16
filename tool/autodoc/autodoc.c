@@ -4,7 +4,7 @@
 // ----------------------------------------------------------------------------------------------------
 // Formatting Commands
 
-const char* _headline_starter[AUTODOC_FORMAT_COUNT] = { "##","<h2>","**" };
+const char* _headline_starter[AUTODOC_FORMAT_COUNT] = { "## ","<h2>","** " };
 const char* _headline_terminator[AUTODOC_FORMAT_COUNT] = { "\n","</h2>\n","\n" };
 
 /**
@@ -15,9 +15,7 @@ const char* _headline_terminator[AUTODOC_FORMAT_COUNT] = { "\n","</h2>\n","\n" }
  */
 inline void _write_headline(FILE* file,AutodocOutputFormat format,const char* text)
 {
-	fwrite(_headline_starter[format],sizeof(char),sizeof(_headline_starter[format]),file);
-	fwrite(text,sizeof(char),sizeof(text),file);
-	fwrite(_headline_terminator[format],sizeof(char),sizeof(_headline_terminator[format]),file);
+	fprintf(file,"%s%s%s",_headline_starter[format],text,_headline_terminator[format]);
 }
 
 
@@ -25,10 +23,21 @@ inline void _write_headline(FILE* file,AutodocOutputFormat format,const char* te
 // Processing
 
 /**
+ *	generates a documentation file for the combination of source and header file
+ *	\param name: string representation of the feature and headline of module document
+ *	\param path: path to sourcefiles e.g. "core/buffer". header and source endings are automatically assumed
+ *	\param format: output format for api visualization (.view AutodocOutputFormat)
+ */
+inline void _extract_documentation(const char* name,const char* path,AutodocOutputFormat format)
+{
+	// TODO
+}
+
+/**
  *	function to generate full documentation for an entire submodule
  *	\param name: string representation of module and headline of module document index
  *	\param path: path to module subfolder e.g. core/ (will be normalized towards project root by single ../)
-  *	\param format: output format for api visualization (.view AutodocOutputFormat)
+ *	\param format: output format for api visualization (.view AutodocOutputFormat)
  */
 inline void _generate_submodule(const char* name,const char* path,AutodocOutputFormat format)
 {
