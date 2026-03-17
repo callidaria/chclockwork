@@ -13,4 +13,5 @@ void main()
 {
 	pixelColour = texture(tex,EdgeCoordinates);
 	pixelColour.a *= Alpha;
+	pixelColour = vec4(1,0,0,1);  // §§testing vertex location correctness
 }

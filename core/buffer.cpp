@@ -553,7 +553,7 @@ inline static VkBufferMemoryBarrier _generate_memory_barrier()
 /**
  *	TODO
  */
-void VertexArray::register_buffer(const VertexBuffer& vb)
+inline void VertexArray::register_buffer(const VertexBuffer& vb)
 {
 	COMM_MSG_COND(m_Buffers.size()>=m_Buffers.capacity(),LOG_YELLOW,
 				  "WARNING: insufficient vertex array allocation. resizing.");
@@ -565,9 +565,9 @@ void VertexArray::register_buffer(const VertexBuffer& vb)
  */
 void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 {
-	COMM_MSG_COND(m_Buffers.size()>=m_Buffers.capacity(),LOG_YELLOW,
-				  "WARNING: insufficient vertex array allocation. resizing.");
-	m_Buffers.push_back(vb.vbo);
+	register_buffer(vb);
+
+	// register memory barrier for dynamic upload. this will require to transfer ownership!
 	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier();
 	__Barrier.buffer = vb.vbo;
 	m_Barriers.push_back(__Barrier);
@@ -578,12 +578,10 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
  */
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
-	COMM_MSG_COND(m_Buffers.size()>=m_Buffers.capacity(),LOG_YELLOW,
-				  "WARNING: insufficient vertex array allocation. resizing.");
 	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index offset");
 	m_IndexSource = m_Buffers.size();
-	m_Buffers.push_back(vb.vbo);
 	m_IndexOffset = vb.index_offset;
+	register_buffer(vb);
 }
 
 /**
