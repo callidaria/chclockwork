@@ -501,7 +501,7 @@ void ShaderPipeline::vanish()
 void ShaderPipeline::enable()
 {
 #ifdef VKBUILD
-	g_Frame.ref_pipeline = pipeline;
+	vkCmdBindPipeline(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
 #else
 	glUseProgram(m_ShaderProgram);
 #endif

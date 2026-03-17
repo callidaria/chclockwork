@@ -754,12 +754,17 @@ Renderer::Renderer()
 
 void Renderer::update()
 {
+	// transfer data
 	m_InstanceBuffer.update();
 	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership();
 	m_SpriteArray.transfer_ownership();
-	m_TestingPipeline.enable();
+
+	// start recording to target
 	m_Framebuffer.record();
+
+	// start voxelgrid
+	m_TestingPipeline.enable();
 	m_VertexArray.bind_indexed(m_Framebuffer);
 
 	// camera update test
@@ -781,7 +786,7 @@ void Renderer::update()
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
-	// draw sprite
+	// start sprites
 	m_SpritePipeline.enable();
 	m_SpriteArray.bind(m_Framebuffer);
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,

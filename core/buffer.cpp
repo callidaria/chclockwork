@@ -307,8 +307,6 @@ void Framebuffer::record()
 	__RPBeginInfo.clearValueCount = 2;
 	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,g_Frame.ref_pipeline);
-	// TODO very rigid. this expects graphical output, which is kindergarten
 
 	// viewport setup
 	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&g_Frame.viewport);

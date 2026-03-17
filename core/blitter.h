@@ -78,8 +78,6 @@ public:
 	vector<VkSemaphore> render_done;  // TODO this all belongs together i think
 	u32 frame_id = 0;
 
-	VkPipeline ref_pipeline;  // $placeholder
-
 private:
 	Hardware m_Hardware;
 	VkInstance m_Instance;
