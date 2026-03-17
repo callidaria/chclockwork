@@ -710,22 +710,22 @@ Renderer::Renderer()
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
-	m_InstanceBuffer.update();
+	//m_InstanceBuffer.update();
 
 	// instance sprite data
 	m_SpriteInstances.allocate(sizeof(__QuadInstances));
 	m_SpriteInstances.upload(__QuadInstances,sizeof(__QuadInstances));
-	m_SpriteInstances.update();
+	//m_SpriteInstances.update();
 
 	// vertex array
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
-	m_VertexArray.register_buffer(m_InstanceBuffer);
+	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
 
 	// sprite vertex array
 	m_SpriteArray.allocate(2);
 	m_SpriteArray.register_buffer(m_SpriteBuffer);
-	m_SpriteArray.register_buffer(m_SpriteInstances);
+	m_SpriteArray.register_buffer_dynamic(m_SpriteInstances);
 
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");

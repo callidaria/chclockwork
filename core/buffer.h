@@ -123,6 +123,7 @@ public:
 	// setup
 	void allocate(u8 size);
 	void register_buffer(const VertexBuffer& vb);
+	void register_buffer_dynamic(const VertexBuffer& vb);
 	void register_buffer_indexed(const VertexBuffer& vb);
 
 	// update
