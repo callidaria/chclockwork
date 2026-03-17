@@ -308,7 +308,11 @@ void Transform3D::reset()
 CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 {
 	view = glm::lookAt(vec3(0,-.0001f,1),vec3(.0f),vec3(0,0,1));
+#ifdef VKBUILD
+	proj = glm::orthoLH_ZO(.0f,xaxis,.0f,yaxis,.1f,10.f);
+#else
 	proj = glm::ortho(.0f,xaxis,.0f,yaxis,.1f,10.f);
+#endif
 }
 
 

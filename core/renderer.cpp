@@ -667,7 +667,7 @@ Renderer::Renderer()
 		-.5f,-.5f,.0f,.0f, .5f,.5f,1.f,1.f, .5f,-.5f,1.f,.0f,
 		.5f,.5f,1.f,1.f, -.5f,-.5f,.0f,.0f, -.5f,.5f,.0f,1.f
 	};
-	f32 __QuadInstances[] = { 100,100,0, 100,100, 0, 1, 0,0, 10,10 };
+	f32 __QuadInstances[] = { 100,100,5, 100,100, 0, 1, 0,0, 10,10 };
 
 	// load mesh data
 	Mesh __Mesh = Mesh("./res/private/test.obj");
