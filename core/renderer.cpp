@@ -710,12 +710,10 @@ Renderer::Renderer()
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
-	//m_InstanceBuffer.update();
 
 	// instance sprite data
 	m_SpriteInstances.allocate(sizeof(__QuadInstances));
 	m_SpriteInstances.upload(__QuadInstances,sizeof(__QuadInstances));
-	//m_SpriteInstances.update();
 
 	// vertex array
 	m_VertexArray.allocate(2);
@@ -754,7 +752,7 @@ Renderer::Renderer()
 
 void Renderer::update()
 {
-	// transfer data
+	// transfer isntance data
 	m_InstanceBuffer.update();
 	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership();

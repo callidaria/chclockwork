@@ -247,7 +247,7 @@ void Framebuffer::finalize()
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = m_ColourComponents.size();  // FIXME holy hell this is broken!
+	__RPInfo.attachmentCount = m_ColourComponents.size();
 	__RPInfo.pAttachments = m_ColourComponentSetup;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;

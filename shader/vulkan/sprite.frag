@@ -6,7 +6,7 @@ layout(location = 1) in float Alpha;
 
 layout(location = 0) out vec4 pixelColour;
 
-layout(binding = 2) uniform sampler2D tex;
+layout(set = 0,binding = 2) uniform sampler2D tex;
 
 
 void main()
