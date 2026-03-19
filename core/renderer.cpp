@@ -692,9 +692,11 @@ Renderer::Renderer()
 
 	// render target
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	//m_Framebuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
+	// FIXME it's questionable if component definition is necessary for framebuffers
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
@@ -734,6 +736,7 @@ Renderer::Renderer()
 	g_UniformBuffer.define(1,m_PixelBuffer);
 	g_UniformBuffer.define(2,m_SpriteTexture);
 	g_UniformBuffer.define(3,sizeof(SpriteTransformation));
+	//g_UniformBuffer.define(4,m_Framebuffer.);
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
 

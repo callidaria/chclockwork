@@ -289,6 +289,7 @@ public:
 	// setup
 	void define(u32 location,size_t size);
 	void define(u32 location,GPUPixelBuffer& texture);
+	void define(u32 location,VkImageView buffer);
 	void assemble();
 
 	// action

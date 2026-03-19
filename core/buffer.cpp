@@ -219,6 +219,16 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 // TODO this way the depth component can't be used when finalizing, the depth belongs into constructor malloc
 
 /**
+ *	TODO
+ */
+/*
+void Framebuffer::define_subpass()
+{
+	// TODO
+}
+*/
+
+/**
  *	combine previously defined framebuffer attachments
  *	NOTE: this has to happen after definitions of all components
  */
@@ -1455,6 +1465,49 @@ void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
 	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define(u32 location,VkImageView buffer)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "subpass result binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __PSize = {  };
+	__PSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	m_PSizes.push_back(__PSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorCount = 1;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	__Binding.pImmutableSamplers = nullptr;
+	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	m_Bindings.push_back(__Binding);
+	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
+
+	// image info
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Desc.info.image.imageView = buffer;
+	__Desc.info.image.sampler = VK_NULL_HANDLE;
+	m_DescriptorInfos.push_back(__Desc);
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
 }
