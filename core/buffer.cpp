@@ -79,62 +79,65 @@ Framebuffer::Framebuffer(u8 count,bool depth)
 	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
 
 	// setup depth buffer
-	m_DepthStencilFormat = g_GPU.choose_texture_format(
-			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT,},
-			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-		);
-	VkImageCreateInfo __ImageInfo = {  };
-	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = g_Frame.swapchain.extent.width;
-	__ImageInfo.extent.height = g_Frame.swapchain.extent.height;
-	__ImageInfo.extent.depth = 1;
-	__ImageInfo.mipLevels = 1;
-	__ImageInfo.arrayLayers = 1;
-	__ImageInfo.format = m_DepthStencilFormat;
-	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	__ImageInfo.flags = 0;
-	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
-	// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
+	if (depth)
+	{
+		m_DepthStencilFormat = g_GPU.choose_texture_format(
+				{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
+				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+			);
+		VkImageCreateInfo __ImageInfo = {  };
+		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+		__ImageInfo.extent.width = g_Frame.swapchain.extent.width;
+		__ImageInfo.extent.height = g_Frame.swapchain.extent.height;
+		__ImageInfo.extent.depth = 1;
+		__ImageInfo.mipLevels = 1;
+		__ImageInfo.arrayLayers = 1;
+		__ImageInfo.format = m_DepthStencilFormat;
+		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		__ImageInfo.flags = 0;
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
+		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
-	// memory
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-													   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-	vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
-	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
+		// memory
+		VkMemoryRequirements __MemoryRequirements;
+		vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
+		VkMemoryAllocateInfo __MemoryInfo = {  };
+		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		__MemoryInfo.allocationSize = __MemoryRequirements.size;
+		__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+														   __MemoryRequirements.memoryTypeBits);
+		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+		vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
+		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
-	// setup depth buffer image view
-	VkImageViewCreateInfo __ImageViewInfo = {  };
-	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__ImageViewInfo.image = m_DepthStencilBuffer;
-	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = m_DepthStencilFormat;
-	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-	__ImageViewInfo.subresourceRange.levelCount = 1;
-	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = 1;
-	__ImageViewInfo.components = {
-		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-	};
-	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
-	// FIXME another code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
-	// TODO this is much more abstractable, but also not really?
+		// setup depth buffer image view
+		VkImageViewCreateInfo __ImageViewInfo = {  };
+		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		__ImageViewInfo.image = m_DepthStencilBuffer;
+		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		__ImageViewInfo.format = m_DepthStencilFormat;
+		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+		__ImageViewInfo.subresourceRange.levelCount = 1;
+		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+		__ImageViewInfo.subresourceRange.layerCount = 1;
+		__ImageViewInfo.components = {
+			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+		};
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+		// FIXME another code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
+		// TODO this is much more abstractable, but also not really?
+	}
 
 #else
 	glGenFramebuffers(1,&m_Buffer);
@@ -266,6 +269,17 @@ void Framebuffer::finalize()
 	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
+	// create framebuffer
+	/*
+	VkFramebufferCreateInfo __FramebufferInfo = {  };
+	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.attachmentCount = m_ColourComponents.size();
+	__FramebufferInfo.width = swapchain.extent.width;
+	__FramebufferInfo.height = swapchain.extent.height;
+	__FramebufferInfo.layers = 1;
+	*/
+
 	// clear setup memory
 	free(m_ColourComponentSetup);  // FIXME this is broken most obviously
 	free(m_ColourComponentReference);
@@ -300,12 +314,6 @@ void Framebuffer::record()
 {
 #ifdef VKBUILD
 	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
-
-	// get next swapchain image
-	VkResult __Result = vkAcquireNextImageKHR(g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,
-											  __CMDBuffer->ready,VK_NULL_HANDLE,&g_Frame.frame_id);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be acquired");
-	// TODO never write to frame directly in and buffer method
 
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };

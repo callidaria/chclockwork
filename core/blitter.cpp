@@ -225,11 +225,17 @@ Frame::Frame()
 void Frame::clear()
 {
 #ifdef VKBUILD
-	// TODO
+	// get next swapchain image
+	VkResult __Result = vkAcquireNextImageKHR(
+			g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,g_GPU.acquire_graphical_command_buffer()->ready,
+			VK_NULL_HANDLE,&g_Frame.frame_id
+		);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"available target frame could not be acquired");
 #else
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 #endif
 }
+// TODO rename this and move the clear from swap. 
 
 /**
  *	flip buffer

@@ -19,10 +19,10 @@ s32 main(s32 argc,char** argv)
 	bool running = true;
 	while (running)
 	{
-		g_Frame.clear();
 		g_Input.update(running);
 		g_Wheel.update();
 		g_Camera.update();
+		g_Frame.clear();
 		g_Renderer.update();
 		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);
 		g_Frame.update();
