@@ -71,7 +71,7 @@ inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
  *	\param depth: (default false) true when framebuffer has a depth-stencil component
  */
 Framebuffer::Framebuffer(u8 count,bool depth)
-	: m_DepthChannel(count),m_HasDepth(depth)
+	: m_DepthChannel(count),m_HasDepth(depth),m_Size(count+depth)
 {
 	m_ColourComponents.resize(count+depth);
 #ifdef VKBUILD
@@ -322,7 +322,7 @@ void Framebuffer::record()
 	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
-	__RPBeginInfo.clearValueCount = 2;
+	__RPBeginInfo.clearValueCount = m_Size;
 	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 

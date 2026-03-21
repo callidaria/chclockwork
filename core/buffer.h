@@ -39,7 +39,7 @@ public:
 
 	// usage
 	void record();
-	void stop();
+	static void stop();
 	void bind_colour_component(u8 channel,u8 i);
 	void bind_depth_component(u8 channel);
 
@@ -59,6 +59,7 @@ private:
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
+	u8 m_Size = 0;
 #else
 	u32 m_Buffer;
 #endif
@@ -66,7 +67,7 @@ private:
 	bool m_HasDepth;
 
 	// textures
-	vector<__fbuffer_component> m_ColourComponents;
+	vector<__fbuffer_component> m_ColourComponents;  // FIXME only when not target? how to?
 	__fbuffer_component m_DepthComponent;
 };
 // TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature

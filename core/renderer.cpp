@@ -690,12 +690,20 @@ Renderer::Renderer()
 		}
 	}
 
+	// result target
+	m_ResultBuffer.define_colour_component(0,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
+	m_ResultBuffer.define_depth_component(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
+	m_ResultBuffer.finalize();
+	m_ResultBuffer.link_output();
+
 	// render target
+	/*
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	//m_Framebuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
 	m_Framebuffer.link_output();
+	*/
 	// FIXME it's questionable if component definition is necessary for framebuffers
 
 	// vertex data
@@ -741,9 +749,11 @@ Renderer::Renderer()
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
 
 	// pipeline
+	/*
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_SpritePipeline.assemble(m_Framebuffer,
+	*/
+	m_SpritePipeline.assemble(m_ResultBuffer,
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// upload 2D coordinate system
@@ -762,6 +772,7 @@ void Renderer::update()
 	m_SpriteArray.transfer_ownership();
 
 	// start recording to target
+	/*
 	m_Framebuffer.record();
 
 	// start voxelgrid
@@ -796,6 +807,26 @@ void Renderer::update()
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	m_Framebuffer.stop();
+	*/
+
+	// combine result
+	m_ResultBuffer.record();
+	// TODO
+
+	// perspective section
+	// TODO
+
+	// orthogonal section
+	m_SpritePipeline.enable();
+	m_SpriteArray.bind(m_Framebuffer);
+	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
+							m_SpritePipeline.pipeline_layout,0,1,
+							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
+
+	// end result
+	m_ResultBuffer.stop();
+	// TODO
 }
 
 /**
@@ -854,6 +885,7 @@ void Renderer::vanish()
 	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
+	m_ResultBuffer.vanish();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
