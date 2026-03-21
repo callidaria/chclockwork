@@ -35,7 +35,7 @@ public:
 	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height);
 	void finalize();
-	void vanish();  // §§test
+	void vanish();
 
 	// usage
 	void record();
@@ -55,7 +55,6 @@ public:
 private:
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
-	VkFormat m_DepthStencilFormat;
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;

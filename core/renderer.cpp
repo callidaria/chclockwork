@@ -765,11 +765,12 @@ Renderer::Renderer()
 
 void Renderer::update()
 {
-	// transfer isntance data
+	// transfer instance data
 	m_InstanceBuffer.update();
 	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership();
 	m_SpriteArray.transfer_ownership();
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// start recording to target
 	/*
@@ -788,7 +789,6 @@ void Renderer::update()
 	// prototype update tbr
 	//m_Rotation += g_Frame.delta_time*glm::radians(4.f);
 	m_UBufferMem.otrafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
-	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// drawcall
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -798,20 +798,11 @@ void Renderer::update()
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
-	// start sprites
-	m_SpritePipeline.enable();
-	m_SpriteArray.bind(m_Framebuffer);
-	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
-							m_SpritePipeline.pipeline_layout,0,1,
-							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
-
 	m_Framebuffer.stop();
 	*/
 
 	// combine result
 	m_ResultBuffer.record();
-	// TODO
 
 	// perspective section
 	// TODO
@@ -826,7 +817,6 @@ void Renderer::update()
 
 	// end result
 	m_ResultBuffer.stop();
-	// TODO
 }
 
 /**
