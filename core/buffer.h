@@ -22,7 +22,7 @@ enum TextureFormat : u8
 
 typedef
 #ifdef VKBUILD
-u32  // TODO texture representation of components
+VkImageView
 #else
 u32
 #endif
@@ -34,7 +34,7 @@ public:
 	Framebuffer(u8 count,bool depth=false);
 	void define_colour_component(u8 index,f32 width,f32 height,bool alloc=true,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height);
-	void finalize();
+	void finalize(bool foreign_framebuffer=false);
 	void vanish();
 
 	// usage
@@ -58,6 +58,7 @@ private:
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
+	VkFramebuffer m_Framebuffer;
 	u8 m_Size = 0;
 #else
 	u32 m_Buffer;
@@ -66,8 +67,8 @@ private:
 	bool m_HasDepth;
 
 	// textures
-	vector<__fbuffer_component> m_ColourComponents;  // FIXME only when not target? how to?
-	__fbuffer_component m_DepthComponent;
+	vector<__fbuffer_component> m_Components;  // FIXME only when not target? how to?
+	//__fbuffer_component m_DepthComponent;  // TODO remove this
 };
 // TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
 // TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)

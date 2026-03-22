@@ -73,14 +73,14 @@ inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 Framebuffer::Framebuffer(u8 count,bool depth)
 	: m_DepthChannel(count),m_HasDepth(depth),m_Size(count+depth)
 {
-	m_ColourComponents.resize(count+depth);
+	m_Components.resize(count+depth);
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
 	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
 
 #else
 	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(count,&m_ColourComponents[0]);
+	glGenTextures(count,&m_Components[0]);
 #endif
 }
 
@@ -94,9 +94,9 @@ Framebuffer::Framebuffer(u8 count,bool depth)
  */
 void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool allocate,bool fbuffer)
 {
-#ifdef VKBUILD
 	COMM_ERR_COND(!(index<m_DepthChannel),"colour component definition index outside of valid allocated range");
 
+#ifdef VKBUILD
 	if (allocate)
 	{
 		// allocate image
@@ -126,10 +126,10 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
 	// TODO research if different component resolutions are even viable and check for standard setup impl.
 
 #else
-	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[index]);
+	glBindTexture(GL_TEXTURE_2D,m_Components[index]);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,width,height,0,GL_RGBA,GL_UNSIGNED_INT+fbuffer,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_ColourComponents[index],0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_Components[index],0);
 #endif
 }
 // TODO maybe define index inside the framebuffer struct as a cursor counter variable
@@ -141,10 +141,10 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
  */
 void Framebuffer::define_depth_component(f32 width,f32 height)
 {
-#ifdef VKBUILD
 	COMM_ERR_COND(!m_HasDepth,
 				  "framebuffer defines depth component, but no previous signal for allocation was set");
 
+#ifdef VKBUILD
 	// allocate image
 	VkFormat __DepthStencilFormat = g_GPU.choose_texture_format(
 				{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
@@ -243,8 +243,9 @@ void Framebuffer::define_subpass()
 /**
  *	combine previously defined framebuffer attachments
  *	NOTE: this has to happen after definitions of all components
+ *	TODO update
  */
-void Framebuffer::finalize()
+void Framebuffer::finalize(bool foreign_framebuffer)
 {
 #ifdef VKBUILD
 	// specify graphical subpass
@@ -252,7 +253,8 @@ void Framebuffer::finalize()
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	__SubpassDesc.colorAttachmentCount = m_DepthChannel;
 	__SubpassDesc.pColorAttachments = m_ColourComponentReference;
-	__SubpassDesc.pDepthStencilAttachment = (m_HasDepth) ? &m_ColourComponentReference[m_DepthChannel] : nullptr;
+	__SubpassDesc.pDepthStencilAttachment
+			= (m_HasDepth) ? &m_ColourComponentReference[m_DepthChannel] : nullptr;
 
 	// subpass dependency
 	VkSubpassDependency __SubpassDependency = {  };
@@ -269,7 +271,7 @@ void Framebuffer::finalize()
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = m_ColourComponents.size();
+	__RPInfo.attachmentCount = m_Components.size();
 	__RPInfo.pAttachments = m_ColourComponentSetup;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
@@ -279,24 +281,27 @@ void Framebuffer::finalize()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// create framebuffer
-	/*
-	VkFramebufferCreateInfo __FramebufferInfo = {  };
-	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = render_pass;
-	__FramebufferInfo.attachmentCount = m_ColourComponents.size();
-	__FramebufferInfo.width = swapchain.extent.width;
-	__FramebufferInfo.height = swapchain.extent.height;
-	__FramebufferInfo.layers = 1;
-	*/
+	if (!foreign_framebuffer)
+	{
+		VkFramebufferCreateInfo __FramebufferInfo = {  };
+		__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		__FramebufferInfo.renderPass = render_pass;
+		__FramebufferInfo.attachmentCount = m_Components.size();
+		__FramebufferInfo.width = g_Frame.swapchain.extent.width;
+		__FramebufferInfo.height = g_Frame.swapchain.extent.height;  // TODO change!
+		__FramebufferInfo.layers = 1;
+		__FramebufferInfo.pAttachments = &m_Components[0];
+		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
+	}
 
 	// clear setup memory
 	free(m_ColourComponentSetup);
 	free(m_ColourComponentReference);
 
 #else
-	u32 __Attachments[m_ColourComponents.size()];
-	for (u8 i=0;i<m_ColourComponents.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
-	glDrawBuffers(m_ColourComponents.size(),__Attachments);
+	u32 __Attachments[m_Components.size()];
+	for (u8 i=0;i<m_Components.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
+	glDrawBuffers(m_Components.size(),__Attachments);
 #endif
 }
 
