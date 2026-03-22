@@ -89,12 +89,21 @@ Framebuffer::Framebuffer(u8 count,bool depth)
  *	\param index: frambuffer component index
  *	\param width: resolution width
  *	\param height: resolution height
+ *	\param skip_alloc: (default true) false if image allocation should be skipped, e.g. when result is linked
  *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
  */
-void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer)
+void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool allocate,bool fbuffer)
 {
 #ifdef VKBUILD
 	COMM_ERR_COND(!(index<m_DepthChannel),"colour component definition index outside of valid allocated range");
+
+	if (allocate)
+	{
+		// allocate image
+		// allocate vram
+		// colour buffer image view handle
+	}
+	// TODO implement image allocation like with depth buffer
 
 	// specify colour component
 	m_ColourComponentSetup[index] = {};
@@ -193,6 +202,7 @@ void Framebuffer::define_depth_component(f32 width,f32 height)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 	// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
 	// TODO this is much more abstractable, but also not really?
+	// TODO allow for independent depth buffer allocation (?in blitter) and bind just like result colour buffer
 
 	// depth component
 	m_ColourComponentSetup[m_DepthChannel] = {};
