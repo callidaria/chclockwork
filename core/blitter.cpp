@@ -391,7 +391,7 @@ void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
 	COMM_LOG("registration of final result pipeline");
 
 	// depth buffer reference
-	m_DepthBuffer = depth_buffer;
+	//m_DepthBuffer = depth_buffer;
 	// TODO this is not the way. keep all the framebuffer things in one basket
 
 	// generate framebuffers
@@ -510,6 +510,68 @@ swap_chain_creation:
 	images.resize(__SCICount);
 	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&images[0]);
 
+	// create related depth buffers
+	m_DepthComponents.resize(__SCICount);
+	m_DepthMemory.resize(__SCICount);
+	m_DepthViews.resize(__SCICount);
+	VkFormat __DepthStencilFormat = g_GPU.choose_texture_format(
+			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+		);
+	for (u8 i=0;i<__SCICount;i++)
+	{
+		// create image
+		VkImageCreateInfo __ImageInfo = {  };
+		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+		__ImageInfo.extent.width = swapchain.extent.width;
+		__ImageInfo.extent.height = swapchain.extent.height;
+		__ImageInfo.extent.depth = 1;
+		__ImageInfo.mipLevels = 1;
+		__ImageInfo.arrayLayers = 1;
+		__ImageInfo.format = __DepthStencilFormat;
+		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		__ImageInfo.flags = 0;
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthComponents[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create result depth buffer");
+
+		// allocate vram
+		VkMemoryRequirements __MemoryRequirements;
+		vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthComponents[i],&__MemoryRequirements);
+		VkMemoryAllocateInfo __MemoryInfo = {  };
+		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		__MemoryInfo.allocationSize = __MemoryRequirements.size;
+		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+															   __MemoryRequirements.memoryTypeBits);
+		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthMemory[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for result depth buffer");
+		vkBindImageMemory(g_GPU.gpu,m_DepthComponents[i],m_DepthMemory[i],0);
+
+		// depth buffer image view handle
+		VkImageViewCreateInfo __ImageViewInfo = {  };
+		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		__ImageViewInfo.image = m_DepthComponents[i];
+		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		__ImageViewInfo.format = __DepthStencilFormat;
+		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+		__ImageViewInfo.subresourceRange.levelCount = 1;
+		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+		__ImageViewInfo.subresourceRange.layerCount = 1;
+		__ImageViewInfo.components = {
+			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+		};
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthViews[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+	}
+
 	// image view memory & creation info setup
 	image_views.resize(__SCICount);
 	VkImageViewCreateInfo __IVInfo = {  };
@@ -575,7 +637,7 @@ void Frame::_finalize_swapchain()
 	framebuffers.resize(image_views.size());
 	for (u32 i=0;i<image_views.size();i++)
 	{
-		VkImageView __Attachments[] = { image_views[i],m_DepthBuffer };
+		VkImageView __Attachments[] = { image_views[i],m_DepthViews[i] };
 		__FramebufferInfo.pAttachments = __Attachments;
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
@@ -589,6 +651,9 @@ void Frame::_destroy_swapchain()
 {
 	for (VkFramebuffer p_Framebuffer : framebuffers) g_GPU.free(p_Framebuffer);
 	for (VkImageView p_ImageView : image_views) g_GPU.free(p_ImageView);
+	for (VkImageView p_ImageView : m_DepthViews) g_GPU.free(p_ImageView);
+	for (VkImage p_Image : m_DepthComponents) g_GPU.free(p_Image);
+	for (VkDeviceMemory p_Memory : m_DepthMemory) g_GPU.free(p_Memory);
 	g_GPU.free(swapchain.swapchain);
 }
 

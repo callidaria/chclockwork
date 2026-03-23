@@ -447,6 +447,64 @@ void GPU::update(VkSemaphore* blit_ready)
 	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
 }
 
+
+// ----------------------------------------------------------------------------------------------------
+// Utility
+
+/**
+ *	TODO
+ */
+u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
+{
+	u32 __MemoryIndex = 0;
+	for (u32 i=0;i<g_GPU.device_info->memory_properties.memoryTypeCount;i++)
+	{
+		if ((type&(1<<__MemoryIndex))
+			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags&props)==props)
+			return i;
+		__MemoryIndex++;
+	}
+	COMM_ERR("failed to select memory by type. this is a fatal issue!");
+	return 0;
+}
+// TODO well this just has to be completely reworked before fully including this
+// TODO optimize, do not rely on coherent bit and flush explicitly later
+
+/**
+ *	TODO
+ */
+void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+						  VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
+{
+	// vertex buffer
+	VkBufferCreateInfo __BufferInfo = {  };
+	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	__BufferInfo.size = size;
+	__BufferInfo.usage = fusage;
+	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
+
+	// analyze memory type
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
+	u32 __MemoryIndex = GPU::choose_memory_type(fproperty,__MemoryRequirements.memoryTypeBits);
+	// TODO iterate memory
+	// TODO optimize this away maybe. this should always be a repeat call?
+
+	// buffer memory allocation
+	VkMemoryAllocateInfo __MallocInfo = {  };
+	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MallocInfo.allocationSize = __MemoryRequirements.size;
+	__MallocInfo.memoryTypeIndex = __MemoryIndex;
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
+
+	// bind memory to vbo
+	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
+	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
+}
+
 /**
  *	free given gpu related resources
  *	\param res: resource of any supported type, that will be removed

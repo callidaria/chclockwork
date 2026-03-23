@@ -2,67 +2,6 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// Common Procedures
-
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-inline u32 _choose_memory_type(VkMemoryPropertyFlags props,u32 type)
-{
-	u32 __MemoryIndex = 0;
-	for (u32 i=0;i<g_GPU.device_info->memory_properties.memoryTypeCount;i++)
-	{
-		if ((type&(1<<__MemoryIndex))
-			&&(g_GPU.device_info->memory_properties.memoryTypes[__MemoryIndex].propertyFlags&props)==props)
-			return i;
-		__MemoryIndex++;
-	}
-	COMM_ERR("failed to select memory by type. this is a fatal issue!");
-	return 0;
-}
-// TODO well this just has to be completely reworked before fully including this
-// TODO optimize, do not rely on coherent bit and flush explicitly later
-
-/**
- *	TODO
- */
-inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
-							 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
-{
-	// vertex buffer
-	VkBufferCreateInfo __BufferInfo = {  };
-	__BufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	__BufferInfo.size = size;
-	__BufferInfo.usage = fusage;
-	__BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	VkResult __Result = vkCreateBuffer(g_GPU.gpu,&__BufferInfo,nullptr,&vbo);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
-
-	// analyze memory type
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
-	u32 __MemoryIndex = _choose_memory_type(fproperty,__MemoryRequirements.memoryTypeBits);
-	// TODO iterate memory
-
-	// buffer memory allocation
-	VkMemoryAllocateInfo __MallocInfo = {  };
-	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MallocInfo.allocationSize = __MemoryRequirements.size;
-	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
-
-	// bind memory to vbo
-	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
-	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
-}
-
-#endif
-
-
-// ----------------------------------------------------------------------------------------------------
 // Rendertarget Colour Buffers
 
 /**
@@ -73,14 +12,13 @@ inline void _generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 Framebuffer::Framebuffer(u8 count,bool depth)
 	: m_DepthChannel(count),m_HasDepth(depth),m_Size(count+depth)
 {
-	m_Components.resize(count+depth);
+	components.resize(count+depth);
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
 	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
-
 #else
 	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(count,&m_Components[0]);
+	glGenTextures(count,&components[0]);
 #endif
 }
 
@@ -100,10 +38,34 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
 	if (allocate)
 	{
 		// allocate image
+		/*
+		VkFormat __AttachmentFormat = g_GPU.choose_texture_format(
+				(fbuffer)?{ VK_FORMAT_B8G8R8A8_UNORM,VK_FORMAT_R8G8B8A8_UNORM }:{ VK_FORMAT_R16G16B16_SFLOAT },
+				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+			);
+		VkImageCreateInfo __ImageInfo = {  };
+		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+		__ImageInfo.extent.width = width;
+		__ImageInfo.extent.height = height;
+		__ImageInfo.extent.depth = 1;
+		__ImageInfo.mipLevels = 1;
+		__ImageInfo.arrayLayers = 1;
+		__ImageInfo.format = __AttachmentFormat;
+		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		__ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		__ImageInfo.flags = 0;
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_);
+		*/
+
 		// allocate vram
 		// colour buffer image view handle
 	}
 	// TODO implement image allocation like with depth buffer
+	// FIXME repeated code again, with no concept of sensible abstraction
 
 	// specify colour component
 	m_ColourComponentSetup[index] = {};
@@ -126,10 +88,10 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
 	// TODO research if different component resolutions are even viable and check for standard setup impl.
 
 #else
-	glBindTexture(GL_TEXTURE_2D,m_Components[index]);
+	glBindTexture(GL_TEXTURE_2D,components[index]);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,width,height,0,GL_RGBA,GL_UNSIGNED_INT+fbuffer,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
-	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,m_Components[index],0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+index,GL_TEXTURE_2D,components[index],0);
 #endif
 }
 // TODO maybe define index inside the framebuffer struct as a cursor counter variable
@@ -138,71 +100,78 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
  *	depth component definition, only a single one per framebuffer allowed for obvious reasons
  *	\param width: resolution width
  *	\param height: resolution height
+ *	TODO
  */
-void Framebuffer::define_depth_component(f32 width,f32 height)
+void Framebuffer::define_depth_component(f32 width,f32 height,bool allocate)
 {
 	COMM_ERR_COND(!m_HasDepth,
 				  "framebuffer defines depth component, but no previous signal for allocation was set");
 
 #ifdef VKBUILD
-	// allocate image
+	// acquire adequat format
 	VkFormat __DepthStencilFormat = g_GPU.choose_texture_format(
-				{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
-				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
-	VkImageCreateInfo __ImageInfo = {  };
-	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = width;
-	__ImageInfo.extent.height = height;
-	__ImageInfo.extent.depth = 1;
-	__ImageInfo.mipLevels = 1;
-	__ImageInfo.arrayLayers = 1;
-	__ImageInfo.format = __DepthStencilFormat;
-	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	__ImageInfo.flags = 0;
-	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
-	// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
-	// allocate vram
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-													   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-	vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
-	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
+	// allocate image
+	if (allocate)
+	{
+		VkImageCreateInfo __ImageInfo = {  };
+		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+		__ImageInfo.extent.width = width;
+		__ImageInfo.extent.height = height;
+		__ImageInfo.extent.depth = 1;
+		__ImageInfo.mipLevels = 1;
+		__ImageInfo.arrayLayers = 1;
+		__ImageInfo.format = __DepthStencilFormat;
+		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		__ImageInfo.flags = 0;
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
+		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
-	// depth buffer image view handle
-	VkImageViewCreateInfo __ImageViewInfo = {  };
-	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__ImageViewInfo.image = m_DepthStencilBuffer;
-	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = __DepthStencilFormat;
-	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-	__ImageViewInfo.subresourceRange.levelCount = 1;
-	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = 1;
-	__ImageViewInfo.components = {
-		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-	};
-	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
-	// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
-	// TODO this is much more abstractable, but also not really?
-	// TODO allow for independent depth buffer allocation (?in blitter) and bind just like result colour buffer
+		// allocate vram
+		VkMemoryRequirements __MemoryRequirements;
+		vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
+		VkMemoryAllocateInfo __MemoryInfo = {  };
+		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		__MemoryInfo.allocationSize = __MemoryRequirements.size;
+		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+															   __MemoryRequirements.memoryTypeBits);
+		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+		vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
+		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
+
+		// depth buffer image view handle
+		VkImageViewCreateInfo __ImageViewInfo = {  };
+		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		__ImageViewInfo.image = m_DepthStencilBuffer;
+		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		__ImageViewInfo.format = __DepthStencilFormat;
+		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+		__ImageViewInfo.subresourceRange.levelCount = 1;
+		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+		__ImageViewInfo.subresourceRange.layerCount = 1;
+		__ImageViewInfo.components = {
+			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+		};
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
+		// TODO this is much more abstractable, but also not really?
+		// TODO allow for independent depth buffer allocation (?in blitter) and bind just result colour buffer
+	}
 
 	// depth component
 	m_ColourComponentSetup[m_DepthChannel] = {};
@@ -271,7 +240,7 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
 	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = m_Components.size();
+	__RPInfo.attachmentCount = components.size();
 	__RPInfo.pAttachments = m_ColourComponentSetup;
 	__RPInfo.subpassCount = 1;
 	__RPInfo.pSubpasses = &__SubpassDesc;
@@ -286,11 +255,11 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 		VkFramebufferCreateInfo __FramebufferInfo = {  };
 		__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		__FramebufferInfo.renderPass = render_pass;
-		__FramebufferInfo.attachmentCount = m_Components.size();
+		__FramebufferInfo.attachmentCount = components.size();
 		__FramebufferInfo.width = g_Frame.swapchain.extent.width;
 		__FramebufferInfo.height = g_Frame.swapchain.extent.height;  // TODO change!
 		__FramebufferInfo.layers = 1;
-		__FramebufferInfo.pAttachments = &m_Components[0];
+		__FramebufferInfo.pAttachments = &components[0];
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
 	}
 
@@ -299,9 +268,9 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 	free(m_ColourComponentReference);
 
 #else
-	u32 __Attachments[m_Components.size()];
-	for (u8 i=0;i<m_Components.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
-	glDrawBuffers(m_Components.size(),__Attachments);
+	u32 __Attachments[components.size()];
+	for (u8 i=0;i<components.size();i++) __Attachments[i] = GL_COLOR_ATTACHMENT0+i;
+	glDrawBuffers(components.size(),__Attachments);
 #endif
 }
 
@@ -388,7 +357,6 @@ void Framebuffer::bind_colour_component(u8 channel,u8 i)
 void Framebuffer::bind_depth_component(u8 channel)
 {
 	Texture::set_channel(channel);
-
 #ifdef VKBUILD
 	// TODO
 #else
@@ -421,12 +389,12 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 #ifdef VKBUILD
 
 	// generate buffers for host & device memory
-	_generate_buffer(vbo,m_Memory,size,
-					 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-					 |VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
-					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	_generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	GPU::generate_buffer(vbo,m_Memory,size,
+						 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+						 |VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
+						 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	GPU::generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&m_Data);
 
 	// assemble buffer copy info
@@ -580,7 +548,7 @@ inline static VkBufferMemoryBarrier _generate_memory_barrier()
 	__Barrier.size = VK_WHOLE_SIZE;
 	return __Barrier;
 }
-// TODO this belongs at the beginning of the file
+// TODO this belongs at the beginning of the file or maybe even in hardware?
 
 /**
  *	TODO
@@ -995,8 +963,8 @@ void GPUPixelBuffer::load_texture(const char* path)
 	size_t __ImageSize = __TextureData.width*__TextureData.height*4;
 
 	// image buffer
-	_generate_buffer(m_StagingBuffer,m_StagingMemory,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.flags = 0;
@@ -1038,8 +1006,8 @@ void GPUPixelBuffer::load_texture(const char* path)
 	VkMemoryAllocateInfo __MemoryInfo = {  };
 	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = _choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-													   __MemoryRequirements.memoryTypeBits);
+	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+														   __MemoryRequirements.memoryTypeBits);
 	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
 	vkBindImageMemory(g_GPU.gpu,m_Texture,m_TextureMemory,0);
@@ -1544,8 +1512,8 @@ void UniformBuffer::assemble()
 	// generate buffer
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		_generate_buffer(m_UBO[i],m_UBOMemory[i],m_Size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],m_Size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,m_Size,0,&m_UBOMapped[i]);
 	}
 	// TODO stage this too? host_visible? i don't think so bröther

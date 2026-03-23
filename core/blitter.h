@@ -73,6 +73,7 @@ public:
 
 	// image buffers
 	vector<VkImage> images;
+	vector<VkDeviceMemory> imemory;
 	vector<VkImageView> image_views;  // TODO outsource this part into image buffers later!
 	vector<VkFramebuffer> framebuffers;
 	vector<VkSemaphore> render_done;  // TODO this all belongs together i think
@@ -84,7 +85,9 @@ private:
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
 	VkRenderPass p_RenderPass;
-	VkImageView m_DepthBuffer;
+	vector<VkImage> m_DepthComponents;
+	vector<VkDeviceMemory> m_DepthMemory;
+	vector<VkImageView> m_DepthViews;  // TODO join with colour result attachments to skip explicit combination
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

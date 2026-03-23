@@ -32,8 +32,8 @@ class Framebuffer
 {
 public:
 	Framebuffer(u8 count,bool depth=false);
-	void define_colour_component(u8 index,f32 width,f32 height,bool alloc=true,bool fbuffer=false);
-	void define_depth_component(f32 width,f32 height);
+	void define_colour_component(u8 index,f32 width,f32 height,bool allocate=true,bool fbuffer=false);
+	void define_depth_component(f32 width,f32 height,bool allocate=true);
 	void finalize(bool foreign_framebuffer=false);
 	void vanish();
 
@@ -55,6 +55,8 @@ public:
 private:
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
+	vector<VkImage> m_AttachmentImages;
+	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkImage m_DepthStencilBuffer;
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
@@ -67,7 +69,7 @@ private:
 	bool m_HasDepth;
 
 	// textures
-	vector<__fbuffer_component> m_Components;  // FIXME only when not target? how to?
+	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
 	//__fbuffer_component m_DepthComponent;  // TODO remove this
 };
 // TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature

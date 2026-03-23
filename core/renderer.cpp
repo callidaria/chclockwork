@@ -691,16 +691,20 @@ Renderer::Renderer()
 	}
 
 	// result target
-	m_ResultBuffer.define_colour_component(0,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
-	m_ResultBuffer.define_depth_component(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
+	m_ResultBuffer.define_colour_component(0,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+										   false);
+	m_ResultBuffer.define_depth_component(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+										  false);
 	m_ResultBuffer.finalize(true);
 	m_ResultBuffer.link_output();
 
 	// render target
+	/*
 	m_Framebuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	//m_Framebuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	m_Framebuffer.finalize();
+	*/
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);

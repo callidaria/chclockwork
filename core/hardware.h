@@ -76,6 +76,12 @@ enum GPUFeature : u8
 	GPU_FEATURE_COUNT
 };
 
+enum TextureType
+{
+	TEXTURE_TYPE_COLOUR_BUFFER,
+	TEXTURE_TYPE_FLOAT_BUFFER,
+	TEXTURE_TYPE_DEPTH_BUFFER,
+};
 
 struct GPU
 {
@@ -97,6 +103,11 @@ struct GPU
 	// update
 	void swap();
 	void update(VkSemaphore* blit_ready);
+
+	// utility
+	static u32 choose_memory_type(VkMemoryPropertyFlags props,u32 type);
+	static void generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+								VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty);
 
 	// resources
 	void free(VkBuffer res);
