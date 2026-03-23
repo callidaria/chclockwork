@@ -8,9 +8,10 @@
  *	allocate memory for framebuffer
  *	\param count: number of components, that will be defined for this framebuffer
  *	\param depth: (default false) true when framebuffer has a depth-stencil component
+ *	TODO update
  */
-Framebuffer::Framebuffer(u8 count,bool depth)
-	: m_DepthChannel(count),m_HasDepth(depth),m_Size(count+depth)
+Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
+	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth)
 {
 	components.resize(count+depth);
 #ifdef VKBUILD
@@ -30,7 +31,7 @@ Framebuffer::Framebuffer(u8 count,bool depth)
  *	\param skip_alloc: (default true) false if image allocation should be skipped, e.g. when result is linked
  *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
  */
-void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool allocate,bool fbuffer)
+inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool allocate,bool fbuffer)
 {
 	COMM_ERR_COND(!(index<m_DepthChannel),"colour component definition index outside of valid allocated range");
 
@@ -60,6 +61,7 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
 		__ImageInfo.flags = 0;
 		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_);
 		*/
+		// TODO implement
 
 		// allocate vram
 		// colour buffer image view handle
@@ -97,12 +99,20 @@ void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool all
 // TODO maybe define index inside the framebuffer struct as a cursor counter variable
 
 /**
+ *	TODO
+ */
+void Framebuffer::define_colour_component(u8 index,bool allocate,bool fbuffer)
+{
+	define_colour_component(index,m_Width,m_Height,allocate,fbuffer);
+}
+
+/**
  *	depth component definition, only a single one per framebuffer allowed for obvious reasons
  *	\param width: resolution width
  *	\param height: resolution height
  *	TODO
  */
-void Framebuffer::define_depth_component(f32 width,f32 height,bool allocate)
+inline void Framebuffer::define_depth_component(f32 width,f32 height,bool allocate)
 {
 	COMM_ERR_COND(!m_HasDepth,
 				  "framebuffer defines depth component, but no previous signal for allocation was set");
@@ -202,6 +212,14 @@ void Framebuffer::define_depth_component(f32 width,f32 height,bool allocate)
 /**
  *	TODO
  */
+void Framebuffer::define_depth_component(bool allocate)
+{
+	define_depth_component(m_Width,m_Height,allocate);
+}
+
+/**
+ *	TODO
+ */
 /*
 void Framebuffer::define_subpass()
 {
@@ -262,6 +280,7 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 		__FramebufferInfo.pAttachments = &components[0];
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
 	}
+	// TODO remove this feature again, once the result buffer structure has been established
 
 	// clear setup memory
 	free(m_ColourComponentSetup);
@@ -305,7 +324,7 @@ void Framebuffer::record()
 	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
-	__RPBeginInfo.clearValueCount = m_Size;
+	__RPBeginInfo.clearValueCount = components.size();
 	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 
@@ -599,7 +618,7 @@ void VertexArray::transfer_ownership()
 /**
  *	TODO
  */
-void VertexArray::bind(const Framebuffer& fb)
+void VertexArray::bind()
 {
 	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
 }
@@ -607,7 +626,7 @@ void VertexArray::bind(const Framebuffer& fb)
 /**
  *	TODO
  */
-void VertexArray::bind_indexed(const Framebuffer& fb)
+void VertexArray::bind_indexed()
 {
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;

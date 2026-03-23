@@ -31,9 +31,11 @@ __fbuffer_component;
 class Framebuffer
 {
 public:
-	Framebuffer(u8 count,bool depth=false);
+	Framebuffer(u8 count,f32 width,f32 height,bool depth=false);
 	void define_colour_component(u8 index,f32 width,f32 height,bool allocate=true,bool fbuffer=false);
+	void define_colour_component(u8 index,bool allocate=true,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height,bool allocate=true);
+	void define_depth_component(bool allocate=true);
 	void finalize(bool foreign_framebuffer=false);
 	void vanish();
 
@@ -53,6 +55,7 @@ public:
 	VkRenderPass render_pass;
 	// TODO switch back to private and somehow add to pipeline?
 private:
+	f32 m_Width,m_Height;
 	VkAttachmentDescription* m_ColourComponentSetup;
 	VkAttachmentReference* m_ColourComponentReference;
 	vector<VkImage> m_AttachmentImages;
@@ -61,7 +64,6 @@ private:
 	VkDeviceMemory m_DepthBufferMemory;
 	VkImageView m_DepthBufferView;
 	VkFramebuffer m_Framebuffer;
-	u8 m_Size = 0;
 #else
 	u32 m_Buffer;
 #endif
@@ -131,8 +133,8 @@ public:
 
 	// update
 	void transfer_ownership();
-	void bind(const Framebuffer& fb);
-	void bind_indexed(const Framebuffer& fb);
+	void bind();
+	void bind_indexed();
 
 private:
 	vector<VkBuffer> m_Buffers;

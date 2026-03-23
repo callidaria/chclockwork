@@ -261,8 +261,9 @@ public:
 	void vanish();
 
 private:
-	Framebuffer m_ResultBuffer = Framebuffer(1,true);
-	Framebuffer m_Framebuffer = Framebuffer(1,true);
+	Framebuffer m_ResultBuffer
+			= Framebuffer(1,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,true);
+	//Framebuffer m_Framebuffer = Framebuffer(1,true);
 	ShaderPipeline m_TestingPipeline;
 	ShaderPipeline m_SpritePipeline;
 	VertexBuffer m_VertexBuffer;

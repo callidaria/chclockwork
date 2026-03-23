@@ -691,10 +691,8 @@ Renderer::Renderer()
 	}
 
 	// result target
-	m_ResultBuffer.define_colour_component(0,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
-										   false);
-	m_ResultBuffer.define_depth_component(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
-										  false);
+	m_ResultBuffer.define_colour_component(0,false);
+	m_ResultBuffer.define_depth_component(false);
 	m_ResultBuffer.finalize(true);
 	m_ResultBuffer.link_output();
 
@@ -809,7 +807,7 @@ void Renderer::update()
 
 	// orthogonal section
 	m_SpritePipeline.enable();
-	m_SpriteArray.bind(m_Framebuffer);
+	m_SpriteArray.bind();
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
 							m_SpritePipeline.pipeline_layout,0,1,
 							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
@@ -874,7 +872,7 @@ void Renderer::vanish()
 {
 	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
-	m_Framebuffer.vanish();
+	//m_Framebuffer.vanish();
 	m_ResultBuffer.vanish();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
