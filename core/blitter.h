@@ -8,6 +8,13 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
+struct ResultAttachmentTuple
+{
+	VkImageView colour;
+	VkImageView depth;
+};
+
+
 class Frame
 {
 public:
@@ -72,11 +79,8 @@ public:
 	VkClearValue clear_colour[2];  // TODO make this private, this should not be relevant outside frame
 
 	// image buffers
-	vector<VkImage> images;
-	vector<VkDeviceMemory> imemory;
-	vector<VkImageView> image_views;  // TODO outsource this part into image buffers later!
 	vector<VkFramebuffer> framebuffers;
-	vector<VkSemaphore> render_done;  // TODO this all belongs together i think
+	vector<VkSemaphore> render_done;
 	u32 frame_id = 0;
 
 private:
@@ -85,9 +89,10 @@ private:
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
 	VkRenderPass p_RenderPass;
+	vector<VkImage> m_Images;
+	vector<ResultAttachmentTuple> m_ResultViews;
 	vector<VkImage> m_DepthComponents;
 	vector<VkDeviceMemory> m_DepthMemory;
-	vector<VkImageView> m_DepthViews;  // TODO join with colour result attachments to skip explicit combination
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

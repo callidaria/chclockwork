@@ -78,8 +78,8 @@ Frame::Frame()
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	__ApplicationInfo.pApplicationName = FRAME_PROGRAM_TITLE;
 	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hanson's Clockwork";
-	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,1);
+	__ApplicationInfo.pEngineName = "C. Hansen's Counter-Clockwork";
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,2);
 
 	// api version selection with fallback to 1.0 if necessary
 	if (vkEnumerateInstanceVersion) vkEnumerateInstanceVersion(&__ApplicationInfo.apiVersion);
@@ -151,7 +151,9 @@ Frame::Frame()
 #ifdef DEBUG
 	COMM_LOG("setting up gpu error log");
 	PFN_vkCreateDebugUtilsMessengerEXT __CreateMessenger
-		= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance,"vkCreateDebugUtilsMessengerEXT");
+			= (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+					m_Instance,"vkCreateDebugUtilsMessengerEXT"
+				);
 	__Result = __CreateMessenger(m_Instance,&__DebugMessengerInfo,nullptr,&debug_messenger);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to set up gpu error logging");
 #endif
@@ -277,7 +279,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	for (u8 i=0;i<images.size();i++) g_GPU.free(render_done[i]);
+	for (u8 i=0;i<m_Images.size();i++) g_GPU.free(render_done[i]);
 	_destroy_swapchain();
 	g_GPU.stop();
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
@@ -401,8 +403,8 @@ void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
 	// image semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	render_done.resize(images.size());
-	for (u8 i=0;i<images.size();i++)
+	render_done.resize(m_Images.size());
+	for (u8 i=0;i<m_Images.size();i++)
 	{
 		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
@@ -507,13 +509,13 @@ swap_chain_creation:
 	u32 __SCICount;
 	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,nullptr);
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
-	images.resize(__SCICount);
-	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&images[0]);
+	m_Images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&m_Images[0]);
+	m_ResultViews.resize(__SCICount);
 
 	// create related depth buffers
 	m_DepthComponents.resize(__SCICount);
 	m_DepthMemory.resize(__SCICount);
-	m_DepthViews.resize(__SCICount);
 	VkFormat __DepthStencilFormat = g_GPU.choose_texture_format(
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
 			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
@@ -568,12 +570,11 @@ swap_chain_creation:
 			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
 			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
 		};
-		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthViews[i]);
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_ResultViews[i].depth);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 	}
 
 	// image view memory & creation info setup
-	image_views.resize(__SCICount);
 	VkImageViewCreateInfo __IVInfo = {  };
 	__IVInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__IVInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -593,8 +594,8 @@ swap_chain_creation:
 	// iterate images to create image views
 	for (u32 i=0;i<__SCICount;i++)
 	{
-		__IVInfo.image = images[i];
-		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&image_views[i]);
+		__IVInfo.image = m_Images[i];
+		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&m_ResultViews[i].colour);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
@@ -634,14 +635,14 @@ void Frame::_finalize_swapchain()
 
 	// allocate & iterate framebuffer creation
 	VkResult __Result;
-	framebuffers.resize(image_views.size());
-	for (u32 i=0;i<image_views.size();i++)
+	framebuffers.resize(m_ResultViews.size());
+	for (u32 i=0;i<m_ResultViews.size();i++)
 	{
-		VkImageView __Attachments[] = { image_views[i],m_DepthViews[i] };
-		__FramebufferInfo.pAttachments = __Attachments;
+		__FramebufferInfo.pAttachments = &m_ResultViews[i].colour;
 		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
 	}
+	// TODO abstract in result buffer, that uses the multiple framebuffers, skipping allocation only for colour
 }
 
 /**
@@ -650,8 +651,11 @@ void Frame::_finalize_swapchain()
 void Frame::_destroy_swapchain()
 {
 	for (VkFramebuffer p_Framebuffer : framebuffers) g_GPU.free(p_Framebuffer);
-	for (VkImageView p_ImageView : image_views) g_GPU.free(p_ImageView);
-	for (VkImageView p_ImageView : m_DepthViews) g_GPU.free(p_ImageView);
+	for (ResultAttachmentTuple p_Tuple : m_ResultViews)
+	{
+		g_GPU.free(p_Tuple.colour);
+		g_GPU.free(p_Tuple.depth);
+	}
 	for (VkImage p_Image : m_DepthComponents) g_GPU.free(p_Image);
 	for (VkDeviceMemory p_Memory : m_DepthMemory) g_GPU.free(p_Memory);
 	g_GPU.free(swapchain.swapchain);
