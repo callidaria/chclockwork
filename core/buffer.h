@@ -32,10 +32,10 @@ class Framebuffer
 {
 public:
 	Framebuffer(u8 count,f32 width,f32 height,bool depth=false);
-	void define_colour_component(u8 index,f32 width,f32 height,bool allocate=true,bool fbuffer=false);
-	void define_colour_component(u8 index,bool allocate=true,bool fbuffer=false);
-	void define_depth_component(f32 width,f32 height,bool allocate=true);
-	void define_depth_component(bool allocate=true);
+	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false,u8 result_buffer=-1);
+	void define_colour_component(u8 index,bool fbuffer=false,u8 result_buffer=-1);
+	void define_depth_component(f32 width,f32 height);
+	void define_depth_component();
 	void finalize();
 	void vanish();
 
@@ -48,8 +48,7 @@ public:
 private:
 #ifdef VKBUILD
 public:
-	VkRenderPass render_pass;
-	// TODO switch back to private and somehow add to pipeline?
+	VkRenderPass render_pass;  // TODO switch back to private and somehow add to pipeline?
 private:
 	f32 m_Width,m_Height;
 	VkAttachmentDescription* m_ColourComponentSetup;
@@ -65,11 +64,7 @@ private:
 
 	// textures
 	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
-	//__fbuffer_component m_DepthComponent;  // TODO remove this
 };
-// TODO create pipelines instead of framebuffers! this allows the engine to use the subpass feature
-// TODO allocate depth component together with colours, not on-demand. this reduces the allocations by ~half(WC)
-// TODO maybe create pipeline feature from this and implement this for ogl version with recursive fb chains
 
 
 // ----------------------------------------------------------------------------------------------------

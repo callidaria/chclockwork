@@ -505,6 +505,10 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
 
+
+// ----------------------------------------------------------------------------------------------------
+// Destruction
+
 /**
  *	free given gpu related resources
  *	\param res: resource of any supported type, that will be removed

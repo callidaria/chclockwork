@@ -33,13 +33,14 @@ Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
  *	\param height: resolution height
  *	\param skip_alloc: (default true) false if image allocation should be skipped, e.g. when result is linked
  *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
+ *	TODO update
  */
-inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool allocate,bool fbuffer)
+inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer,u8 result_buffer)
 {
 	COMM_ERR_COND(!(index<m_DepthChannel),"colour component definition index outside of valid allocated range");
 
 #ifdef VKBUILD
-	if (allocate)
+	if (result_buffer<0)
 	{
 		// allocate image
 		/*
@@ -74,8 +75,8 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 
 	else
 	{
-		m_AttachmentImages[index] = g_Frame.result_images[0];
-		components[index] = g_Frame.result_image_views[0];
+		m_AttachmentImages[index] = g_Frame.result_images[result_buffer];
+		components[index] = g_Frame.result_image_views[result_buffer];
 	}
 
 	// specify colour component
@@ -110,9 +111,9 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 /**
  *	TODO
  */
-void Framebuffer::define_colour_component(u8 index,bool allocate,bool fbuffer)
+void Framebuffer::define_colour_component(u8 index,bool fbuffer,u8 result_buffer)
 {
-	define_colour_component(index,m_Width,m_Height,allocate,fbuffer);
+	define_colour_component(index,m_Width,m_Height,fbuffer,result_buffer);
 }
 
 /**
@@ -121,7 +122,7 @@ void Framebuffer::define_colour_component(u8 index,bool allocate,bool fbuffer)
  *	\param height: resolution height
  *	TODO
  */
-inline void Framebuffer::define_depth_component(f32 width,f32 height,bool allocate)
+inline void Framebuffer::define_depth_component(f32 width,f32 height)
 {
 	COMM_ERR_COND(!m_HasDepth,
 				  "framebuffer defines depth component, but no previous signal for allocation was set");
@@ -213,14 +214,15 @@ inline void Framebuffer::define_depth_component(f32 width,f32 height,bool alloca
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
 #endif
 }
+// TODO split render pass definition and buffer data from each other and use independently
 // TODO this way the depth component can't be used when finalizing, the depth belongs into constructor malloc
 
 /**
  *	TODO
  */
-void Framebuffer::define_depth_component(bool allocate)
+void Framebuffer::define_depth_component()
 {
-	define_depth_component(m_Width,m_Height,allocate);
+	define_depth_component(m_Width,m_Height);
 }
 
 /**

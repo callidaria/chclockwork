@@ -691,9 +691,16 @@ Renderer::Renderer()
 	}
 
 	// result target
-	m_ResultBuffer.define_colour_component(0,false);
-	m_ResultBuffer.define_depth_component();
-	m_ResultBuffer.finalize();
+	m_ResultBuffers.reserve(g_Frame.result_image_views.size());
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
+	{
+		m_ResultBuffers.push_back(
+				Framebuffer(1,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,true)
+			);
+		m_ResultBuffers.back().define_colour_component(0,false,i);
+		m_ResultBuffers.back().define_depth_component();
+		m_ResultBuffers.back().finalize();
+	}
 
 	// render target
 	/*
@@ -750,7 +757,7 @@ Renderer::Renderer()
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
 	*/
-	m_SpritePipeline.assemble(m_ResultBuffer,
+	m_SpritePipeline.assemble(m_ResultBuffers[0],
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// upload 2D coordinate system
@@ -799,7 +806,7 @@ void Renderer::update()
 	*/
 
 	// combine result
-	m_ResultBuffer.record();
+	m_ResultBuffers[g_Frame.frame_id].record();
 
 	// perspective section
 	// TODO
@@ -813,7 +820,7 @@ void Renderer::update()
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// end result
-	m_ResultBuffer.stop();
+	m_ResultBuffers[g_Frame.frame_id].stop();
 }
 
 /**
@@ -872,7 +879,7 @@ void Renderer::vanish()
 	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
 	//m_Framebuffer.vanish();
-	m_ResultBuffer.vanish();
+	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
