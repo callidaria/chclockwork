@@ -279,14 +279,14 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
-	for (u8 i=0;i<m_Images.size();i++) g_GPU.free(render_done[i]);
+	for (u8 i=0;i<result_images.size();i++) g_GPU.free(render_done[i]);
 	_destroy_swapchain();
 	g_GPU.stop();
 	vkDestroySurfaceKHR(m_Instance,m_Surface,nullptr);
 #ifdef DEBUG
 	PFN_vkDestroyDebugUtilsMessengerEXT __DestroyMessenger
-		= (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(m_Instance,
-																	  "vkDestroyDebugUtilsMessengerEXT");
+		= (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance,
+																	 "vkDestroyDebugUtilsMessengerEXT");
 	__DestroyMessenger(m_Instance,debug_messenger,nullptr);
 #endif
 	vkDestroyInstance(m_Instance,nullptr);
@@ -382,7 +382,7 @@ void Frame::rebuild_swapchain()
 	_destroy_swapchain();
 	_assemble_swapchain();
 	// TODO recreate render pass as well?
-	_finalize_swapchain();
+	//_finalize_swapchain();  // TODO recreate result buffer somehow?
 }
 
 /**
@@ -392,19 +392,11 @@ void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
 {
 	COMM_LOG("registration of final result pipeline");
 
-	// depth buffer reference
-	//m_DepthBuffer = depth_buffer;
-	// TODO this is not the way. keep all the framebuffer things in one basket
-
-	// generate framebuffers
-	p_RenderPass = render_pass;
-	_finalize_swapchain();
-
 	// image semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
 	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	render_done.resize(m_Images.size());
-	for (u8 i=0;i<m_Images.size();i++)
+	render_done.resize(result_images.size());
+	for (u8 i=0;i<result_images.size();i++)
 	{
 		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
@@ -412,6 +404,7 @@ void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
 
 	COMM_SCC("render pipeline ready.");
 }
+// TODO remove this
 
 /**
  *	TODO
@@ -509,70 +502,9 @@ swap_chain_creation:
 	u32 __SCICount;
 	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,nullptr);
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
-	m_Images.resize(__SCICount);
-	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&m_Images[0]);
-	m_ResultViews.resize(__SCICount);
-
-	// create related depth buffers
-	m_DepthComponents.resize(__SCICount);
-	m_DepthMemory.resize(__SCICount);
-	VkFormat __DepthStencilFormat = g_GPU.choose_texture_format(
-			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
-			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-		);
-	for (u8 i=0;i<__SCICount;i++)
-	{
-		// create image
-		VkImageCreateInfo __ImageInfo = {  };
-		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = swapchain.extent.width;
-		__ImageInfo.extent.height = swapchain.extent.height;
-		__ImageInfo.extent.depth = 1;
-		__ImageInfo.mipLevels = 1;
-		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = __DepthStencilFormat;
-		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthComponents[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create result depth buffer");
-
-		// allocate vram
-		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthComponents[i],&__MemoryRequirements);
-		VkMemoryAllocateInfo __MemoryInfo = {  };
-		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		__MemoryInfo.allocationSize = __MemoryRequirements.size;
-		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-															   __MemoryRequirements.memoryTypeBits);
-		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthMemory[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for result depth buffer");
-		vkBindImageMemory(g_GPU.gpu,m_DepthComponents[i],m_DepthMemory[i],0);
-
-		// depth buffer image view handle
-		VkImageViewCreateInfo __ImageViewInfo = {  };
-		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = m_DepthComponents[i];
-		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		__ImageViewInfo.format = __DepthStencilFormat;
-		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-		__ImageViewInfo.subresourceRange.levelCount = 1;
-		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-		__ImageViewInfo.subresourceRange.layerCount = 1;
-		__ImageViewInfo.components = {
-			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-		};
-		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_ResultViews[i].depth);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
-	}
+	result_images.resize(__SCICount);
+	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&result_images[0]);
+	// TODO investigate against buffer count & discrepancy details...
 
 	// image view memory & creation info setup
 	VkImageViewCreateInfo __IVInfo = {  };
@@ -592,13 +524,15 @@ swap_chain_creation:
 	__IVInfo.subresourceRange.layerCount = 1;
 
 	// iterate images to create image views
+	result_image_views.resize(__SCICount);
 	for (u32 i=0;i<__SCICount;i++)
 	{
-		__IVInfo.image = m_Images[i];
-		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&m_ResultViews[i].colour);
+		__IVInfo.image = result_images[i];
+		__Result = vkCreateImageView(g_GPU.gpu,&__IVInfo,nullptr,&result_image_views[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
+	// TODO repeating code is fine here? just a small definition for result buffers?
 
 	// viewport setup
 	viewport = {
@@ -622,42 +556,8 @@ swap_chain_creation:
 /**
  *	TODO
  */
-void Frame::_finalize_swapchain()
-{
-	// basic setup for all final framebuffers
-	VkFramebufferCreateInfo __FramebufferInfo = {  };
-	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = p_RenderPass;
-	__FramebufferInfo.attachmentCount = 2;
-	__FramebufferInfo.width = swapchain.extent.width;
-	__FramebufferInfo.height = swapchain.extent.height;
-	__FramebufferInfo.layers = 1;
-
-	// allocate & iterate framebuffer creation
-	VkResult __Result;
-	framebuffers.resize(m_ResultViews.size());
-	for (u32 i=0;i<m_ResultViews.size();i++)
-	{
-		__FramebufferInfo.pAttachments = &m_ResultViews[i].colour;
-		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&framebuffers[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer %u",i);
-	}
-	// TODO abstract in result buffer, that uses the multiple framebuffers, skipping allocation only for colour
-}
-
-/**
- *	TODO
- */
 void Frame::_destroy_swapchain()
 {
-	for (VkFramebuffer p_Framebuffer : framebuffers) g_GPU.free(p_Framebuffer);
-	for (ResultAttachmentTuple p_Tuple : m_ResultViews)
-	{
-		g_GPU.free(p_Tuple.colour);
-		g_GPU.free(p_Tuple.depth);
-	}
-	for (VkImage p_Image : m_DepthComponents) g_GPU.free(p_Image);
-	for (VkDeviceMemory p_Memory : m_DepthMemory) g_GPU.free(p_Memory);
 	g_GPU.free(swapchain.swapchain);
 }
 

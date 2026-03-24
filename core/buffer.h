@@ -36,7 +36,7 @@ public:
 	void define_colour_component(u8 index,bool allocate=true,bool fbuffer=false);
 	void define_depth_component(f32 width,f32 height,bool allocate=true);
 	void define_depth_component(bool allocate=true);
-	void finalize(bool foreign_framebuffer=false);
+	void finalize();
 	void vanish();
 
 	// usage
@@ -60,9 +60,6 @@ private:
 	VkAttachmentReference* m_ColourComponentReference;
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
-	VkImage m_DepthStencilBuffer;
-	VkDeviceMemory m_DepthBufferMemory;
-	VkImageView m_DepthBufferView;
 	VkFramebuffer m_Framebuffer;
 #else
 	u32 m_Buffer;

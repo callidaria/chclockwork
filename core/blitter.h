@@ -8,11 +8,13 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
+/*
 struct ResultAttachmentTuple
 {
 	VkImageView colour;
 	VkImageView depth;
 };
+*/
 
 
 class Frame
@@ -76,10 +78,11 @@ public:
 	SwapChain swapchain;
 	VkViewport viewport;
 	VkRect2D scissor;
-	VkClearValue clear_colour[2];  // TODO make this private, this should not be relevant outside frame
+	VkClearValue clear_colour[2];
 
 	// image buffers
-	vector<VkFramebuffer> framebuffers;
+	vector<VkImage> result_images;
+	vector<VkImageView> result_image_views;
 	vector<VkSemaphore> render_done;
 	u32 frame_id = 0;
 
@@ -88,11 +91,6 @@ private:
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
 	VkPresentInfoKHR m_PresentInfo = {  };
-	VkRenderPass p_RenderPass;
-	vector<VkImage> m_Images;
-	vector<ResultAttachmentTuple> m_ResultViews;
-	vector<VkImage> m_DepthComponents;
-	vector<VkDeviceMemory> m_DepthMemory;
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif

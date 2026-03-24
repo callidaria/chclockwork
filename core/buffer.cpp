@@ -13,10 +13,13 @@
 Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
 	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth)
 {
-	components.resize(count+depth);
+	u8 __ComponentCount = count+depth;
+	components.resize(__ComponentCount);
 #ifdef VKBUILD
 	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
 	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
+	m_AttachmentImages.resize(__ComponentCount);
+	m_AttachmentMemory.resize(__ComponentCount);
 #else
 	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(count,&components[0]);
@@ -68,6 +71,12 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 	}
 	// TODO implement image allocation like with depth buffer
 	// FIXME repeated code again, with no concept of sensible abstraction
+
+	else
+	{
+		m_AttachmentImages[index] = g_Frame.result_images[0];
+		components[index] = g_Frame.result_image_views[0];
+	}
 
 	// specify colour component
 	m_ColourComponentSetup[index] = {};
@@ -125,63 +134,60 @@ inline void Framebuffer::define_depth_component(f32 width,f32 height,bool alloca
 		);
 
 	// allocate image
-	if (allocate)
-	{
-		VkImageCreateInfo __ImageInfo = {  };
-		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = width;
-		__ImageInfo.extent.height = height;
-		__ImageInfo.extent.depth = 1;
-		__ImageInfo.mipLevels = 1;
-		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = __DepthStencilFormat;
-		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_DepthStencilBuffer);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
-		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
+	VkImageCreateInfo __ImageInfo = {  };
+	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+	__ImageInfo.extent.width = width;
+	__ImageInfo.extent.height = height;
+	__ImageInfo.extent.depth = 1;
+	__ImageInfo.mipLevels = 1;
+	__ImageInfo.arrayLayers = 1;
+	__ImageInfo.format = __DepthStencilFormat;
+	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	__ImageInfo.flags = 0;
+	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[m_DepthChannel]);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
+	// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
-		// allocate vram
-		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,m_DepthStencilBuffer,&__MemoryRequirements);
-		VkMemoryAllocateInfo __MemoryInfo = {  };
-		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		__MemoryInfo.allocationSize = __MemoryRequirements.size;
-		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-															   __MemoryRequirements.memoryTypeBits);
-		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_DepthBufferMemory);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-		vkBindImageMemory(g_GPU.gpu,m_DepthStencilBuffer,m_DepthBufferMemory,0);
-		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
+	// allocate vram
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[m_DepthChannel],&__MemoryRequirements);
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
+	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+														   __MemoryRequirements.memoryTypeBits);
+	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[m_DepthChannel]);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+	vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[m_DepthChannel],m_AttachmentMemory[m_DepthChannel],0);
+	// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
-		// depth buffer image view handle
-		VkImageViewCreateInfo __ImageViewInfo = {  };
-		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = m_DepthStencilBuffer;
-		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		__ImageViewInfo.format = __DepthStencilFormat;
-		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-		__ImageViewInfo.subresourceRange.levelCount = 1;
-		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-		__ImageViewInfo.subresourceRange.layerCount = 1;
-		__ImageViewInfo.components = {
-			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-		};
-		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&m_DepthBufferView);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
-		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
-		// TODO this is much more abstractable, but also not really?
-		// TODO allow for independent depth buffer allocation (?in blitter) and bind just result colour buffer
-	}
+	// depth buffer image view handle
+	VkImageViewCreateInfo __ImageViewInfo = {  };
+	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__ImageViewInfo.image = m_AttachmentImages[m_DepthChannel];
+	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.format = __DepthStencilFormat;
+	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+	__ImageViewInfo.subresourceRange.levelCount = 1;
+	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[m_DepthChannel]);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+	// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
+	// TODO this is much more abstractable, but also not really?
+	// TODO allow for independent depth buffer allocation (?in blitter) and bind just result colour buffer
 
 	// depth component
 	m_ColourComponentSetup[m_DepthChannel] = {};
@@ -232,7 +238,7 @@ void Framebuffer::define_subpass()
  *	NOTE: this has to happen after definitions of all components
  *	TODO update
  */
-void Framebuffer::finalize(bool foreign_framebuffer)
+void Framebuffer::finalize()
 {
 #ifdef VKBUILD
 	// specify graphical subpass
@@ -268,19 +274,16 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
 
 	// create framebuffer
-	if (!foreign_framebuffer)
-	{
-		VkFramebufferCreateInfo __FramebufferInfo = {  };
-		__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		__FramebufferInfo.renderPass = render_pass;
-		__FramebufferInfo.attachmentCount = components.size();
-		__FramebufferInfo.width = g_Frame.swapchain.extent.width;
-		__FramebufferInfo.height = g_Frame.swapchain.extent.height;  // TODO change!
-		__FramebufferInfo.layers = 1;
-		__FramebufferInfo.pAttachments = &components[0];
-		__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
-	}
-	// TODO remove this feature again, once the result buffer structure has been established
+	VkFramebufferCreateInfo __FramebufferInfo = {  };
+	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.attachmentCount = components.size();
+	__FramebufferInfo.width = m_Width;
+	__FramebufferInfo.height = m_Height;
+	__FramebufferInfo.layers = 1;
+	__FramebufferInfo.pAttachments = &components[0];
+	__Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer");
 
 	// clear setup memory
 	free(m_ColourComponentSetup);
@@ -299,12 +302,13 @@ void Framebuffer::finalize(bool foreign_framebuffer)
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
-	if (m_HasDepth)
+	for (u8 i=0;i<components.size();i++)
 	{
-		g_GPU.free(m_DepthBufferView);
-		g_GPU.free(m_DepthBufferMemory);
-		g_GPU.free(m_DepthStencilBuffer);
+		g_GPU.free(components[i]);
+		g_GPU.free(m_AttachmentMemory[i]);
+		g_GPU.free(m_AttachmentImages[i]);
 	}
+	g_GPU.free(m_Framebuffer);
 	g_GPU.free(render_pass);
 #endif
 }
@@ -321,7 +325,7 @@ void Framebuffer::record()
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	__RPBeginInfo.renderPass = render_pass;
-	__RPBeginInfo.framebuffer = g_Frame.framebuffers[g_Frame.frame_id];  // TODO aquisition call
+	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
 	__RPBeginInfo.clearValueCount = components.size();
@@ -391,8 +395,9 @@ void Framebuffer::bind_depth_component(u8 channel)
  */
 void Framebuffer::link_output()
 {
-	g_Frame.link_result(render_pass,m_DepthBufferView);
+	g_Frame.link_result(render_pass,components[m_DepthChannel]);
 }
+// TODO alter or completely remove
 
 #endif
 
