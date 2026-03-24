@@ -388,27 +388,6 @@ void Frame::rebuild_swapchain()
 /**
  *	TODO
  */
-void Frame::link_result(VkRenderPass render_pass,VkImageView depth_buffer)
-{
-	COMM_LOG("registration of final result pipeline");
-
-	// image semaphore creation
-	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
-	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	render_done.resize(result_images.size());
-	for (u8 i=0;i<result_images.size();i++)
-	{
-		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
-	}
-
-	COMM_SCC("render pipeline ready.");
-}
-// TODO remove this
-
-/**
- *	TODO
- */
 void Frame::_assemble_swapchain()
 {
 	// format selection
@@ -549,6 +528,16 @@ swap_chain_creation:
 		.offset = { 0,0 },
 		.extent = swapchain.extent,
 	};
+
+	// image semaphore creation
+	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
+	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	render_done.resize(__SCICount);
+	for (u8 i=0;i<__SCICount;i++)
+	{
+		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
+	}
 }
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
 // TODO make all those features selectable by the user

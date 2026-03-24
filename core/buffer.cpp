@@ -388,20 +388,6 @@ void Framebuffer::bind_depth_component(u8 channel)
 }
 
 
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-void Framebuffer::link_output()
-{
-	g_Frame.link_result(render_pass,components[m_DepthChannel]);
-}
-// TODO alter or completely remove
-
-#endif
-
-
 // ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
 

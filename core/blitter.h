@@ -38,14 +38,13 @@ public:
 
 #ifdef VKBUILD
 	void rebuild_swapchain();
-	void link_result(VkRenderPass render_pass,VkImageView depth_buffer);
 #endif
 
 private:
 
 #ifdef VKBUILD
 	void _assemble_swapchain();
-	void _finalize_swapchain();
+	//void _finalize_swapchain();
 	void _destroy_swapchain();
 #endif
 

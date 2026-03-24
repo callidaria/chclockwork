@@ -694,7 +694,6 @@ Renderer::Renderer()
 	m_ResultBuffer.define_colour_component(0,false);
 	m_ResultBuffer.define_depth_component();
 	m_ResultBuffer.finalize();
-	m_ResultBuffer.link_output();
 
 	// render target
 	/*
