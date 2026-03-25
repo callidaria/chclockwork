@@ -11,7 +11,7 @@
  *	TODO update
  */
 Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
-	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth)
+	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth),m_ResultAttachment(count)
 {
 	u8 __ComponentCount = count+depth;
 	components.resize(__ComponentCount);
@@ -77,6 +77,7 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 	{
 		m_AttachmentImages[index] = g_Frame.result_images[result_buffer];
 		components[index] = g_Frame.result_image_views[result_buffer];
+		m_ResultAttachment.set(index);
 	}
 
 	// specify colour component
@@ -304,14 +305,22 @@ void Framebuffer::finalize()
 void Framebuffer::vanish()
 {
 #ifdef VKBUILD
+	// free component handle
 	for (u8 i=0;i<components.size();i++)
 	{
 		g_GPU.free(components[i]);
+
+		// free component memory should it have been allocated by the framebuffer
+		COMM_LOG("%d",m_ResultAttachment[i]);
+		if (m_ResultAttachment[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(m_AttachmentImages[i]);
 	}
+
+	// kill framebuffer and render pass information
 	g_GPU.free(m_Framebuffer);
 	g_GPU.free(render_pass);
+	// TODO this will lead to an overdefinition of render passes when there is a 1:1 of fb and render pass
 #endif
 }
 
