@@ -60,14 +60,6 @@ BitwiseWords::BitwiseWords(size_t size)
 	reset();
 }
 
-/**
- *	automatically release the allocated data bits on destruction
- */
-BitwiseWords::~BitwiseWords()
-{
-	free(m_Data);
-}
-
 
 // ----------------------------------------------------------------------------------------------------
 // Signals Between Threads

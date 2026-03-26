@@ -11,7 +11,7 @@
  *	TODO update
  */
 Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
-	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth),m_ResultAttachment(count)
+	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth),m_ResultAttachment(count+depth)
 {
 	u8 __ComponentCount = count+depth;
 	components.resize(__ComponentCount);
@@ -311,7 +311,6 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		COMM_LOG("%d",m_ResultAttachment[i]);
 		if (m_ResultAttachment[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(m_AttachmentImages[i]);
@@ -320,6 +319,7 @@ void Framebuffer::vanish()
 	// kill framebuffer and render pass information
 	g_GPU.free(m_Framebuffer);
 	g_GPU.free(render_pass);
+	m_ResultAttachment.vanish();
 	// TODO this will lead to an overdefinition of render passes when there is a 1:1 of fb and render pass
 #endif
 }

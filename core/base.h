@@ -307,12 +307,12 @@ class BitwiseWords
 {
 public:
 	BitwiseWords(size_t size);
-	~BitwiseWords();
 
 	inline bool operator[](size_t i) { return (*(m_Data+(i>>MEM_SHIFT))>>(i&MEM_MASK))&(__system_word)1; }
 	inline void set(size_t i) { *(m_Data+(i>>MEM_SHIFT))|=(__system_word)1<<(i&MEM_MASK); }
 	inline void unset(size_t i) { *(m_Data+(i>>MEM_SHIFT))&=~((__system_word)1<<(i&MEM_MASK)); }
 	inline void reset() { memset(m_Data,0,m_Size*sizeof(__system_word)); }
+	inline void vanish() { free(m_Data); };
 
 private:
 	__system_word* m_Data;

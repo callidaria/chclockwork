@@ -55,8 +55,8 @@ private:
 	VkAttachmentReference* m_ColourComponentReference;
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
-	BitwiseWords m_ResultAttachment;
 	VkFramebuffer m_Framebuffer;
+	BitwiseWords m_ResultAttachment;
 #else
 	u32 m_Buffer;
 #endif
