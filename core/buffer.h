@@ -32,7 +32,7 @@ class Framebuffer
 {
 public:
 	Framebuffer(u8 count,f32 width,f32 height,bool depth=false);
-	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false,u8 result_buffer=-1);
+	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false,s8 result_buffer=-1);
 	void define_colour_component(u8 index,bool fbuffer=false,u8 result_buffer=-1);
 	void define_depth_component(f32 width,f32 height);
 	void define_depth_component();

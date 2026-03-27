@@ -35,7 +35,7 @@ Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
  *	\param fbuffer: (default false) true if floatbuffer when extra precision is needed
  *	TODO update
  */
-inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer,u8 result_buffer)
+inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,bool fbuffer,s8 result_buffer)
 {
 	COMM_ERR_COND(!(index<m_DepthChannel),"colour component definition index outside of valid allocated range");
 
@@ -43,9 +43,10 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 	if (result_buffer<0)
 	{
 		// allocate image
-		/*
+		const vector<VkFormat> BUFFER_FORMAT_REGULAR = { VK_FORMAT_B8G8R8A8_SRGB,VK_FORMAT_R8G8B8A8_SRGB };
+		const vector<VkFormat> BUFFER_FORMAT_FLOATBUFFER = { VK_FORMAT_R16G16B16A16_SFLOAT };
 		VkFormat __AttachmentFormat = g_GPU.choose_texture_format(
-				(fbuffer)?{ VK_FORMAT_B8G8R8A8_UNORM,VK_FORMAT_R8G8B8A8_UNORM }:{ VK_FORMAT_R16G16B16_SFLOAT },
+				(fbuffer) ? BUFFER_FORMAT_FLOATBUFFER : BUFFER_FORMAT_REGULAR,
 				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
 			);
 		VkImageCreateInfo __ImageInfo = {  };
@@ -63,12 +64,42 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_);
-		*/
-		// TODO implement
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[index]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create colour attachment for some reason");
 
 		// allocate vram
+		VkMemoryRequirements __MemoryRequirements;
+		vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[index],&__MemoryRequirements);
+		VkMemoryAllocateInfo __MemoryInfo = {  };
+		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		__MemoryInfo.allocationSize = __MemoryRequirements.size;
+		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+															   __MemoryRequirements.memoryTypeBits);
+		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[index]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+		vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[index],m_AttachmentMemory[index],0);
+		// FIXME repeat code chunk for vram allocation here (identical to depth buffer allocation)
+		// TODO check for allocation success (also for depth buffer)
+
 		// colour buffer image view handle
+		VkImageViewCreateInfo __ImageViewInfo = {  };
+		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		__ImageViewInfo.image = m_AttachmentImages[index];
+		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		__ImageViewInfo.format = __AttachmentFormat;
+		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+		__ImageViewInfo.subresourceRange.levelCount = 1;
+		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+		__ImageViewInfo.subresourceRange.layerCount = 1;
+		__ImageViewInfo.components = {
+			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+		};
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[index]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 	}
 	// TODO implement image allocation like with depth buffer
 	// FIXME repeated code again, with no concept of sensible abstraction
