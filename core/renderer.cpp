@@ -751,10 +751,8 @@ Renderer::Renderer()
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
 
 	// pipeline
-	/*
 	m_TestingPipeline.assemble(m_Framebuffer,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	*/
 	m_SpritePipeline.assemble(m_ResultBuffers[0],
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
@@ -775,12 +773,11 @@ void Renderer::update()
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// start recording to target
-	/*
 	m_Framebuffer.record();
 
 	// start voxelgrid
 	m_TestingPipeline.enable();
-	m_VertexArray.bind_indexed(m_Framebuffer);
+	m_VertexArray.bind_indexed();
 
 	// camera update test
 	m_UBufferMem.otrafo.view = g_Camera.view;
@@ -801,7 +798,6 @@ void Renderer::update()
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 	m_Framebuffer.stop();
-	*/
 
 	// combine result
 	m_ResultBuffers[g_Frame.frame_id].record();
