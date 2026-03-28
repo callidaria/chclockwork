@@ -5,6 +5,22 @@
 // Rendertarget Colour Buffers
 
 /**
+ *	TODO
+ */
+RenderPass(u8 count,bool depth)
+{
+	// render pass component setup
+	u8 __ComponentCount = count+depth;
+	VkAttachmentDescription* __Descriptions
+			= (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
+	VkAttachmentReference* __References
+			= (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
+
+	// component setup iteration
+	// TODO
+}
+
+/**
  *	allocate memory for framebuffer
  *	\param count: number of components, that will be defined for this framebuffer
  *	\param depth: (default false) true when framebuffer has a depth-stencil component
@@ -13,11 +29,8 @@
 Framebuffer::Framebuffer(u8 count,f32 width,f32 height,bool depth)
 	: m_DepthChannel(count),m_Width(width),m_Height(height),m_HasDepth(depth),m_ResultAttachment(count+depth)
 {
-	u8 __ComponentCount = count+depth;
 	components.resize(__ComponentCount);
 #ifdef VKBUILD
-	m_ColourComponentSetup = (VkAttachmentDescription*)malloc((count+depth)*sizeof(VkAttachmentDescription));
-	m_ColourComponentReference = (VkAttachmentReference*)malloc((count+depth)*sizeof(VkAttachmentReference));
 	m_AttachmentImages.resize(__ComponentCount);
 	m_AttachmentMemory.resize(__ComponentCount);
 #else
