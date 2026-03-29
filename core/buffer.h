@@ -22,7 +22,7 @@ enum TextureFormat : u8
 
 class RenderPass
 {
-	RenderPass(u8 count,bool depth=false);
+	RenderPass(u8 rbs,u8 fbs=0,bool depth=false);
 
 public:
 	VkRenderPass render_pass;
