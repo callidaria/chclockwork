@@ -10,18 +10,19 @@
 RenderPass(u8 rbs,u8 fbs,bool depth)
 {
 	// render pass component setup
-	u8 __ComponentCount = rbs+fbs+depth;
+	u8 __DepthChannel = rbs+fbs;
+	u8 __ComponentCount = __DepthChannel+depth;
 	VkAttachmentDescription* __Descriptions
 			= (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
 	VkAttachmentReference* __References
 			= (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
-	VkFormat __Format;
 
 	// colour component setup iteration
 	for (u8 i=0;i<rbs;i++)
 	{
+		// component specification
 		m_ColourComponentSetup[i] = {};
-		m_ColourComponentSetup[i].format = g_Frame.swapchain.format.format;
+		m_ColourComponentSetup[i].format = g_Frame.swapchain.format.format;  // FIXME maybe stick with this
 		m_ColourComponentSetup[i].samples = VK_SAMPLE_COUNT_1_BIT;
 		m_ColourComponentSetup[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		m_ColourComponentSetup[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -29,10 +30,31 @@ RenderPass(u8 rbs,u8 fbs,bool depth)
 		m_ColourComponentSetup[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		m_ColourComponentSetup[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		m_ColourComponentSetup[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		// component reference
+		m_ColourComponentReference[i] = {};
+		m_ColourComponentReference[i].attachment = i;
+		m_ColourComponentReference[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	}
 
-	// depth component setup if applicable
+	// float component setup iteration
 	// TODO
+
+	// depth component setup if applicable
+	m_ColourComponentSetup[__DepthChannel] = {};
+	m_ColourComponentSetup[__DepthChannel].format = __DepthStencilFormat;
+	m_ColourComponentSetup[__DepthChannel].samples = VK_SAMPLE_COUNT_1_BIT;
+	m_ColourComponentSetup[__DepthChannel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	m_ColourComponentSetup[__DepthChannel].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[__DepthChannel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	m_ColourComponentSetup[__DepthChannel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	m_ColourComponentSetup[__DepthChannel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_ColourComponentSetup[__DepthChannel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// define as depth stencil component
+	m_ColourComponentReference[__DepthChannel] = {};
+	m_ColourComponentReference[__DepthChannel].attachment = __DepthChannel;
+	m_ColourComponentReference[__DepthChannel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 }
 
 /**
@@ -1216,7 +1238,7 @@ void GPUPixelBuffer::load_texture(const char* path)
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
 	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	__ImageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;  // TODO check
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = __TextureData.mipcount;

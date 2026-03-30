@@ -29,6 +29,14 @@ struct SwapChain
 };
 // FIXME only used in blitter!
 
+struct Formats
+{
+	VkFormat colourbuffer;
+	VkFormat floatbuffer;
+	VkFormat depthbuffer;
+};
+inline Formats g_Formats;
+
 struct CommandBufferGFX
 {
 	VkCommandBuffer buffer;
