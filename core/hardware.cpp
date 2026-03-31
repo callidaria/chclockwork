@@ -64,7 +64,7 @@ void GPUDevice::select()
 		.colourbuffer = g_GPU.choose_texture_format(
 				{ VK_FORMAT_B8G8R8A8SRGB_SRGB,VK_FORMAT_R8G8B8A8SRGB },
 				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-			),
+			),  // FIXME maybe this is just swapchain format acquired from frame, no fb result conversions
 		.floatbuffer = g_GPU.choose_texture_format(
 				{ VK_FORMAT_R16G16B16A16_SFLOAT },
 				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT

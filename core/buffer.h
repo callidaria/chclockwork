@@ -22,10 +22,26 @@ enum TextureFormat : u8
 
 class RenderPass
 {
-	RenderPass(u8 rbs,u8 fbs=0,bool depth=false);
+public:
+	RenderPass(u8 count,bool depth=false);
+	u8 define_colour_component(bool floatbuffer=false);
+	u8 define_result_component(u8 rb);
+	void finalize();
+
+private:
+	void _define_colour_component(u8 index,VkFormat format);
 
 public:
 	VkRenderPass render_pass;
+
+private:
+	VkAttachmentDescription* m_Descriptions;
+	VkAttachmentReference* m_References;
+	BitwiseWords m_ResultAttachment;
+
+	u8 m_Cursor = 0;
+	u8 m_DepthChannel;
+	bool m_HasDepth;
 };
 
 typedef
@@ -70,7 +86,7 @@ private:
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
-	BitwiseWords m_ResultAttachment;
+	//BitwiseWords m_ResultAttachment;
 #else
 	u32 m_Buffer;
 #endif
