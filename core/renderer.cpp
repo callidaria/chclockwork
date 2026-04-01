@@ -690,6 +690,10 @@ Renderer::Renderer()
 		}
 	}
 
+	// render pass
+	// TODO split render pass result/colour also splits render passes
+	// TODO sequence problems with current version, framebuffer awaits defined rp at construction
+
 	// result target
 	m_ResultBuffers.reserve(g_Frame.result_image_views.size());
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)

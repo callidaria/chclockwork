@@ -33,15 +33,14 @@ private:
 
 public:
 	VkRenderPass render_pass;
+	VkAttachmentDescription* descriptions;
+	BitwiseWords result_attachment;
+	u8 depth_channel;
+	bool has_depth;
 
 private:
-	VkAttachmentDescription* m_Descriptions;
 	VkAttachmentReference* m_References;
-	BitwiseWords m_ResultAttachment;
-
 	u8 m_Cursor = 0;
-	u8 m_DepthChannel;
-	bool m_HasDepth;
 };
 
 typedef
@@ -55,16 +54,7 @@ __fbuffer_component;
 class Framebuffer
 {
 public:
-	/*
-	Framebuffer(u8 count,f32 width,f32 height,bool depth=false);
-	void define_colour_component(u8 index,f32 width,f32 height,bool fbuffer=false,s8 result_buffer=-1);
-	void define_colour_component(u8 index,bool fbuffer=false,u8 result_buffer=-1);
-	void define_depth_component(f32 width,f32 height);
-	void define_depth_component();
-	void finalize();
-	*/
-	Framebuffer(f32 width,f32 height);
-	void finalize(const RenderPass& rp);
+	Framebuffer(f32 width,f32 height,const RenderPass& rp);
 	void vanish();
 
 	// usage
@@ -75,18 +65,10 @@ public:
 
 private:
 #ifdef VKBUILD
-public:
-	//VkRenderPass render_pass;  // TODO switch back to private and somehow add to pipeline?
 private:
-	f32 m_Width,m_Height;
-	/*
-	VkAttachmentDescription* m_ColourComponentSetup;
-	VkAttachmentReference* m_ColourComponentReference;
-	*/
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
-	//BitwiseWords m_ResultAttachment;
 #else
 	u32 m_Buffer;
 #endif
