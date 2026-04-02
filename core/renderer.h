@@ -262,7 +262,8 @@ public:
 
 private:
 	RenderPass m_ResultPass = ResultPass(1,true);
-	vector<Framebuffer> m_ResultBuffers;
+	RenderPass m_GeometryPass = ResultPass(1,true);
+	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>();
 	Framebuffer m_Framebuffer = Framebuffer(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
 	ShaderPipeline m_TestingPipeline;
 	ShaderPipeline m_SpritePipeline;

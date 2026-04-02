@@ -54,7 +54,8 @@ __fbuffer_component;
 class Framebuffer
 {
 public:
-	Framebuffer(f32 width,f32 height,const RenderPass& rp);
+	Framebuffer() {  }
+	void setup(f32 width,f32 height,const RenderPass& rp);
 	void vanish();
 
 	// usage

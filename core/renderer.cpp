@@ -691,6 +691,10 @@ Renderer::Renderer()
 	}
 
 	// render pass
+	m_ResultPass.define_result_component();
+	m_ResultPass.finalize();
+	m_GeometryPass.define_colour_component();
+	m_GeometryPass.finalize();
 	// TODO split render pass result/colour also splits render passes
 	// TODO sequence problems with current version, framebuffer awaits defined rp at construction
 
@@ -878,6 +882,8 @@ void Renderer::vanish()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
+	m_ResultPass.vanish();
+	m_GeometryPass.vanish();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment

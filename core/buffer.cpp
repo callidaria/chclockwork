@@ -16,45 +16,6 @@ RenderPass(u8 count,bool depth)
 			= (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
 	VkAttachmentReference* __References
 			= (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
-
-	// colour component setup iteration
-	for (u8 i=0;i<rbs;i++)
-	{
-		// component specification
-		m_ColourComponentSetup[i] = {};
-		m_ColourComponentSetup[i].format = g_Frame.swapchain.format.format;  // FIXME maybe stick with this
-		m_ColourComponentSetup[i].samples = VK_SAMPLE_COUNT_1_BIT;
-		m_ColourComponentSetup[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		m_ColourComponentSetup[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		m_ColourComponentSetup[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		m_ColourComponentSetup[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		m_ColourComponentSetup[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		m_ColourComponentSetup[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		// component reference
-		m_ColourComponentReference[i] = {};
-		m_ColourComponentReference[i].attachment = i;
-		m_ColourComponentReference[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	}
-
-	// float component setup iteration
-	// TODO
-
-	// depth component setup if applicable
-	m_ColourComponentSetup[__DepthChannel] = {};
-	m_ColourComponentSetup[__DepthChannel].format = __DepthStencilFormat;
-	m_ColourComponentSetup[__DepthChannel].samples = VK_SAMPLE_COUNT_1_BIT;
-	m_ColourComponentSetup[__DepthChannel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	m_ColourComponentSetup[__DepthChannel].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	m_ColourComponentSetup[__DepthChannel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	m_ColourComponentSetup[__DepthChannel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	m_ColourComponentSetup[__DepthChannel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	m_ColourComponentSetup[__DepthChannel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	// define as depth stencil component
-	m_ColourComponentReference[__DepthChannel] = {};
-	m_ColourComponentReference[__DepthChannel].attachment = __DepthChannel;
-	m_ColourComponentReference[__DepthChannel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 }
 
 /**
@@ -173,12 +134,12 @@ void RenderPass::_define_colour_component(u8 index,VkFormat format)
 	m_References[index] = {};
 	m_References[index].attachment = index;
 	m_References[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-}x
+}
 
 /**
  *	TODO
  */
-Framebuffer::Framebuffer(f32 width,f32 height,const RenderPass& rp)
+Framebuffer::setup(f32 width,f32 height,const RenderPass& rp)
 {
 	u8 __ComponentCount = rp.depth_channel+rp.has_depth;
 	components.resize(__ComponentCount);
