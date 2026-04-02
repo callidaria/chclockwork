@@ -55,7 +55,7 @@ class Framebuffer
 {
 public:
 	Framebuffer() {  }
-	void setup(f32 width,f32 height,const RenderPass& rp);
+	void setup(f32 width,f32 height,const RenderPass& rp,s16 result_buffer=-1);
 	void vanish();
 
 	// usage

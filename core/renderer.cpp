@@ -690,7 +690,7 @@ Renderer::Renderer()
 		}
 	}
 
-	// render pass
+	// render passes
 	m_ResultPass.define_result_component();
 	m_ResultPass.finalize();
 	m_GeometryPass.define_colour_component();
@@ -698,23 +698,10 @@ Renderer::Renderer()
 	// TODO split render pass result/colour also splits render passes
 	// TODO sequence problems with current version, framebuffer awaits defined rp at construction
 
-	// result target
-	m_ResultBuffers.reserve(g_Frame.result_image_views.size());
+	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-	{
-		m_ResultBuffers.push_back(
-				Framebuffer(1,g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,true)
-			);
-		m_ResultBuffers.back().define_colour_component(0,false,i);
-		m_ResultBuffers.back().define_depth_component();
-		m_ResultBuffers.back().finalize();
-	}
-
-	// render target
-	m_Framebuffer.define_colour_component(0);
-	//m_Framebuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_Framebuffer.define_depth_component();
-	m_Framebuffer.finalize();
+		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,m_ResultPass,i);
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_GeometryPass);
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);

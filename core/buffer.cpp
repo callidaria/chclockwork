@@ -139,7 +139,7 @@ void RenderPass::_define_colour_component(u8 index,VkFormat format)
 /**
  *	TODO
  */
-Framebuffer::setup(f32 width,f32 height,const RenderPass& rp)
+Framebuffer::setup(f32 width,f32 height,const RenderPass& rp,s16 result_buffer)
 {
 	u8 __ComponentCount = rp.depth_channel+rp.has_depth;
 	components.resize(__ComponentCount);
@@ -153,6 +153,7 @@ Framebuffer::setup(f32 width,f32 height,const RenderPass& rp)
 	{
 		if (rp.result_attachment[i])
 		{
+			COMM_ERR_COND(result_buffer<0,"result attachment defined but no buffer id given");
 			m_AttachmentImages[i] = g_Frame.result_images[result_buffer];
 			components[i] = g_Frame.result_image_views[result_buffer];
 			continue;
