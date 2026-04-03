@@ -25,8 +25,9 @@ class RenderPass
 public:
 	RenderPass(u8 count,bool depth=false);
 	u8 define_colour_component(bool floatbuffer=false);
-	u8 define_result_component(u8 rb);
+	u8 define_result_component();
 	void finalize();
+	void vanish();
 
 private:
 	void _define_colour_component(u8 index,VkFormat format);
@@ -55,7 +56,7 @@ class Framebuffer
 {
 public:
 	Framebuffer() {  }
-	void setup(f32 width,f32 height,const RenderPass& rp,s16 result_buffer=-1);
+	void setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer=-1);
 	void vanish();
 
 	// usage
@@ -70,6 +71,7 @@ private:
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
+	RenderPass* m_RenderPass;
 #else
 	u32 m_Buffer;
 #endif

@@ -261,10 +261,10 @@ public:
 	void vanish();
 
 private:
-	RenderPass m_ResultPass = ResultPass(1,true);
-	RenderPass m_GeometryPass = ResultPass(1,true);
+	RenderPass m_ResultPass = RenderPass(1,true);
+	RenderPass m_GeometryPass = RenderPass(1,true);
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
-	Framebuffer m_Framebuffer = Framebuffer(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
+	Framebuffer m_Framebuffer;
 	ShaderPipeline m_TestingPipeline;
 	ShaderPipeline m_SpritePipeline;
 	VertexBuffer m_VertexBuffer;
