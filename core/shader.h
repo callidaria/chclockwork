@@ -83,7 +83,7 @@ class ShaderPipeline
 {
 public:
 	ShaderPipeline() {  }
-	void assemble(Framebuffer& target,const char* vs,const char* fs);
+	void assemble(const RenderPass& target,const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
 	void vanish();

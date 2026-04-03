@@ -746,9 +746,9 @@ Renderer::Renderer()
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
 
 	// pipeline
-	m_TestingPipeline.assemble(m_Framebuffer,
+	m_TestingPipeline.assemble(m_GeometryPass,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_SpritePipeline.assemble(m_ResultBuffers[0],
+	m_SpritePipeline.assemble(m_ResultPass,
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// upload 2D coordinate system

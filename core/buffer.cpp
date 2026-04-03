@@ -12,10 +12,8 @@ RenderPass::RenderPass(u8 count,bool depth)
 {
 	// render pass component setup
 	u8 __ComponentCount = count+depth;
-	VkAttachmentDescription* __Descriptions
-			= (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
-	VkAttachmentReference* __References
-			= (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
+	descriptions = (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
+	m_References = (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
 }
 
 /**

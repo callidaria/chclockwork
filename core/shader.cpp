@@ -203,7 +203,7 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
 /**
  *	TODO
  */
-void ShaderPipeline::assemble(Framebuffer& target,const char* vs,const char* fs)
+void ShaderPipeline::assemble(const RenderPass& target,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
 	// read precompiled shader binaries
