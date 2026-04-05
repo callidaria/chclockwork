@@ -5,19 +5,22 @@
 // Rendertarget Colour Buffers
 
 /**
- *	TODO
+ *	allocation for render pass description
+ *	\param count: amount of colour components in render pass
+ *	\param depth: (default false) true if depth information will be stored
  */
 RenderPass::RenderPass(u8 count,bool depth)
 	: depth_channel(count),has_depth(depth),result_attachment(count+depth)
 {
-	// render pass component setup
 	u8 __ComponentCount = count+depth;
 	descriptions = (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
 	m_References = (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
 }
 
 /**
- *	TODO
+ *	define a colour component
+ *	\param floatbuffer: (default false) true if component stores information as floats instead of integers
+ *	\returns index of defined component
  */
 u8 RenderPass::define_colour_component(bool floatbuffer)
 {
@@ -29,7 +32,8 @@ u8 RenderPass::define_colour_component(bool floatbuffer)
 }
 
 /**
- *	TODO
+ *	define a component as result of final presentation, utilizing the destination buffers
+ *	\returns index of defined component
  */
 u8 RenderPass::define_result_component()
 {
@@ -41,7 +45,7 @@ u8 RenderPass::define_result_component()
 }
 
 /**
- *	TODO
+ *	finalizes the render pass after definitions are completed
  */
 void RenderPass::finalize()
 {
@@ -99,21 +103,24 @@ void RenderPass::finalize()
 	__RPInfo.pDependencies = &__SubpassDependency;
 	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
+
+	free(m_References);
 }
 
 /**
- *	TODO
+ *	memory and information of render pass including attachment flags and descriptions will be freed
  */
 void RenderPass::vanish()
 {
 	free(descriptions);
-	free(m_References);
 	result_attachment.vanish();
 	g_GPU.free(render_pass);
 }
 
 /**
- *	TODO
+ *	helper to define different sorts of colour components by format and index
+ *	\param index: colour component index
+ *	\param format: requested colour component format, depending on usage
  */
 void RenderPass::_define_colour_component(u8 index,VkFormat format)
 {
