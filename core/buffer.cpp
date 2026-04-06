@@ -142,13 +142,17 @@ void RenderPass::_define_colour_component(u8 index,VkFormat format)
 }
 
 /**
- *	TODO
+ *	allocate framebuffer according to the render pass information
+ *	\param width: default resolution width for framebuffer components
+ *	\param height: default resolution height for framebuffer components
+ *	\param rp: render pass with framebuffer component information
+ *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
+ *			indexed by this variable
  */
 void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 {
 	u8 __ComponentCount = rp.depth_channel+rp.has_depth;
 	components.resize(__ComponentCount);
-#ifdef VKBUILD
 	m_RenderPass = &rp;
 
 	// allocate handler memory
@@ -157,6 +161,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 
 	for (u8 i=0;i<rp.depth_channel;i++)
 	{
+#ifdef VKBUILD
 		if (rp.result_attachment[i])
 		{
 			COMM_ERR_COND(result_buffer<0,"result attachment defined but no buffer id given");
@@ -217,13 +222,15 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 		};
 		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+#else
+#endif
 	}
 	// FIXME repeated code again, with no concept of sensible abstraction
 
 	// depth component allocation
 	if (rp.has_depth)
 	{
-		// TODO implement depth allocation
+#ifdef VKBUILD
 		// allocate image
 		VkImageCreateInfo __ImageInfo = {  };
 		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -279,9 +286,13 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
 		// TODO this is much more abstractable, but also not really?
 		// TODO allow for independent depth buffer allocation (?in blitter) and bind just result colour buffer
+
+#else
+#endif
 	}
 
 	// create framebuffer
+#ifdef VKBUILD
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	__FramebufferInfo.renderPass = rp.render_pass;
@@ -387,7 +398,7 @@ void Framebuffer::finalize()
 */
 
 /**
- *	TODO
+ *	destroys framebuffer and frees all allocated resources
  */
 void Framebuffer::vanish()
 {
