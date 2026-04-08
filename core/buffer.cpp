@@ -142,15 +142,19 @@ void RenderPass::_define_colour_component(u8 index,VkFormat format)
 }
 
 /**
- *	allocate framebuffer according to the render pass information
+ *	setup output framebuffer and allocate to satisfy given shader pipeline
  *	\param width: default resolution width for framebuffer components
  *	\param height: default resolution height for framebuffer components
- *	\param rp: render pass with framebuffer component information
+ *	\param sp: shader pipeline, holding framebuffer component information
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
  */
 void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 {
+	COMM_ERR_COND(rp.render_pass==VK_NULL_HANDLE,
+				  "shader pipeline must be assembled before passing it to framebuffer setup");
+
+	// allocate component handles
 	u8 __ComponentCount = rp.depth_channel+rp.has_depth;
 	components.resize(__ComponentCount);
 	m_RenderPass = &rp;

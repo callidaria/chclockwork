@@ -202,8 +202,9 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
 
 /**
  *	TODO
+ *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(const RenderPass& target,const char* vs,const char* fs)
+void ShaderPipeline::assemble(VkDescriptorSetLayout* sl,const char* vs,const char* fs)
 {
 #ifdef VKBUILD
 	// read precompiled shader binaries
@@ -384,7 +385,7 @@ void ShaderPipeline::assemble(const RenderPass& target,const char* vs,const char
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
-	__LayoutInfo.pSetLayouts = &g_UniformBuffer.m_DSetLayout;
+	__LayoutInfo.pSetLayouts = sl;  // TODO move uniform buffer to shader?
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
@@ -404,7 +405,7 @@ void ShaderPipeline::assemble(const RenderPass& target,const char* vs,const char
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = pipeline_layout;
-	__PipelineInfo.renderPass = target.render_pass;
+	__PipelineInfo.renderPass = render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
@@ -460,6 +461,7 @@ void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
  *	\param ibo: (default nullptr) index buffer object
  *	NOTE vertex buffer needs to be active
  */
+/*
 void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 {
 #ifndef VKBUILD
@@ -484,6 +486,7 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 	m_IndexCursor = 0;
 #endif
 }
+*/
 // TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping.
 
 void ShaderPipeline::vanish()

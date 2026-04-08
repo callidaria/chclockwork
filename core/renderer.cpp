@@ -698,6 +698,12 @@ Renderer::Renderer()
 	// TODO split render pass result/colour also splits render passes
 	// TODO sequence problems with current version, framebuffer awaits defined rp at construction
 
+	// pipeline
+	m_TestingPipeline.assemble(&g_UniformBuffer.m_DSetLayout,
+							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
+	m_SpritePipeline.assemble(&g_UniformBuffer.m_DSetLayout,
+							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
 		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,m_ResultPass,i);
@@ -744,12 +750,6 @@ Renderer::Renderer()
 	//g_UniformBuffer.define(4,m_Framebuffer.);
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
-
-	// pipeline
-	m_TestingPipeline.assemble(m_GeometryPass,
-							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_SpritePipeline.assemble(m_ResultPass,
-							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;

@@ -265,8 +265,8 @@ private:
 	RenderPass m_GeometryPass = RenderPass(1,true);
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
 	Framebuffer m_Framebuffer;
-	ShaderPipeline m_TestingPipeline;
-	ShaderPipeline m_SpritePipeline;
+	ShaderPipeline m_TestingPipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_SpriteBuffer;
 	VertexBuffer m_InstanceBuffer;

@@ -4,7 +4,6 @@
 
 #include "base.h"
 #include "blitter.h"
-#include "buffer.h"
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
@@ -82,10 +81,17 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	ShaderPipeline() {  }
-	void assemble(const RenderPass& target,const char* vs,const char* fs);
+	ShaderPipeline(u8 bfr_count,bool depth=false) {  }
+
+	// definition
+	void out_define_colour_buffer(bool floatbuffer);
+	void out_define_result_buffer();
+	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
+
+	// assembly
+	void assemble(VkDescriptorSetLayout* sl,const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
-	void map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo=nullptr);
+	//void map(u16 channel);
 	void vanish();
 
 	// usage
@@ -106,7 +112,14 @@ public:
 	void upload_camera();
 	void upload_camera(Camera3D& c);
 
-#ifndef VKBUILD
+private:
+	void _define_colour_component(u8 index,VkFormat format);
+
+#ifdef VKBUILD
+public:
+	VkRenderPass render_pass;
+#else
+
 private:
 	void _define_attribute(ShaderAttribute attrib);
 	void _define_index_attribute(ShaderAttribute attrib);
