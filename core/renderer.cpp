@@ -690,20 +690,6 @@ Renderer::Renderer()
 		}
 	}
 
-	// pipeline
-	m_TestingPipeline.out_define_result_buffer();
-	m_TestingPipeline.assemble(&g_UniformBuffer.m_DSetLayout,
-							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_SpritePipeline.out_define_colour_buffer();
-	m_SpritePipeline.assemble(&g_UniformBuffer.m_DSetLayout,
-							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
-
-	// result target & geometry target
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
-								 m_SpritePipeline,i);
-	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TestingPipeline);
-
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
 	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
@@ -745,6 +731,20 @@ Renderer::Renderer()
 	//g_UniformBuffer.define(4,m_Framebuffer.);
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflics
+
+	// pipeline
+	m_TestingPipeline.out_define_colour_buffer();
+	m_TestingPipeline.assemble(&g_UniformBuffer.m_DSetLayout,
+							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
+	m_SpritePipeline.out_define_result_buffer();
+	m_SpritePipeline.assemble(&g_UniformBuffer.m_DSetLayout,
+							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+
+	// result target & geometry target
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
+		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+								 m_SpritePipeline,i);
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TestingPipeline);
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
