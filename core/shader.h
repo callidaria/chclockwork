@@ -81,11 +81,11 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	ShaderPipeline(u8 bfr_count,bool depth=false) {  }
+	ShaderPipeline(u8 bfr_count,bool depth=false);
 
 	// definition
-	void out_define_colour_buffer(bool floatbuffer);
-	void out_define_result_buffer();
+	u8 out_define_colour_buffer(bool floatbuffer=false);
+	u8 out_define_result_buffer();
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 	// assembly
@@ -118,6 +118,14 @@ private:
 #ifdef VKBUILD
 public:
 	VkRenderPass render_pass;
+	VkAttachmentDescription* descriptions;
+	BitwiseWords result_attachment;
+	u8 depth_channel;
+	bool has_depth;
+
+private:
+	VkAttachmentReference* m_References;
+	u8 m_Cursor = 0;
 #else
 
 private:

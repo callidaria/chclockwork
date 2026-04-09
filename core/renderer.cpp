@@ -690,24 +690,19 @@ Renderer::Renderer()
 		}
 	}
 
-	// render passes
-	m_ResultPass.define_result_component();
-	m_ResultPass.finalize();
-	m_GeometryPass.define_colour_component();
-	m_GeometryPass.finalize();
-	// TODO split render pass result/colour also splits render passes
-	// TODO sequence problems with current version, framebuffer awaits defined rp at construction
-
 	// pipeline
+	m_TestingPipeline.out_define_result_buffer();
 	m_TestingPipeline.assemble(&g_UniformBuffer.m_DSetLayout,
 							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
+	m_SpritePipeline.out_define_colour_buffer();
 	m_SpritePipeline.assemble(&g_UniformBuffer.m_DSetLayout,
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,m_ResultPass,i);
-	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_GeometryPass);
+		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+								 m_SpritePipeline,i);
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TestingPipeline);
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
@@ -869,8 +864,6 @@ void Renderer::vanish()
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
-	m_ResultPass.vanish();
-	m_GeometryPass.vanish();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment

@@ -5,143 +5,6 @@
 // Rendertarget Colour Buffers
 
 /**
- *	allocation for render pass description
- *	\param count: amount of colour components in render pass
- *	\param depth: (default false) true if depth information will be stored
- */
-RenderPass::RenderPass(u8 count,bool depth)
-	: depth_channel(count),has_depth(depth),result_attachment(count+depth)
-{
-	u8 __ComponentCount = count+depth;
-	descriptions = (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
-	m_References = (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
-}
-
-/**
- *	define a colour component
- *	\param floatbuffer: (default false) true if component stores information as floats instead of integers
- *	\returns index of defined component
- */
-u8 RenderPass::define_colour_component(bool floatbuffer)
-{
-	COMM_ERR_COND(!(m_Cursor<depth_channel),
-				  "colour component definition exceeds allocated range of definable components");
-	_define_colour_component(m_Cursor,(floatbuffer) ? g_Formats.floatbuffer : g_Formats.colourbuffer);
-	return m_Cursor++;
-	// TODO overwrite framebuffer component default resolution given by construction
-}
-
-/**
- *	define a component as result of final presentation, utilizing the destination buffers
- *	\returns index of defined component
- */
-u8 RenderPass::define_result_component()
-{
-	COMM_ERR_COND(!(m_Cursor<depth_channel),
-				  "result component definition exceeds allocated range of definable components");
-	_define_colour_component(m_Cursor,g_Frame.swapchain.format.format);
-	result_attachment.set(m_Cursor);
-	return m_Cursor++;
-}
-
-/**
- *	finalizes the render pass after definitions are completed
- */
-void RenderPass::finalize()
-{
-	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
-				  "render pass definition is called for finalization, but not all components were defined");
-
-	if (has_depth)
-	{
-		// depth component
-		descriptions[depth_channel] = {};
-		descriptions[depth_channel].format = g_Formats.depthbuffer;
-		descriptions[depth_channel].samples = VK_SAMPLE_COUNT_1_BIT;
-		descriptions[depth_channel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		descriptions[depth_channel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		descriptions[depth_channel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		descriptions[depth_channel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		descriptions[depth_channel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		// define as depth stencil component
-		m_References[depth_channel] = {};
-		m_References[depth_channel].attachment = depth_channel;
-		m_References[depth_channel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	}
-
-	// specify graphical subpass
-	VkSubpassDescription __SubpassDesc = {  };
-	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = depth_channel;
-	__SubpassDesc.pColorAttachments = m_References;
-	__SubpassDesc.pDepthStencilAttachment
-			= (has_depth) ? &m_References[depth_channel] : nullptr;
-
-	// subpass dependency
-	VkSubpassDependency __SubpassDependency = {  };
-	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	__SubpassDependency.dstStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.dstAccessMask
-			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	// TODO feature selection based on component setup
-
-	// render pass
-	VkRenderPassCreateInfo __RPInfo = {  };
-	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = depth_channel+has_depth;
-	__RPInfo.pAttachments = descriptions;
-	__RPInfo.subpassCount = 1;
-	__RPInfo.pSubpasses = &__SubpassDesc;
-	__RPInfo.dependencyCount = 1;
-	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
-
-	free(m_References);
-}
-
-/**
- *	memory and information of render pass including attachment flags and descriptions will be freed
- */
-void RenderPass::vanish()
-{
-	free(descriptions);
-	result_attachment.vanish();
-	g_GPU.free(render_pass);
-}
-
-/**
- *	helper to define different sorts of colour components by format and index
- *	\param index: colour component index
- *	\param format: requested colour component format, depending on usage
- */
-void RenderPass::_define_colour_component(u8 index,VkFormat format)
-{
-	// specify colour component
-	descriptions[index] = {};
-	descriptions[index].format = format;
-	descriptions[index].samples = VK_SAMPLE_COUNT_1_BIT;
-	descriptions[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	descriptions[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	descriptions[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	descriptions[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	descriptions[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	descriptions[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	// specify fragment output location
-	m_References[index] = {};
-	m_References[index].attachment = index;
-	m_References[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-}
-
-/**
  *	setup output framebuffer and allocate to satisfy given shader pipeline
  *	\param width: default resolution width for framebuffer components
  *	\param height: default resolution height for framebuffer components
@@ -149,24 +12,24 @@ void RenderPass::_define_colour_component(u8 index,VkFormat format)
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
  */
-void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
+void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffer)
 {
-	COMM_ERR_COND(rp.render_pass==VK_NULL_HANDLE,
+	COMM_ERR_COND(sp.render_pass==VK_NULL_HANDLE,
 				  "shader pipeline must be assembled before passing it to framebuffer setup");
 
 	// allocate component handles
-	u8 __ComponentCount = rp.depth_channel+rp.has_depth;
+	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
 	components.resize(__ComponentCount);
-	m_RenderPass = &rp;
+	m_ShaderPipeline = &sp;
 
 	// allocate handler memory
 	m_AttachmentImages.resize(__ComponentCount);
 	m_AttachmentMemory.resize(__ComponentCount);
 
-	for (u8 i=0;i<rp.depth_channel;i++)
+	for (u8 i=0;i<sp.depth_channel;i++)
 	{
 #ifdef VKBUILD
-		if (rp.result_attachment[i])
+		if (sp.result_attachment[i])
 		{
 			COMM_ERR_COND(result_buffer<0,"result attachment defined but no buffer id given");
 			m_AttachmentImages[i] = g_Frame.result_images[result_buffer];
@@ -183,7 +46,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = rp.descriptions[i].format;
+		__ImageInfo.format = sp.descriptions[i].format;
 		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		__ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -212,7 +75,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		__ImageViewInfo.image = m_AttachmentImages[i];
 		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		__ImageViewInfo.format = rp.descriptions[i].format;
+		__ImageViewInfo.format = sp.descriptions[i].format;
 		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 		__ImageViewInfo.subresourceRange.levelCount = 1;
@@ -232,7 +95,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 	// FIXME repeated code again, with no concept of sensible abstraction
 
 	// depth component allocation
-	if (rp.has_depth)
+	if (sp.has_depth)
 	{
 #ifdef VKBUILD
 		// allocate image
@@ -251,27 +114,27 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[rp.depth_channel]);
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[sp.depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
 		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
 		// allocate vram
 		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[rp.depth_channel],&__MemoryRequirements);
+		vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[sp.depth_channel],&__MemoryRequirements);
 		VkMemoryAllocateInfo __MemoryInfo = {  };
 		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		__MemoryInfo.allocationSize = __MemoryRequirements.size;
 		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 															   __MemoryRequirements.memoryTypeBits);
-		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[rp.depth_channel]);
+		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[sp.depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-		vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[rp.depth_channel],m_AttachmentMemory[rp.depth_channel],0);
+		vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[sp.depth_channel],m_AttachmentMemory[sp.depth_channel],0);
 		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
 		// depth buffer image view handle
 		VkImageViewCreateInfo __ImageViewInfo = {  };
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = m_AttachmentImages[rp.depth_channel];
+		__ImageViewInfo.image = m_AttachmentImages[sp.depth_channel];
 		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		__ImageViewInfo.format = g_Formats.depthbuffer;
 		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -285,7 +148,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
 			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
 		};
-		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[rp.depth_channel]);
+		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[sp.depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
 		// TODO this is much more abstractable, but also not really?
@@ -299,7 +162,7 @@ void Framebuffer::setup(f32 width,f32 height,RenderPass& rp,s16 result_buffer)
 #ifdef VKBUILD
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = rp.render_pass;
+	__FramebufferInfo.renderPass = sp.render_pass;
 	__FramebufferInfo.attachmentCount = components.size();
 	__FramebufferInfo.width = width;
 	__FramebufferInfo.height = height;
@@ -413,16 +276,13 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		if (m_RenderPass->result_attachment[i]) continue;
+		if (m_ShaderPipeline->result_attachment[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(m_AttachmentImages[i]);
 	}
 
 	// kill framebuffer and render pass information
 	g_GPU.free(m_Framebuffer);
-	//g_GPU.free(render_pass);
-	//m_ResultAttachment.vanish();
-	// TODO this will lead to an overdefinition of render passes when there is a 1:1 of fb and render pass
 #endif
 }
 
@@ -437,7 +297,7 @@ void Framebuffer::record()
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = m_RenderPass->render_pass;
+	__RPBeginInfo.renderPass = m_ShaderPipeline->render_pass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
