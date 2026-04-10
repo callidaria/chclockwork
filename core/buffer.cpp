@@ -17,10 +17,13 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	COMM_ERR_COND(sp.render_pass==VK_NULL_HANDLE,
 				  "shader pipeline must be assembled before passing it to framebuffer setup");
 
+	// pipeline attribute store
+	m_RenderPass = sp.render_pass;
+	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
+
 	// allocate component handles
 	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
 	components.resize(__ComponentCount);
-	m_ShaderPipeline = &sp;
 
 	// allocate handler memory
 	m_AttachmentImages.resize(__ComponentCount);
@@ -29,7 +32,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	for (u8 i=0;i<sp.depth_channel;i++)
 	{
 #ifdef VKBUILD
-		if (sp.result_attachment[i])
+		if (m_ResultAttachmentMap[i])
 		{
 			COMM_ERR_COND(result_buffer<0,"result attachment defined but no buffer id given");
 			m_AttachmentImages[i] = g_Frame.result_images[result_buffer];
@@ -46,7 +49,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = sp.descriptions[i].format;
+		__ImageInfo.format = sp.descriptions[i].format;  // TODO consider solving this through friend instead
 		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		__ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -276,10 +279,11 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		if (m_ShaderPipeline->result_attachment[i]) continue;
+		if (m_ResultAttachmentMap[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(m_AttachmentImages[i]);
 	}
+	m_ResultAttachmentMap.vanish();
 
 	// kill framebuffer and render pass information
 	g_GPU.free(m_Framebuffer);
@@ -297,7 +301,7 @@ void Framebuffer::record()
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = m_ShaderPipeline->render_pass;
+	__RPBeginInfo.renderPass = m_RenderPass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;

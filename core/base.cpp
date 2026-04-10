@@ -60,6 +60,17 @@ BitwiseWords::BitwiseWords(size_t size)
 	reset();
 }
 
+/**
+ *	copy constructor implementation
+ *	\param o: source bitwise data to be copied
+ */
+BitwiseWords::BitwiseWords(const BitwiseWords& o)
+{
+	m_Size = o.m_Size;
+	m_Data = (__system_word*)malloc(m_Size*sizeof(__system_word));
+	memcpy(m_Data,o.m_Data,m_Size*sizeof(__system_word));
+}
+
 
 // ----------------------------------------------------------------------------------------------------
 // Signals Between Threads

@@ -48,7 +48,8 @@ private:
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
-	ShaderPipeline* m_ShaderPipeline;
+	VkRenderPass m_RenderPass;
+	BitwiseWords m_ResultAttachmentMap;
 #else
 	u32 m_Buffer;
 #endif
