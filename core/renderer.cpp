@@ -734,11 +734,9 @@ Renderer::Renderer()
 
 	// pipeline
 	m_TestingPipeline.out_define_colour_buffer();
-	m_TestingPipeline.assemble(&g_UniformBuffer.m_DSetLayout,
-							   "./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
+	m_TestingPipeline.assemble("./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
 	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble(&g_UniformBuffer.m_DSetLayout,
-							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)

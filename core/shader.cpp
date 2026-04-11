@@ -244,7 +244,7 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(VkDescriptorSetLayout* sl,const char* vs,const char* fs)
+void ShaderPipeline::assemble(const char* vs,const char* fs)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -484,7 +484,7 @@ void ShaderPipeline::assemble(VkDescriptorSetLayout* sl,const char* vs,const cha
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
-	__LayoutInfo.pSetLayouts = sl;  // TODO move uniform buffer to shader?
+	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);

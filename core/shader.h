@@ -2,8 +2,7 @@
 #define CORE_SHADER_HEADER
 
 
-#include "base.h"
-#include "blitter.h"
+#include "memory.h"
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
@@ -89,7 +88,7 @@ public:
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 	// assembly
-	void assemble(VkDescriptorSetLayout* sl,const char* vs,const char* fs);
+	void assemble(const char* vs,const char* fs);
 	void assemble(VertexShader vs,FragmentShader fs);
 	//void map(u16 channel);
 	void vanish();
