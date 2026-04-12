@@ -778,9 +778,6 @@ void Renderer::update()
 	m_UBufferMem.otrafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
 
 	// drawcall
-	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
-							m_TestingPipeline.pipeline_layout,0,1,
-							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
@@ -796,9 +793,6 @@ void Renderer::update()
 	// orthogonal section
 	m_SpritePipeline.enable();
 	m_SpriteArray.bind();
-	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
-							m_SpritePipeline.pipeline_layout,0,1,
-							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// end result

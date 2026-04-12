@@ -606,7 +606,10 @@ void ShaderPipeline::vanish()
 void ShaderPipeline::enable()
 {
 #ifdef VKBUILD
-	vkCmdBindPipeline(g_GPU.acquire_graphical_command_buffer()->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
+	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
+	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
+	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,1,
+							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 #else
 	glUseProgram(m_ShaderProgram);
 #endif
