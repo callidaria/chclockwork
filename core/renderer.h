@@ -253,6 +253,16 @@ struct ObjectInstance
 	vec3 position;
 };
 
+struct SpriteInstance
+{
+	vec3 offset;
+	vec2 scale;
+	f32 rotation;
+	f32 alpha;
+	vec2 atlas_position;
+	vec2 atlas_dimension;
+};
+
 class Renderer
 {
 public:

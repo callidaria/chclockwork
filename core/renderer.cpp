@@ -667,7 +667,43 @@ Renderer::Renderer()
 		-.5f,-.5f,.0f,1.f, .5f,.5f,1.f,.0f, .5f,-.5f,1.f,1.f,
 		.5f,.5f,1.f,.0f, -.5f,-.5f,.0f,1.f, -.5f,.5f,.0f,.0f
 	};
-	f32 __QuadInstances[] = { 100,100,5, 100,100, 0, 1, 0,0, 1,1 };
+	SpriteInstance __SpriteInstances[] = {
+		{
+			.offset = vec3(100,100,5),
+			.scale = vec2(100,100),
+			.rotation = 0,
+			.alpha = 1,
+			.atlas_position = vec2(0,0),
+			.atlas_dimension = vec2(1,1)
+		},
+
+		{
+			.offset = vec3(400,150,5),
+			.scale = vec2(200,200),
+			.rotation = 30.f,
+			.alpha = 1,
+			.atlas_position = vec2(0,0),
+			.atlas_dimension = vec2(1,1)
+		},
+
+		{
+			.offset = vec3(400,400,5),
+			.scale = vec2(120,120),
+			.rotation = -10.f,
+			.alpha = 1,
+			.atlas_position = vec2(0,0),
+			.atlas_dimension = vec2(1,1)
+		},
+
+		{
+			.offset = vec3(460,460,2),
+			.scale = vec2(80,80),
+			.rotation = 20.f,
+			.alpha = .4,
+			.atlas_position = vec2(0,0),
+			.atlas_dimension = vec2(1,1)
+		},
+	};
 
 	// load mesh data
 	Mesh __Mesh = Mesh("./res/private/test.obj");
@@ -706,8 +742,8 @@ Renderer::Renderer()
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
 
 	// instance sprite data
-	m_SpriteInstances.allocate(sizeof(__QuadInstances));
-	m_SpriteInstances.upload(__QuadInstances,sizeof(__QuadInstances));
+	m_SpriteInstances.allocate(sizeof(__SpriteInstances));
+	m_SpriteInstances.upload(__SpriteInstances,sizeof(__SpriteInstances));
 
 	// vertex array
 	m_VertexArray.allocate(2);
@@ -793,7 +829,7 @@ void Renderer::update()
 	// orthogonal section
 	m_SpritePipeline.enable();
 	m_SpriteArray.bind();
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
 
 	// end result
 	m_ResultBuffers[g_Frame.frame_id].stop();
