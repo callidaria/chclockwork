@@ -762,7 +762,7 @@ Renderer::Renderer()
 	// uniform buffer
 	g_UniformBuffer.define(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define(1,m_PixelBuffer);
-	g_UniformBuffer.define(2,m_SpriteTexture);
+	g_UniformBuffer.define(2,m_Framebuffer.components[0]/*m_SpriteTexture*/);
 	g_UniformBuffer.define(3,sizeof(SpriteTransformation));
 	//g_UniformBuffer.define(4,m_Framebuffer.);
 	g_UniformBuffer.assemble();
