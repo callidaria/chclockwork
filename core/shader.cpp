@@ -275,8 +275,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	__SubpassDesc.colorAttachmentCount = depth_channel;
 	__SubpassDesc.pColorAttachments = m_References;
-	__SubpassDesc.pDepthStencilAttachment
-			= (has_depth) ? &m_References[depth_channel] : nullptr;
+	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &m_References[depth_channel] : nullptr;
 
 	// subpass dependency
 	VkSubpassDependency __SubpassDependency = {  };

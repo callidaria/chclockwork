@@ -993,12 +993,34 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	m_Writes.reserve(binding_count);
 	m_DescriptorInfos.reserve(binding_count);
 	// TODO those can be free'd after setup has finished
+
+	// setup default sampler
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.anisotropyEnable = VK_FALSE;
+	__SamplerInfo.maxAnisotropy = 0;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	// TODO research, this is an interesting feature. unfortunately only works with nearest
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = 0;
+	__SamplerInfo.maxLod = 0;
+	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
 }
 
 /**
  *	TODO
  */
-void UniformBuffer::define(u32 location,size_t size)
+void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -1020,15 +1042,6 @@ void UniformBuffer::define(u32 location,size_t size)
 	// TODO debug level map if location is a duplicate to easily check development time mismatch!
 	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
 
-	// buffer info
-	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = m_Size;
-	__Desc.info.buffer.range = size;
-	m_DescriptorInfos.push_back(__Desc);
-	m_Size += size;
-
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
 	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1037,19 +1050,27 @@ void UniformBuffer::define(u32 location,size_t size)
 	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
+
+	DescriptorInfo __Desc = {};
+	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = m_Size;
+	__Desc.info.buffer.range = size;
+	m_DescriptorInfos.push_back(__Desc);
+	m_Size += size;
 }
 
 /**
  *	TODO
  */
-void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
+size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
 
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__PSize.type = type;
 	__PSize.descriptorCount = GPU_BUFFER_COUNT;
 	m_PSizes.push_back(__PSize);
 
@@ -1057,72 +1078,46 @@ void UniformBuffer::define(u32 location,GPUPixelBuffer& texture)
 	VkDescriptorSetLayoutBinding __Binding = {  };
 	__Binding.binding = location;
 	__Binding.descriptorCount = 1;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__Binding.descriptorType = type;
 	__Binding.pImmutableSamplers = nullptr;
 	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	m_Bindings.push_back(__Binding);
 	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
-
-	// image info
-	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Desc.info.image.imageView = texture.image_view;
-	__Desc.info.image.sampler = texture.sampler;
-	m_DescriptorInfos.push_back(__Desc);
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
 	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorType = type;
 	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
+
+	// image info
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_DescriptorInfos.push_back(__Desc);
+	return m_DescriptorInfos.size()-1;
 }
 
 /**
  *	TODO
  */
-void UniformBuffer::define(u32 location,VkImageView buffer)
+void UniformBuffer::link_result(size_t i,GPUPixelBuffer& texture)
 {
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "subpass result binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+}
 
-	// descriptor pool size
-	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT;
-	m_PSizes.push_back(__PSize);
-
-	// bindings
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorCount = 1;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	__Binding.pImmutableSamplers = nullptr;
-	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	m_Bindings.push_back(__Binding);
-	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
-
-	// image info
-	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Desc.info.image.imageView = buffer;
-	__Desc.info.image.sampler = VK_NULL_HANDLE;
-	m_DescriptorInfos.push_back(__Desc);
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
+/**
+ *	TODO
+ */
+void UniformBuffer::link_result(size_t i,VkImageView buffer)
+{
+	m_DescriptorInfos[i].info.image.imageView = buffer;
+	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
 }
 
 /**
@@ -1169,7 +1164,16 @@ void UniformBuffer::assemble()
 	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
-	// descriptors
+	COMM_CNF();
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::finalize()
+{
+	COMM_AWT("update ubo linking");
+
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		for (size_t j=0;j<m_Writes.size();j++)
@@ -1184,7 +1188,6 @@ void UniformBuffer::assemble()
 			case DESCRIPTOR_TYPE_IMAGE: m_Writes[j].pImageInfo = &m_DescriptorInfos[j].info.image;
 				break;
 			}
-			// FIXME this buffer shenanigans is very funny, but let's not actually do this in the final solution
 		}
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 	}

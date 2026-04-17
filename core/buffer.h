@@ -32,7 +32,6 @@ public:
 
 private:
 #ifdef VKBUILD
-private:
 	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
@@ -44,7 +43,7 @@ private:
 	u8 m_DepthChannel;
 	bool m_HasDepth;
 
-	// textures
+public:
 	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
 };
 

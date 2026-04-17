@@ -226,10 +226,12 @@ public:
 	UniformBuffer(u32 binding_count);
 
 	// setup
-	void define(u32 location,size_t size);
-	void define(u32 location,GPUPixelBuffer& texture);
-	void define(u32 location,VkImageView buffer);
+	void define_geometry_buffer(u32 location,size_t size);
+	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
 	void assemble();
+	void finalize();
 
 	// action
 	void update(void* data,size_t size);
@@ -250,6 +252,7 @@ private:
 	vector<VkDescriptorSetLayoutBinding> m_Bindings;
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
+	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer(4);

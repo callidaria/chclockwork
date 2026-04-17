@@ -760,13 +760,15 @@ Renderer::Renderer()
 	m_SpriteTexture.load_texture("./res/test/cld.jpeg");
 
 	// uniform buffer
-	g_UniformBuffer.define(0,sizeof(ObjectTransformation));
-	g_UniformBuffer.define(1,m_PixelBuffer);
-	g_UniformBuffer.define(2,m_Framebuffer.components[0]/*m_SpriteTexture*/);
-	g_UniformBuffer.define(3,sizeof(SpriteTransformation));
+	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
+	size_t __PixelBufferID = g_UniformBuffer.define_pixel_buffer(1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	g_UniformBuffer.define_geometry_buffer(3,sizeof(SpriteTransformation));
 	//g_UniformBuffer.define(4,m_Framebuffer.);
 	g_UniformBuffer.assemble();
-	// TODO automatically assess those definitions from shader as well and communicate definition conflics
+	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
+	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
+	//		but it might just work, if definition and linking is separated as they might be in the future
 
 	// pipeline
 	m_TestingPipeline.out_define_colour_buffer();
@@ -779,6 +781,11 @@ Renderer::Renderer()
 		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
 								 m_SpritePipeline,i);
 	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TestingPipeline);
+
+	// link buffer results
+	g_UniformBuffer.link_result(__PixelBufferID,m_PixelBuffer);
+	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);  // later m_SpriteTexture
+	g_UniformBuffer.finalize();
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
