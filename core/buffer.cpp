@@ -113,7 +113,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageInfo.format = g_Formats.depthbuffer;
 		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
 		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		__ImageInfo.flags = 0;

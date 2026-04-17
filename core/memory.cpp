@@ -1217,6 +1217,7 @@ void UniformBuffer::vanish()
 	}
 	g_GPU.free(m_DescriptorPool);
 	g_GPU.free(dset_layout);
+	g_GPU.free(m_DefaultSampler);
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 

@@ -112,7 +112,7 @@ public:
 	void upload_camera(Camera3D& c);
 
 private:
-	void _define_colour_component(u8 index,VkFormat format);
+	void _define_colour_component(u8 index,VkFormat format,bool result=false);
 
 #ifdef VKBUILD
 public:

@@ -223,7 +223,7 @@ u8 ShaderPipeline::out_define_result_buffer()
 {
 	COMM_ERR_COND(!(m_Cursor<depth_channel),
 				  "result component definition exceeds allocated range of definable components");
-	_define_colour_component(m_Cursor,g_Frame.swapchain.format.format);
+	_define_colour_component(m_Cursor,g_Frame.swapchain.format.format,true);
 	result_attachment.set(m_Cursor);
 	return m_Cursor++;
 }
@@ -747,8 +747,9 @@ void ShaderPipeline::upload_camera(Camera3D& c)
  *	helper to define different sorts of colour components by format and index
  *	\param index: colour component index
  *	\param format: requested colour component format, depending on usage
+ *	\param result: (default false) true if component is result buffer
  */
-void ShaderPipeline::_define_colour_component(u8 index,VkFormat format)
+void ShaderPipeline::_define_colour_component(u8 index,VkFormat format,bool result)
 {
 	// specify colour component
 	descriptions[index] = {};
@@ -759,7 +760,8 @@ void ShaderPipeline::_define_colour_component(u8 index,VkFormat format)
 	descriptions[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	descriptions[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	descriptions[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	descriptions[index].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	descriptions[index].finalLayout = (result) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+			: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	// specify fragment output location
 	m_References[index] = {};
