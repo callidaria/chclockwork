@@ -760,8 +760,8 @@ void ShaderPipeline::_define_colour_component(u8 index,VkFormat format,bool resu
 	descriptions[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	descriptions[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	descriptions[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	descriptions[index].finalLayout = (result) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-			: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	descriptions[index].finalLayout
+			= (result) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	// specify fragment output location
 	m_References[index] = {};

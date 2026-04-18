@@ -275,12 +275,15 @@ private:
 	Framebuffer m_Framebuffer;
 	ShaderPipeline m_TestingPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_SpriteBuffer;
+	VertexBuffer m_TargetBuffer;
 	VertexBuffer m_InstanceBuffer;
 	VertexBuffer m_SpriteInstances;
 	VertexArray m_VertexArray;
 	VertexArray m_SpriteArray;
+	VertexArray m_TargetArray;
 	GPUPixelBuffer m_PixelBuffer;
 	GPUPixelBuffer m_SpriteTexture;
 

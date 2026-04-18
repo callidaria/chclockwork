@@ -705,6 +705,12 @@ Renderer::Renderer()
 		},
 	};
 
+	// framebuffer data
+	f32 __FBVertices[] = {
+		-1.f,-1.f,.0f,.0f, 1.f,1.f,1.f,1.f, 1.f,-1.f,1.f,.0f,
+		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
+	};
+
 	// load mesh data
 	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
@@ -737,6 +743,11 @@ Renderer::Renderer()
 	m_SpriteBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
 	m_SpriteBuffer.update();
 
+	// target vertex data
+	m_TargetBuffer.allocate(sizeof(__FBVertices));
+	m_TargetBuffer.upload(__FBVertices,sizeof(__FBVertices));
+	m_TargetBuffer.update();
+
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
@@ -755,6 +766,10 @@ Renderer::Renderer()
 	m_SpriteArray.register_buffer(m_SpriteBuffer);
 	m_SpriteArray.register_buffer_dynamic(m_SpriteInstances);
 
+	// target vertex array
+	m_TargetArray.allocate(1);
+	m_TargetArray.register_buffer(m_TargetBuffer);
+
 	// texture
 	m_PixelBuffer.load_texture("./res/private/test.png");
 	m_SpriteTexture.load_texture("./res/test/cld.jpeg");
@@ -762,9 +777,9 @@ Renderer::Renderer()
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
 	size_t __PixelBufferID = g_UniformBuffer.define_pixel_buffer(1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	g_UniformBuffer.define_geometry_buffer(3,sizeof(SpriteTransformation));
-	//g_UniformBuffer.define(4,m_Framebuffer.);
+	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
@@ -775,6 +790,8 @@ Renderer::Renderer()
 	m_TestingPipeline.assemble("./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_TargetPipeline.out_define_colour_buffer();
+	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
@@ -784,7 +801,8 @@ Renderer::Renderer()
 
 	// link buffer results
 	g_UniformBuffer.link_result(__PixelBufferID,m_PixelBuffer);
-	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);  // later m_SpriteTexture
+	g_UniformBuffer.link_result(__SpriteBufferID,m_SpriteTexture);
+	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
 	g_UniformBuffer.finalize();
 
 	// upload 2D coordinate system
@@ -808,7 +826,7 @@ void Renderer::update()
 
 	// start voxelgrid
 	m_TestingPipeline.enable();
-	m_VertexArray.bind_indexed();
+	m_VertexArray.bind_indexed(true);
 
 	// camera update test
 	m_UBufferMem.otrafo.view = g_Camera.view;
@@ -831,11 +849,13 @@ void Renderer::update()
 	m_ResultBuffers[g_Frame.frame_id].record();
 
 	// perspective section
-	// TODO
+	m_TargetPipeline.enable();
+	m_TargetArray.bind(false);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
 	m_SpritePipeline.enable();
-	m_SpriteArray.bind();
+	m_SpriteArray.bind(true);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
 
 	// end result
@@ -895,13 +915,16 @@ void Renderer::update()
 
 void Renderer::vanish()
 {
+	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
 	m_Framebuffer.vanish();
 	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
+	m_TargetBuffer.free();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
+	m_TargetBuffer.vanish();
 	m_SpriteBuffer.vanish();
 	m_VertexBuffer.vanish();
 	m_InstanceBuffer.free();

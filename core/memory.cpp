@@ -222,19 +222,20 @@ void VertexArray::transfer_ownership()
 /**
  *	TODO
  */
-void VertexArray::bind()
+void VertexArray::bind(bool instanced)
 {
-	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,1+instanced,
+						   &m_Buffers[0],&m_Offsets[0]);
 }
 
 /**
  *	TODO
  */
-void VertexArray::bind_indexed()
+void VertexArray::bind_indexed(bool instanced)
 {
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	vkCmdBindVertexBuffers(__CMDBuffer,0,2,&m_Buffers[0],&m_Offsets[0]);
+	vkCmdBindVertexBuffers(__CMDBuffer,0,1+instanced,&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(__CMDBuffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
 // TODO upload sync by semaphore

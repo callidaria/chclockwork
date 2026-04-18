@@ -59,8 +59,8 @@ public:
 
 	// update
 	void transfer_ownership();
-	void bind();
-	void bind_indexed();
+	void bind(bool instanced);
+	void bind_indexed(bool instanced);
 
 private:
 	vector<VkBuffer> m_Buffers;
@@ -255,7 +255,7 @@ private:
 	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(4);
+inline UniformBuffer g_UniformBuffer = UniformBuffer(5);
 #endif
 // TODO definition through config or something else, that the developer is capable to easily find & change
 
