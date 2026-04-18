@@ -826,7 +826,7 @@ void Renderer::update()
 
 	// start voxelgrid
 	m_TestingPipeline.enable();
-	m_VertexArray.bind_indexed(true);
+	m_VertexArray.bind_indexed();
 
 	// camera update test
 	m_UBufferMem.otrafo.view = g_Camera.view;
@@ -850,12 +850,12 @@ void Renderer::update()
 
 	// perspective section
 	m_TargetPipeline.enable();
-	m_TargetArray.bind(false);
+	m_TargetArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
 	m_SpritePipeline.enable();
-	m_SpriteArray.bind(true);
+	m_SpriteArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
 
 	// end result

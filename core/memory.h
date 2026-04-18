@@ -59,8 +59,8 @@ public:
 
 	// update
 	void transfer_ownership();
-	void bind(bool instanced);
-	void bind_indexed(bool instanced);
+	void bind();
+	void bind_indexed();
 
 private:
 	vector<VkBuffer> m_Buffers;
