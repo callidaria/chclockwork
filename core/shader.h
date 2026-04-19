@@ -112,40 +112,31 @@ public:
 	void upload_camera(Camera3D& c);
 
 private:
-	void _define_colour_component(u8 index,VkFormat format,bool result=false);
-
 #ifdef VKBUILD
-public:
-	VkRenderPass render_pass;
-	VkAttachmentDescription* descriptions;
-	BitwiseWords result_attachment;
-	u8 depth_channel;
-	bool has_depth;
-
-private:
-	VkAttachmentReference* m_References;
-	u8 m_Cursor = 0;
+	void _define_colour_component(u8 index,VkFormat format,bool result=false);
 #else
-
-private:
 	void _define_attribute(ShaderAttribute attrib);
 	void _define_index_attribute(ShaderAttribute attrib);
-	// TODO change back to references
-
-private:
 	s32 _handle_attribute_location_by_name(const char* varname);
+	// TODO change back to references
 #endif
 
 public:
 #ifdef VKBUILD
 	VkPipeline pipeline;
 	VkPipelineLayout pipeline_layout;
+	VkRenderPass render_pass;
+	VkAttachmentDescription* descriptions;
+	BitwiseWords result_attachment;
+#else
 #endif
+	u8 depth_channel;
+	bool has_depth;
 
 private:
 #ifdef VKBUILD
-	// program
-	//VkPipelineLayout m_PipelineLayout;
+	VkAttachmentReference* m_References;
+	u8 m_Cursor = 0;
 #else
 	u32 m_ShaderProgram;
 #endif

@@ -14,6 +14,11 @@
  */
 void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffer)
 {
+	// allocate component handles
+	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
+	components.resize(__ComponentCount);
+
+#ifdef VKBUILD
 	COMM_ERR_COND(sp.render_pass==VK_NULL_HANDLE,
 				  "shader pipeline must be assembled before passing it to framebuffer setup");
 
@@ -21,13 +26,10 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	m_RenderPass = sp.render_pass;
 	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
 
-	// allocate component handles
-	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
-	components.resize(__ComponentCount);
-
 	// allocate handler memory
 	m_AttachmentImages.resize(__ComponentCount);
 	m_AttachmentMemory.resize(__ComponentCount);
+#endif
 
 	for (u8 i=0;i<sp.depth_channel;i++)
 	{
@@ -175,7 +177,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create framebuffer");
 #else
 	glGenFramebuffers(1,&m_Buffer);
-	glGenTextures(count,&components[0]);
+	glGenTextures(__ComponentCount,&components[0]);
 #endif
 };
 
@@ -346,7 +348,7 @@ void Framebuffer::bind_colour_component(u8 channel,u8 i)
 #ifdef VKBUILD
 	// TODO
 #else
-	glBindTexture(GL_TEXTURE_2D,m_ColourComponents[i]);
+	glBindTexture(GL_TEXTURE_2D,components[i]);
 #endif
 }
 
@@ -360,6 +362,6 @@ void Framebuffer::bind_depth_component(u8 channel)
 #ifdef VKBUILD
 	// TODO
 #else
-	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
+	glBindTexture(GL_TEXTURE_2D,components[m_DepthChannel]);
 #endif
 }
