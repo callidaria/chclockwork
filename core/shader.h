@@ -9,6 +9,69 @@ constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
 constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
+enum DescriptorType : u8
+{
+	DESCRIPTOR_TYPE_BUFFER,
+	DESCRIPTOR_TYPE_IMAGE
+};
+
+struct DescriptorInfo
+{
+	DescriptorType type;
+	union
+	{
+		VkDescriptorBufferInfo buffer;
+		VkDescriptorImageInfo image;
+	} info;
+};
+
+class UniformBuffer
+{
+public:
+	UniformBuffer(u32 binding_count);
+
+	// setup
+	void define_geometry_buffer(u32 location,size_t size);
+	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
+	void assemble();
+	void finalize();
+
+	// action
+	void update(void* data,size_t size);
+
+	// final
+	void vanish();
+
+public:
+	VkDescriptorSetLayout dset_layout;
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
+
+private:
+	VkBuffer m_UBO[GPU_BUFFER_COUNT];
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+	VkDescriptorPool m_DescriptorPool;
+	vector<VkDescriptorPoolSize> m_PSizes;
+	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<DescriptorInfo> m_DescriptorInfos;
+	VkSampler m_DefaultSampler;
+	size_t m_Size = 0;
+};
+inline UniformBuffer g_UniformBuffer = UniformBuffer(5);
+// TODO definition through config or something else, that the developer is capable to easily find & change
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Shader Pipeline
+
 struct ShaderAttribute
 {
 #ifdef VKBUILD
