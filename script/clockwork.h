@@ -23,27 +23,24 @@ constexpr f32 CLOCKWORK_ROTATION_FLOATFACTOR = .1f;
 class Clockwork
 {
 public:
-#ifdef VKBUILD  // §§prototyping remove
-	Clockwork();
-#else
 	Clockwork(Font* font);
-#endif
 	void update();
 
 private:
 
 	TargetMomentumSnap m_CameraPosition = TargetMomentumSnap(CLOCKWORK_MVMT_FLOATFACTOR);
 	TargetMomentumSnap m_CameraRotation = TargetMomentumSnap(CLOCKWORK_ROTATION_FLOATFACTOR);
+
+	vec3 m_TargetingVector =
 #ifdef VKBUILD
-	vec3 m_TargetingVector = vec3(0);
+		vec3(0);
 #else
-	vec3 m_TargetingVector = vec3(0,25.f,0);
+		vec3(0,25.f,0);
+#endif
 
 	// measurements
 	lptr<Text> m_FPS;
-#endif
 };
 
 
-//#endif
 #endif

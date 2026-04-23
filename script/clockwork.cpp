@@ -5,21 +5,15 @@
 /**
  *	setup origin camera projection
  */
-#ifdef VKBUILD
-Clockwork::Clockwork()
-#else
 Clockwork::Clockwork(Font* font)
-#endif
 {
 	// camera setup
 	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch+25.f,g_Camera.distance);
 	m_CameraRotation.target = m_TargetingVector;
 
-#ifndef VKBUILD  // §§prototyping remove
 	// fps display
 	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,0),15,vec4(1),
 								  Alignment{ .alignment=SCREEN_ALIGN_TOPRIGHT });
-#endif
 
 	g_Wheel.call(this);
 }

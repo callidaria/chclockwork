@@ -15,7 +15,8 @@
 s32 main(s32 argc,char** argv)
 {
 #ifdef VKBUILD
-	Clockwork __Clockwork = Clockwork();
+	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",20);
+	Clockwork __Clockwork = Clockwork(__Ubuntu);
 	bool running = true;
 	while (running)
 	{

@@ -163,6 +163,7 @@ struct GPUPixelBuffer
 {
 #ifdef VKBUILD
 	void load_texture(const char* path);
+	void load_font(const char* path,u16 size);
 	void vanish();
 #endif
 

@@ -936,6 +936,41 @@ void Renderer::vanish()
 	g_UniformBuffer.vanish();
 }
 
+/**
+ *	TODO
+ */
+Font* Renderer::register_font(const char* path,u16 size)
+{
+	COMM_LOG("font register from source %s",path);
+	Font* p_Font = m_Fonts.next_free();
+	/*
+	m_GPUFontTextures.signal.stall();
+	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);
+	__LoadThread.detach();
+	*/
+	return p_Font;
+}
+
+/**
+ *	TODO
+ */
+lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour,Alignment align)
+{
+	//m_GPUFontTextures.signal.wait();
+	m_Texts.push_back({
+			.font = font,
+			.position = position,
+			.scale = (f32)scale/font->size,
+			.colour = colour,
+			.alignment = align,
+			.data = data
+		});
+
+	lptr<Text> p_Text = std::prev(m_Texts.end());
+	p_Text->align();
+	p_Text->load_buffer();
+	return p_Text;
+}
 
 #else
 
@@ -1379,6 +1414,7 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 	p_Text->load_buffer();
 	return p_Text;
 }
+// TODO rm if successful
 
 /**
  *	load texture into ram in background and register for vram upload when ready

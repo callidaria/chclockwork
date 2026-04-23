@@ -270,6 +270,11 @@ public:
 	void update();
 	void vanish();
 
+	// text
+	Font* register_font(const char* path,u16 size);
+	lptr<Text> write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour=vec4(1),Alignment align={});
+	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
+
 private:
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
 	Framebuffer m_Framebuffer;
@@ -291,6 +296,11 @@ private:
 	UniformBufferMemory m_UBufferMem;
 	f32 m_Rotation = .0f;
 	u32 m_RenderSize = 0;
+
+	// text
+	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
+	list<Text> m_Texts;
+	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 };
 
 
