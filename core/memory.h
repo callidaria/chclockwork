@@ -100,9 +100,6 @@ private:
 public:
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
-#ifdef VKBUILD
-	u16 mipcount;
-#endif
 	u8* data;
 
 private:
@@ -162,13 +159,17 @@ struct Font
 struct GPUPixelBuffer
 {
 #ifdef VKBUILD
+	/*
 	void load_texture(const char* path);
 	void load_font(const char* path,u16 size);
-	void vanish();
+	*/
 #endif
 
-	// utilty
+	// setup
 	void allocate(u32 width,u32 height,TextureFormat format);
+	void vanish();
+
+	// utilty
 	static void load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path);
 	static void load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size);
 	static void _load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,TextureData* data);
@@ -186,6 +187,8 @@ struct GPUPixelBuffer
 	VkDeviceMemory m_TextureMemory;
 	VkImageView image_view;
 	VkSampler sampler;
+	u16 m_Mipcount;
+	u32 m_Width,m_Height;
 #endif
 	// FIXME wait just a second GPUPixelBuffer is a struct and i act as if it's a class. obey the coding laws!
 

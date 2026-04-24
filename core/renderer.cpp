@@ -771,8 +771,18 @@ Renderer::Renderer()
 	m_TargetArray.register_buffer(m_TargetBuffer);
 
 	// texture
-	m_PixelBuffer.load_texture("./res/private/test.png");
-	m_SpriteTexture.load_texture("./res/test/cld.jpeg");
+	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
+	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_RGBA);
+	PixelBufferComponent m_PixelBufferComponent;
+	PixelBufferComponent m_SpriteTextureComponent;
+	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
+	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
+	// TODO subthread
+
+	// update textures
+	m_PixelBuffer.gpu_upload(0);
+	m_SpriteTexture.gpu_upload(0);
+	// TODO possibility to register as dynamic and make it update per frame (intern load requests will handle it)
 
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
