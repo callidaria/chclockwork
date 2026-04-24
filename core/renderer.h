@@ -259,8 +259,7 @@ struct SpriteInstance
 	vec2 scale;
 	f32 rotation;
 	f32 alpha;
-	vec2 atlas_position;
-	vec2 atlas_dimension;
+	PixelBufferComponent pbc;
 };
 
 class Renderer

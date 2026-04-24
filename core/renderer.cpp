@@ -673,8 +673,10 @@ Renderer::Renderer()
 			.scale = vec2(100,100),
 			.rotation = 0,
 			.alpha = 1,
+			/*
 			.atlas_position = vec2(0,0),
 			.atlas_dimension = vec2(1,1)
+			*/
 		},
 
 		{
@@ -682,8 +684,10 @@ Renderer::Renderer()
 			.scale = vec2(200,200),
 			.rotation = 30.f,
 			.alpha = 1,
+			/*
 			.atlas_position = vec2(0,0),
 			.atlas_dimension = vec2(1,1)
+			*/
 		},
 
 		{
@@ -691,8 +695,10 @@ Renderer::Renderer()
 			.scale = vec2(120,120),
 			.rotation = -10.f,
 			.alpha = 1,
+			/*
 			.atlas_position = vec2(0,0),
 			.atlas_dimension = vec2(1,1)
+			*/
 		},
 
 		{
@@ -700,8 +706,10 @@ Renderer::Renderer()
 			.scale = vec2(80,80),
 			.rotation = 20.f,
 			.alpha = .4,
+			/*
 			.atlas_position = vec2(0,0),
 			.atlas_dimension = vec2(1,1)
+			*/
 		},
 	};
 
@@ -731,6 +739,21 @@ Renderer::Renderer()
 			}
 		}
 	}
+
+	// texture
+	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
+	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_RGBA);
+	PixelBufferComponent m_PixelBufferComponent;
+	PixelBufferComponent m_SpriteTextureComponent;
+	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
+	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
+	// TODO subthread
+	for (u8 i=0;i<4;i++) __SpriteInstances[i].pbc = m_SpriteTextureComponent;
+
+	// update textures
+	m_PixelBuffer.gpu_upload(0);
+	m_SpriteTexture.gpu_upload(0);
+	// TODO possibility to register as dynamic and make it update per frame (intern load requests will handle it)
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
@@ -769,20 +792,6 @@ Renderer::Renderer()
 	// target vertex array
 	m_TargetArray.allocate(1);
 	m_TargetArray.register_buffer(m_TargetBuffer);
-
-	// texture
-	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_RGBA);
-	PixelBufferComponent m_PixelBufferComponent;
-	PixelBufferComponent m_SpriteTextureComponent;
-	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
-	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
-	// TODO subthread
-
-	// update textures
-	m_PixelBuffer.gpu_upload(0);
-	m_SpriteTexture.gpu_upload(0);
-	// TODO possibility to register as dynamic and make it update per frame (intern load requests will handle it)
 
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
