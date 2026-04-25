@@ -95,6 +95,7 @@ public:
 	void gpu_upload_subtexture();
 
 private:
+	void _copy_buffer();
 	void _free();
 
 public:

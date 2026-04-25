@@ -288,8 +288,7 @@ void TextureData::load(const char* path)
 void TextureData::gpu_upload()
 {
 #ifdef VKBUILD
-	// TODO
-
+	_copy_buffer();
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
 				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
@@ -305,13 +304,55 @@ void TextureData::gpu_upload()
 void TextureData::gpu_upload_subtexture()
 {
 #ifdef VKBUILD
-	// TODO
-
+	_copy_buffer();
 #else
 	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
 #endif
 	_free();
 }
+
+/**
+ *	TODO
+ */
+#ifdef VKBUILD
+void TextureData::_copy_buffer()
+{
+	// setup memory barrier
+	VkImageMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.image = m_Texture;
+	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__Barrier.subresourceRange.baseMipLevel = 0;
+	__Barrier.subresourceRange.levelCount = m_Mipcount;
+	__Barrier.subresourceRange.baseArrayLayer = 0;
+	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+	// buffer copy
+	VkBufferImageCopy __BufferCopy = {  };
+	__BufferCopy.bufferOffset = 0;
+	__BufferCopy.bufferRowLength = 0;
+	__BufferCopy.bufferImageHeight = 0;
+	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__BufferCopy.imageSubresource.mipLevel = 0;
+	__BufferCopy.imageSubresource.baseArrayLayer = 0;
+	__BufferCopy.imageSubresource.layerCount = 1;
+	__BufferCopy.imageOffset = { x,y,0 };
+	__BufferCopy.imageExtent = { width,height,1 };
+
+	// upload image
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
+	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+						   1,&__BufferCopy);
+}
+#endif
 
 /**
  *	free buffer memory
@@ -833,34 +874,6 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	mutex_texture_requests.unlock();
 #ifdef VKBUILD
 
-	// setup memory barrier
-	VkImageMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.image = m_Texture;
-	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.levelCount = m_Mipcount;
-	__Barrier.subresourceRange.baseArrayLayer = 0;
-	__Barrier.subresourceRange.layerCount = 1;
-	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__Barrier.srcAccessMask = 0;
-	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-	// buffer copy
-	VkBufferImageCopy __BufferCopy = {  };
-	__BufferCopy.bufferOffset = 0;
-	__BufferCopy.bufferRowLength = 0;
-	__BufferCopy.bufferImageHeight = 0;
-	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__BufferCopy.imageSubresource.mipLevel = 0;
-	__BufferCopy.imageSubresource.baseArrayLayer = 0;
-	__BufferCopy.imageSubresource.layerCount = 1;
-	__BufferCopy.imageOffset = { 0,0,0 };
-	__BufferCopy.imageExtent = { (u32)m_Width,(u32)m_Height,1 };
-
 	// mipmap generation
 	VkImageMemoryBarrier __MMBarrier = {  };
 	__MMBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -883,13 +896,6 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	__MMBlit.dstSubresource.baseArrayLayer = 0;
 	__MMBlit.dstSubresource.layerCount = 1;
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
-
-	// upload image
-	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__Barrier);
-	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-						   1,&__BufferCopy);
 
 	// generate mipmaps
 	s32 __MMWidth = m_Width;
