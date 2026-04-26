@@ -91,11 +91,21 @@ public:
 	TextureData(TextureFormat format=TEXTURE_FORMAT_RGBA);
 
 	void load(const char* path);
-	void gpu_upload();
-	void gpu_upload_subtexture();
+	void gpu_upload(
+#ifdef VKBUILD
+			VkImage image
+#endif
+		);
+	void gpu_upload_subtexture(
+#ifdef VKBUILD
+			VkImage image
+#endif
+		);
 
 private:
-	void _copy_buffer();
+#ifdef VKBUILD
+	void _copy_buffer(VkImage image);
+#endif
 	void _free();
 
 public:
@@ -182,9 +192,7 @@ struct GPUPixelBuffer
 
 	// data
 #ifdef VKBUILD
-	VkBuffer m_StagingBuffer;
 	VkImage m_Texture;
-	VkDeviceMemory m_StagingMemory;  // TODO remove staging memory & buffer from here
 	VkDeviceMemory m_TextureMemory;
 	VkImageView image_view;
 	VkSampler sampler;

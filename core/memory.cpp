@@ -285,10 +285,14 @@ void TextureData::load(const char* path)
  *	NOTE has to be uploaded in main thread
  *	NOTE target texture has to be bound before uploading
  */
-void TextureData::gpu_upload()
+void TextureData::gpu_upload(
+#ifdef VKBUILD
+		VkImage image
+#endif
+	)
 {
 #ifdef VKBUILD
-	_copy_buffer();
+	_copy_buffer(image);
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
 				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
@@ -301,10 +305,14 @@ void TextureData::gpu_upload()
  *	NOTE has to be uploaded in main thread
  *	NOTE target texture has to be bound and allocated before uploading
  */
-void TextureData::gpu_upload_subtexture()
+void TextureData::gpu_upload_subtexture(
+#ifdef VKBUILD
+		VkImage image
+#endif
+	)
 {
 #ifdef VKBUILD
-	_copy_buffer();
+	_copy_buffer(image);
 #else
 	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
 #endif
@@ -315,23 +323,20 @@ void TextureData::gpu_upload_subtexture()
  *	TODO
  */
 #ifdef VKBUILD
-void TextureData::_copy_buffer()
+void TextureData::_copy_buffer(VkImage image)
 {
-	// setup memory barrier
-	VkImageMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.image = m_Texture;
-	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.levelCount = m_Mipcount;
-	__Barrier.subresourceRange.baseArrayLayer = 0;
-	__Barrier.subresourceRange.layerCount = 1;
-	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__Barrier.srcAccessMask = 0;
-	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	size_t __ImageSize = width*height*4;
+
+	// generate staging buffer
+	VkBuffer __StagingBuffer;
+	VkDeviceMemory __StagingMemory;
+	GPU::generate_buffer(__StagingBuffer,__StagingMemory,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	// stage memory
+	void* __Data;
+	vkMapMemory(g_GPU.gpu,__StagingMemory,0,__ImageSize,0,&__Data);
+	memcpy(__Data,data,__ImageSize);
 
 	// buffer copy
 	VkBufferImageCopy __BufferCopy = {  };
@@ -342,15 +347,17 @@ void TextureData::_copy_buffer()
 	__BufferCopy.imageSubresource.mipLevel = 0;
 	__BufferCopy.imageSubresource.baseArrayLayer = 0;
 	__BufferCopy.imageSubresource.layerCount = 1;
-	__BufferCopy.imageOffset = { x,y,0 };
-	__BufferCopy.imageExtent = { width,height,1 };
+	__BufferCopy.imageOffset = { (s32)x,(s32)y,0 };
+	__BufferCopy.imageExtent = { (u32)width,(u32)height,1 };
 
 	// upload image
-	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__Barrier);
-	vkCmdCopyBufferToImage(__CMDBuffer,m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-						   1,&__BufferCopy);
+	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
+						   __StagingBuffer,image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
+
+	// terminate staging buffer
+	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
+	g_GPU.free(__StagingMemory);
+	g_GPU.free(__StagingBuffer);
 }
 #endif
 
@@ -612,8 +619,6 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	m_Mipcount = std::floor(std::log2(std::max(width,height)))+1;
 
 	// image buffer
-	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,width*height*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.flags = 0;
@@ -688,9 +693,6 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 void GPUPixelBuffer::vanish()
 {
 #ifdef VKBUILD
-	g_GPU.free(m_StagingBuffer);
-	g_GPU.free(m_StagingMemory);
-	// TODO do the staging removal right after upload?
 	g_GPU.free(sampler);
 	g_GPU.free(image_view);
 	g_GPU.free(m_Texture);
@@ -843,32 +845,42 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	atlas.bind(channel);
 	mutex_texture_requests.lock();
 
-	// iterate waiting requests
+	// setup memory barrier
 #ifdef VKBUILD
-	while (load_requests.size())
-	{
-		TextureData& p_Data = load_requests.front();
-		void* __Data;
-		size_t __ImageSize = p_Data.width*p_Data.height*4;
-		vkMapMemory(g_GPU.gpu,m_StagingMemory,0,__ImageSize,0,&__Data);
-		memcpy(__Data,p_Data.data,__ImageSize);
-		vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	VkImageMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.image = m_Texture;
+	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__Barrier.subresourceRange.baseMipLevel = 0;
+	__Barrier.subresourceRange.levelCount = m_Mipcount;
+	__Barrier.subresourceRange.baseArrayLayer = 0;
+	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
 
-		// cleanup staging memory
-		p_Data.gpu_upload();  // TODO this is only to trigger the memfree, this will be removed later.
-		load_requests.pop();
-	}
-	// TODO transition this naive implementation to an actually good implementation
-	// TODO implement copy as subtexture
+	// iterate waiting requests
+	while (load_requests.size())
 #else
 	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
+#endif
 	{
 		TextureData& p_Data = load_requests.front();
-		p_Data.gpu_upload_subtexture();
+		p_Data.gpu_upload_subtexture(
+#ifdef VKBUILD
+				m_Texture
+#endif
+			);
 		load_requests.pop();
 	}
-#endif
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
+	// TODO transition this naive implementation to an actually good implementation
 
 	// controversial pixel buffer lod creation
 	mutex_texture_requests.unlock();
