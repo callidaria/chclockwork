@@ -845,26 +845,8 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	atlas.bind(channel);
 	mutex_texture_requests.lock();
 
-	// iterate waiting requests
 #ifdef VKBUILD
-	while (load_requests.size())
-#else
-	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
-#endif
-	{
-		TextureData& p_Data = load_requests.front();
-		p_Data.gpu_upload_subtexture(
-#ifdef VKBUILD
-				m_Texture
-#endif
-			);
-		load_requests.pop();
-	}
-	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
-	// TODO transition this naive implementation to an actually good implementation
-
 	// setup memory barrier
-#ifdef VKBUILD
 	VkImageMemoryBarrier __Barrier = {  };
 	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -882,7 +864,23 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
+
+	// iterate waiting requests
+	while (load_requests.size())
+#else
+	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
 #endif
+	{
+		TextureData& p_Data = load_requests.front();
+		p_Data.gpu_upload_subtexture(
+#ifdef VKBUILD
+				m_Texture
+#endif
+			);
+		load_requests.pop();
+	}
+	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
+	// TODO transition this naive implementation to an actually good implementation
 
 	// controversial pixel buffer lod creation
 	mutex_texture_requests.unlock();
