@@ -1,4 +1,4 @@
-# C. Hansen's Counter-Clockwork
+# C. Hanson's Counter-Clockwork
 
 ### Document
 

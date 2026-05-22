@@ -9,7 +9,7 @@
 #define GPU_BUFFER_COUNT 2
 
 // blitter
-#define FRAME_PROGRAM_TITLE "C. Hansen's Counter-Clockwork"
+#define FRAME_PROGRAM_TITLE "C. Hanson's Counter-Clockwork"
 #define FRAME_BLITTER_VSYNC false
 #define FRAME_RESOLUTION_X 1600
 #define FRAME_RESOLUTION_Y 900

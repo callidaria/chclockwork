@@ -355,9 +355,11 @@ void TextureData::_copy_buffer(VkImage image)
 						   __StagingBuffer,image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
 
 	// terminate staging buffer
+	/*
 	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
 	g_GPU.free(__StagingMemory);
 	g_GPU.free(__StagingBuffer);
+	*/
 }
 #endif
 
@@ -881,6 +883,8 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
 	// TODO transition this naive implementation to an actually good implementation
+	// TODO instead: pack multiple textures into a single buffer with bufferOffset and the upload at once
+	//		this is in addition to overwriting into a centralized staging buffer, owned by this instead of data
 
 	// controversial pixel buffer lod creation
 	mutex_texture_requests.unlock();

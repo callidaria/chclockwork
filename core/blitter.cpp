@@ -78,7 +78,7 @@ Frame::Frame()
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	__ApplicationInfo.pApplicationName = FRAME_PROGRAM_TITLE;
 	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hansen's Counter-Clockwork";
+	__ApplicationInfo.pEngineName = "C. Hanson's Counter-Clockwork";
 	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,2);
 
 	// api version selection with fallback to 1.0 if necessary
