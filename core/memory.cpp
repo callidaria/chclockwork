@@ -292,7 +292,7 @@ void TextureData::gpu_upload(
 	)
 {
 #ifdef VKBUILD
-	_copy_buffer(image,buf,mem);
+	_copy_buffer(image,buf,mem,0);
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
 				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
@@ -307,12 +307,12 @@ void TextureData::gpu_upload(
  */
 void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
-		VkImage image,VkBuffer buf,VkDeviceMemory mem
+		VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs
 #endif
 	)
 {
 #ifdef VKBUILD
-	_copy_buffer(image,buf,mem);
+	_copy_buffer(image,buf,mem,ofs);
 #else
 	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
 #endif
@@ -323,13 +323,13 @@ void TextureData::gpu_upload_subtexture(
  *	TODO
  */
 #ifdef VKBUILD
-void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem)
+void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs)
 {
 	size_t __ImageSize = width*height*4;
 
 	// stage memory
 	void* __Data;
-	vkMapMemory(g_GPU.gpu,mem,0,__ImageSize,0,&__Data);
+	vkMapMemory(g_GPU.gpu,mem,ofs,__ImageSize,0,&__Data);
 	memcpy(__Data,data,__ImageSize);
 
 	// buffer copy
@@ -868,6 +868,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 
 	// iterate waiting requests
+	size_t __MemoryOffset = 0;
 	while (load_requests.size())
 #else
 	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
@@ -876,15 +877,14 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 		TextureData& p_Data = load_requests.front();
 		p_Data.gpu_upload_subtexture(
 #ifdef VKBUILD
-				m_Texture,m_StagingBuffer,m_StagingMemory
+				m_Texture,m_StagingBuffer,m_StagingMemory,__MemoryOffset
 #endif
 			);
 		load_requests.pop();
+		__MemoryOffset += p_Data.width*p_Data.height*4;
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
-	// TODO transition this naive implementation to an actually good implementation
-	// TODO instead: pack multiple textures into a single buffer with bufferOffset and the upload at once
-	//		this is in addition to overwriting into a centralized staging buffer, owned by this instead of data
+	// TODO transition this naive, unstalled implementation to an actually good implementation
 
 	// controversial pixel buffer lod creation
 	mutex_texture_requests.unlock();

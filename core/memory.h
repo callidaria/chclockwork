@@ -98,13 +98,13 @@ public:
 		);
 	void gpu_upload_subtexture(
 #ifdef VKBUILD
-			VkImage image,VkBuffer buf,VkDeviceMemory mem
+			VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs
 #endif
 		);
 
 private:
 #ifdef VKBUILD
-	void _copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem);
+	void _copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs);
 #endif
 	void _free();
 
