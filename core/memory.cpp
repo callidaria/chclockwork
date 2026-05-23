@@ -327,10 +327,6 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem)
 {
 	size_t __ImageSize = width*height*4;
 
-	// generate staging buffer
-	GPU::generate_buffer(buf,mem,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
 	// stage memory
 	void* __Data;
 	vkMapMemory(g_GPU.gpu,mem,0,__ImageSize,0,&__Data);
@@ -351,6 +347,7 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem)
 	// upload image
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
 						   buf,image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
+	vkUnmapMemory(g_GPU.gpu,mem);
 }
 #endif
 
@@ -611,6 +608,10 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	m_Height = height;
 	m_Mipcount = std::floor(std::log2(std::max(width,height)))+1;
 
+	// generate staging buffer
+	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,width*height*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
 	// image buffer
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -688,7 +689,6 @@ void GPUPixelBuffer::vanish()
 #ifdef VKBUILD
 
 	// staging
-	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
 	g_GPU.free(m_StagingMemory);
 	g_GPU.free(m_StagingBuffer);
 
