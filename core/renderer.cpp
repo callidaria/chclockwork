@@ -673,10 +673,6 @@ Renderer::Renderer()
 			.scale = vec2(100,100),
 			.rotation = 0,
 			.alpha = 1,
-			/*
-			.atlas_position = vec2(0,0),
-			.atlas_dimension = vec2(1,1)
-			*/
 		},
 
 		{
@@ -684,10 +680,6 @@ Renderer::Renderer()
 			.scale = vec2(200,200),
 			.rotation = 30.f,
 			.alpha = 1,
-			/*
-			.atlas_position = vec2(0,0),
-			.atlas_dimension = vec2(1,1)
-			*/
 		},
 
 		{
@@ -695,10 +687,6 @@ Renderer::Renderer()
 			.scale = vec2(120,120),
 			.rotation = -10.f,
 			.alpha = 1,
-			/*
-			.atlas_position = vec2(0,0),
-			.atlas_dimension = vec2(1,1)
-			*/
 		},
 
 		{
@@ -706,10 +694,6 @@ Renderer::Renderer()
 			.scale = vec2(80,80),
 			.rotation = 20.f,
 			.alpha = .4,
-			/*
-			.atlas_position = vec2(0,0),
-			.atlas_dimension = vec2(1,1)
-			*/
 		},
 	};
 
@@ -748,7 +732,10 @@ Renderer::Renderer()
 	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
 	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
 	// TODO subthread
+
+	// align atlas
 	for (u8 i=0;i<4;i++) __SpriteInstances[i].pbc = m_SpriteTextureComponent;
+	for (u8 i=0;i<TEST_INSTANCE_AMOUNT_GENERAL;i++) __Instances[i].pbc = m_PixelBufferComponent;
 
 	// update textures
 	m_PixelBuffer.gpu_upload(0);

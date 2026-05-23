@@ -251,6 +251,7 @@ struct UniformBufferMemory
 struct ObjectInstance
 {
 	vec3 position;
+	PixelBufferComponent pbc;
 };
 
 struct SpriteInstance

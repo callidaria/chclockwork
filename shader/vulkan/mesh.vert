@@ -8,6 +8,8 @@ layout(location = 3) in vec3 tangent;
 
 // engine: ibo
 layout(location = 10) in vec3 offset;
+layout(location = 11) in vec2 atlas_position;
+layout(location = 12) in vec2 atlas_dimension;
 
 layout(location = 0) out vec2 UV;
 layout(location = 1) out vec3 Normal;
@@ -26,7 +28,7 @@ void main()
 	gl_Position = ot.proj*ot.view*ot.model*vec4(position+offset,1.);
 
 	// pass
-	UV = uv;
+	UV = atlas_position+atlas_dimension*uv;
 	Normal = normal;
 
 	// gram-schmidt reorthogonalization
