@@ -93,18 +93,18 @@ public:
 	void load(const char* path);
 	void gpu_upload(
 #ifdef VKBUILD
-			VkImage image
+			VkImage image,VkBuffer buf,VkDeviceMemory mem
 #endif
 		);
 	void gpu_upload_subtexture(
 #ifdef VKBUILD
-			VkImage image
+			VkImage image,VkBuffer buf,VkDeviceMemory mem
 #endif
 		);
 
 private:
 #ifdef VKBUILD
-	void _copy_buffer(VkImage image);
+	void _copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem);
 #endif
 	void _free();
 
@@ -193,7 +193,8 @@ struct GPUPixelBuffer
 	// data
 #ifdef VKBUILD
 	VkImage m_Texture;
-	VkDeviceMemory m_TextureMemory;
+	VkBuffer m_StagingBuffer;
+	VkDeviceMemory m_TextureMemory,m_StagingMemory;
 	VkImageView image_view;
 	VkSampler sampler;
 	u16 m_Mipcount;

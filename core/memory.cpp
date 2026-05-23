@@ -287,12 +287,12 @@ void TextureData::load(const char* path)
  */
 void TextureData::gpu_upload(
 #ifdef VKBUILD
-		VkImage image
+		VkImage image,VkBuffer buf,VkDeviceMemory mem
 #endif
 	)
 {
 #ifdef VKBUILD
-	_copy_buffer(image);
+	_copy_buffer(image,buf,mem);
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
 				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
@@ -307,12 +307,12 @@ void TextureData::gpu_upload(
  */
 void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
-		VkImage image
+		VkImage image,VkBuffer buf,VkDeviceMemory mem
 #endif
 	)
 {
 #ifdef VKBUILD
-	_copy_buffer(image);
+	_copy_buffer(image,buf,mem);
 #else
 	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
 #endif
@@ -323,19 +323,17 @@ void TextureData::gpu_upload_subtexture(
  *	TODO
  */
 #ifdef VKBUILD
-void TextureData::_copy_buffer(VkImage image)
+void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem)
 {
 	size_t __ImageSize = width*height*4;
 
 	// generate staging buffer
-	VkBuffer __StagingBuffer;
-	VkDeviceMemory __StagingMemory;
-	GPU::generate_buffer(__StagingBuffer,__StagingMemory,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	GPU::generate_buffer(buf,mem,__ImageSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	// stage memory
 	void* __Data;
-	vkMapMemory(g_GPU.gpu,__StagingMemory,0,__ImageSize,0,&__Data);
+	vkMapMemory(g_GPU.gpu,mem,0,__ImageSize,0,&__Data);
 	memcpy(__Data,data,__ImageSize);
 
 	// buffer copy
@@ -352,14 +350,7 @@ void TextureData::_copy_buffer(VkImage image)
 
 	// upload image
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
-						   __StagingBuffer,image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
-
-	// terminate staging buffer
-	/*
-	vkUnmapMemory(g_GPU.gpu,__StagingMemory);
-	g_GPU.free(__StagingMemory);
-	g_GPU.free(__StagingBuffer);
-	*/
+						   buf,image,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
 }
 #endif
 
@@ -695,10 +686,19 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 void GPUPixelBuffer::vanish()
 {
 #ifdef VKBUILD
-	g_GPU.free(sampler);
+
+	// staging
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	g_GPU.free(m_StagingMemory);
+	g_GPU.free(m_StagingBuffer);
+
+	// buffer
 	g_GPU.free(image_view);
 	g_GPU.free(m_Texture);
 	g_GPU.free(m_TextureMemory);
+
+	// sampler
+	g_GPU.free(sampler);
 #endif
 }
 
@@ -876,7 +876,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 		TextureData& p_Data = load_requests.front();
 		p_Data.gpu_upload_subtexture(
 #ifdef VKBUILD
-				m_Texture
+				m_Texture,m_StagingBuffer,m_StagingMemory
 #endif
 			);
 		load_requests.pop();
