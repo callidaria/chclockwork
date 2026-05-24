@@ -64,7 +64,7 @@ private:
 	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(5);
+inline UniformBuffer g_UniformBuffer = UniformBuffer(6);
 // TODO definition through config or something else, that the developer is capable to easily find & change
 #endif
 

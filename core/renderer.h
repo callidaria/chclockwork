@@ -280,14 +280,17 @@ private:
 	Framebuffer m_Framebuffer;
 	ShaderPipeline m_TestingPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_SpriteBuffer;
 	VertexBuffer m_TargetBuffer;
 	VertexBuffer m_InstanceBuffer;
 	VertexBuffer m_SpriteInstances;
+	VertexBuffer m_TextInstances;
 	VertexArray m_VertexArray;
 	VertexArray m_SpriteArray;
+	VertexArray m_TextArray;
 	VertexArray m_TargetArray;
 	GPUPixelBuffer m_PixelBuffer;
 	GPUPixelBuffer m_SpriteTexture;
@@ -301,6 +304,7 @@ private:
 	GPUPixelBuffer m_GPUFontTextures;
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
+	size_t m_TextBufferID;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 };
 

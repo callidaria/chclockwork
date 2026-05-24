@@ -770,6 +770,9 @@ Renderer::Renderer()
 	m_SpriteInstances.allocate(sizeof(__SpriteInstances));
 	m_SpriteInstances.upload(__SpriteInstances,sizeof(__SpriteInstances));
 
+	// instance text data
+	m_TextInstances.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
+
 	// vertex array
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
@@ -779,6 +782,11 @@ Renderer::Renderer()
 	m_SpriteArray.allocate(2);
 	m_SpriteArray.register_buffer(m_SpriteBuffer);
 	m_SpriteArray.register_buffer_dynamic(m_SpriteInstances);
+
+	// text vertex array
+	m_TextArray.allocate(2);
+	m_TextArray.register_buffer(m_SpriteBuffer);
+	m_TextArray.register_buffer_dynamic(m_TextInstances);
 
 	// target vertex array
 	m_TargetArray.allocate(1);
@@ -790,6 +798,7 @@ Renderer::Renderer()
 	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	g_UniformBuffer.define_geometry_buffer(3,sizeof(SpriteTransformation));
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
@@ -800,6 +809,8 @@ Renderer::Renderer()
 	m_TestingPipeline.assemble("./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_TextPipeline.out_define_colour_buffer();
+	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag");
 	m_TargetPipeline.out_define_colour_buffer();
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 
@@ -813,7 +824,7 @@ Renderer::Renderer()
 	g_UniformBuffer.link_result(__PixelBufferID,m_PixelBuffer);
 	g_UniformBuffer.link_result(__SpriteBufferID,m_SpriteTexture);
 	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
-	g_UniformBuffer.finalize();
+	//g_UniformBuffer.finalize();  // TODO async inclusion
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -864,9 +875,19 @@ void Renderer::update()
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
+	// sprites
 	m_SpritePipeline.enable();
 	m_SpriteArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
+
+	// text
+	m_TextPipeline.enable();
+	m_TextArray.bind();
+	for (Text& p_Text : m_Texts)
+	{
+		m_TextInstances.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
+	}
 
 	// end result
 	m_ResultBuffers[g_Frame.frame_id].stop();
@@ -925,11 +946,17 @@ void Renderer::update()
 
 void Renderer::vanish()
 {
+	// clean pipelines
 	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
 	m_TestingPipeline.vanish();
+	m_TextPipeline.vanish();
+
+	// clean framebuffers
 	m_Framebuffer.vanish();
 	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
+
+	// clean vertex buffers
 	m_TargetBuffer.free();
 	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
@@ -937,13 +964,21 @@ void Renderer::vanish()
 	m_TargetBuffer.vanish();
 	m_SpriteBuffer.vanish();
 	m_VertexBuffer.vanish();
+
+	// clean instance buffers
 	m_InstanceBuffer.free();
 	m_SpriteInstances.free();
+	m_TextInstances.free();
 	m_InstanceBuffer.vanish();
 	m_SpriteInstances.vanish();
+	m_TextInstances.vanish();
+
+	// pixel buffers
 	m_PixelBuffer.vanish();
 	m_SpriteTexture.vanish();
 	m_GPUFontTextures.vanish();
+
+	// uniform upload memory
 	g_UniformBuffer.vanish();
 }
 
@@ -955,7 +990,10 @@ Font* Renderer::register_font(const char* path,u16 size)
 	COMM_AWT("register font from source %s",path);
 	Font* p_Font = m_Fonts.next_free();
 	GPUPixelBuffer::load_font(&m_GPUFontTextures,p_Font,path,size);
+	m_GPUFontTextures.gpu_upload(0);
+	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
 	COMM_CNF();
+	g_UniformBuffer.finalize();
 	/*
 	m_GPUFontTextures.signal.stall();
 	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);

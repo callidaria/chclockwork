@@ -325,6 +325,9 @@ void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
 void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs)
 {
+	width += 1*(width==0);
+	height += 1*(height==0);
+	// TODO remove
 	size_t __ImageSize = width*height*4;
 
 	// stage memory
