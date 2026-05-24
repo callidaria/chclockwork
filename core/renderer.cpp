@@ -660,6 +660,9 @@ const s32 TEST_INSTANCE_AMOUNT_GENERAL
 //		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
+	COMM_LOG("starting font rasterizer");
+	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
+	COMM_ERR_COND(_failed,"text rasterizer not available");
 	g_GPU.swap();
 
 	// sprite data
@@ -727,6 +730,7 @@ Renderer::Renderer()
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
 	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_RGBA);
+	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME);
 	PixelBufferComponent m_PixelBufferComponent;
 	PixelBufferComponent m_SpriteTextureComponent;
 	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
@@ -939,6 +943,7 @@ void Renderer::vanish()
 	m_SpriteInstances.vanish();
 	m_PixelBuffer.vanish();
 	m_SpriteTexture.vanish();
+	m_GPUFontTextures.vanish();
 	g_UniformBuffer.vanish();
 }
 
@@ -947,8 +952,10 @@ void Renderer::vanish()
  */
 Font* Renderer::register_font(const char* path,u16 size)
 {
-	COMM_LOG("font register from source %s",path);
+	COMM_AWT("register font from source %s",path);
 	Font* p_Font = m_Fonts.next_free();
+	GPUPixelBuffer::load_font(&m_GPUFontTextures,p_Font,path,size);
+	COMM_CNF();
 	/*
 	m_GPUFontTextures.signal.stall();
 	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);

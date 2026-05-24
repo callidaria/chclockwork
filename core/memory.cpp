@@ -702,7 +702,6 @@ void GPUPixelBuffer::vanish()
 #endif
 }
 
-
 /**
  *	load texture from path and finally upload to gpu memory
  *	\param gpb: target pixel buffer
@@ -732,8 +731,8 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 
 	// load ttf file
 	FT_Face __Face;
-	bool _failed = FT_New_Face(g_FreetypeLibrary,path,0,&__Face);
-	COMM_ERR_COND(_failed,"font loading unsuccessful");
+	FT_Error _failed = FT_New_Face(g_FreetypeLibrary,path,0,&__Face);
+	COMM_ERR_COND(_failed,"font loading unsuccessful. failed with code %d",_failed);
 	FT_Set_Pixel_Sizes(__Face,0,size);
 
 	// iterate font glyphs

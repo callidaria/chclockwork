@@ -298,6 +298,7 @@ private:
 	u32 m_RenderSize = 0;
 
 	// text
+	GPUPixelBuffer m_GPUFontTextures;
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case

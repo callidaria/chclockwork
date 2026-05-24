@@ -34,12 +34,10 @@ void Clockwork::update()
 	g_Camera.pitch = glm::radians(m_TargetingVector.y);
 	g_Camera.distance = m_TargetingVector.z;
 
-#ifndef VKBUILD
 	// fps display
 	m_FPS->data = "FPS "+std::to_string(g_Frame.fps);
 	m_FPS->align();
 	m_FPS->load_buffer();
-#endif
 }
 
 
