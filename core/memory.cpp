@@ -260,6 +260,19 @@ s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
 };
 #endif
 
+// texture format correlation
+struct TextureFormatTuple
+{
+	VkFormat format;
+	u8 size;
+};
+
+TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
+	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
+	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
+	{ VK_FORMAT_R8_UNORM,1 }
+};
+
 /**
  *	allocation and setup for texture data load
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture channel format
@@ -325,10 +338,12 @@ void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
 void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs)
 {
-	width += 1*(width==0);
-	height += 1*(height==0);
-	// TODO remove
-	size_t __ImageSize = width*height*4;
+	if (!width||!height)
+	{
+		COMM_ERR("buffer without width or height has been submitted");
+		return;
+	}
+	size_t __ImageSize = width*height*_texture_formats[m_Format].size;
 
 	// stage memory
 	void* __Data;
@@ -338,7 +353,7 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 	// buffer copy
 	VkBufferImageCopy __BufferCopy = {  };
 	__BufferCopy.bufferOffset = 0;
-	__BufferCopy.bufferRowLength = 0;
+	__BufferCopy.bufferRowLength = 0;  // TODO possible font utility
 	__BufferCopy.bufferImageHeight = 0;
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__BufferCopy.imageSubresource.mipLevel = 0;
@@ -598,6 +613,7 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
 void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 {
 	// store info
+	m_Format = _texture_formats[format].format;
 	dimensions_inv = vec2(1.f/width,1.f/height);
 
 	// allocate memory
@@ -612,7 +628,8 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	m_Mipcount = std::floor(std::log2(std::max(width,height)))+1;
 
 	// generate staging buffer
-	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,width*height*4,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,
+						 width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	// image buffer
@@ -620,7 +637,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.flags = 0;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+	__ImageInfo.format = m_Format;
 	__ImageInfo.extent.width = width;
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
@@ -667,7 +684,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	// test for blitting support based on image format
 #ifdef DEBUG
 	VkFormatProperties __FormatProperties;
-	vkGetPhysicalDeviceFormatProperties(g_GPU.device_info->gpu,VK_FORMAT_R8G8B8A8_SRGB,&__FormatProperties);
+	vkGetPhysicalDeviceFormatProperties(g_GPU.device_info->gpu,m_Format,&__FormatProperties);
 	COMM_ERR_COND(!(__FormatProperties.optimalTilingFeatures&VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT),
 				  "texture format does not support blitting for mipmap generation purposes");
 	// TODO and then maybe do something about it outside of debug cases... we are in trouble should this happen
@@ -743,7 +760,7 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 	{
 		// rasterize glyph
 		_failed = FT_Load_Char(__Face,i+32,FT_LOAD_RENDER);
-		COMM_ERR_COND(_failed,"rasterization of character %c failed",(char)i+32);
+		COMM_ERR_COND(_failed,"rasterization of character %c failed. code %d",(char)i+32,_failed);
 
 		// subtexture attributes
 		TextureData __TextureData = TextureData(TEXTURE_FORMAT_MONOCHROME);
@@ -883,7 +900,8 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 #endif
 			);
 		load_requests.pop();
-		__MemoryOffset += p_Data.width*p_Data.height*4;
+		//__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].format;
+		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
 	// TODO transition this naive, unstalled implementation to an actually good implementation
@@ -962,7 +980,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
 	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;  // TODO check
+	__ImageViewInfo.format = m_Format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = m_Mipcount;
