@@ -729,7 +729,7 @@ Renderer::Renderer()
 
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_RGBA);
+	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);  // TODO fix this to not be too bright with rgba
 	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME);
 	PixelBufferComponent m_PixelBufferComponent;
 	PixelBufferComponent m_SpriteTextureComponent;
@@ -840,6 +840,7 @@ void Renderer::update()
 	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership();
 	m_SpriteArray.transfer_ownership();
+	//m_TextArray.transfer_ownership();
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// start recording to target
@@ -879,6 +880,7 @@ void Renderer::update()
 	m_SpritePipeline.enable();
 	m_SpriteArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
+	// FIXME result seems very bright
 
 	// text
 	m_TextPipeline.enable();
