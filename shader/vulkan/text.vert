@@ -24,13 +24,14 @@ layout(set = 0,binding = 3) uniform SpriteTransformation
 
 void main()
 {
-	vec2 Position = position+vec2(.5,-.5);
+	vec2 Position = position+vec2(.5,.5);
 	Position = Position*scale+offset.xy+bearing;
-	gl_Position = csys.proj*csys.view*vec4(Position.x,Position.y+scale.y,offset.z,1.);
-	// TODO there must be a clear definition how the text is aligned towards its position in shader
-	// 	it cannot be normal that i have to guess here based on some vector flips between versions
+	gl_Position = csys.proj*csys.view*vec4(Position.x,Position.y-scale.y,offset.z,1.);
 
 	// pass
 	EdgeCoordinates = atlas_position+atlas_dimension*edge_coordinates;
 	Colour = colour;
 }
+
+// TODO there must be a clear definition how the text is aligned towards its position in shader
+// 	it cannot be normal that i have to guess here based on some vector flips between versions

@@ -34,8 +34,15 @@ vec2 Alignment::align(Rect geom)
 	vec2 __GeomCenter = geom.extent*vec2(.5f);
 	vec2 __BorderCenter = border.extent*vec2(.5f)+border.position;
 
+	// coordinate flip for ogl version
+#ifdef VKBUILD
+	u8 vertical_alignment = alignment%3;
+#else
+	vertical_alignment = 2-vertical_alignment;
+	__Position.y *= -1;
+#endif
+
 	// adjust vertical alignment
-	u8 vertical_alignment = 2-(alignment%3);
 	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
 
 	// adjust horizontal alignment

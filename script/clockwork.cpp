@@ -12,7 +12,7 @@ Clockwork::Clockwork(Font* font)
 	m_CameraRotation.target = m_TargetingVector;
 
 	// fps display
-	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,7),15,vec4(1),
+	m_FPS = g_Renderer.write_text(font,"",vec3(-10,10,7),20,vec4(1),
 								  Alignment{ .alignment=SCREEN_ALIGN_TOPRIGHT });
 
 	g_Wheel.call(this);
