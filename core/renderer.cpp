@@ -843,11 +843,12 @@ void Renderer::update()
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// text upload  §§testing
-	/*
 	for (Text& p_Text : m_Texts)
+	{
 		m_TextInstances.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
-	*/
-	m_TextArray.transfer_ownership_read();
+		m_TextInstances.update();
+	}
+	//m_TextArray.transfer_ownership_read();
 
 	// start recording to target
 	m_Framebuffer.record();
@@ -898,7 +899,7 @@ void Renderer::update()
 	m_ResultBuffers[g_Frame.frame_id].stop();
 
 	// prepare text updates
-	m_TextArray.transfer_ownership_write();
+	//m_TextArray.transfer_ownership_write();
 }
 
 /**
