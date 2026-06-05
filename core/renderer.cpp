@@ -838,10 +838,16 @@ void Renderer::update()
 	// transfer instance data
 	m_InstanceBuffer.update();
 	m_SpriteInstances.update();
-	m_VertexArray.transfer_ownership();
-	m_SpriteArray.transfer_ownership();
-	//m_TextArray.transfer_ownership();
+	m_VertexArray.transfer_ownership_read();
+	m_SpriteArray.transfer_ownership_read();
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
+
+	// text upload  §§testing
+	/*
+	for (Text& p_Text : m_Texts)
+		m_TextInstances.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
+	*/
+	m_TextArray.transfer_ownership_read();
 
 	// start recording to target
 	m_Framebuffer.record();
@@ -886,13 +892,13 @@ void Renderer::update()
 	m_TextPipeline.enable();
 	m_TextArray.bind();
 	for (Text& p_Text : m_Texts)
-	{
-		m_TextInstances.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
-	}
 
 	// end result
 	m_ResultBuffers[g_Frame.frame_id].stop();
+
+	// prepare text updates
+	m_TextArray.transfer_ownership_write();
 }
 
 /**

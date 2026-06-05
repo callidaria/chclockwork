@@ -210,7 +210,7 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 /**
  *	TODO
  */
-void VertexArray::transfer_ownership()
+void VertexArray::transfer_ownership_read()
 {
 	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
@@ -218,6 +218,16 @@ void VertexArray::transfer_ownership()
 }
 // FIXME this will just do a barrier for all memory, even though most of it will be only uploaded ONCE
 //		maybe only request a barrier when uploading, it will loose out this combined barrier command though
+
+/**
+ *	TODO
+ */
+void VertexArray::transfer_ownership_write()
+{
+	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
+	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,0,
+						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
+}
 
 /**
  *	TODO
@@ -246,7 +256,21 @@ void VertexArray::bind_indexed()
 // ----------------------------------------------------------------------------------------------------
 // Colour Buffers
 
-#ifndef VKBUILD
+// texture format correlation
+#ifdef VKBUILD
+struct TextureFormatTuple
+{
+	VkFormat format;
+	u8 size;
+};
+
+TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
+	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
+	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
+	{ VK_FORMAT_R8_UNORM,1 }
+};
+
+#else
 s32 _texture_format_channels[TEXTURE_FORMAT_COUNT] = {
 	GL_RGBA,
 	GL_RGBA,
@@ -260,18 +284,6 @@ s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
 };
 #endif
 
-// texture format correlation
-struct TextureFormatTuple
-{
-	VkFormat format;
-	u8 size;
-};
-
-TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
-	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
-	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
-	{ VK_FORMAT_R8_UNORM,1 }
-};
 
 /**
  *	allocation and setup for texture data load

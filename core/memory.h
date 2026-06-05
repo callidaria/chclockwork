@@ -58,7 +58,8 @@ public:
 	void register_buffer_indexed(const VertexBuffer& vb);
 
 	// update
-	void transfer_ownership();
+	void transfer_ownership_read();
+	void transfer_ownership_write();
 	void bind();
 	void bind_indexed();
 
@@ -169,13 +170,6 @@ struct Font
 
 struct GPUPixelBuffer
 {
-#ifdef VKBUILD
-	/*
-	void load_texture(const char* path);
-	void load_font(const char* path,u16 size);
-	*/
-#endif
-
 	// setup
 	void allocate(u32 width,u32 height,TextureFormat format);
 	void vanish();
