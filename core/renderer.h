@@ -71,7 +71,7 @@ struct TextCharacter
 	vec2 scale = vec2(0);
 	vec2 bearing = vec2(0);
 	vec4 colour = vec4(1);
-	PixelBufferComponent comp;
+	Rect comp;
 };
 
 struct Vertex
@@ -251,7 +251,7 @@ struct UniformBufferMemory
 struct ObjectInstance
 {
 	vec3 position;
-	PixelBufferComponent pbc;
+	Rect pbc;
 };
 
 struct SpriteInstance
@@ -260,7 +260,7 @@ struct SpriteInstance
 	vec2 scale;
 	f32 rotation;
 	f32 alpha;
-	PixelBufferComponent pbc;
+	Rect pbc;
 };
 
 class Renderer
@@ -421,11 +421,11 @@ public:
 	void vanish();
 
 	// sprite
-	PixelBufferComponent* register_sprite_texture(const char* path);
-	Sprite* register_sprite(PixelBufferComponent* texture,vec3 position,vec2 size,f32 rotation=.0f,
+	Rect* register_sprite_texture(const char* path);
+	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
 							f32 alpha=1.f,Alignment alignment={});
-	void assign_sprite_texture(Sprite* sprite,PixelBufferComponent* texture);
-	void delete_sprite_texture(PixelBufferComponent* texture);
+	void assign_sprite_texture(Sprite* sprite,Rect* texture);
+	void delete_sprite_texture(Rect* texture);
 	static void delete_sprite(Sprite* sprite);
 
 	// text

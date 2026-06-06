@@ -91,7 +91,7 @@ void Text::load_buffer()
 	for (u32 i=0;i<data.size();i++)
 	{
 		TextCharacter& p_Character = buffer[i];
-		PixelBufferComponent& p_Component = font->tex[data[i]-32];
+		Rect& p_Component = font->tex[data[i]-32];
 		Glyph& p_Glyph = font->glyphs[data[i]-32];
 
 		// load text data
@@ -738,8 +738,8 @@ Renderer::Renderer()
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
 	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);  // TODO fix this to not be too bright with rgba
 	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME);
-	PixelBufferComponent m_PixelBufferComponent;
-	PixelBufferComponent m_SpriteTextureComponent;
+	Rect m_PixelBufferComponent;
+	Rect m_SpriteTextureComponent;
 	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
 	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
 	// TODO subthread
@@ -1347,9 +1347,9 @@ void Renderer::vanish()
  *	\param path: path to texture file
  *	\returns pointer to texture component info to assign to a sprite later
  */
-PixelBufferComponent* Renderer::register_sprite_texture(const char* path)
+Rect* Renderer::register_sprite_texture(const char* path)
 {
-	PixelBufferComponent* p_Comp = m_GPUSpriteTextures.textures.next_free();
+	Rect* p_Comp = m_GPUSpriteTextures.textures.next_free();
 	m_GPUSpriteTextures.signal.stall();
 
 	COMM_LOG("sprite texture register of %s",path);
@@ -1369,7 +1369,7 @@ PixelBufferComponent* Renderer::register_sprite_texture(const char* path)
  *	\param alignment: (default fullscreen neutral) sprite position alignment within borders
  *	\returns pointer to sprite data for modification purposes
  */
-Sprite* Renderer::register_sprite(PixelBufferComponent* texture,vec3 position,vec2 size,f32 rotation,
+Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
 								  f32 alpha,Alignment alignment)
 {
 	// determine memory location, overwrite has priority over appending
@@ -1402,7 +1402,7 @@ Sprite* Renderer::register_sprite(PixelBufferComponent* texture,vec3 position,ve
  *	\param sprite: pointer to the sprite canvas received at creation
  *	\param texture: pointer to texture component info received at load request
  */
-void Renderer::assign_sprite_texture(Sprite* sprite,PixelBufferComponent* texture)
+void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
 	m_GPUSpriteTextures.signal.wait();
 	sprite->tex_position = texture->offset;
@@ -1413,7 +1413,7 @@ void Renderer::assign_sprite_texture(Sprite* sprite,PixelBufferComponent* textur
  *	remove given sprite texture and free memory in array as well as releasing memory space on atlas
  *	\param texture: pointer to texture, which shall be removed
  */
-void Renderer::delete_sprite_texture(PixelBufferComponent* texture)
+void Renderer::delete_sprite_texture(Rect* texture)
 {
 	// signal cleanup
 	texture->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
@@ -1978,6 +1978,6 @@ template<typename T> void Renderer::_collector(InPlaceArray<T>* xs,ThreadSignal*
 	COMM_LOG("%s collector background process finished",signal->name);
 }
 template void Renderer::_collector<Sprite>(InPlaceArray<Sprite>*,ThreadSignal*);
-template void Renderer::_collector<PixelBufferComponent>(InPlaceArray<PixelBufferComponent>*,ThreadSignal*);
+template void Renderer::_collector<Rect>(InPlaceArray<Rect>*,ThreadSignal*);
 
 #endif

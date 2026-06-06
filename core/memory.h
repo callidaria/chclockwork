@@ -143,16 +143,6 @@ private:
 	u32 m_Memory;
 };
 
-struct PixelBufferComponent
-{
-	Rect _Rect;
-	vec2& offset = _Rect.position;
-	vec2& dimensions = _Rect.extent;
-};
-// TODO maybe just throw this out alltogether and replace with basic structure rect
-//		first i thought using a union is cute and oh so smart, but turns out this is not c
-//		so maybe this is just clogging up definitions and should be replaced completely
-
 struct Glyph
 {
 	vec2 scale;
@@ -166,7 +156,7 @@ struct Font
 	f32 estimate_wordlength(string& word,u32 offset=0);
 
 	// data
-	PixelBufferComponent tex[96];
+	Rect tex[96];
 	Glyph glyphs[96];
 	u16 size;
 };
@@ -178,9 +168,9 @@ struct GPUPixelBuffer
 	void vanish();
 
 	// utilty
-	static void load_texture(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,const char* path);
+	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
 	static void load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size);
-	static void _load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,TextureData* data);
+	static void _load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data);
 	void gpu_upload(u8 channel);
 	// TODO allocate & write for statically written texture atlas
 	// TODO when allocating, rotation boolean can be stored in alpha by signing the float
@@ -202,10 +192,9 @@ struct GPUPixelBuffer
 
 	Texture atlas;
 	vec2 dimensions_inv;
-	vector<PixelBufferComponent> memory_segments;
+	vector<Rect> memory_segments;
 	std::mutex mutex_memory_segments;
-	InPlaceArray<PixelBufferComponent> textures
-			= InPlaceArray<PixelBufferComponent>(BUFFER_MAXIMUM_TEXTURE_COUNT);
+	InPlaceArray<Rect> textures = InPlaceArray<Rect>(BUFFER_MAXIMUM_TEXTURE_COUNT);
 	std::mutex mutex_texture_requests;
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
