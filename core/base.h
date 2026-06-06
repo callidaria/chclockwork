@@ -394,11 +394,13 @@ struct ThreadSignal
 struct Rect
 {
 	// utility
-	bool intersect(vec2 point);
+	bool intersects(vec2 point);
+	bool intersects(const Rect& r);
+	bool contains(const Rect& r);
 
 	// data
-	vec2 position;
-	vec2 extent;
+	vec2 position = vec2(0);
+	vec2 extent = vec2(0);
 };
 
 

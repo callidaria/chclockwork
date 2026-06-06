@@ -116,9 +116,27 @@ void ThreadSignal::exit()
  *	\param point: point in 2D space to check relationship with rect
  *	\returns true if point is inside rect bounds
  */
-bool Rect::intersect(vec2 point)
+bool Rect::intersects(vec2 point)
 {
 	return (point.x<extent.x&&point.x>position.x)&&(point.y<extent.y&&point.y>position.y);
+}
+
+/**
+ *	TODO
+ */
+bool Rect::intersects(const Rect& r)
+{
+	return !(position.x>=(r.position.x+r.extent.x)||(position.x+extent.x)<=r.position.x
+			 ||position.y>=(r.position.y+r.extent.y)||(position.y+extent.y)<=r.position.y);
+}
+
+/**
+ *	TODO
+ */
+bool Rect::contains(const Rect& r)
+{
+	return r.position.x>=position.x&&r.position.y>=position.y
+		&&(r.position.x+r.extent.x)<=(position.x+extent.x)&&(r.position.y+r.extent.y)<=(position.y+extent.y);
 }
 
 

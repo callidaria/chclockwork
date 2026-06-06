@@ -143,16 +143,15 @@ private:
 	u32 m_Memory;
 };
 
-
-union PixelBufferComponent
+struct PixelBufferComponent
 {
-	struct
-	{
-		vec2 offset = vec2(0,0);
-		vec2 dimensions = vec2(0,0);
-	};
 	Rect _Rect;
+	vec2& offset = _Rect.position;
+	vec2& dimensions = _Rect.extent;
 };
+// TODO maybe just throw this out alltogether and replace with basic structure rect
+//		first i thought using a union is cute and oh so smart, but turns out this is not c
+//		so maybe this is just clogging up definitions and should be replaced completely
 
 struct Glyph
 {
