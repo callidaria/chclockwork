@@ -799,6 +799,35 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 }
 
 /**
+ *	TODO
+ */
+void _merge_segment(GPUPixelBuffer* gbp,GPUPixelBufferComponent& seg,u32& len)
+{
+	u32 i = 0;
+	while (i<len)
+	{
+		// new segment is rarely obsolete by perfect segmentation
+		PixelBufferComponent& p_Segment = gbp->memory_segments[i];
+		if (p_Segment._Rect.contains(seg._Rect)) return;
+
+		// swap and remove should new segment be fully enclosing existing segment
+		if (seg._Rect.contains(p_Segment._Rect))
+		{
+			gbp->memory_segments[i] = gbp->memory_segments[--len];
+			gbp->memory_segments[len] = gbp->memory_segments.back();
+			gbp->memory_segments.pop_back();
+		}
+
+		// no fully obsoleting relationship, moving on
+		else i++;
+	}
+
+	// feed segment
+	gbp->memory_segments.push_back(seg);
+}
+// TODO can be used easily to merge after segment free
+
+/**
  *	write texture buffer to preallocated gpu memory
  *	\param gpb: target pixel buffer
  *	\param pbc: pointer to atlas component information, this will be overwritten
@@ -813,8 +842,7 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,Texture
 	for (u32 i=0;i<gpb->memory_segments.size();i++)
 	{
 		PixelBufferComponent* p_FreeComponent = &gpb->memory_segments[i];
-		if (data->width>p_FreeComponent->dimensions.x
-			||data->height>p_FreeComponent->dimensions.y) continue;
+		if (data->width>p_FreeComponent->dimensions.x||data->height>p_FreeComponent->dimensions.y) continue;
 
 		// find closest fit
 		f32 __AreaDifference = p_FreeComponent->dimensions.x*p_FreeComponent->dimensions.y
@@ -836,9 +864,69 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,Texture
 	pbc->offset = p_CloseFitComponent->offset*gpb->dimensions_inv;
 	pbc->dimensions = vec2(data->width,data->height)*gpb->dimensions_inv;
 
-	// segment free memory to reserve pixel space for upload
+	// store unnormalized overwritten segment for memory splicing
+	PixelBufferComponent __OverwrittenArea = {
+		.offset = p_CloseFitComponent.offset,
+		.dimensions=vec2(data->width,data->height)
+	};
 	s32 __PaddedWidth = data->width+BUFFER_ATLAS_BORDER_PADDING;
 	s32 __PaddedHeight = data->height+BUFFER_ATLAS_BORDER_PADDING;
+
+	// iterate free memory segments as maintenance update
+	u32 i=0;
+	while (i<gbp->memory_segments.size())
+	{
+		// test segment intersections with texture rect
+		PixelBufferComponent& p_Segment = gbp->memory_segments[i];
+		if (!p_Segment._Rect.intersects(__OverwrittenArea._Rect)) continue;
+		u32 __MomentaryLength = gbp->memory_segments.size();
+
+		// overwritten area intersects with segment on x-axis
+		if (__OverwrittenArea.offset.x<(p_Segment.offset.x+p_Segment.dimensions.x)
+			&&(__OverwrittenArea.offset.x+__OverwrittenArea.dimensions.x>p_Segment.offset.x))
+		{
+			// top segment
+			if (__OverwrittenArea.offset.y>p_Segment.offset.y
+				&&__OverwrittenArea.offset.y<(p_Segment.offset.y+p_Segment.dimensions.y))
+			{
+				// TODO
+				_merge_segment(gbp,__TopSegment,__MomentaryLength);
+			}
+
+			// bottom segment
+			if ((__OverwrittenArea.offset.y+__OverwrittenArea.dimensions.y)
+				<(p_Segment.offset.y+p_Segment.dimensions.y))
+			{
+				// TODO
+				_merge_segment(gbp,__BottomSegment,__MomentaryLength);
+			}
+		}
+
+		// overwritten area intersects with segment on y-axis
+		if (__OverwrittenArea.offset.y<(p_Segment.offset.y+p_Segment.dimensions.y)
+			&&(__OverwrittenArea.offset.y+__OverwrittenArea.dimensions.y>p_Segment.offset.y))
+		{
+			// left segment
+			if (__OverwrittenArea.offset.x>p_Segment.offset.x
+				&&__OverwrittenArea.offset.x<(p_Segment.offset.x+p_Segment.dimensions.x))
+			{
+				// TODO
+				_merge_segment(gbp,__LeftSegment,__MomentaryLength);
+			}
+
+			// right segment
+			if ((__OverwrittenArea.offset.x+__OverwrittenArea.dimensions.x)
+				<(p_Segment.offset.x+p_Segment.dimensions.x))
+			{
+				// TODO
+				_merge_segment(gbp,__RightSegment,__MomentaryLength);
+			}
+		}
+	}
+	// FIXME nightmarish threaded rc memaccess hazard
+
+	// segment free memory to reserve pixel space for upload
+	/*
 	PixelBufferComponent __Side = {
 		.offset = p_CloseFitComponent->offset+vec2(__PaddedWidth,0),
 		.dimensions = vec2(p_CloseFitComponent->dimensions.x-__PaddedWidth,__PaddedHeight)
@@ -847,6 +935,7 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,Texture
 		.offset = p_CloseFitComponent->offset+vec2(0,__PaddedHeight),
 		.dimensions = p_CloseFitComponent->dimensions-vec2(0,__PaddedHeight)
 	};
+	*/
 	// FIXME this is segmenting falsely, it's not possible to insert into texture space that has the correct
 	//		dimensions in only one segment but crosses over into a different free rect.
 	//		alternatively this can be done by assigning cross segment in both subsequent segments, but
@@ -854,11 +943,13 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,PixelBufferComponent* pbc,Texture
 	//		solve this with a consistent merger algorithm after every segment?
 
 	// update memory information data
+	/*
 	gpb->mutex_memory_segments.lock();
 	gpb->memory_segments.erase(gpb->memory_segments.begin()+__MemoryIndex);
-	if (__Side.dimensions.x>0) gpb->memory_segments.push_back(__Side);
-	if (__Below.dimensions.y>0) gpb->memory_segments.push_back(__Below);
+	if (__Side.dimensions.x>0&&__Side.dimensions.y>0) gpb->memory_segments.push_back(__Side);
+	if (__Below.dimensions.y>0&&__Below.dimensions.y>0) gpb->memory_segments.push_back(__Below);
 	gpb->mutex_memory_segments.unlock();
+	*/
 	// TODO when deleting and segmenting, check if free subspaces can be merged back into each other
 
 	// write buffer

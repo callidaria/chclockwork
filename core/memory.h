@@ -144,10 +144,14 @@ private:
 };
 
 
-struct PixelBufferComponent
+union PixelBufferComponent
 {
-	vec2 offset = vec2(0,0);
-	vec2 dimensions = vec2(0,0);
+	struct
+	{
+		vec2 offset = vec2(0,0);
+		vec2 dimensions = vec2(0,0);
+	};
+	Rect _Rect;
 };
 
 struct Glyph
