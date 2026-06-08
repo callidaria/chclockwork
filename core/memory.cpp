@@ -300,10 +300,15 @@ TextureData::TextureData(TextureFormat format)
 void TextureData::load(const char* path)
 {
 	COMM_ERR_COND(!check_file_exists(path),"texture %s could not be found",path);
-	stbi_set_flip_vertically_on_load(true);  // FIXME this belongs in initialization
+	stbi_set_flip_vertically_on_load(true);
 	data = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
 	m_TextureFlag = true;
 }
+// FIXME that stbi_set_flip_vertically_on_load call here is due to my build setup, but should be at init
+//		the annoyance is pointing to a much bigger problem though, the entire stbi is reprocessed per tu
+//		this increases compile time for files that do not necessarily need it and also leads to bad behaviour.
+//		additionally there is the problem that with the current setup all userscripts are receiving renderer
+//		and by extension must also process the stbi header. this cannot be the right solution!
 
 /**
  *	upload data to gpu
