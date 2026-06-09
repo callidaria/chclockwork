@@ -29,7 +29,8 @@ void main()
 	gl_Position = csys.proj*csys.view*vec4(Position.x,Position.y-scale.y,offset.z,1.);
 
 	// pass
-	EdgeCoordinates = atlas_position+atlas_dimension*edge_coordinates;
+	EdgeCoordinates = vec2(edge_coordinates.x,1-edge_coordinates.y);
+	EdgeCoordinates = atlas_position+atlas_dimension*EdgeCoordinates;
 	Colour = colour;
 }
 
