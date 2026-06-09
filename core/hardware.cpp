@@ -520,6 +520,7 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
 	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
+// FIXME performance, single allocation of device memory then all buffers use that memory
 
 
 // ----------------------------------------------------------------------------------------------------

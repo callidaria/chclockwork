@@ -360,6 +360,8 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 		COMM_ERR("buffer without width or height has been submitted");
 		return;
 	}
+	width = 11;
+	height = 14;
 	size_t __ImageSize = width*height*_texture_formats[m_Format].size;
 
 	// stage memory
@@ -369,7 +371,7 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 
 	// buffer copy
 	VkBufferImageCopy __BufferCopy = {  };
-	__BufferCopy.bufferOffset = 0;
+	__BufferCopy.bufferOffset = ofs;
 	__BufferCopy.bufferRowLength = 0;  // TODO possible font utility
 	__BufferCopy.bufferImageHeight = 0;
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -770,7 +772,7 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 	FT_Set_Pixel_Sizes(__Face,0,size);
 
 	// iterate font glyphs
-	for (u8 i=0;i<96;i++)
+	for (u8 i=17;i<25/*96*/;i++)
 	{
 		// rasterize glyph
 		_failed = FT_Load_Char(__Face,i+32,FT_LOAD_RENDER);
@@ -1030,7 +1032,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 #endif
 			);
 		load_requests.pop();
-		//__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].format;
+		__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].format;
 		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");

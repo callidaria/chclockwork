@@ -736,7 +736,7 @@ Renderer::Renderer()
 
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);  // TODO fix this to not be too bright with rgba
+	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
 	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME);
 	Rect m_PixelBufferComponent;
 	Rect m_SpriteTextureComponent;
