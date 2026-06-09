@@ -186,7 +186,7 @@ struct GPUPixelBuffer
 	VkSampler sampler;
 	u16 m_Mipcount;
 	u32 m_Width,m_Height;
-	VkFormat m_Format;
+	TextureFormat m_Format;
 #endif
 	// FIXME wait just a second GPUPixelBuffer is a struct and i act as if it's a class. obey the coding laws!
 

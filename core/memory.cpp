@@ -360,8 +360,6 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 		COMM_ERR("buffer without width or height has been submitted");
 		return;
 	}
-	width = 11;
-	height = 14;
 	size_t __ImageSize = width*height*_texture_formats[m_Format].size;
 
 	// stage memory
@@ -632,7 +630,7 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
 void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 {
 	// store info
-	m_Format = _texture_formats[format].format;
+	m_Format = format;
 	dimensions_inv = vec2(1.f/width,1.f/height);
 
 	// allocate memory
@@ -653,7 +651,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.flags = 0;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.format = m_Format;
+	__ImageInfo.format = _texture_formats[m_Format].format;
 	__ImageInfo.extent.width = width;
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
@@ -700,7 +698,8 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
 	// test for blitting support based on image format
 #ifdef DEBUG
 	VkFormatProperties __FormatProperties;
-	vkGetPhysicalDeviceFormatProperties(g_GPU.device_info->gpu,m_Format,&__FormatProperties);
+	vkGetPhysicalDeviceFormatProperties(g_GPU.device_info->gpu,_texture_formats[m_Format].format,
+										&__FormatProperties);
 	COMM_ERR_COND(!(__FormatProperties.optimalTilingFeatures&VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT),
 				  "texture format does not support blitting for mipmap generation purposes");
 	// TODO and then maybe do something about it outside of debug cases... we are in trouble should this happen
@@ -1031,8 +1030,8 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 				m_Texture,m_StagingBuffer,m_StagingMemory,__MemoryOffset
 #endif
 			);
+		__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].size;
 		load_requests.pop();
-		__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].format;
 		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
@@ -1112,7 +1111,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
 	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = m_Format;
+	__ImageViewInfo.format = _texture_formats[m_Format].format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = m_Mipcount;
