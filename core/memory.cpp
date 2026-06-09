@@ -771,7 +771,7 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 	FT_Set_Pixel_Sizes(__Face,0,size);
 
 	// iterate font glyphs
-	for (u8 i=17;i<25/*96*/;i++)
+	for (u8 i=0;i<96;i++)
 	{
 		// rasterize glyph
 		_failed = FT_Load_Char(__Face,i+32,FT_LOAD_RENDER);
