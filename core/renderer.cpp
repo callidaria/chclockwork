@@ -737,7 +737,7 @@ Renderer::Renderer()
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
 	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME);
+	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME,4);
 	Rect m_PixelBufferComponent;
 	Rect m_SpriteTextureComponent;
 	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");

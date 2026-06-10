@@ -625,16 +625,18 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param width: buffer width
  *	\param height: buffer height
  *	\param format: colourspace format of pixels
+ *	\param padding: (default 0) pixel space padding in between allocated subtextures
  *	NOTE cannot be executed in subthread, uses context bound to main thread
  */
-void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format)
+void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padding)
 {
 	// store info
 	m_Format = format;
 	dimensions_inv = vec2(1.f/width,1.f/height);
+	subtex_padding = padding;
 
-	// allocate memory
-	memory_segments.push_back({ .extent = vec2(width,height) });
+	// mark initial, untouched allocated memory segment
+	memory_segments.push_back({ .extent = vec2(width+padding,height+padding) });
 
 #ifdef VKBUILD
 	m_Width = width;
@@ -838,30 +840,35 @@ void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
  */
 void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 {
+	// compute padded dimensions
+	s32 __PaddedWidth = data->width+gpb->subtex_padding;
+	s32 __PaddedHeight = data->height+gpb->subtex_padding;
+
 	// locate best position for texture on free memory space
 	f32 __BestDifference = 0x7f800000;
 	u32 __MemoryIndex = -1;
 	for (u32 i=0;i<gpb->memory_segments.size();i++)
 	{
 		Rect* p_FreeComponent = &gpb->memory_segments[i];
-		if (data->width>p_FreeComponent->extent.x||data->height>p_FreeComponent->extent.y) continue;
+		if (__PaddedWidth>p_FreeComponent->extent.x||__PaddedHeight>p_FreeComponent->extent.y) continue;
 
 		// find closest fit
 		f32 __AreaDifference = p_FreeComponent->extent.x*p_FreeComponent->extent.y
-				- data->width*data->height;
+				- __PaddedWidth*__PaddedHeight;
 		if (__AreaDifference<__BestDifference)
 		{
 			__MemoryIndex = i;
 			__BestDifference = __AreaDifference;
 		}
 	}
+	// TODO extend initial free rect by padded border to serve the cleanliness of this logic
 
 	// get memory segment pointer
 	COMM_ERR_COND(__MemoryIndex==-1,"sprite texture memory is populated or segmented. texture upload failed!");
 	COMM_MSG_COND(__MemoryIndex==-1,LOG_CYAN,"attempted load dimensions -> (%i,%i)",data->width,data->height);
 	Rect* p_CloseFitComponent = &gpb->memory_segments[__MemoryIndex];
 
-	// write atlas information
+	// write atlas information unpadded, this will be used as atlas coordinates in shader
 	data->x = p_CloseFitComponent->position.x, data->y = p_CloseFitComponent->position.y;
 	pbc->position = p_CloseFitComponent->position*gpb->dimensions_inv;
 	pbc->extent = vec2(data->width,data->height)*gpb->dimensions_inv;
@@ -869,14 +876,8 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 	// store unnormalized overwritten segment for memory splicing
 	Rect __OverwrittenArea = {
 		.position = p_CloseFitComponent->position,
-		.extent = vec2(data->width,data->height)
+		.extent = vec2(__PaddedWidth,__PaddedHeight)
 	};
-
-	/*
-	s32 __PaddedWidth = data->width+BUFFER_ATLAS_BORDER_PADDING;
-	s32 __PaddedHeight = data->height+BUFFER_ATLAS_BORDER_PADDING;
-	*/
-	// FIXME no border padding
 
 	// iterate free memory segments as maintenance update
 	u32 i=0;

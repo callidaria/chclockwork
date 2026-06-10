@@ -164,7 +164,7 @@ struct Font
 struct GPUPixelBuffer
 {
 	// setup
-	void allocate(u32 width,u32 height,TextureFormat format);
+	void allocate(u32 width,u32 height,TextureFormat format,u32 padding=0);
 	void vanish();
 
 	// utilty
@@ -198,6 +198,7 @@ struct GPUPixelBuffer
 	std::mutex mutex_texture_requests;
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
+	u32 subtex_padding = 0;
 };
 
 
