@@ -116,6 +116,16 @@ template<typename T,typename U> using map = std::unordered_map<T,U>;
 template<typename T> using lptr = typename std::list<T>::iterator;
 
 
+// typeswitches
+#ifdef VKBUILD
+typedef VkFormat __texture_format;
+typedef VkImageView __fbuffer_component;
+#else
+typedef s32 __texture_format;
+typedef u32 __fbuffer_component;
+#endif
+
+
 // constants
 // basic math
 constexpr f32 FRAME_RESOLUTION_X_INV = 1.f/FRAME_RESOLUTION_X;

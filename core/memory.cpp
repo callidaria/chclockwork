@@ -257,13 +257,13 @@ void VertexArray::bind_indexed()
 // Colour Buffers
 
 // texture format correlation
-#ifdef VKBUILD
 struct TextureFormatTuple
 {
-	VkFormat format;
+	__texture_format format;
 	u8 size;
 };
 
+#ifdef VKBUILD
 TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
 	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
 	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
@@ -271,10 +271,10 @@ TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
 };
 
 #else
-s32 _texture_format_channels[TEXTURE_FORMAT_COUNT] = {
-	GL_RGBA,
-	GL_RGBA,
-	GL_RED
+TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
+	{ GL_RGBA,4 },
+	{ GL_RGBA,4 },
+	{ GL_RED,1 }
 };
 
 s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
@@ -325,7 +325,7 @@ void TextureData::gpu_upload(
 	_copy_buffer(image,buf,mem,0);
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
-				 _texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
+				 _texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data);
 #endif
 	_free();
 }
@@ -344,7 +344,7 @@ void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
 	_copy_buffer(image,buf,mem,ofs);
 #else
-	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_format_channels[m_Format],GL_UNSIGNED_BYTE,data);
+	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data);
 #endif
 	_free();
 }
@@ -712,7 +712,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 
 #else
 	// generate buffer
-	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_channels[format],width,height,0,
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_formats[format].format,width,height,0,
 				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
 #endif
 }
@@ -1026,12 +1026,12 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 #endif
 	{
 		TextureData& p_Data = load_requests.front();
-		p_Data.gpu_upload_subtexture(
 #ifdef VKBUILD
-				m_Texture,m_StagingBuffer,m_StagingMemory,__MemoryOffset
-#endif
-			);
+		p_Data.gpu_upload_subtexture(m_Texture,m_StagingBuffer,m_StagingMemory,__MemoryOffset);
 		__MemoryOffset += p_Data.width*p_Data.height*_texture_formats[m_Format].size;
+#else
+		p_Data.gpu_upload_subtexture();
+#endif
 		load_requests.pop();
 		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
 	}

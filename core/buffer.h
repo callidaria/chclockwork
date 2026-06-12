@@ -9,14 +9,6 @@
 // ----------------------------------------------------------------------------------------------------
 // Rendertarget Colour Buffers
 
-typedef
-#ifdef VKBUILD
-VkImageView
-#else
-u32
-#endif
-__fbuffer_component;
-
 class Framebuffer
 {
 public:

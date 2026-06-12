@@ -186,19 +186,20 @@ struct GPUPixelBuffer
 	VkSampler sampler;
 	u16 m_Mipcount;
 	u32 m_Width,m_Height;
-	TextureFormat m_Format;
 #endif
 	// FIXME wait just a second GPUPixelBuffer is a struct and i act as if it's a class. obey the coding laws!
 
 	Texture atlas;
 	vec2 dimensions_inv;
-	vector<Rect> memory_segments;
+	vector<Rect> memory_segments;  // FIXME rects are rational, this shouldn't be more than natural
 	std::mutex mutex_memory_segments;
 	InPlaceArray<Rect> textures = InPlaceArray<Rect>(BUFFER_MAXIMUM_TEXTURE_COUNT);
 	std::mutex mutex_texture_requests;
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
 	u32 subtex_padding = 0;
+
+	TextureFormat m_Format;
 };
 
 
