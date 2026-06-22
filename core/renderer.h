@@ -270,12 +270,26 @@ public:
 	void update();
 	void vanish();
 
+	// sprite
+	Rect* register_sprite_texture(const char* path);
+	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
+							f32 alpha=1.f,Alignment alignment={});
+	void assign_sprite_texture(Sprite* sprite,Rect* texture);
+	void delete_sprite_texture(Rect* texture);
+	static void delete_sprite(Sprite* sprite);
+	// TODO implementation
+
 	// text
 	Font* register_font(const char* path,u16 size);
 	lptr<Text> write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour=vec4(1),Alignment align={});
 	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
 
+	// textures
+	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+
 private:
+
+	/*
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
 	Framebuffer m_Framebuffer;
 	ShaderPipeline m_TestingPipeline = ShaderPipeline(1,true);
@@ -299,12 +313,24 @@ private:
 	UniformBufferMemory m_UBufferMem;
 	f32 m_Rotation = .0f;
 	u32 m_RenderSize = 0;
+	*/
+
+	// textures
+	GPUPixelBuffer m_GPUSpriteTextures;
+	GPUPixelBuffer m_GPUFontTextures;
+
+	// mesh textures
+	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	std::mutex m_MutexMeshTextureUpload;
+
+	// sprites
+	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(BUFFER_MAXIMUM_TEXTURE_COUNT);
 
 	// text
-	GPUPixelBuffer m_GPUFontTextures;
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
-	size_t m_TextBufferID;
+	//size_t m_TextBufferID;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 };
 

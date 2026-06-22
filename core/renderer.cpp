@@ -672,11 +672,17 @@ Renderer::Renderer()
 	COMM_ERR_COND(_failed,"text rasterizer not available");
 	g_GPU.swap();
 
-	// sprite data
+	// primitive sprite & canvas data
 	f32 __QuadVertices[] = {
 		-.5f,-.5f,.0f,1.f, .5f,.5f,1.f,.0f, .5f,-.5f,1.f,1.f,
 		.5f,.5f,1.f,.0f, -.5f,-.5f,.0f,1.f, -.5f,.5f,.0f,.0f
 	};
+	f32 __FBVertices[] = {
+		-1.f,-1.f,.0f,.0f, 1.f,1.f,1.f,1.f, 1.f,-1.f,1.f,.0f,
+		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
+	};
+
+	/*
 	SpriteInstance __SpriteInstances[] = {
 		{
 			.offset = vec3(100,100,5),
@@ -705,12 +711,6 @@ Renderer::Renderer()
 			.rotation = 20.f,
 			.alpha = .4,
 		},
-	};
-
-	// framebuffer data
-	f32 __FBVertices[] = {
-		-1.f,-1.f,.0f,.0f, 1.f,1.f,1.f,1.f, 1.f,-1.f,1.f,.0f,
-		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
 	};
 
 	// load mesh data
@@ -838,11 +838,13 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
 	m_Rotation = glm::radians(-120.f);
+	*/
 }
 
 void Renderer::update()
 {
 	// transfer instance data
+	/*
 	m_InstanceBuffer.update();
 	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership_read();
@@ -904,6 +906,7 @@ void Renderer::update()
 
 	// end result
 	m_ResultBuffers[g_Frame.frame_id].stop();
+	*/
 
 	// prepare text updates
 	//m_TextArray.transfer_ownership_write();
@@ -962,6 +965,7 @@ void Renderer::update()
 
 void Renderer::vanish()
 {
+	/*
 	// clean pipelines
 	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
@@ -996,6 +1000,80 @@ void Renderer::vanish()
 
 	// uniform upload memory
 	g_UniformBuffer.vanish();
+	*/
+}
+
+// §§prototyping
+Rect* Renderer::register_sprite_texture(const char* path)
+{
+	Rect* p_Comp = m_GPUSpriteTextures.textures.next_free();
+	m_GPUSpriteTextures.signal.stall();
+
+	COMM_LOG("sprite texture register of %s",path);
+	thread __LoadThread(GPUPixelBuffer::load_texture,&m_GPUSpriteTextures,p_Comp,path);
+	__LoadThread.detach();
+
+	return p_Comp;
+}
+
+// §§prototyping
+Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
+								  f32 alpha,Alignment alignment)
+{
+	// determine memory location, overwrite has priority over appending
+	Sprite* p_Sprite = m_Sprites.next_free();
+	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
+			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
+
+	// align sprite into borders
+	if (alignment.alignment!=SCREEN_ALIGN_NEUTRAL)
+	{
+		vec2 hsize = size*.5f;
+		vec2 __AlignedPosition = alignment.align({ vec2(position)-hsize,size })+size;
+		position.x = __AlignedPosition.x;
+		position.y = __AlignedPosition.y;
+	}
+
+	// write information to memory
+	(*p_Sprite) = {
+		.offset = position,
+		.scale = size,
+		.rotation = rotation,
+		.alpha = alpha,
+	};
+	Renderer::assign_sprite_texture(p_Sprite,texture);
+	return p_Sprite;
+}
+
+// §§prototyping
+void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
+{
+	m_GPUSpriteTextures.signal.wait();
+	sprite->tex_position = texture->offset;
+	sprite->tex_dimension = texture->dimensions;
+}
+
+// §§prototyping
+void Renderer::delete_sprite_texture(Rect* texture)
+{
+	// signal cleanup
+	texture->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
+	_sprite_texture_signal.proceed();
+
+	// free texture atlas memory
+	m_GPUSpriteTextures.mutex_memory_segments.lock();
+	m_GPUSpriteTextures.memory_segments.push_back(*texture);
+	m_GPUSpriteTextures.mutex_memory_segments.unlock();
+	// TODO merge segments after adding free section to reduce segmentation
+}
+
+// §§prototyping
+void Renderer::delete_sprite(Sprite* sprite)
+{
+	sprite->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
+	sprite->scale = vec2(0,0);
+	sprite = nullptr;
+	_sprite_signal.proceed();
 }
 
 /**
@@ -1038,6 +1116,22 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 	p_Text->load_buffer();
 	return p_Text;
 }
+
+/**
+ *	TODO
+ */
+Texture* Renderer::register_texture(const char* path,TextureFormat format)
+{
+	COMM_LOG("mesh texture register of %s",path);
+	Texture* p_Texture = m_MeshTextures.next_free();
+	new(p_Texture) Texture();
+	thread __LoadThread(_load_texture,p_Texture,path,format,
+						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	__LoadThread.detach();
+	return p_Texture;
+}
+// TODO default texture format should be srgb, not linear rgb values.
+//		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 #else
 

@@ -861,7 +861,6 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 			__BestDifference = __AreaDifference;
 		}
 	}
-	// TODO extend initial free rect by padded border to serve the cleanliness of this logic
 
 	// get memory segment pointer
 	COMM_ERR_COND(__MemoryIndex==-1,"sprite texture memory is populated or segmented. texture upload failed!");
