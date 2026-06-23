@@ -23,7 +23,7 @@ constexpr f32 CLOCKWORK_ROTATION_FLOATFACTOR = .1f;
 class Clockwork
 {
 public:
-	Clockwork(Font* font);
+	Clockwork(/*Font* font*/);
 	void update();
 
 private:

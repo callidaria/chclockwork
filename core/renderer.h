@@ -227,6 +227,12 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
+struct TextureDataTuple
+{
+	TextureData data;
+	Texture* texture;
+};
+
 #ifdef VKBUILD
 
 struct ObjectTransformation
@@ -290,12 +296,6 @@ public:
 private:
 
 	/*
-	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
-	Framebuffer m_Framebuffer;
-	ShaderPipeline m_TestingPipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_SpriteBuffer;
 	VertexBuffer m_TargetBuffer;
@@ -315,6 +315,10 @@ private:
 	u32 m_RenderSize = 0;
 	*/
 
+	// targets
+	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
+	Framebuffer m_Framebuffer;  // FIXME naming!!!!
+
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;
 	GPUPixelBuffer m_GPUFontTextures;
@@ -330,19 +334,18 @@ private:
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
-	//size_t m_TextBufferID;
+	size_t m_SpriteBufferID,m_TextBufferID;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
+
+	// pipelines
+	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 };
 
 
 // TODO light structures, except for shadow projections are universal and belong outside gfxapi related stuff
 #else
-
-struct TextureDataTuple
-{
-	TextureData data;
-	Texture* texture;
-};
 
 struct GeometryTuple
 {

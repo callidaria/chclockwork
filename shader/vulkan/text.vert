@@ -15,7 +15,7 @@ layout(location = 7) in vec2 atlas_dimension;
 layout(location = 0) out vec2 EdgeCoordinates;
 layout(location = 1) out vec4 Colour;
 
-layout(set = 0,binding = 3) uniform SpriteTransformation
+layout(set = 0,binding = 1) uniform SpriteTransformation
 {
 	mat4 view;
 	mat4 proj;

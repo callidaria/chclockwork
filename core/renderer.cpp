@@ -682,6 +682,42 @@ Renderer::Renderer()
 		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
 	};
 
+	// textures
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_SRGB);
+	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
+							   TEXTURE_FORMAT_MONOCHROME,4);
+
+	// uniform buffer
+	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
+	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
+	m_SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	g_UniformBuffer.assemble();
+	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
+	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
+	//		but it might just work, if definition and linking is separated as they might be in the future
+
+	// pipelines
+	m_SpritePipeline.out_define_result_buffer();
+	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_TextPipeline.out_define_colour_buffer();
+	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag");
+	m_TargetPipeline.out_define_colour_buffer();
+	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
+
+	// result target & geometry target
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
+		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+								 m_SpritePipeline,i);
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);  // FIXME mismatch?
+	// TODO routinize
+
+	// link buffer results
+	g_UniformBuffer.link_result(m_SpriteBufferID,m_GPUSpriteTextures);
+	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
+	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
+
 	/*
 	SpriteInstance __SpriteInstances[] = {
 		{
@@ -736,8 +772,6 @@ Renderer::Renderer()
 
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_SpriteTexture.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	m_GPUFontTextures.allocate(1500,1500,TEXTURE_FORMAT_MONOCHROME,4);
 	Rect m_PixelBufferComponent;
 	Rect m_SpriteTextureComponent;
 	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
@@ -799,40 +833,6 @@ Renderer::Renderer()
 	m_TargetArray.allocate(1);
 	m_TargetArray.register_buffer(m_TargetBuffer);
 
-	// uniform buffer
-	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
-	size_t __PixelBufferID = g_UniformBuffer.define_pixel_buffer(1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	g_UniformBuffer.define_geometry_buffer(3,sizeof(SpriteTransformation));
-	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	g_UniformBuffer.assemble();
-	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
-	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
-	//		but it might just work, if definition and linking is separated as they might be in the future
-
-	// pipeline
-	m_TestingPipeline.out_define_colour_buffer();
-	m_TestingPipeline.assemble("./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag");
-	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
-	m_TextPipeline.out_define_colour_buffer();
-	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag");
-	m_TargetPipeline.out_define_colour_buffer();
-	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
-
-	// result target & geometry target
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
-								 m_SpritePipeline,i);
-	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TestingPipeline);
-
-	// link buffer results
-	g_UniformBuffer.link_result(__PixelBufferID,m_PixelBuffer);
-	g_UniformBuffer.link_result(__SpriteBufferID,m_SpriteTexture);
-	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
-	//g_UniformBuffer.finalize();  // TODO async inclusion
-
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
@@ -843,6 +843,18 @@ Renderer::Renderer()
 
 void Renderer::update()
 {
+	// START RECORD SCENE
+	m_Framebuffer.record();
+
+	// END RECORD SCENE
+	m_Framebuffer.stop();
+
+	// START RESULT ASSEMBLY
+	m_ResultBuffers[g_Frame.frame_id].record();
+
+	// END RESULT ASSEMBLY
+	m_ResultBuffers[g_Frame.frame_id].stop();
+
 	// transfer instance data
 	/*
 	m_InstanceBuffer.update();
@@ -859,8 +871,7 @@ void Renderer::update()
 	}
 	//m_TextArray.transfer_ownership_read();
 
-	// start recording to target
-	m_Framebuffer.record();
+	// START SCENE
 
 	// start voxelgrid
 	m_TestingPipeline.enable();
@@ -881,10 +892,9 @@ void Renderer::update()
 					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
-	m_Framebuffer.stop();
+	// END SCENE
 
-	// combine result
-	m_ResultBuffers[g_Frame.frame_id].record();
+	// START RESULT
 
 	// perspective section
 	m_TargetPipeline.enable();
@@ -904,8 +914,7 @@ void Renderer::update()
 	for (Text& p_Text : m_Texts)
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
 
-	// end result
-	m_ResultBuffers[g_Frame.frame_id].stop();
+	// END RESULT
 	*/
 
 	// prepare text updates
@@ -965,17 +974,23 @@ void Renderer::update()
 
 void Renderer::vanish()
 {
-	/*
 	// clean pipelines
 	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
-	m_TestingPipeline.vanish();
 	m_TextPipeline.vanish();
 
 	// clean framebuffers
 	m_Framebuffer.vanish();
 	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
 
+	// clear pixel buffers
+	m_GPUSpriteTextures.vanish();
+	m_GPUFontTextures.vanish();
+
+	// uniform upload memory
+	g_UniformBuffer.vanish();
+
+	/*
 	// clean vertex buffers
 	m_TargetBuffer.free();
 	m_SpriteBuffer.free();
@@ -992,14 +1007,6 @@ void Renderer::vanish()
 	m_InstanceBuffer.vanish();
 	m_SpriteInstances.vanish();
 	m_TextInstances.vanish();
-
-	// pixel buffers
-	m_PixelBuffer.vanish();
-	m_SpriteTexture.vanish();
-	m_GPUFontTextures.vanish();
-
-	// uniform upload memory
-	g_UniformBuffer.vanish();
 	*/
 }
 
@@ -1049,15 +1056,15 @@ Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rota
 void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
 	m_GPUSpriteTextures.signal.wait();
-	sprite->tex_position = texture->offset;
-	sprite->tex_dimension = texture->dimensions;
+	sprite->tex_position = texture->position;
+	sprite->tex_dimension = texture->extent;
 }
 
 // §§prototyping
 void Renderer::delete_sprite_texture(Rect* texture)
 {
 	// signal cleanup
-	texture->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
+	texture->position.x = RENDERER_POSITIONAL_DELETION_CODE;
 	_sprite_texture_signal.proceed();
 
 	// free texture atlas memory
@@ -1115,6 +1122,24 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 	p_Text->align();
 	p_Text->load_buffer();
 	return p_Text;
+}
+
+/**
+ *	load texture into ram in background and register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param path: path to texture
+ *	\param format: texture colour channel format
+ *	\param data_queue: queue for texture vram upload
+ *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
+ */
+void _load_texture(Texture* texture,const char* path,TextureFormat format,
+				   queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+{
+	TextureData __Data = TextureData(format);
+	__Data.load(path);
+	queue_mutex->lock();
+	data_queue->push(TextureDataTuple{ __Data,texture });
+	queue_mutex->unlock();
 }
 
 /**
@@ -1576,24 +1601,6 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 	return p_Text;
 }
 // TODO rm if successful
-
-/**
- *	load texture into ram in background and register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param path: path to texture
- *	\param format: texture colour channel format
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void _load_texture(Texture* texture,const char* path,TextureFormat format,
-				   queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	TextureData __Data = TextureData(format);
-	__Data.load(path);
-	queue_mutex->lock();
-	data_queue->push(TextureDataTuple{ __Data,texture });
-	queue_mutex->unlock();
-}
 
 /**
  *	load texture into memory

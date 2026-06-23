@@ -1,13 +1,21 @@
 #ifndef SCRIPT_TEST_HEADER
 #define SCRIPT_TEST_HEADER
 
-
-#ifndef VKBUILD  // §§prototyping remove
-
 #include "../core/renderer.h"
 #include "../core/input.h"
 #include "../core/wheel.h"
 
+
+#ifdef VKBUILD  // §§prototyping remove
+
+class TestScene
+{
+public:
+	TestScene();
+	void update();
+};
+
+#else
 
 // boundaries
 constexpr vec2 TEST_FIELD_DIMENSION = vec2(10.f,10.f);
