@@ -15,7 +15,7 @@ TestScene::TestScene()
 													  { .alignment=SCREEN_ALIGN_BOTTOMLEFT });
 	g_Wheel.call(this);
 }
-
+0
 /**
  *	update test scene
  */

@@ -872,6 +872,8 @@ void Renderer::update()
 	// END RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].stop();
 
+	_gpu_upload();
+
 	// transfer instance data
 	/*
 	m_InstanceBuffer.update();
@@ -1021,7 +1023,9 @@ void Renderer::vanish()
 	*/
 }
 
-// §§prototyping
+/**
+ *	TODO
+ */
 Rect* Renderer::register_sprite_texture(const char* path)
 {
 	Rect* p_Comp = m_GPUSpriteTextures.textures.next_free();
@@ -1034,7 +1038,9 @@ Rect* Renderer::register_sprite_texture(const char* path)
 	return p_Comp;
 }
 
-// §§prototyping
+/**
+ *	TODO
+ */
 Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
 								  f32 alpha,Alignment alignment)
 {
@@ -1063,7 +1069,9 @@ Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rota
 	return p_Sprite;
 }
 
-// §§prototyping
+/**
+ *	TODO
+ */
 void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
 	m_GPUSpriteTextures.signal.wait();
@@ -1071,7 +1079,9 @@ void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 	sprite->tex_dimension = texture->extent;
 }
 
-// §§prototyping
+/**
+ *	TODO
+ */
 void Renderer::delete_sprite_texture(Rect* texture)
 {
 	// signal cleanup
@@ -1085,7 +1095,9 @@ void Renderer::delete_sprite_texture(Rect* texture)
 	// TODO merge segments after adding free section to reduce segmentation
 }
 
-// §§prototyping
+/**
+ *	TODO
+ */
 void Renderer::delete_sprite(Sprite* sprite)
 {
 	sprite->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
@@ -1176,6 +1188,14 @@ void Renderer::_update_sprites()
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_gpu_upload()
+{
+	m_GPUSpriteTextures.gpu_upload(0);
 }
 
 #else

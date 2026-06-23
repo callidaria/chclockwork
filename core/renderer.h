@@ -295,6 +295,7 @@ public:
 
 private:
 	void _update_sprites();
+	void _gpu_upload();
 
 private:
 
