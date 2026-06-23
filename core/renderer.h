@@ -294,26 +294,31 @@ public:
 	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
 
 private:
+	void _update_sprites();
+
+private:
 
 	/*
 	VertexBuffer m_VertexBuffer;
-	VertexBuffer m_SpriteBuffer;
 	VertexBuffer m_TargetBuffer;
 	VertexBuffer m_InstanceBuffer;
-	VertexBuffer m_SpriteInstances;
 	VertexBuffer m_TextInstances;
-	VertexArray m_VertexArray;
-	VertexArray m_SpriteArray;
 	VertexArray m_TextArray;
 	VertexArray m_TargetArray;
 	GPUPixelBuffer m_PixelBuffer;
 	GPUPixelBuffer m_SpriteTexture;
 
 	// testing
-	UniformBufferMemory m_UBufferMem;
 	f32 m_Rotation = .0f;
 	u32 m_RenderSize = 0;
 	*/
+
+	// buffers
+	VertexBuffer m_SpriteVertexBuffer;
+	VertexBuffer m_SpriteInstanceBuffer;
+
+	// vertex arrays
+	VertexArray m_SpriteVertexArray;
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
@@ -341,6 +346,9 @@ private:
 	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
+
+	// uniform buffer
+	UniformBufferMemory m_UBufferMem;
 };
 
 

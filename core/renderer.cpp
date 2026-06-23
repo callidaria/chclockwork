@@ -682,10 +682,26 @@ Renderer::Renderer()
 		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
 	};
 
+	// sprite vertex data
+	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
+	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
+	m_SpriteVertexBuffer.update();
+	m_SpriteInstanceBuffer.allocate(sizeof(m_Sprites));
+	m_SpriteInstanceBuffer.upload(&m_Sprites,sizeof(m_Sprites));
+
+	// sprite vertex array
+	m_SpriteVertexArray.allocate(2);
+	m_SpriteVertexArray.register_buffer(m_SpriteVertexBuffer);
+	m_SpriteVertexArray.register_buffer_dynamic(m_SpriteInstanceBuffer);
+
 	// textures
 	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_SRGB);
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
 							   TEXTURE_FORMAT_MONOCHROME,4);
+
+	// §§remove
+	m_GPUSpriteTextures.gpu_upload(0);
+	m_GPUFontTextures.gpu_upload(0);
 
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
@@ -717,6 +733,12 @@ Renderer::Renderer()
 	g_UniformBuffer.link_result(m_SpriteBufferID,m_GPUSpriteTextures);
 	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
 	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
+
+	// upload 2D coordinate system
+	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
+	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
+
+	g_UniformBuffer.finalize();
 
 	/*
 	SpriteInstance __SpriteInstances[] = {
@@ -793,11 +815,6 @@ Renderer::Renderer()
 						  &__Indices[0],sizeof(u32)*__Indices.size());
 	m_VertexBuffer.update();
 
-	// sprite vertex data
-	m_SpriteBuffer.allocate(sizeof(__QuadVertices));
-	m_SpriteBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
-	m_SpriteBuffer.update();
-
 	// target vertex data
 	m_TargetBuffer.allocate(sizeof(__FBVertices));
 	m_TargetBuffer.upload(__FBVertices,sizeof(__FBVertices));
@@ -807,10 +824,6 @@ Renderer::Renderer()
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
 
-	// instance sprite data
-	m_SpriteInstances.allocate(sizeof(__SpriteInstances));
-	m_SpriteInstances.upload(__SpriteInstances,sizeof(__SpriteInstances));
-
 	// instance text data
 	m_TextInstances.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
 
@@ -818,11 +831,6 @@ Renderer::Renderer()
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
 	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
-
-	// sprite vertex array
-	m_SpriteArray.allocate(2);
-	m_SpriteArray.register_buffer(m_SpriteBuffer);
-	m_SpriteArray.register_buffer_dynamic(m_SpriteInstances);
 
 	// text vertex array
 	m_TextArray.allocate(2);
@@ -833,16 +841,22 @@ Renderer::Renderer()
 	m_TargetArray.allocate(1);
 	m_TargetArray.register_buffer(m_TargetBuffer);
 
-	// upload 2D coordinate system
-	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
-	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
-
 	m_Rotation = glm::radians(-120.f);
 	*/
 }
 
 void Renderer::update()
 {
+	// camera update
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	// TODO also create the ability the link a camera to the uniform
+	//		right now this happens for both matrices individually, which is not appropriate
+
+	// data update
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
+	//g_UniformBuffer.finalize();
+
 	// START RECORD SCENE
 	m_Framebuffer.record();
 
@@ -851,6 +865,9 @@ void Renderer::update()
 
 	// START RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].record();
+
+	// orthogonal section
+	_update_sprites();
 
 	// END RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].stop();
@@ -877,12 +894,6 @@ void Renderer::update()
 	m_TestingPipeline.enable();
 	m_VertexArray.bind_indexed();
 
-	// camera update test
-	m_UBufferMem.otrafo.view = g_Camera.view;
-	m_UBufferMem.otrafo.proj = g_Camera.proj;
-	// TODO also create the ability the link a camera to the uniform
-	//		right now this happens for both matrices individually, which is not appropriate
-
 	// prototype update tbr
 	//m_Rotation += g_Frame.delta_time*glm::radians(4.f);
 	m_UBufferMem.otrafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
@@ -901,13 +912,7 @@ void Renderer::update()
 	m_TargetArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
-	// orthogonal section
-	// sprites
-	m_SpritePipeline.enable();
-	m_SpriteArray.bind();
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,4,0,0);
-	// FIXME result seems very bright
-
+	// ortho section (copy)
 	// text
 	m_TextPipeline.enable();
 	m_TextArray.bind();
@@ -987,17 +992,23 @@ void Renderer::vanish()
 	m_GPUSpriteTextures.vanish();
 	m_GPUFontTextures.vanish();
 
-	// uniform upload memory
+	// free vertex buffers
+	m_SpriteVertexBuffer.free();
+	m_SpriteInstanceBuffer.free();
+
+	// clear vertex buffers
+	m_SpriteVertexBuffer.vanish();
+	m_SpriteInstanceBuffer.vanish();
+
+	// clear uniform upload memory
 	g_UniformBuffer.vanish();
 
 	/*
 	// clean vertex buffers
 	m_TargetBuffer.free();
-	m_SpriteBuffer.free();
 	m_VertexBuffer.free();
 	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
 	m_TargetBuffer.vanish();
-	m_SpriteBuffer.vanish();
 	m_VertexBuffer.vanish();
 
 	// clean instance buffers
@@ -1094,7 +1105,6 @@ Font* Renderer::register_font(const char* path,u16 size)
 	m_GPUFontTextures.gpu_upload(0);
 	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
 	COMM_CNF();
-	g_UniformBuffer.finalize();
 	/*
 	m_GPUFontTextures.signal.stall();
 	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);
@@ -1157,6 +1167,16 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 }
 // TODO default texture format should be srgb, not linear rgb values.
 //		probably even though the batched texture upload will mostly use linear rgb for material formats
+
+/**
+ *	TODO
+ */
+void Renderer::_update_sprites()
+{
+	m_SpritePipeline.enable();
+	m_SpriteVertexArray.bind();
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
+}
 
 #else
 
