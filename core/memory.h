@@ -6,14 +6,6 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// Memory Barriers
-
-class MemoryBarrier
-{
-};
-
-
-// ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
 class VertexBuffer
@@ -48,8 +40,7 @@ private:
 	VkBufferCopy m_BufferCopy = {  };
 	CommandBufferTRF* m_CMDBuffer;  // TODO evaluate if this is good and use it for both vb and fb
 #else
-	u32 m_VAO;
-	u32 m_VBO;
+	u32 m_VAO,m_VBO;
 #endif
 };
 

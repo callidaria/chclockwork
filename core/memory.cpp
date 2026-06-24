@@ -2,6 +2,44 @@
 
 
 // ----------------------------------------------------------------------------------------------------
+// Memory Barriers
+
+/**
+ *	TODO
+ */
+inline static VkBufferMemoryBarrier _generate_memory_barrier_bfr()
+{
+	VkBufferMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	__Barrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
+	__Barrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
+	__Barrier.offset = 0;
+	__Barrier.size = VK_WHOLE_SIZE;
+	return __Barrier;
+}
+
+/**
+ *	TODO
+ */
+inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 mip)
+{
+	VkImageMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__Barrier.image = tex;
+	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__Barrier.subresourceRange.baseArrayLayer = 0;
+	__Barrier.subresourceRange.baseMipLevel = 0;
+	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.subresourceRange.levelCount = mip;
+	return __Barrier;
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
 
 /**
@@ -159,23 +197,6 @@ void VertexArray::allocate(u8 size)
 /**
  *	TODO
  */
-inline static VkBufferMemoryBarrier _generate_memory_barrier()
-{
-	VkBufferMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	__Barrier.srcAccessMask = 0;
-	__Barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	__Barrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
-	__Barrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
-	__Barrier.offset = 0;
-	__Barrier.size = VK_WHOLE_SIZE;
-	return __Barrier;
-}
-// TODO this belongs at the beginning of the file or maybe even in hardware?
-
-/**
- *	TODO
- */
 inline void VertexArray::register_buffer(const VertexBuffer& vb)
 {
 	COMM_MSG_COND(m_Buffers.size()>=m_Buffers.capacity(),LOG_YELLOW,
@@ -191,7 +212,7 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 	register_buffer(vb);
 
 	// register memory barrier for dynamic upload. this will require to transfer ownership!
-	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier();
+	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier_bfr();
 	__Barrier.buffer = vb.vbo;
 	m_Barriers.push_back(__Barrier);
 }
@@ -710,6 +731,16 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	//		use this aspect to evaluate gpu capability for automatic selection
 #endif
 
+	// setup memory barrier to create image view
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,m_Mipcount);
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
+						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
+
 	// image view
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1010,19 +1041,12 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 			else j++;
 		}
 	}
+	// FIXME this is still a memory access rc hazard, is it not?
 
 	// merge segment list
-	gpb->memory_segments.insert(gpb->memory_segments.end(),__UpdatedSegments.begin(),__UpdatedSegments.end());
-	// FIXME nightmarish threaded rc memaccess hazard
-
-	// update memory information data
-	/*
 	gpb->mutex_memory_segments.lock();
-	gpb->memory_segments.erase(gpb->memory_segments.begin()+__MemoryIndex);
-	if (__Side.dimensions.x>0&&__Side.dimensions.y>0) gpb->memory_segments.push_back(__Side);
-	if (__Below.dimensions.y>0&&__Below.dimensions.y>0) gpb->memory_segments.push_back(__Below);
+	gpb->memory_segments.insert(gpb->memory_segments.end(),__UpdatedSegments.begin(),__UpdatedSegments.end());
 	gpb->mutex_memory_segments.unlock();
-	*/
 
 	// write buffer
 	gpb->mutex_texture_requests.lock();
@@ -1043,22 +1067,14 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	mutex_texture_requests.lock();
 
 #ifdef VKBUILD
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
+
 	// setup memory barrier
-	VkImageMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.image = m_Texture;
-	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.levelCount = m_Mipcount;
-	__Barrier.subresourceRange.baseArrayLayer = 0;
-	__Barrier.subresourceRange.layerCount = 1;
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,m_Mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
 	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
 
@@ -1086,16 +1102,8 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	mutex_texture_requests.unlock();
 #ifdef VKBUILD
 
-	// mipmap generation
-	VkImageMemoryBarrier __MMBarrier = {  };
-	__MMBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	__MMBarrier.image = m_Texture;
-	__MMBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MMBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MMBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__MMBarrier.subresourceRange.baseArrayLayer = 0;
-	__MMBarrier.subresourceRange.layerCount = 1;
-	__MMBarrier.subresourceRange.levelCount = 1;
+	// memory barrier mipmapping
+	VkImageMemoryBarrier __MMBarrier = _generate_memory_barrier_tex(m_Texture,1);
 
 	// mipmap blit
 	VkImageBlit __MMBlit = {  };
