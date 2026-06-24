@@ -699,10 +699,6 @@ Renderer::Renderer()
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
 							   TEXTURE_FORMAT_MONOCHROME,4);
 
-	// §§remove
-	m_GPUSpriteTextures.gpu_upload(0);
-	m_GPUFontTextures.gpu_upload(0);
-
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));

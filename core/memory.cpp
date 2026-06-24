@@ -710,6 +710,51 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	//		use this aspect to evaluate gpu capability for automatic selection
 #endif
 
+	// image view
+	VkImageViewCreateInfo __ImageViewInfo = {  };
+	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	__ImageViewInfo.image = m_Texture;
+	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.format = _texture_formats[m_Format].format;
+	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
+	__ImageViewInfo.subresourceRange.levelCount = m_Mipcount;
+	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
+	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.components = {
+		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+	};
+	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&image_view);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
+	// FIXME code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
+
+	// texture sampler
+	// decided against custom border colour extensions, due to missing reasons for higher support complexity
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_LINEAR;
+	__SamplerInfo.minFilter = VK_FILTER_LINEAR;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	__SamplerInfo.anisotropyEnable = !!(g_GPU.device_info->supported&GPU_FEATURE_SUPPORT_ANISOTROPY);
+	__SamplerInfo.maxAnisotropy = g_GPU.device_info->properties.limits.maxSamplerAnisotropy;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	// TODO research, this is an interesting feature. unfortunately only works with nearest
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = 0;
+	__SamplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&sampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
+	// TODO this will be the texture settings++ from ogl version
+
 #else
 	// generate buffer
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_formats[format].format,width,height,0,
@@ -1105,51 +1150,6 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
-
-	// image view
-	VkImageViewCreateInfo __ImageViewInfo = {  };
-	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__ImageViewInfo.image = m_Texture;
-	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = _texture_formats[m_Format].format;
-	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-	__ImageViewInfo.subresourceRange.levelCount = m_Mipcount;
-	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = 1;
-	__ImageViewInfo.components = {
-		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-	};
-	VkResult __Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&image_view);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
-	// FIXME code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
-
-	// texture sampler
-	// decided against custom border colour extensions, due to missing reasons for higher support complexity
-	VkSamplerCreateInfo __SamplerInfo = {  };
-	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	__SamplerInfo.magFilter = VK_FILTER_LINEAR;
-	__SamplerInfo.minFilter = VK_FILTER_LINEAR;
-	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	__SamplerInfo.anisotropyEnable = !!(g_GPU.device_info->supported&GPU_FEATURE_SUPPORT_ANISOTROPY);
-	__SamplerInfo.maxAnisotropy = g_GPU.device_info->properties.limits.maxSamplerAnisotropy;
-	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
-	// TODO research, this is an interesting feature. unfortunately only works with nearest
-	__SamplerInfo.compareEnable = VK_FALSE;
-	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	__SamplerInfo.mipLodBias = .0f;
-	__SamplerInfo.minLod = 0;
-	__SamplerInfo.maxLod = VK_LOD_CLAMP_NONE;
-	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&sampler);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
-	// TODO this will be the texture settings++ from ogl version
 
 #else
 	Texture::generate_mipmap();
