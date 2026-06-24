@@ -1063,6 +1063,8 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
  */
 void GPUPixelBuffer::gpu_upload(u8 channel)
 {
+	if (!load_requests.size()) return;
+
 	atlas.bind(channel);
 	mutex_texture_requests.lock();
 
