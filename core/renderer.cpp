@@ -687,7 +687,6 @@ Renderer::Renderer()
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.update();
 	m_SpriteInstanceBuffer.allocate(sizeof(m_Sprites));
-	m_SpriteInstanceBuffer.upload(&m_Sprites,sizeof(m_Sprites));
 
 	// sprite vertex array
 	m_SpriteVertexArray.allocate(2);
@@ -1191,6 +1190,8 @@ void Renderer::_update_sprites()
  */
 void Renderer::_gpu_upload()
 {
+	m_SpriteInstanceBuffer.update();
+	m_SpriteInstanceBuffer.upload(&m_Sprites,sizeof(m_Sprites));
 	m_GPUSpriteTextures.gpu_upload(0);
 }
 
