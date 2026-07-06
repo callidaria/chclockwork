@@ -61,8 +61,7 @@ struct Sprite
 	vec2 scale = vec2(0);
 	f32 rotation = .0f;
 	f32 alpha = 1.f;
-	vec2 tex_position;
-	vec2 tex_dimension;
+	Rect pbc;
 };
 
 struct TextCharacter
@@ -260,6 +259,7 @@ struct ObjectInstance
 	Rect pbc;
 };
 
+/*
 struct SpriteInstance
 {
 	vec3 offset;
@@ -268,6 +268,7 @@ struct SpriteInstance
 	f32 alpha;
 	Rect pbc;
 };
+*/
 
 class Renderer
 {

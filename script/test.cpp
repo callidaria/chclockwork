@@ -12,7 +12,7 @@ TestScene::TestScene()
 	//Texture* __CursedBird = g_Renderer.register_texture("./res/test/cld.jpeg",TEXTURE_FORMAT_SRGB);
 	Rect* __CursedBird = g_Renderer.register_sprite_texture("./res/test/cld.jpeg");
 	Sprite* __TestSprite = g_Renderer.register_sprite(__CursedBird,vec3(100,100,4),vec2(100,100),.0f,1.f,
-													  { .alignment=SCREEN_ALIGN_BOTTOMLEFT });
+													  { .alignment=SCREEN_ALIGN_TOPLEFT });
 	g_Wheel.call(this);
 }
 

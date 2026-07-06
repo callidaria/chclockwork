@@ -1070,8 +1070,7 @@ Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rota
 void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
 	m_GPUSpriteTextures.signal.wait();
-	sprite->tex_position = texture->position;
-	sprite->tex_dimension = texture->extent;
+	sprite->pbc = *texture;
 }
 
 /**
@@ -1190,8 +1189,8 @@ void Renderer::_update_sprites()
  */
 void Renderer::_gpu_upload()
 {
+	m_SpriteInstanceBuffer.upload(m_Sprites.mem,sizeof(m_Sprites.active_range)*sizeof(Sprite));
 	m_SpriteInstanceBuffer.update();
-	m_SpriteInstanceBuffer.upload(&m_Sprites,sizeof(m_Sprites));
 	m_GPUSpriteTextures.gpu_upload(0);
 }
 

@@ -367,7 +367,7 @@ public:
 
 public:
 	u16 active_range = 0;
-	T* mem;
+	T* mem;  // FIXME this should be the first variable, defined in this class. &Array != &memory!
 	queue<u16> overwrites;
 
 #ifdef DEBUG
