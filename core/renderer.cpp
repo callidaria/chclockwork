@@ -686,7 +686,7 @@ Renderer::Renderer()
 	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.update();
-	m_SpriteInstanceBuffer.allocate(sizeof(m_Sprites));
+	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT);
 
 	// sprite vertex array
 	m_SpriteVertexArray.allocate(2);
@@ -1039,10 +1039,7 @@ Rect* Renderer::register_sprite_texture(const char* path)
 Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
 								  f32 alpha,Alignment alignment)
 {
-	// determine memory location, overwrite has priority over appending
 	Sprite* p_Sprite = m_Sprites.next_free();
-	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
-			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
 
 	// align sprite into borders
 	if (alignment.alignment!=SCREEN_ALIGN_NEUTRAL)
@@ -1052,6 +1049,9 @@ Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rota
 		position.x = __AlignedPosition.x;
 		position.y = __AlignedPosition.y;
 	}
+
+	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
+			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
 
 	// write information to memory
 	(*p_Sprite) = {
@@ -1193,6 +1193,8 @@ void Renderer::_gpu_upload()
 	m_SpriteInstanceBuffer.update();
 	m_GPUSpriteTextures.gpu_upload(0);
 }
+// TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
+//		the measurement has to apply to a single update state
 
 #else
 

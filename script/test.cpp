@@ -11,8 +11,12 @@ TestScene::TestScene()
 {
 	//Texture* __CursedBird = g_Renderer.register_texture("./res/test/cld.jpeg",TEXTURE_FORMAT_SRGB);
 	Rect* __CursedBird = g_Renderer.register_sprite_texture("./res/test/cld.jpeg");
-	Sprite* __TestSprite = g_Renderer.register_sprite(__CursedBird,vec3(100,100,4),vec2(100,100),.0f,1.f,
-													  { .alignment=SCREEN_ALIGN_TOPLEFT });
+	Sprite* __TestSprite0 = g_Renderer.register_sprite(__CursedBird,vec3(100,100,2),vec2(100,100),.0f,1.f,
+													   { .alignment=SCREEN_ALIGN_TOPLEFT });
+	Sprite* __TestSprite1 = g_Renderer.register_sprite(__CursedBird,vec3(0,0,5),vec2(100,100),.0f,.25f,
+													   { .alignment=SCREEN_ALIGN_CENTER });
+	Sprite* __TestSprite2 = g_Renderer.register_sprite(__CursedBird,vec3(-250,-250,4),vec2(120,120),.0f,1.f,
+													   { .alignment=SCREEN_ALIGN_BOTTOMRIGHT });
 	g_Wheel.call(this);
 }
 
