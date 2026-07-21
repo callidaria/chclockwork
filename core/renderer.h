@@ -305,7 +305,6 @@ private:
 	VertexBuffer m_VertexBuffer;
 	VertexBuffer m_TargetBuffer;
 	VertexBuffer m_InstanceBuffer;
-	VertexBuffer m_TextInstances;
 	VertexArray m_TargetArray;
 	GPUPixelBuffer m_PixelBuffer;
 	GPUPixelBuffer m_SpriteTexture;

@@ -682,6 +682,7 @@ Renderer::Renderer()
 		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
 	};
 
+	// SPRITES
 	// sprite vertex data
 	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
@@ -693,12 +694,13 @@ Renderer::Renderer()
 	m_SpriteVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_SpriteVertexArray.register_buffer_dynamic(m_SpriteInstanceBuffer);
 
-	// text data
+	// TEXT
+	// text vertex data
 	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
 
 	// text vertex array
 	m_TextVertexArray.allocate(2);
-	m_TextVertexArray.register_buffer(m_SpriteInstanceBuffer);
+	m_TextVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
 
 	// textures
@@ -843,18 +845,8 @@ void Renderer::update()
 	// transfer instance data
 	/*
 	m_InstanceBuffer.update();
-	m_SpriteInstances.update();
 	m_VertexArray.transfer_ownership_read();
 	m_SpriteArray.transfer_ownership_read();
-	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
-
-	// text upload  §§testing
-	for (Text& p_Text : m_Texts)
-	{
-		m_TextInstances.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
-		m_TextInstances.update();
-	}
-	//m_TextArray.transfer_ownership_read();
 
 	// START SCENE
 
@@ -886,6 +878,8 @@ void Renderer::update()
 	// prepare text updates
 	//m_TextArray.transfer_ownership_write();
 }
+// TODO find out when to call the ownership transfers / when those memory barriers are needed
+// TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
 
 /**
  *	sorting out how this makes most sense:
@@ -1166,9 +1160,18 @@ void Renderer::_update_text()
  */
 void Renderer::_gpu_upload()
 {
+	// sprites
 	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
 	m_SpriteInstanceBuffer.update();
 	m_GPUSpriteTextures.gpu_upload(0);
+
+	// text
+	for (Text& p_Text : m_Texts)
+	{
+		m_TextInstanceBuffer.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
+		m_TextInstanceBuffer.update();
+	}
+	m_GPUFontTextures.gpu_upload(0);
 }
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state

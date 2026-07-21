@@ -1,21 +1,19 @@
 #include "clockwork.h"
-//#ifdef DEBUG
+#ifdef DEBUG
 
 
 /**
  *	setup origin camera projection
  */
-Clockwork::Clockwork(/*Font* font*/)
+Clockwork::Clockwork(Font* font)
 {
 	// camera setup
 	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch+25.f,g_Camera.distance);
 	m_CameraRotation.target = m_TargetingVector;
 
 	// fps display
-	/*
 	m_FPS = g_Renderer.write_text(font,"",vec3(-10,10,7),15,vec4(1),
 								  Alignment{ .alignment=SCREEN_ALIGN_TOPRIGHT });
-	*/
 
 	g_Wheel.call(this);
 }
@@ -37,12 +35,10 @@ void Clockwork::update()
 	g_Camera.distance = m_TargetingVector.z;
 
 	// fps display
-	/*
 	m_FPS->data = "FPS "+std::to_string(g_Frame.fps);
 	m_FPS->align();
 	m_FPS->load_buffer();
-	*/
 }
 
 
-//#endif
+#endif
