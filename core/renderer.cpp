@@ -1189,7 +1189,7 @@ void Renderer::_update_sprites()
  */
 void Renderer::_gpu_upload()
 {
-	m_SpriteInstanceBuffer.upload(m_Sprites.mem,sizeof(m_Sprites.active_range)*sizeof(Sprite));
+	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
 	m_SpriteInstanceBuffer.update();
 	m_GPUSpriteTextures.gpu_upload(0);
 }
