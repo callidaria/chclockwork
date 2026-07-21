@@ -693,6 +693,14 @@ Renderer::Renderer()
 	m_SpriteVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_SpriteVertexArray.register_buffer_dynamic(m_SpriteInstanceBuffer);
 
+	// text data
+	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
+
+	// text vertex array
+	m_TextVertexArray.allocate(2);
+	m_TextVertexArray.register_buffer(m_SpriteInstanceBuffer);
+	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
+
 	// textures
 	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_SRGB);
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
@@ -735,38 +743,8 @@ Renderer::Renderer()
 
 	g_UniformBuffer.finalize();
 
-	/*
-	SpriteInstance __SpriteInstances[] = {
-		{
-			.offset = vec3(100,100,5),
-			.scale = vec2(100,100),
-			.rotation = 0,
-			.alpha = 1,
-		},
-
-		{
-			.offset = vec3(400,150,5),
-			.scale = vec2(200,200),
-			.rotation = 30.f,
-			.alpha = 1,
-		},
-
-		{
-			.offset = vec3(400,400,5),
-			.scale = vec2(120,120),
-			.rotation = -10.f,
-			.alpha = 1,
-		},
-
-		{
-			.offset = vec3(460,460,2),
-			.scale = vec2(80,80),
-			.rotation = 20.f,
-			.alpha = .4,
-		},
-	};
-
 	// load mesh data
+	/*
 	Mesh __Mesh = Mesh("./res/private/test.obj");
 	vector<u32> __Indices(__Mesh.vertices.size());
 	std::iota(__Indices.begin(),__Indices.end(),0);
@@ -819,18 +797,10 @@ Renderer::Renderer()
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
 
-	// instance text data
-	m_TextInstances.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
-
 	// vertex array
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
 	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
-
-	// text vertex array
-	m_TextArray.allocate(2);
-	m_TextArray.register_buffer(m_SpriteBuffer);
-	m_TextArray.register_buffer_dynamic(m_TextInstances);
 
 	// target vertex array
 	m_TargetArray.allocate(1);
@@ -863,6 +833,7 @@ void Renderer::update()
 
 	// orthogonal section
 	_update_sprites();
+	_update_text();
 
 	// END RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].stop();
@@ -908,13 +879,6 @@ void Renderer::update()
 	m_TargetPipeline.enable();
 	m_TargetArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
-
-	// ortho section (copy)
-	// text
-	m_TextPipeline.enable();
-	m_TextArray.bind();
-	for (Text& p_Text : m_Texts)
-		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
 
 	// END RESULT
 	*/
@@ -992,10 +956,12 @@ void Renderer::vanish()
 	// free vertex buffers
 	m_SpriteVertexBuffer.free();
 	m_SpriteInstanceBuffer.free();
+	m_TextInstanceBuffer.free();
 
 	// clear vertex buffers
 	m_SpriteVertexBuffer.vanish();
 	m_SpriteInstanceBuffer.vanish();
+	m_TextInstanceBuffer.vanish();
 
 	// clear uniform upload memory
 	g_UniformBuffer.vanish();
@@ -1182,6 +1148,17 @@ void Renderer::_update_sprites()
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_update_text()
+{
+	m_TextPipeline.enable();
+	m_TextVertexArray.bind();
+	for (Text& p_Text : m_Texts)
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
 }
 
 /**

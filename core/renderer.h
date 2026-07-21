@@ -296,6 +296,7 @@ public:
 
 private:
 	void _update_sprites();
+	void _update_text();
 	void _gpu_upload();
 
 private:
@@ -305,7 +306,6 @@ private:
 	VertexBuffer m_TargetBuffer;
 	VertexBuffer m_InstanceBuffer;
 	VertexBuffer m_TextInstances;
-	VertexArray m_TextArray;
 	VertexArray m_TargetArray;
 	GPUPixelBuffer m_PixelBuffer;
 	GPUPixelBuffer m_SpriteTexture;
@@ -318,9 +318,11 @@ private:
 	// buffers
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_SpriteInstanceBuffer;
+	VertexBuffer m_TextInstanceBuffer;
 
 	// vertex arrays
 	VertexArray m_SpriteVertexArray;
+	VertexArray m_TextVertexArray;
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
