@@ -152,7 +152,7 @@ lptr<Button> UIBatch::add_button(const char* label,Rect* tidle,Rect* thover,Rect
 	p_Button->canvas = g_Renderer.register_sprite(p_Button->idle,position,scale,.0f,alpha,alignment);
 
 	// label text
-	vec3 __TextPosition = vec3(p_Button->canvas->offset.x,p_Button->canvas->offset.y,position.z+UI_DEPTH_OFFSET);
+	vec3 __TextPosition = vec3(p_Button->canvas->offset.x,p_Button->canvas->offset.y,position.z-UI_DEPTH_OFFSET);
 	p_Button->label = g_Renderer.write_text(font,label,__TextPosition,scale.y*UI_TEXT_DOWNSCALE,vec4(1));
 
 	// intersection boundaries

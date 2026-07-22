@@ -32,7 +32,7 @@ TestScene::TestScene(Font* font)
 	// selection scene ui
 	lptr<UIBatch> __UI = g_UI.add_batch(font);
 	__UI->add_button("voxelmatrix projection",__ButtonBase,__ButtonHover,__ButtonClick,
-					 vec3(0,0,0),vec2(400,50),Alignment{ .alignment=SCREEN_ALIGN_CENTER });
+					 vec3(0,0,7),vec2(200,25),Alignment{ .alignment=SCREEN_ALIGN_CENTER });
 	g_Wheel.call(this);
 }
 
