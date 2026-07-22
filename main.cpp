@@ -17,7 +17,7 @@ s32 main(s32 argc,char** argv)
 #ifdef VKBUILD
 	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",15);
 	Clockwork __Clockwork = Clockwork(__Ubuntu);
-	TestScene __Test = TestScene();
+	TestScene __Test = TestScene(__Ubuntu);
 	bool running = true;
 	while (running)
 	{
@@ -25,6 +25,7 @@ s32 main(s32 argc,char** argv)
 		g_Wheel.update();
 		g_Camera.update();
 		g_Frame.clear();
+		g_UI.update();
 		g_Renderer.update();
 		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);
 		g_Frame.update();

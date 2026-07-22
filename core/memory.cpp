@@ -72,10 +72,10 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 /**
  *	TODO
  */
-void VertexBuffer::upload(void* vertices,size_t vsize)
+void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
-	memcpy(m_Data,vertices,vsize);
+	memcpy((void*)((char*)m_Data+ofs),vertices,vsize);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);

@@ -6,8 +6,6 @@
 #include "renderer.h"
 
 
-#ifndef VKBUILD  // §§prototyping remove
-
 constexpr f32 UI_TEXT_DOWNSCALE = .6f;
 constexpr f32 UI_TEXT_BORDER_X = .95f;
 constexpr f32 UI_TEXT_BORDER_Y = .4f;
@@ -23,9 +21,9 @@ struct Button
 
 	// data
 	Sprite* canvas;
-	PixelBufferComponent* idle;
-	PixelBufferComponent* hover;
-	PixelBufferComponent* action;
+	Rect* idle;
+	Rect* hover;
+	Rect* action;
 	lptr<Text> label;
 	Rect bounds;
 	bool holding = false;
@@ -40,9 +38,9 @@ struct TextField
 
 	// data
 	Sprite* canvas;
-	PixelBufferComponent* idle;
-	PixelBufferComponent* hover;
-	PixelBufferComponent* select;
+	Rect* idle;
+	Rect* hover;
+	Rect* select;
 	string buffer;
 	string buffer_head = "";
 	string buffer_tail = "";
@@ -56,11 +54,10 @@ struct TextField
 struct UIBatch
 {
 	// utility
-	lptr<Button> add_button(const char* label,PixelBufferComponent* tidle,PixelBufferComponent* thover,
-							PixelBufferComponent* taction,vec3 position,vec2 scale,Alignment alignment={});
-	lptr<TextField> add_text_field(PixelBufferComponent* tidle,PixelBufferComponent* thover,
-								   PixelBufferComponent* tselect,vec3 position,vec2 scale,
-								   Alignment alignment={});
+	lptr<Button> add_button(const char* label,Rect* tidle,Rect* thover,Rect* taction,
+							vec3 position,vec2 scale,Alignment alignment={});
+	lptr<TextField> add_text_field(Rect* tidle,Rect* thover,Rect* tselect,
+								   vec3 position,vec2 scale,Alignment alignment={});
 
 	// data
 	Font* font;
@@ -94,5 +91,4 @@ private:
 inline UI g_UI = UI("./res/ui/cursor.png");
 
 
-#endif
 #endif

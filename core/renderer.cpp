@@ -1084,6 +1084,8 @@ Font* Renderer::register_font(const char* path,u16 size)
  */
 lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour,Alignment align)
 {
+	COMM_ERR_COND(position.z>=10||position.z<=0,"text positioning is out of orthographic clipping range");
+	// FIXME inaccurate guard, after projection even 1 is clipped, while 7 works no problem?
 	//m_GPUFontTextures.signal.wait();
 	m_Texts.push_back({
 			.font = font,
@@ -1151,8 +1153,7 @@ void Renderer::_update_text()
 {
 	m_TextPipeline.enable();
 	m_TextVertexArray.bind();
-	for (Text& p_Text : m_Texts)
-		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,p_Text.buffer.size(),0,0);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
 }
 
 /**
@@ -1166,15 +1167,19 @@ void Renderer::_gpu_upload()
 	m_GPUSpriteTextures.gpu_upload(0);
 
 	// text
+	m_CharCount = 0;
 	for (Text& p_Text : m_Texts)
 	{
-		m_TextInstanceBuffer.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
-		m_TextInstanceBuffer.update();
+		m_TextInstanceBuffer.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter),
+									m_CharCount*sizeof(TextCharacter));
+		m_CharCount += p_Text.buffer.size();
 	}
+	m_TextInstanceBuffer.update();
 	m_GPUFontTextures.gpu_upload(0);
 }
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state
+// TODO skip parts of this upload based on change signals by load commands
 
 #else
 

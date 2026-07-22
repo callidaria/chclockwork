@@ -1,7 +1,5 @@
 #include "ui.h"
 
-#ifndef VKBUILD  // §§prototyping remove
-
 
 // ----------------------------------------------------------------------------------------------------
 // Button Utility
@@ -11,7 +9,7 @@
  */
 void Button::update()
 {
-	bool __Intersect = bounds.intersect(g_Input.mouse.position);
+	bool __Intersect = bounds.intersects(g_Input.mouse.position);
 
 	// button confirmation
 	if (__Intersect&&g_Input.mouse.buttons[0])
@@ -57,7 +55,7 @@ void Button::remove()
 void TextField::update(Font* font,Sprite* cursor,bool& field_switch,bool& tynext,bool& cnf_input)
 {
 	buffer = buffer_head+buffer_tail;
-	bool __Intersect = bounds.intersect(g_Input.mouse.position);
+	bool __Intersect = bounds.intersects(g_Input.mouse.position);
 
 	// user requests to write to text field buffer & clickout handling
 	if (active)
@@ -141,8 +139,8 @@ void TextField::remove()
  *	\param alignment: (default neutral fullscreen) screen alignment within given borders
  *	\returns address of button to later read interaction state from
  */
-lptr<Button> UIBatch::add_button(const char* label,PixelBufferComponent* tidle,PixelBufferComponent* thover,
-								 PixelBufferComponent* taction,vec3 position,vec2 scale,Alignment alignment)
+lptr<Button> UIBatch::add_button(const char* label,Rect* tidle,Rect* thover,Rect* taction,
+								 vec3 position,vec2 scale,Alignment alignment)
 {
 	// graphics setup
 	buttons.push_back({
@@ -176,9 +174,8 @@ lptr<Button> UIBatch::add_button(const char* label,PixelBufferComponent* tidle,P
  *	\param alignment: (default neutral fullscreen) screen alignment within given borders
  *	\returns address of text field to later read written contents from
  */
-lptr<TextField> UIBatch::add_text_field(PixelBufferComponent* tidle,PixelBufferComponent* thover,
-										PixelBufferComponent* tselect,vec3 position,vec2 scale,
-										Alignment alignment)
+lptr<TextField> UIBatch::add_text_field(Rect* tidle,Rect* thover,Rect* tselect,
+										vec3 position,vec2 scale,Alignment alignment)
 {
 	// graphics setup
 	tfields.push_back({
@@ -214,7 +211,7 @@ lptr<TextField> UIBatch::add_text_field(PixelBufferComponent* tidle,PixelBufferC
  */
 UI::UI(const char* cursor_path)
 {
-	PixelBufferComponent* __CursorTexture = g_Renderer.register_sprite_texture(cursor_path);
+	Rect* __CursorTexture = g_Renderer.register_sprite_texture(cursor_path);
 	m_CursorSprite = g_Renderer.register_sprite(__CursorTexture,vec3(-100),vec2(2,50));
 }
 
@@ -283,5 +280,3 @@ void UI::remove_batch(lptr<UIBatch> batch)
 	Input::unset_input_mode();
 	m_Batches.erase(batch);
 }
-
-#endif

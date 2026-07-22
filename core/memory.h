@@ -12,7 +12,7 @@ class VertexBuffer
 {
 public:
 	void allocate(size_t size,bool indexed=false);
-	void upload(void* vertices,size_t vsize);
+	void upload(void* vertices,size_t vsize,size_t ofs=0);
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
 
 #ifdef VKBUILD

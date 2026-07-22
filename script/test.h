@@ -3,6 +3,7 @@
 
 #include "../core/renderer.h"
 #include "../core/input.h"
+#include "../core/ui.h"
 #include "../core/wheel.h"
 
 
@@ -11,7 +12,7 @@
 class TestScene
 {
 public:
-	TestScene();
+	TestScene(Font* font);
 	void update();
 };
 

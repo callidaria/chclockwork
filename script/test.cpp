@@ -7,16 +7,32 @@
 /**
  *	setup test scene
  */
-TestScene::TestScene()
+TestScene::TestScene(Font* font)
 {
 	//Texture* __CursedBird = g_Renderer.register_texture("./res/test/cld.jpeg",TEXTURE_FORMAT_SRGB);
-	Rect* __CursedBird = g_Renderer.register_sprite_texture("./res/test/cld.jpeg");
+	//Rect* __CursedBird = g_Renderer.register_sprite_texture("./res/test/cld.jpeg");
+	/*
 	Sprite* __TestSprite0 = g_Renderer.register_sprite(__CursedBird,vec3(100,100,2),vec2(100,100),.0f,1.f,
 													   { .alignment=SCREEN_ALIGN_TOPLEFT });
 	Sprite* __TestSprite1 = g_Renderer.register_sprite(__CursedBird,vec3(0,0,5),vec2(100,100),.0f,.25f,
 													   { .alignment=SCREEN_ALIGN_CENTER });
 	Sprite* __TestSprite2 = g_Renderer.register_sprite(__CursedBird,vec3(-250,-250,4),vec2(120,120),.0f,1.f,
 													   { .alignment=SCREEN_ALIGN_BOTTOMRIGHT });
+	*/
+
+	// textures
+	Rect* __ButtonBase = g_Renderer.register_sprite_texture("./res/ui/button_base.png");
+	Rect* __ButtonHover = g_Renderer.register_sprite_texture("./res/ui/button_hover.png");
+	Rect* __ButtonClick = g_Renderer.register_sprite_texture("./res/ui/button_click.png");
+
+	// heading
+	lptr<Text> __Text = g_Renderer.write_text(font,"Test Scenes",vec3(0,25,7),15,vec4(1),
+											  Alignment{ .alignment=SCREEN_ALIGN_TOPCENTER });
+
+	// selection scene ui
+	lptr<UIBatch> __UI = g_UI.add_batch(font);
+	__UI->add_button("voxelmatrix projection",__ButtonBase,__ButtonHover,__ButtonClick,
+					 vec3(0,0,0),vec2(400,50),Alignment{ .alignment=SCREEN_ALIGN_CENTER });
 	g_Wheel.call(this);
 }
 
