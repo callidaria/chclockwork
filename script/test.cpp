@@ -26,7 +26,7 @@ TestScene::TestScene(Font* font)
 	Rect* __ButtonClick = g_Renderer.register_sprite_texture("./res/ui/button_click.png");
 
 	// heading
-	lptr<Text> __Text = g_Renderer.write_text(font,"Test Scenes",vec3(0,25,7),15,vec4(1),
+	lptr<Text> __Text = g_Renderer.write_text(font,"Test Scenes",vec3(0,-10,7),15,vec4(1),
 											  Alignment{ .alignment=SCREEN_ALIGN_TOPCENTER });
 
 	// selection scene ui

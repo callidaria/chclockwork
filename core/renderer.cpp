@@ -39,7 +39,7 @@ vec2 Alignment::align(Rect geom)
 	u8 vertical_alignment = alignment%3;
 #else
 	vertical_alignment = 2-vertical_alignment;
-	__Position.y *= -1;
+	//__Position.y *= -1;
 #endif
 
 	// adjust vertical alignment
@@ -721,7 +721,7 @@ Renderer::Renderer()
 
 	// pipelines
 	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
+	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
 	m_TextPipeline.out_define_colour_buffer();
 	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
 	m_TargetPipeline.out_define_colour_buffer();
