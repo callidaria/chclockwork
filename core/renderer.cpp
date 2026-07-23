@@ -931,9 +931,12 @@ void Renderer::update()
  *		the hi is supposed to automatically scan for relevant hardware and test it for support upon inclusion
  *		also the hi should globally store the gpu, so that it is accessible to all following components
  */
-
+/**
+ *	exit renderer and end all it's subprocesses, also cleanup all resources
+ */
 void Renderer::vanish()
 {
+#ifdef VKBUILD
 	// clean pipelines
 	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
@@ -976,10 +979,18 @@ void Renderer::vanish()
 	m_SpriteInstances.vanish();
 	m_TextInstances.vanish();
 	*/
+#endif
+
+	/*
+	_sprite_texture_signal.exit();
+	_sprite_signal.exit();
+	*/
 }
 
 /**
- *	TODO
+ *	register sprite texture to load and move to sprite pixel buffer
+ *	\param path: path to texture file
+ *	\returns pointer to texture component info to assign to a sprite later
  */
 Rect* Renderer::register_sprite_texture(const char* path)
 {
@@ -994,10 +1005,17 @@ Rect* Renderer::register_sprite_texture(const char* path)
 }
 
 /**
- *	TODO
+ *	register a new sprite instance for rendering
+ *	\param texture: sprite texture to be assigned to the sprite canvas
+ *	\param position: 2-dimensional position of sprite on screen, bounds defined by coordinate system
+ *	\param size: width and height of the sprite
+ *	\param rotation: (default .0f) rotation of the sprite in degrees
+ *	\param alpha: (default 1.f) transparency of sprite clamped between 0 and 1. 0 = invisible -> 1 = opaque
+ *	\param alignment: (default fullscreen neutral) sprite position alignment within borders
+ *	\returns pointer to sprite data for modification purposes
  */
-Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
-								  f32 alpha,Alignment alignment)
+Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,f32 alpha,
+								  Alignment alignment)
 {
 	Sprite* p_Sprite = m_Sprites.next_free();
 
@@ -1025,7 +1043,9 @@ Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rota
 }
 
 /**
- *	TODO
+ *	assign a sprite texture to a sprite canvas
+ *	\param sprite: pointer to the sprite canvas received at creation
+ *	\param texture: pointer to texture component info received at load request
  */
 void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
@@ -1034,7 +1054,8 @@ void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 }
 
 /**
- *	TODO
+ *	remove given sprite texture and free memory in array as well as releasing memory space on atlas
+ *	\param texture: pointer to texture, which shall be removed
  */
 void Renderer::delete_sprite_texture(Rect* texture)
 {
@@ -1050,7 +1071,8 @@ void Renderer::delete_sprite_texture(Rect* texture)
 }
 
 /**
- *	TODO
+ *	remove sprite from render list. quickly scaled invisible in main thread, later collected automatically
+ *	\param sprite: reference to sprite, being removed
  */
 void Renderer::delete_sprite(Sprite* sprite)
 {
@@ -1061,32 +1083,36 @@ void Renderer::delete_sprite(Sprite* sprite)
 }
 
 /**
- *	TODO
+ *	rasterize a vector font and upload pixel buffer to gpu memory
+ *	\param path: path to .ttf vector font file
+ *	\param size: rasterization size
+ *	\returns font data memory, to use later when writing text with or in style of it
  */
 Font* Renderer::register_font(const char* path,u16 size)
 {
 	COMM_AWT("register font from source %s",path);
 	Font* p_Font = m_Fonts.next_free();
-	GPUPixelBuffer::load_font(&m_GPUFontTextures,p_Font,path,size);
-	m_GPUFontTextures.gpu_upload(0);
-	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
-	COMM_CNF();
-	/*
 	m_GPUFontTextures.signal.stall();
 	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);
 	__LoadThread.detach();
-	*/
 	return p_Font;
 }
 
 /**
- *	TODO
+ *	write text on screen
+ *	\param font: pointer to loaded font
+ *	\param data: text content to be displayed in given font
+ *	\param position: positional offset of the text based on screen alignment
+ *	\param scale: intuitive absolute text scaling in pixels, supported by automatic adaptive resolution
+ *	\param colour: (default vec4(1)) text starting colour of all characters
+ *	\param align: (default SCREEN_ALIGN_BOTTOMLEFT) text alignment on screen, modified by positional offset
+ *	\returns list container of created text
  */
 lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour,Alignment align)
 {
 	COMM_ERR_COND(position.z>=10||position.z<=0,"text positioning is out of orthographic clipping range");
 	// FIXME inaccurate guard, after projection even 1 is clipped, while 7 works no problem?
-	//m_GPUFontTextures.signal.wait();
+	m_GPUFontTextures.signal.wait();
 	m_Texts.push_back({
 			.font = font,
 			.position = position,
@@ -1121,7 +1147,10 @@ void _load_texture(Texture* texture,const char* path,TextureFormat format,
 }
 
 /**
- *	TODO
+ *	load texture into memory
+ *	\param path: path to texture file
+ *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
+ *	\returns pointer to texture in ram, referencing texture in vram
  */
 Texture* Renderer::register_texture(const char* path,TextureFormat format)
 {
@@ -1137,23 +1166,42 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 //		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 /**
- *	TODO
+ *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
 {
+#ifdef VKBUILD
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
+#else
+	m_SpriteVertexArray.bind();
+	m_SpriteInstanceBuffer.bind();
+	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
+	m_SpritePipeline.enable();
+	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
+#endif
 }
 
 /**
- *	TODO
+ *	update draw of all registered characters from text components
  */
 void Renderer::_update_text()
 {
+#ifdef VKBUILD
 	m_TextPipeline.enable();
 	m_TextVertexArray.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
+#else
+	m_TextVertexArray.bind();
+	m_TextInstanceBuffer.bind();
+	m_TextPipeline.enable();
+	for (Text& p_Text : m_Texts)
+	{
+		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
+		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
+	}
+#endif
 }
 
 /**
@@ -1474,175 +1522,6 @@ void Renderer::update()
 }
 
 /**
- *	exit renderer and end all it's subprocesses
- */
-void Renderer::vanish()
-{
-	/*
-	_sprite_texture_signal.exit();
-	_sprite_signal.exit();
-	*/
-}
-
-/**
- *	register sprite texture to load and move to sprite pixel buffer
- *	\param path: path to texture file
- *	\returns pointer to texture component info to assign to a sprite later
- */
-Rect* Renderer::register_sprite_texture(const char* path)
-{
-	Rect* p_Comp = m_GPUSpriteTextures.textures.next_free();
-	m_GPUSpriteTextures.signal.stall();
-
-	COMM_LOG("sprite texture register of %s",path);
-	thread __LoadThread(GPUPixelBuffer::load_texture,&m_GPUSpriteTextures,p_Comp,path);
-	__LoadThread.detach();
-
-	return p_Comp;
-}
-
-/**
- *	register a new sprite instance for rendering
- *	\param texture: sprite texture to be assigned to the sprite canvas
- *	\param position: 2-dimensional position of sprite on screen, bounds defined by coordinate system
- *	\param size: width and height of the sprite
- *	\param rotation: (default .0f) rotation of the sprite in degrees
- *	\param alpha: (default 1.f) transparency of sprite clamped between 0 and 1. 0 = invisible -> 1 = opaque
- *	\param alignment: (default fullscreen neutral) sprite position alignment within borders
- *	\returns pointer to sprite data for modification purposes
- */
-Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,
-								  f32 alpha,Alignment alignment)
-{
-	// determine memory location, overwrite has priority over appending
-	Sprite* p_Sprite = m_Sprites.next_free();
-	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
-			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
-
-	// align sprite into borders
-	if (alignment.alignment!=SCREEN_ALIGN_NEUTRAL)
-	{
-		vec2 hsize = size*.5f;
-		vec2 __AlignedPosition = alignment.align({ vec2(position)-hsize,size })+size;
-		position.x = __AlignedPosition.x;
-		position.y = __AlignedPosition.y;
-	}
-
-	// write information to memory
-	(*p_Sprite) = {
-		.offset = position,
-		.scale = size,
-		.rotation = rotation,
-		.alpha = alpha,
-	};
-	Renderer::assign_sprite_texture(p_Sprite,texture);
-	return p_Sprite;
-}
-
-/**
- *	assign a sprite texture to a sprite canvas
- *	\param sprite: pointer to the sprite canvas received at creation
- *	\param texture: pointer to texture component info received at load request
- */
-void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
-{
-	m_GPUSpriteTextures.signal.wait();
-	sprite->tex_position = texture->offset;
-	sprite->tex_dimension = texture->dimensions;
-}
-
-/**
- *	remove given sprite texture and free memory in array as well as releasing memory space on atlas
- *	\param texture: pointer to texture, which shall be removed
- */
-void Renderer::delete_sprite_texture(Rect* texture)
-{
-	// signal cleanup
-	texture->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
-	_sprite_texture_signal.proceed();
-
-	// free texture atlas memory
-	m_GPUSpriteTextures.mutex_memory_segments.lock();
-	m_GPUSpriteTextures.memory_segments.push_back(*texture);
-	m_GPUSpriteTextures.mutex_memory_segments.unlock();
-	// TODO merge segments after adding free section to reduce segmentation
-}
-
-/**
- *	remove sprite from render list. quickly scaled invisible in main thread, later collected automatically
- *	\param sprite: reference to sprite, being removed
- */
-void Renderer::delete_sprite(Sprite* sprite)
-{
-	sprite->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
-	sprite->scale = vec2(0,0);
-	sprite = nullptr;
-	_sprite_signal.proceed();
-}
-
-/**
- *	rasterize a vector font and upload pixel buffer to gpu memory
- *	\param path: path to .ttf vector font file
- *	\param size: rasterization size
- *	\returns font data memory, to use later when writing text with or in style of it
- */
-Font* Renderer::register_font(const char* path,u16 size)
-{
-	COMM_LOG("font register from source %s",path);
-	Font* p_Font = m_Fonts.next_free();
-	m_GPUFontTextures.signal.stall();
-	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);
-	__LoadThread.detach();
-	return p_Font;
-}
-
-/**
- *	write text on screen
- *	\param font: pointer to loaded font
- *	\param data: text content to be displayed in given font
- *	\param position: positional offset of the text based on screen alignment
- *	\param scale: intuitive absolute text scaling in pixels, supported by automatic adaptive resolution
- *	\param colour: (default vec4(1)) text starting colour of all characters
- *	\param align: (default SCREEN_ALIGN_BOTTOMLEFT) text alignment on screen, modified by positional offset
- *	\returns list container of created text
- */
-lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour,Alignment align)
-{
-	m_GPUFontTextures.signal.wait();
-	m_Texts.push_back({
-			.font = font,
-			.position = position,
-			.scale = (f32)scale/font->size,
-			.colour = colour,
-			.alignment = align,
-			.data = data
-		});
-
-	lptr<Text> p_Text = std::prev(m_Texts.end());
-	p_Text->align();
-	p_Text->load_buffer();
-	return p_Text;
-}
-// TODO rm if successful
-
-/**
- *	load texture into memory
- *	\param path: path to texture file
- *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
- *	\returns pointer to texture in ram, referencing texture in vram
- */
-Texture* Renderer::register_texture(const char* path,TextureFormat format)
-{
-	COMM_LOG("mesh texture register of %s",path);
-	Texture* p_Texture = m_MeshTextures.next_free();
-	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,
-						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
-	__LoadThread.detach();
-	return p_Texture;
-}
-
-/**
  *	register shader pipeline
  *	\param vs: vertex shader
  *	\param fs: fragment shader
@@ -1897,40 +1776,6 @@ void Renderer::reset_lighting()
 void Renderer::animate(AnimatedMesh* mesh)
 {
 	m_AnimatingMeshes.push_back(mesh);
-}
-
-/**
- *	update all registered sprites
- */
-void Renderer::_update_sprites()
-{
-	/*
-	m_SpriteVertexArray.bind();
-	m_SpriteInstanceBuffer.bind();
-	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
-	m_SpritePipeline.enable();
-	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
-	*/
-}
-
-/**
- *	update all registered text
- */
-void Renderer::_update_text()
-{
-	/*
-	// prepare gpu
-	m_TextVertexArray.bind();
-	m_TextInstanceBuffer.bind();
-	m_TextPipeline.enable();
-
-	// iterate text entities
-	for (Text& p_Text : m_Texts)
-	{
-		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
-		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
-	}
-	*/
 }
 
 /**
