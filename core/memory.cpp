@@ -434,16 +434,11 @@ Texture::Texture()
  *	set texture channel
  *	\param i: channel index, correlating to sampler2D integer upload
  */
+#ifndef VKBUILD
 void Texture::set_channel(u8 i)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	glActiveTexture(GL_TEXTURE0+i);
-#endif
 }
-// TODO i'm not sure this is even a thing in the vulkan version? how do we handle that?
 
 /**
  *	bind texture buffer for read and write procedures
@@ -451,13 +446,8 @@ void Texture::set_channel(u8 i)
  */
 void Texture::bind(u8 i)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	set_channel(i);
 	glBindTexture(GL_TEXTURE_2D,m_Memory);
-#endif
 }
 
 /**
@@ -465,13 +455,9 @@ void Texture::bind(u8 i)
  */
 void Texture::unbind()
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	glBindTexture(GL_TEXTURE_2D,0);
-#endif
 }
+#endif
 
 /**
  *	define trilinear texture filter for mipmap generation
@@ -1058,14 +1044,13 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 
 /**
  *	automatically uploads the loaded subtextures to the gpu
- *	\param channel: texture channel
+ *	\param channel: texture channel (this has to be defined in ogl version, can be ignored in vk)
  *	NOTE this has to be run in main thread due to the gpu upload being context sensitive
  */
 void GPUPixelBuffer::gpu_upload(u8 channel)
 {
 	if (!load_requests.size()) return;
 
-	atlas.bind(channel);
 	mutex_texture_requests.lock();
 
 #ifdef VKBUILD
@@ -1084,6 +1069,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	size_t __MemoryOffset = 0;
 	while (load_requests.size())
 #else
+	atlas.bind(channel);
 	while (load_requests.size()&&calculate_delta_time_ms(g_Frame.fstart)<FRAME_TIME_BUDGET_MS)
 #endif
 	{

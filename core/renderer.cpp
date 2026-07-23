@@ -1212,7 +1212,7 @@ void Renderer::_gpu_upload()
 	// sprites
 	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
 	m_SpriteInstanceBuffer.update();
-	m_GPUSpriteTextures.gpu_upload(0);
+	m_GPUSpriteTextures.gpu_upload();
 
 	// text
 	m_CharCount = 0;
@@ -1223,7 +1223,7 @@ void Renderer::_gpu_upload()
 		m_CharCount += p_Text.buffer.size();
 	}
 	m_TextInstanceBuffer.update();
-	m_GPUFontTextures.gpu_upload(0);
+	m_GPUFontTextures.gpu_upload();
 }
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state

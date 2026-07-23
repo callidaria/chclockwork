@@ -341,15 +341,11 @@ void Framebuffer::stop()
  *	\param channel: texture channel
  *	\param i: colour component index of rendertarget
  */
+#ifndef VKBUILD
 void Framebuffer::bind_colour_component(u8 channel,u8 i)
 {
 	Texture::set_channel(channel);
-
-#ifdef VKBUILD
-	// TODO
-#else
 	glBindTexture(GL_TEXTURE_2D,components[i]);
-#endif
 }
 
 /**
@@ -359,9 +355,6 @@ void Framebuffer::bind_colour_component(u8 channel,u8 i)
 void Framebuffer::bind_depth_component(u8 channel)
 {
 	Texture::set_channel(channel);
-#ifdef VKBUILD
-	// TODO
-#else
 	glBindTexture(GL_TEXTURE_2D,components[m_DepthChannel]);
-#endif
 }
+#endif

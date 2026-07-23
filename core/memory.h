@@ -123,9 +123,11 @@ class Texture
 public:
 	Texture();
 
+#ifndef VKBUILD
 	static void set_channel(u8 i);
 	void bind(u8 i);
 	static void unbind();
+#endif
 
 	static void set_texture_parameter_linear_mipmap();
 	static void set_texture_parameter_nearest_mipmap();
@@ -170,7 +172,7 @@ struct GPUPixelBuffer
 	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
 	static void load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size);
 	static void _load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data);
-	void gpu_upload(u8 channel);
+	void gpu_upload(u8 channel=0);
 	// TODO allocate & write for statically written texture atlas
 	// TODO when allocating, rotation boolean can be stored in alpha by signing the float
 	// TODO allow to merge deleted rects when using a dynamic texture atlas
