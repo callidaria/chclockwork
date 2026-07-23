@@ -18,8 +18,9 @@ DEBUG_SUFFIX = -O0 -DDEBUG -pg -g
 RELEASE_SUFFIX = -O3 -fno-gcse
 GPUAPI_SUFFIX ?= -DVKBUILD
 
-SRCS_CORE = $(wildcard $(SDST_CORE)*.cpp)
-SRCS_SCRIPT = $(wildcard $(SDST_SCRIPT)*.cpp)
+rcwild = $(foreach d,$(wildcard $1*),$(call rcwild,$d/,$2) $(filter $(subst *,%,$2),$d))
+SRCS_CORE = $(call rcwild,$(SDST_CORE),*.cpp)
+SRCS_SCRIPT = $(call rcwild,$(SDST_SCRIPT),*.cpp)
 SRCS = $(SRCS_CORE) $(SRCS_SCRIPT)
 OBJS = $(SRCS:%.cpp=$(LDST)%.o)
 MAIN = main.cpp
