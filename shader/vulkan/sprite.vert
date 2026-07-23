@@ -30,6 +30,7 @@ void main()
 	float rotation_cos = cos(rd_rotation);
 	vec2 Position = mat2(rotation_cos,-rotation_sin,rotation_sin,rotation_cos)*position;
 	gl_Position = csys.proj*csys.view*vec4(Position*scale+offset.xy,offset.z,1.);
+	gl_Position *= -1;
 
 	// pass
 	EdgeCoordinates = atlas_position+atlas_dimension*edge_coordinates;

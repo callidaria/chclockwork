@@ -34,7 +34,7 @@ vec2 Alignment::align(Rect geom)
 	vec2 __GeomCenter = geom.extent*vec2(.5f);
 	vec2 __BorderCenter = border.extent*vec2(.5f)+border.position;
 
-	// coordinate flip for ogl version
+	// alignment status & coordinate flip for ogl version
 #ifdef VKBUILD
 	u8 vertical_alignment = alignment%3;
 #else
@@ -723,7 +723,7 @@ Renderer::Renderer()
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag");
 	m_TextPipeline.out_define_colour_buffer();
-	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag");
+	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
 	m_TargetPipeline.out_define_colour_buffer();
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 

@@ -490,7 +490,7 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(const char* vs,const char* fs)
+void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -675,7 +675,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs)
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
 	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	__RasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	__RasterInfo.frontFace = (flipped)?VK_FRONT_FACE_CLOCKWISE:VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
 	__RasterInfo.depthBiasClamp = .0f;

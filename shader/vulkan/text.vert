@@ -27,9 +27,10 @@ void main()
 	vec2 Position = position+vec2(.5,.5);
 	Position = Position*scale+offset.xy+bearing;
 	gl_Position = csys.proj*csys.view*vec4(Position.x,Position.y-scale.y,offset.z,1.);
+	gl_Position.y *= -1;
 
 	// pass
-	EdgeCoordinates = vec2(edge_coordinates.x,1-edge_coordinates.y);
+	EdgeCoordinates = vec2(edge_coordinates.x,edge_coordinates.y);
 	EdgeCoordinates = atlas_position+atlas_dimension*EdgeCoordinates;
 	Colour = colour;
 }
