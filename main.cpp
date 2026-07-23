@@ -15,7 +15,7 @@
 s32 main(s32 argc,char** argv)
 {
 #ifdef VKBUILD
-	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",15);
+	Font* __Ubuntu = g_Renderer.register_font("./res/font/garamond.ttf",50);
 	Clockwork __Clockwork = Clockwork(__Ubuntu);
 	TestScene __Test = TestScene(__Ubuntu);
 	bool running = true;
