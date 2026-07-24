@@ -704,9 +704,10 @@ Renderer::Renderer()
 	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
 
 	// textures
-	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,TEXTURE_FORMAT_SRGB);
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
+								 TEXTURE_FORMAT_SRGB,ATLAS_SPRITES_PADDING);
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
-							   TEXTURE_FORMAT_MONOCHROME,4);
+							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));

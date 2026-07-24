@@ -391,7 +391,7 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 	// buffer copy
 	VkBufferImageCopy __BufferCopy = {  };
 	__BufferCopy.bufferOffset = ofs;
-	__BufferCopy.bufferRowLength = 0;  // TODO possible font utility
+	__BufferCopy.bufferRowLength = 0;
 	__BufferCopy.bufferImageHeight = 0;
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__BufferCopy.imageSubresource.mipLevel = 0;

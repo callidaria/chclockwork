@@ -33,6 +33,10 @@
 #define RENDERER_SHADOW_RESOLUTION 2048
 #define RENDERER_SHADOW_RANGE 25
 
+// atlas
+#define ATLAS_SPRITES_PADDING 4
+#define ATLAS_FONT_PADDING 4
+
 // TODO define in extern config file and store constants at runtime
 
 
