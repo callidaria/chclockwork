@@ -199,8 +199,7 @@ void VertexArray::allocate(u8 size)
  */
 inline void VertexArray::register_buffer(const VertexBuffer& vb)
 {
-	COMM_MSG_COND(m_Buffers.size()>=m_Buffers.capacity(),LOG_YELLOW,
-				  "WARNING: insufficient vertex array allocation. resizing.");
+	COMM_ERR_COND(m_Buffers.size()>=m_Buffers.capacity(),"insufficient vertex array allocation");
 	m_Buffers.push_back(vb.vbo);
 }
 
@@ -222,7 +221,7 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
  */
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
-	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index offset");
+	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index component");
 	m_IndexSource = m_Buffers.size();
 	m_IndexOffset = vb.index_offset;
 	register_buffer(vb);
@@ -597,20 +596,6 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
 #endif
 }
 
-/**
- *	automatically generate mipmap when the appropriate texture parameters are set (_mipmap() suffix)
- *	NOTE texture should be bound
- */
-void Texture::generate_mipmap()
-{
-#ifdef VKBUILD
-	// TODO
-
-#else
-	glGenerateMipmap(GL_TEXTURE_2D);
-#endif
-}
-
 
 // ----------------------------------------------------------------------------------------------------
 // Pixel Buffer Feature
@@ -902,6 +887,8 @@ void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
  */
 void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 {
+	gpb->mutex_memory_segments.lock();
+
 	// compute padded dimensions
 	s32 __PaddedWidth = data->width+gpb->subtex_padding;
 	s32 __PaddedHeight = data->height+gpb->subtex_padding;
@@ -1030,7 +1017,6 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 	// FIXME this is still a memory access rc hazard, is it not?
 
 	// merge segment list
-	gpb->mutex_memory_segments.lock();
 	gpb->memory_segments.insert(gpb->memory_segments.end(),__UpdatedSegments.begin(),__UpdatedSegments.end());
 	gpb->mutex_memory_segments.unlock();
 
@@ -1148,7 +1134,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
 
 #else
-	Texture::generate_mipmap();
+	glGenerateMipmap(GL_TEXTURE_2D);
 #endif
 }
 // TODO sort into appropriate utility

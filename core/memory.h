@@ -138,7 +138,6 @@ public:
 	static void set_texture_parameter_repeat();
 	static void set_texture_parameter_filter_bias(float bias=.0f);
 	static void set_texture_parameter_border_colour(vec4 colour);
-	static void generate_mipmap();
 
 private:
 	u32 m_Memory;
