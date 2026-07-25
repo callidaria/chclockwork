@@ -6,15 +6,30 @@
 #include "../core/ui.h"
 #include "../core/wheel.h"
 
+#include "scenes/voxelgrid.h"
+#include "scenes/parcour.h"
+
 
 #ifdef VKBUILD  // §§prototyping remove
 
-class TestScene
+class SceneListing
 {
 public:
-	TestScene(Font* font);
+	SceneListing(Font* font);
 	void update();
 	void vanish();
+
+private:
+	// ui
+	Font* m_Font;
+	lptr<UIBatch> m_UI;
+	lptr<Button> m_BTNTextures,m_BTNVoxel,m_BTNParcour;
+
+	// scenes
+	RoomVoxels m_RoomVoxels;
+	ParcourParcs m_ParcourParcs;
+
+	lptr<UpdateRoutine> m_Self;
 };
 
 #else

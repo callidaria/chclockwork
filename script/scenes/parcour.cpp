@@ -4,7 +4,7 @@
 /**
  *	TODO
  */
-ParcourParcs::ParcourParcs()
+void ParcourParcs::init()
 {
 	// TODO
 	g_Wheel.call(this);

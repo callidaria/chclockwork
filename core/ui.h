@@ -29,6 +29,8 @@ struct Button
 	bool holding = false;
 	bool confirm = false;
 };
+// TODO add hover status
+// TODO enumerate bitwise, then use this as status component
 
 struct TextField
 {
@@ -50,6 +52,7 @@ struct TextField
 	bool active = false;
 	bool hidden = false;
 };
+// TODO utilize pointer arithmetics instead of head tail buffer appendix (\0 to end current and point to cursor)
 
 struct UIBatch
 {

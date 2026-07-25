@@ -10,7 +10,7 @@
 class ParcourParcs
 {
 public:
-	ParcourParcs();
+	void init();
 	void update();
 	void vanish();
 

@@ -10,7 +10,7 @@
 class RoomVoxels
 {
 public:
-	RoomVoxels(Font* font);
+	void init(Font* font);
 	void update();
 	void vanish();
 
