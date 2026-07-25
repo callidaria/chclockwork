@@ -14,6 +14,7 @@ class TestScene
 public:
 	TestScene(Font* font);
 	void update();
+	void vanish();
 };
 
 #else
@@ -65,6 +66,7 @@ class TestScene
 public:
 	TestScene();
 	void update();
+	void vanish();
 
 private:
 

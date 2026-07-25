@@ -40,5 +40,10 @@ void Clockwork::update()
 	m_FPS->load_buffer();
 }
 
+/**
+ *	clockwork interface is always enabled in debug, there will be no destruction
+ */
+void Clockwork::vanish() {  }
+
 
 #endif

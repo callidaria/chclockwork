@@ -1,5 +1,5 @@
-#ifndef SCRIPT_VOXELGRID_HEADER
-#define SCRIPT_VOXELGRID_HEADER
+#ifndef SCRIPT_PARCOUR_HEADER
+#define SCRIPT_PARCOUR_HEADER
 
 
 #include "../../core/renderer.h"
@@ -7,10 +7,10 @@
 #include "../../core/wheel.h"
 
 
-class RoomVoxels
+class ParcourParcs
 {
 public:
-	RoomVoxels(Font* font);
+	ParcourParcs();
 	void update();
 	void vanish();
 

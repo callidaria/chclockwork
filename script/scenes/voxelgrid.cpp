@@ -18,3 +18,11 @@ void RoomVoxels::update()
 {
 	// TODO
 }
+
+/**
+ *	TODO
+ */
+void RoomVoxels::vanish()
+{
+	// TODO
+}

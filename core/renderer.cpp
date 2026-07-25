@@ -1206,7 +1206,7 @@ void Renderer::_update_text()
 }
 
 /**
- *	TODO
+ *	handle pending gpu uploads for all forwarded data
  */
 void Renderer::_gpu_upload()
 {

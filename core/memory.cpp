@@ -1014,7 +1014,6 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 			else j++;
 		}
 	}
-	// FIXME this is still a memory access rc hazard, is it not?
 
 	// merge segment list
 	gpb->memory_segments.insert(gpb->memory_segments.end(),__UpdatedSegments.begin(),__UpdatedSegments.end());

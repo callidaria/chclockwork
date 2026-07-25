@@ -25,6 +25,7 @@ class Clockwork
 public:
 	Clockwork(Font* font);
 	void update();
+	void vanish();
 
 private:
 
