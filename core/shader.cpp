@@ -733,7 +733,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.pushConstantRangeCount = 0;
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs%s failed",vs,fs);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
 
 	// combine pipeline components into final graphics pipeline
 	VkGraphicsPipelineCreateInfo __PipelineInfo = {  };

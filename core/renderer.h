@@ -234,6 +234,7 @@ struct TextureDataTuple
 
 #ifdef VKBUILD
 
+// §§prototyping
 struct ObjectTransformation
 {
 	mat4 model __attribute__((aligned(16)));
@@ -258,17 +259,7 @@ struct ObjectInstance
 	vec3 position;
 	Rect pbc;
 };
-
-/*
-struct SpriteInstance
-{
-	vec3 offset;
-	vec2 scale;
-	f32 rotation;
-	f32 alpha;
-	Rect pbc;
-};
-*/
+// TODO prototyping, remove later before merge
 
 class Renderer
 {
