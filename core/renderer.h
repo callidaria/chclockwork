@@ -232,124 +232,6 @@ struct TextureDataTuple
 	Texture* texture;
 };
 
-#ifdef VKBUILD
-
-// §§prototyping
-struct ObjectTransformation
-{
-	mat4 model __attribute__((aligned(16)));
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
-};
-
-struct SpriteTransformation
-{
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
-};
-
-struct UniformBufferMemory
-{
-	ObjectTransformation otrafo;
-	SpriteTransformation strafo;
-};
-
-struct ObjectInstance
-{
-	vec3 position;
-	Rect pbc;
-};
-// TODO prototyping, remove later before merge
-
-class Renderer
-{
-public:
-	Renderer();
-	void update();
-	void vanish();
-
-	// sprite
-	Rect* register_sprite_texture(const char* path);
-	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
-							f32 alpha=1.f,Alignment alignment={});
-	void assign_sprite_texture(Sprite* sprite,Rect* texture);
-	void delete_sprite_texture(Rect* texture);
-	static void delete_sprite(Sprite* sprite);
-	// TODO implementation
-
-	// text
-	Font* register_font(const char* path,u16 size);
-	lptr<Text> write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour=vec4(1),Alignment align={});
-	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
-
-	// textures
-	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
-
-private:
-	void _update_sprites();
-	void _update_text();
-	void _gpu_upload();
-
-private:
-
-	/*
-	VertexBuffer m_VertexBuffer;
-	VertexBuffer m_TargetBuffer;
-	VertexBuffer m_InstanceBuffer;
-	VertexArray m_TargetArray;
-	GPUPixelBuffer m_PixelBuffer;
-	GPUPixelBuffer m_SpriteTexture;
-
-	// testing
-	f32 m_Rotation = .0f;
-	u32 m_RenderSize = 0;
-	*/
-
-	// buffers
-	VertexBuffer m_SpriteVertexBuffer;
-	VertexBuffer m_SpriteInstanceBuffer;
-	VertexBuffer m_TextInstanceBuffer;
-
-	// vertex arrays
-	VertexArray m_SpriteVertexArray;
-	VertexArray m_TextVertexArray;
-
-	// targets
-	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
-	Framebuffer m_Framebuffer;  // FIXME naming!!!!
-
-	// textures
-	GPUPixelBuffer m_GPUSpriteTextures;
-	GPUPixelBuffer m_GPUFontTextures;
-
-	// mesh textures
-	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
-	queue<TextureDataTuple> m_MeshTextureUploadQueue;
-	std::mutex m_MutexMeshTextureUpload;
-
-	// sprites
-	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
-
-	// text
-	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
-	list<Text> m_Texts;
-	size_t m_CharCount = 0;
-	size_t m_SpriteBufferID,m_TextBufferID;
-	// FIXME font memory is too strict and i don't think this is a nice approach in this case
-
-	// pipelines
-	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
-
-	// uniform buffer
-	UniformBufferMemory m_UBufferMem;
-};
-
-
-// TODO light structures, except for shadow projections are universal and belong outside gfxapi related stuff
-#else
-
 struct GeometryTuple
 {
 	size_t offset;
@@ -370,12 +252,12 @@ struct GeometryBatch
 	void load();
 
 	// data
-	VertexBuffer vbo;
+	//VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
-//vector<u32> elements;
+	//vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
 	u32 offset_cursor = 0;
@@ -438,6 +320,140 @@ struct ShadowParticleBatch
 	lptr<ParticleBatch> batch;
 	lptr<ShaderPipeline> shader;
 };
+
+
+#ifdef VKBUILD
+
+// §§prototyping
+struct ObjectTransformation
+{
+	mat4 model __attribute__((aligned(16)));
+	mat4 view __attribute__((aligned(16)));
+	mat4 proj __attribute__((aligned(16)));
+};
+
+struct SpriteTransformation
+{
+	mat4 view __attribute__((aligned(16)));
+	mat4 proj __attribute__((aligned(16)));
+};
+
+struct UniformBufferMemory
+{
+	ObjectTransformation otrafo;
+	SpriteTransformation strafo;
+};
+
+struct ObjectInstance
+{
+	vec3 position;
+	Rect pbc;
+};
+// TODO prototyping, remove later before merge
+
+class Renderer
+{
+public:
+	Renderer();
+	void update();
+	void vanish();
+
+	// sprite
+	Rect* register_sprite_texture(const char* path);
+	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
+							f32 alpha=1.f,Alignment alignment={});
+	void assign_sprite_texture(Sprite* sprite,Rect* texture);
+	void delete_sprite_texture(Rect* texture);
+	static void delete_sprite(Sprite* sprite);
+
+	// text
+	Font* register_font(const char* path,u16 size);
+	lptr<Text> write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour=vec4(1),Alignment align={});
+	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
+
+	// textures
+	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+
+	// scene
+	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
+	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
+	/*
+	lptr<GeometryBatch> register_deferred_geometry_batch();
+	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
+	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
+	lptr<ParticleBatch> register_deferred_particle_batch();
+	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
+	*/
+
+private:
+	void _update_sprites();
+	void _update_text();
+	void _gpu_upload();
+
+private:
+
+	/*
+	VertexBuffer m_VertexBuffer;
+	VertexBuffer m_TargetBuffer;
+	VertexBuffer m_InstanceBuffer;
+	VertexArray m_TargetArray;
+	GPUPixelBuffer m_PixelBuffer;
+	GPUPixelBuffer m_SpriteTexture;
+
+	// testing
+	f32 m_Rotation = .0f;
+	u32 m_RenderSize = 0;
+	*/
+
+	// buffers
+	VertexBuffer m_SpriteVertexBuffer;
+	VertexBuffer m_SpriteInstanceBuffer;
+	VertexBuffer m_TextInstanceBuffer;
+
+	// vertex arrays
+	VertexArray m_SpriteVertexArray;
+	VertexArray m_TextVertexArray;
+
+	// targets
+	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
+	Framebuffer m_Framebuffer;  // FIXME naming!!!!
+
+	// textures
+	GPUPixelBuffer m_GPUSpriteTextures;
+	GPUPixelBuffer m_GPUFontTextures;
+
+	// mesh textures
+	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	std::mutex m_MutexMeshTextureUpload;
+	// FIXME single mesh texture atlas is not only a problem, but also neither efficient nor helpful
+
+	// sprites
+	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
+
+	// text
+	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
+	list<Text> m_Texts;
+	size_t m_CharCount = 0;
+	size_t m_SpriteBufferID,m_TextBufferID;
+	// FIXME font memory is too strict and i don't think this is a nice approach in this case
+
+	// pipelines
+	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
+	list<ShaderPipeline> m_ShaderPipelines;
+
+	// batches
+	list<GeometryBatch> m_GeometryBatches;
+
+	// uniform buffer
+	UniformBufferMemory m_UBufferMem;
+};
+
+
+// TODO light structures, except for shadow projections are universal and belong outside gfxapi related stuff
+#else
 
 
 // ----------------------------------------------------------------------------------------------------

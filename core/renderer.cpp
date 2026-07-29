@@ -656,6 +656,81 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 }
 
 
+// ----------------------------------------------------------------------------------------------------
+// Geometry Batching
+
+/**
+ *	add mesh geometry to batch
+ *	\param mesh: loaded mesh for explicit geometry information
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
+{
+	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
+}
+// FIXME make this vector a Texture* with lenth pass default = 1 instead, this makes is way more usable
+
+/**
+ *	add animated mesh geometry to batch
+ *	\param mesh: animated mesh for explicit geometry information
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
+{
+	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
+	for (MeshJoint& p_Joint : mesh.joints)
+		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	anim_meshes.push_back(&mesh);
+	return id;
+}
+
+/**
+ *	load geometry into batch
+ *	\param verts: single precision floats, explicitly defining geometry
+ *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
+ *	\param ssize: upload dimension !in memory width!
+ *	\param tex: multichannel texture data to upload
+ *	\returns geometry id
+ */
+u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex)
+{
+	COMM_LOG("uploading geometry to batch");
+	size_t __MemSize = vsize*ssize;
+	size_t __Size = __MemSize/sizeof(f32);
+	geometry.resize(geometry_cursor+__Size);
+	memcpy(&geometry[geometry_cursor],verts,__MemSize);
+
+	// store geometry information
+	objects.push_back({
+			.offset = offset_cursor,
+			.vertex_count = vsize,
+			.textures = tex,
+		});
+	objects.back().uniform.shader = shader;
+	offset_cursor += vsize;
+	geometry_cursor += __Size;
+	return objects.size()-1;
+}
+
+/**
+ *	upload batch geometry to gpu & automap shader pipeline
+ */
+void GeometryBatch::load()
+{
+	COMM_LOG("uploading geometry information to GPU");
+	/*
+	vbo.allocate(geometry.size()*sizeof(f32));
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
+	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+	*/
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Render Unit
+
 #ifdef VKBUILD
 const s32 TEST_INSTANCE_AMOUNT_X = 3;
 const s32 TEST_INSTANCE_AMOUNT_Y = 3;
@@ -942,10 +1017,11 @@ void Renderer::vanish()
 	m_TargetPipeline.vanish();
 	m_SpritePipeline.vanish();
 	m_TextPipeline.vanish();
+	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
 
 	// clean framebuffers
 	m_Framebuffer.vanish();
-	for (Framebuffer& m_ResultBuffer : m_ResultBuffers) m_ResultBuffer.vanish();
+	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
 
 	// clear pixel buffers
 	m_GPUSpriteTextures.vanish();
@@ -1167,6 +1243,34 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 //		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 /**
+ *	register shader pipeline
+ *	\param vs: path to vertex shader
+ *	\param fs: path to fragment shader
+ *	\param bfr_count: count of output buffers, amount of channels that the shader writes to
+ *	\param depth: (default false) record depth result after shader processing
+ *	\returns pointer to registered shader pipeline
+ */
+lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth)
+{
+	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
+	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
+	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer();
+	p_Pipeline->assemble(vs,fs);
+	return p_Pipeline;
+}
+
+/**
+ *	register triangle mesh batch
+ *	\param pipeline: shader pipeline, handling pixel output for newly created batch
+ *	\returns pointer to created triangle mesh batch
+ */
+lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline)
+{
+	m_GeometryBatches.push_back({ .shader = pipeline });
+	return std::prev(m_GeometryBatches.end());
+}
+
+/**
  *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1234,71 +1338,6 @@ void Renderer::_gpu_upload()
 
 // ----------------------------------------------------------------------------------------------------
 // Geometry Batching
-
-/**
- *	add mesh geometry to batch
- *	\param mesh: loaded mesh for explicit geometry information
- *	\param tex: multichannel texture data to upload
- *	\returns geometry id
- */
-u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
-{
-	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
-}
-
-/**
- *	add animated mesh geometry to batch
- *	\param mesh: animated mesh for explicit geometry information
- *	\param tex: multichannel texture data to upload
- *	\returns geometry id
- */
-u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
-{
-	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	for (MeshJoint& p_Joint : mesh.joints)
-		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
-	anim_meshes.push_back(&mesh);
-	return id;
-}
-
-/**
- *	load geometry into batch
- *	\param verts: single precision floats, explicitly defining geometry
- *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
- *	\param ssize: upload dimension !in memory width!
- *	\param tex: multichannel texture data to upload
- *	\returns geometry id
- */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex)
-{
-	COMM_LOG("uploading geometry to batch");
-	size_t __MemSize = vsize*ssize;
-	size_t __Size = __MemSize/sizeof(f32);
-	geometry.resize(geometry_cursor+__Size);
-	memcpy(&geometry[geometry_cursor],verts,__MemSize);
-
-	// store geometry information
-	objects.push_back({
-			.offset = offset_cursor,
-			.vertex_count = vsize,
-			.textures = tex,
-		});
-	objects.back().uniform.shader = shader;
-	offset_cursor += vsize;
-	geometry_cursor += __Size;
-	return objects.size()-1;
-}
-
-/**
- *	upload batch geometry to gpu & automap shader pipeline
- */
-void GeometryBatch::load()
-{
-	COMM_LOG("uploading geometry information to GPU");
-	vbo.allocate(geometry.size()*sizeof(f32));
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
-}
 
 /**
  *	setup particle batch by mesh geometry
@@ -1526,8 +1565,9 @@ void Renderer::update()
  *	register shader pipeline
  *	\param vs: vertex shader
  *	\param fs: fragment shader
- *	returns pointer to registered shader pipeline
+ *	\returns pointer to registered shader pipeline
  */
+/*
 lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline());
@@ -1535,17 +1575,20 @@ lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader
 	p_Pipeline->assemble(vs,fs);
 	return p_Pipeline;
 }
+*/
 
 /**
  *	register triangle mesh batch
  *	\param pipeline: shader pipeline, handling pixel output for newly created batch
  *	\returns pointer to created triangle mesh batch
  */
+/*
 lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline)
 {
 	m_GeometryBatches.push_back({ .shader = pipeline });
 	return std::prev(m_GeometryBatches.end());
 }
+*/
 
 /**
  *	register phyiscal mesh batch with standard geometry pass shader

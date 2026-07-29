@@ -235,6 +235,7 @@ public:
 	lptr<ShaderPipeline> shader;
 	vector<ShaderUniformValue> uploads;
 };
+// TODO deprecated this is not the way to go anymore since vk port
 
 
 #endif
