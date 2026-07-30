@@ -7,7 +7,7 @@ layout(location = 2) in vec3 normal;
 layout(location = 3) in vec3 tangent;
 
 /*
-// aaaaaaengine: ibo
+// aengine: ibo
 alayout(location = 10) in vec3 offset;
 alayout(location = 11) in vec2 atlas_position;
 alayout(location = 12) in vec2 atlas_dimension;

@@ -721,10 +721,20 @@ void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
 	vbo.allocate(geometry.size()*sizeof(f32),false);
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
+	vbo.update();
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 	vao.allocate(1);
 	vao.register_buffer(vbo);
+}
+
+/**
+ *	clean batch memory & destroy buffers
+ */
+void GeometryBatch::vanish()
+{
+	vbo.free();
+	vbo.vanish();
 }
 
 
@@ -823,6 +833,11 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
+	// upload camera
+	m_UBufferMem.otrafo.model = mat4(1.f);
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
+
 	g_UniformBuffer.finalize();
 
 	// load mesh data
@@ -895,8 +910,10 @@ Renderer::Renderer()
 void Renderer::update()
 {
 	// camera update
+	/*
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	*/
 	// TODO also create the ability the link a camera to the uniform
 	//		right now this happens for both matrices individually, which is not appropriate
 
@@ -1042,6 +1059,9 @@ void Renderer::vanish()
 	m_SpriteVertexBuffer.vanish();
 	m_SpriteInstanceBuffer.vanish();
 	m_TextInstanceBuffer.vanish();
+
+	// clear active batches
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
 
 	// clear uniform upload memory
 	g_UniformBuffer.vanish();

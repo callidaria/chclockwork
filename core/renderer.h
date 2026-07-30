@@ -250,6 +250,7 @@ struct GeometryBatch
 	u32 add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex);
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex);
 	void load();
+	void vanish();
 
 	// data
 	VertexArray vao;
