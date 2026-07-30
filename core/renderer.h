@@ -252,7 +252,8 @@ struct GeometryBatch
 	void load();
 
 	// data
-	//VertexBuffer vbo;
+	VertexArray vao;
+	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
@@ -388,6 +389,7 @@ public:
 private:
 	void _update_sprites();
 	void _update_text();
+	void _update_mesh();
 	void _gpu_upload();
 
 private:
@@ -426,7 +428,6 @@ private:
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
 	std::mutex m_MutexMeshTextureUpload;
-	// FIXME single mesh texture atlas is not only a problem, but also neither efficient nor helpful
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
@@ -435,7 +436,7 @@ private:
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
 	size_t m_CharCount = 0;
-	size_t m_SpriteBufferID,m_TextBufferID;
+	size_t m_SpriteBufferID,m_TextBufferID,m_MeshBufferID;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
 	// pipelines

@@ -720,11 +720,11 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	/*
-	vbo.allocate(geometry.size()*sizeof(f32));
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
-	*/
+	vbo.allocate(geometry.size()*sizeof(f32),true);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));
+	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+	vao.allocate(1);
+	vao.register_buffer(vbo);
 }
 
 
@@ -790,6 +790,10 @@ Renderer::Renderer()
 	m_SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	/*
+	m_MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+														  RENDERER_MAXIMUM_TEXTURE_COUNT);
+	*/
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
@@ -902,6 +906,8 @@ void Renderer::update()
 
 	// START RECORD SCENE
 	m_Framebuffer.record();
+
+	_update_mesh();
 
 	// END RECORD SCENE
 	m_Framebuffer.stop();
@@ -1307,6 +1313,20 @@ void Renderer::_update_text()
 		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
 	}
 #endif
+}
+
+/**
+ *	update draw of all registered batches
+ */
+void Renderer::_update_mesh()
+{
+	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	{
+		p_Batch.shader->enable();
+		p_Batch.vao.bind();
+		for (GeometryTuple& p_Tuple : p_Batch.objects)
+			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+	}
 }
 
 /**

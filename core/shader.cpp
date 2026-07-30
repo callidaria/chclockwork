@@ -159,7 +159,7 @@ void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 /**
  *	TODO
  */
-size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
+size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type,size_t arrlen)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -186,7 +186,7 @@ size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
 	__WriteDescriptor.descriptorType = type;
-	__WriteDescriptor.descriptorCount = 1;
+	__WriteDescriptor.descriptorCount = arrlen;
 	m_Writes.push_back(__WriteDescriptor);
 
 	// image info

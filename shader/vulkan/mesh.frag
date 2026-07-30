@@ -7,10 +7,11 @@ layout(location = 2) in mat3 TBN;
 
 layout(location = 0) out vec4 pixelColour;
 
-layout(set = 0,binding = 1) uniform sampler2D tex;
+//layout(set = 0,binding = 5) uniform sampler2D tex[2048];
 
 
 void main()
 {
-	pixelColour = texture(tex,UV);
+	//pixelColour = texture(tex[0],UV);
+	pixelColour = vec4(Normal,1);
 }

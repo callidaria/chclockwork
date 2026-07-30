@@ -36,7 +36,7 @@ public:
 
 	// setup
 	void define_geometry_buffer(u32 location,size_t size);
-	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
+	size_t define_pixel_buffer(u32 location,VkDescriptorType type,size_t arrlen=1);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 	void assemble();
