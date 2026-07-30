@@ -598,7 +598,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 							  __Interface);
 
 	// vertex binding setup
-	VkVertexInputBindingDescription __InputBindings[2] = { {},{} };
+	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
 	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;

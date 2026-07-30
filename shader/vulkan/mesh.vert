@@ -6,10 +6,12 @@ layout(location = 1) in vec2 uv;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec3 tangent;
 
-// engine: ibo
-layout(location = 10) in vec3 offset;
-layout(location = 11) in vec2 atlas_position;
-layout(location = 12) in vec2 atlas_dimension;
+/*
+// aaaaaaengine: ibo
+alayout(location = 10) in vec3 offset;
+alayout(location = 11) in vec2 atlas_position;
+alayout(location = 12) in vec2 atlas_dimension;
+*/
 
 layout(location = 0) out vec2 UV;
 layout(location = 1) out vec3 Normal;
@@ -25,10 +27,10 @@ layout(set = 0,binding = 0) uniform ObjectTransformation
 
 void main()
 {
-	gl_Position = ot.proj*ot.view*ot.model*vec4(position+offset,1.);
+	gl_Position = ot.proj*ot.view*ot.model*vec4(position/*+offset*/,1.);
 
 	// pass
-	UV = atlas_position+atlas_dimension*uv;
+	UV = /*atlas_position+atlas_dimension**/uv;
 	Normal = normal;
 
 	// gram-schmidt reorthogonalization

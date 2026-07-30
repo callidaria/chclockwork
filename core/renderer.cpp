@@ -720,7 +720,7 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vbo.allocate(geometry.size()*sizeof(f32),true);
+	vbo.allocate(geometry.size()*sizeof(f32),false);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 	vao.allocate(1);
