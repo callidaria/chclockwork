@@ -788,6 +788,17 @@ Renderer::Renderer()
 	m_TextVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
 
+	// SCENE FRAMEBUFFER
+	// framebuffer vertex data
+	m_TargetVertexBuffer.allocate(sizeof(__FBVertices));
+	m_TargetVertexBuffer.upload(__FBVertices,sizeof(__FBVertices));
+	m_TargetVertexBuffer.update();
+
+	// framebuffer vertex array
+	m_TargetVertexArray.allocate(1);
+	m_TargetVertexArray.register_buffer(m_TargetVertexBuffer);
+
+	// RESOURCE SETUP
 	// textures
 	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
 								 TEXTURE_FORMAT_SRGB,ATLAS_SPRITES_PADDING);
@@ -885,11 +896,6 @@ Renderer::Renderer()
 						  &__Indices[0],sizeof(u32)*__Indices.size());
 	m_VertexBuffer.update();
 
-	// target vertex data
-	m_TargetBuffer.allocate(sizeof(__FBVertices));
-	m_TargetBuffer.upload(__FBVertices,sizeof(__FBVertices));
-	m_TargetBuffer.update();
-
 	// instance data
 	m_InstanceBuffer.allocate(sizeof(__Instances));
 	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
@@ -898,10 +904,6 @@ Renderer::Renderer()
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
 	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
-
-	// target vertex array
-	m_TargetArray.allocate(1);
-	m_TargetArray.register_buffer(m_TargetBuffer);
 
 	m_Rotation = glm::radians(-120.f);
 	*/
@@ -919,7 +921,6 @@ void Renderer::update()
 
 	// data update
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
-	//g_UniformBuffer.finalize();
 
 	// START RECORD SCENE
 	m_Framebuffer.record();
@@ -931,6 +932,11 @@ void Renderer::update()
 
 	// START RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].record();
+
+	// perspective section
+	m_TargetPipeline.enable();
+	m_TargetVertexArray.bind();
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
 	_update_sprites();
@@ -963,15 +969,6 @@ void Renderer::update()
 	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 	// END SCENE
-
-	// START RESULT
-
-	// perspective section
-	m_TargetPipeline.enable();
-	m_TargetArray.bind();
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
-
-	// END RESULT
 	*/
 
 	// prepare text updates
@@ -1054,34 +1051,19 @@ void Renderer::vanish()
 	m_SpriteVertexBuffer.free();
 	m_SpriteInstanceBuffer.free();
 	m_TextInstanceBuffer.free();
+	m_TargetVertexBuffer.free();
 
 	// clear vertex buffers
 	m_SpriteVertexBuffer.vanish();
 	m_SpriteInstanceBuffer.vanish();
 	m_TextInstanceBuffer.vanish();
+	m_TargetVertexBuffer.vanish();
 
 	// clear active batches
 	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
 
 	// clear uniform upload memory
 	g_UniformBuffer.vanish();
-
-	/*
-	// clean vertex buffers
-	m_TargetBuffer.free();
-	m_VertexBuffer.free();
-	// FIXME allow for vbs to be free'd right after upload without fencelocking the host. what an embarrassment
-	m_TargetBuffer.vanish();
-	m_VertexBuffer.vanish();
-
-	// clean instance buffers
-	m_InstanceBuffer.free();
-	m_SpriteInstances.free();
-	m_TextInstances.free();
-	m_InstanceBuffer.vanish();
-	m_SpriteInstances.vanish();
-	m_TextInstances.vanish();
-	*/
 #endif
 
 	/*

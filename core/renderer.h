@@ -412,10 +412,12 @@ private:
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_SpriteInstanceBuffer;
 	VertexBuffer m_TextInstanceBuffer;
+	VertexBuffer m_TargetVertexBuffer;
 
 	// vertex arrays
 	VertexArray m_SpriteVertexArray;
 	VertexArray m_TextVertexArray;
+	VertexArray m_TargetVertexArray;
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
