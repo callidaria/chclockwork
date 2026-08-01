@@ -131,7 +131,7 @@ void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 	VkDescriptorSetLayoutBinding __Binding = {  };
 	__Binding.binding = location;
 	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizeing!
+	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizing!
 	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO dynamics. what for? just to be sure i guess.
 	__Binding.pImmutableSamplers = nullptr;  // TODO research
 	m_Bindings.push_back(__Binding);
@@ -730,7 +730,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = 0;
+	__LayoutInfo.pushConstantRangeCount = 0;  // TODO do this & abstract material
 	__LayoutInfo.pPushConstantRanges = nullptr;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
