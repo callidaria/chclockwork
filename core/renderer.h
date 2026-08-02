@@ -3,6 +3,7 @@
 
 
 #include <numeric>
+#include "gpu_interface.h"
 #include "buffer.h"
 #include "shader.h"
 
@@ -325,26 +326,6 @@ struct ShadowParticleBatch
 
 
 #ifdef VKBUILD
-
-// §§prototyping
-struct ObjectTransformation
-{
-	mat4 model __attribute__((aligned(16)));
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
-};
-
-struct SpriteTransformation
-{
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
-};
-
-struct UniformBufferMemory
-{
-	ObjectTransformation otrafo;
-	SpriteTransformation strafo;
-};
 
 struct ObjectInstance
 {

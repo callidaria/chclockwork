@@ -725,13 +725,19 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this. we need stencil trickery
 
+	// push constants
+	VkPushConstantRange __PushConstantRange = {  };
+	__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	__PushConstantRange.offset = 0;
+	__PushConstantRange.size = sizeof(PushConstantMemory);
+
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = 0;  // TODO do this & abstract material
-	__LayoutInfo.pPushConstantRanges = nullptr;
+	__LayoutInfo.pushConstantRangeCount = 1;
+	__LayoutInfo.pPushConstantRanges = &__PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
 

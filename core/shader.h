@@ -2,6 +2,7 @@
 #define CORE_SHADER_HEADER
 
 
+#include "gpu_interface.h"
 #include "memory.h"
 
 
