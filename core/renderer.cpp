@@ -811,10 +811,8 @@ Renderer::Renderer()
 	m_SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	/*
 	m_MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 														  RENDERER_MAXIMUM_TEXTURE_COUNT);
-	*/
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition

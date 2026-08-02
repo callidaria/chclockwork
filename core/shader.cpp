@@ -490,7 +490,7 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
+void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pconstants)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -726,18 +726,23 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this. we need stencil trickery
 
 	// push constants
-	VkPushConstantRange __PushConstantRange = {  };
-	__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	__PushConstantRange.offset = 0;
-	__PushConstantRange.size = sizeof(PushConstantMemory);
+	VkPushConstantRange* p_PushConstantRange = nullptr;
+	if (pconstants)
+	{
+		VkPushConstantRange __PushConstantRange = {  };
+		__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		__PushConstantRange.offset = 0;
+		__PushConstantRange.size = sizeof(PushConstantMemory);
+		p_PushConstantRange = &__PushConstantRange;
+	}
 
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 1;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = 1;
-	__LayoutInfo.pPushConstantRanges = &__PushConstantRange;
+	__LayoutInfo.pushConstantRangeCount = pconstants;
+	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
 
