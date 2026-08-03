@@ -30,6 +30,14 @@ struct DescriptorInfo
 	} info;
 };
 
+struct DescriptorSets
+{
+	VkDescriptorSet data;
+	VkDescriptorSet textures;
+};
+
+constexpr u8 UNIFORM_DESCRIPTOR_SET_COUNT = sizeof(DescriptorSets)/sizeof(VkDescriptorSet);
+
 class UniformBuffer
 {
 public:
@@ -37,7 +45,7 @@ public:
 
 	// setup
 	void define_geometry_buffer(u32 location,size_t size);
-	size_t define_pixel_buffer(u32 location,VkDescriptorType type,size_t arrlen=1);
+	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 	void assemble();
@@ -51,7 +59,8 @@ public:
 
 public:
 	VkDescriptorSetLayout dset_layout;
-	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
+	VkDescriptorSetLayout dset_layout_textures;
+	DescriptorSets m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];

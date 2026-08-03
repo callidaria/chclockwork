@@ -7,14 +7,17 @@ layout(location = 2) in mat3 TBN;
 
 layout(location = 0) out vec4 pixelColour;
 
-layout(set = 0,binding = 5) uniform sampler2D tex[2048];
-layout(push_constant) uniform PushConstants
+/*
+alayout(set = 1,binding = 0) uniform sampler2D tex[2048];
+alayout(push_constant) uniform PushConstants
 {
 	uint texIndex;
 } pc;
+*/
 
 
 void main()
 {
-	pixelColour = texture(tex[pc.texIndex],UV);
+	//pixelColour = texture(tex[pc.texIndex],UV);
+	pixelColour = vec4(Normal,1);
 }

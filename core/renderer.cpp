@@ -808,11 +808,13 @@ Renderer::Renderer()
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
-	m_SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	m_TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	m_MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+	/*
+	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 														  RENDERER_MAXIMUM_TEXTURE_COUNT);
+	*/
 	g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
@@ -834,8 +836,8 @@ Renderer::Renderer()
 	// TODO routinize
 
 	// link buffer results
-	g_UniformBuffer.link_result(m_SpriteBufferID,m_GPUSpriteTextures);
-	g_UniformBuffer.link_result(m_TextBufferID,m_GPUFontTextures);
+	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
+	g_UniformBuffer.link_result(__TextBufferID,m_GPUFontTextures);
 	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
 
 	// upload 2D coordinate system
@@ -1261,7 +1263,7 @@ lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,u
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer();
-	p_Pipeline->assemble(vs,fs);
+	p_Pipeline->assemble(vs,fs,false,true);  // TODO setup is not ideal to say the least
 	return p_Pipeline;
 }
 

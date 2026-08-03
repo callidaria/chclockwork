@@ -420,7 +420,6 @@ private:
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
 	size_t m_CharCount = 0;
-	size_t m_SpriteBufferID,m_TextBufferID,m_MeshTextureID;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
 	// pipelines

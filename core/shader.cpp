@@ -124,7 +124,7 @@ void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
 	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
 	m_PSizes.push_back(__PSize);
 
 	// bindings
@@ -159,7 +159,7 @@ void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 /**
  *	TODO
  */
-size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type,size_t arrlen)
+size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -167,7 +167,7 @@ size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type,siz
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
 	__PSize.type = type;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT*2;
 	m_PSizes.push_back(__PSize);
 
 	// bindings
@@ -186,7 +186,7 @@ size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type,siz
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
 	__WriteDescriptor.descriptorType = type;
-	__WriteDescriptor.descriptorCount = arrlen;
+	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
 
 	// image info
@@ -237,7 +237,7 @@ void UniformBuffer::assemble()
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	__DPoolInfo.poolSizeCount = m_PSizes.size();
 	__DPoolInfo.pPoolSizes = &m_PSizes[0];
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
 	__DPoolInfo.flags = 0;
 	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
@@ -250,14 +250,24 @@ void UniformBuffer::assemble()
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 
+	// texture layout
+	__LayoutInfo = {  };
+	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	/*
+	__LayoutInfo.bindingCount = m_Bindings.size();
+	__LayoutInfo.pBindings = &m_Bindings[0];
+	*/
+	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout_textures);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture layout definition failed");
+
 	// descriptor sets
-	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,dset_layout);
+	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT*2,dset_layout);
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
-	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
 	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
-	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,m_DSets);
+	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0].data);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
 	COMM_CNF();
@@ -274,7 +284,7 @@ void UniformBuffer::finalize()
 	{
 		for (size_t j=0;j<m_Writes.size();j++)
 		{
-			m_Writes[j].dstSet = m_DSets[i];
+			m_Writes[j].dstSet = m_DSets[i].data;
 			switch (m_DescriptorInfos[j].type)
 			{
 			case DESCRIPTOR_TYPE_BUFFER:
@@ -739,7 +749,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pc
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	__LayoutInfo.setLayoutCount = 1;
+	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
 	__LayoutInfo.pushConstantRangeCount = pconstants;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
@@ -864,8 +874,8 @@ void ShaderPipeline::enable()
 #ifdef VKBUILD
 	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
 	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
-	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,1,
-							&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
+	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,2,
+							(VkDescriptorSet*)&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 #else
 	glUseProgram(m_ShaderProgram);
 #endif
