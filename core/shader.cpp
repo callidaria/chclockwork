@@ -504,7 +504,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pc
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
-				  "render pass definition is called for finalization, but not all components were defined");
+				  "render pass definition is called for finalization, but not all components were defined")
+	COMM_LOG_FALLBACK("assembly of shaders vertex: %s & fragment: %s",vs,fs);
 
 	// check for active depth store
 	if (has_depth)
