@@ -262,6 +262,14 @@ void UniformBuffer::assemble()
 
 	// descriptor sets
 	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT*2,dset_layout);
+	__DSetLayouts.reserve(GPU_BUFFER_COUNT*2);
+	for (u8 i=0;i<__DSetLayouts.capacity();i+=2)
+	{
+		__DSetLayouts[i] = dset_layout;
+		__DSetLayouts[i+1] = dset_layout_textures;
+	}
+
+	// allocate descriptor sets
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
@@ -323,6 +331,7 @@ void UniformBuffer::vanish()
 	}
 	g_GPU.free(m_DescriptorPool);
 	g_GPU.free(dset_layout);
+	g_GPU.free(dset_layout_textures);
 	g_GPU.free(m_DefaultSampler);
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features

@@ -58,8 +58,7 @@ public:
 	void vanish();
 
 public:
-	VkDescriptorSetLayout dset_layout;
-	VkDescriptorSetLayout dset_layout_textures;
+	VkDescriptorSetLayout dset_layout,dset_layout_textures;
 	DescriptorSets m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:
