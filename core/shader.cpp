@@ -167,7 +167,7 @@ size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
 	__PSize.type = type;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT*2;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT);
 	m_PSizes.push_back(__PSize);
 
 	// bindings
@@ -218,6 +218,7 @@ void UniformBuffer::link_result(size_t i,VkImageView buffer)
 
 /**
  *	TODO
+ *	NOTE this should only be run by the renderer and also only once at construction!
  */
 void UniformBuffer::assemble()
 {
@@ -250,13 +251,19 @@ void UniformBuffer::assemble()
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 
+	// setup texture bindings
+	VkDescriptorSetLayoutBinding __TextureBindings = {};
+	__TextureBindings.binding = 0;
+	__TextureBindings.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
+	__TextureBindings.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__TextureBindings.pImmutableSamplers = nullptr;
+	__TextureBindings.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	// texture layout
 	__LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	/*
-	__LayoutInfo.bindingCount = m_Bindings.size();
-	__LayoutInfo.pBindings = &m_Bindings[0];
-	*/
+	__LayoutInfo.bindingCount = 1;
+	__LayoutInfo.pBindings = &__TextureBindings;
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout_textures);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture layout definition failed");
 
