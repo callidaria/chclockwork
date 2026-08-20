@@ -70,6 +70,9 @@ private:
 	vector<VkDescriptorSetLayoutBinding> m_Bindings;
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
+	VkImage m_PlaceholderImage;
+	VkDeviceMemory m_PlaceholderMemory;
+	VkImageView m_PlaceholderTexture;
 	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
 };
