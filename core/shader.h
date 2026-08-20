@@ -75,6 +75,7 @@ private:
 	VkImageView m_PlaceholderTexture;
 	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
+	bool m_TextureUpdate = true;
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer(5);
 // TODO definition through config or something else, that the developer is capable to easily find & change

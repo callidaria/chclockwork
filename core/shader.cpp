@@ -122,6 +122,7 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	vkBindImageMemory(g_GPU.gpu,m_PlaceholderImage,m_PlaceholderMemory,0);
 
 	// write placeholder data
+	/*
 	VkClearColorValue __WeightBlue = {  };
 	__WeightBlue.float32[0] = .0f;
 	__WeightBlue.float32[1] = .0f;
@@ -135,6 +136,7 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	__SubresourceRange.layerCount = 1;
 	vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
 						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
+	*/
 
 	// create image view
 	VkImageViewCreateInfo __PlaceholderViewInfo = {  };
@@ -366,14 +368,6 @@ void UniformBuffer::finalize()
 {
 	COMM_AWT("update ubo linking");
 
-	// texture descriptor presets
-	VkWriteDescriptorSet __MeshTextureSet = {  };
-	__MeshTextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__MeshTextureSet.dstBinding = 0;
-	__MeshTextureSet.dstArrayElement = 0;
-	__MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
-
 	// mesh image info setup
 	VkDescriptorImageInfo __MeshTextureInfo[RENDERER_MAXIMUM_TEXTURE_COUNT];
 	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
@@ -382,6 +376,15 @@ void UniformBuffer::finalize()
 		__MeshTextureInfo[i].imageView = m_PlaceholderTexture;
 		__MeshTextureInfo[i].sampler = m_DefaultSampler;
 	}
+
+	// texture descriptor presets
+	VkWriteDescriptorSet __MeshTextureSet = {  };
+	__MeshTextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__MeshTextureSet.dstBinding = 0;
+	__MeshTextureSet.dstArrayElement = 0;
+	__MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
+	__MeshTextureSet.pImageInfo = __MeshTextureInfo;
 
 	// iterate per-backbuffer uniform data
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -403,6 +406,7 @@ void UniformBuffer::finalize()
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 
 		// mesh texture data
+		__MeshTextureSet.dstSet = m_DSets[i].textures;
 		vkUpdateDescriptorSets(g_GPU.gpu,1,&__MeshTextureSet,0,nullptr);
 	}
 
@@ -415,6 +419,23 @@ void UniformBuffer::finalize()
  */
 void UniformBuffer::update(void* data,size_t size)
 {
+	if (m_TextureUpdate)
+	{
+		VkClearColorValue __WeightBlue = {  };
+		__WeightBlue.float32[0] = .0f;
+		__WeightBlue.float32[1] = .0f;
+		__WeightBlue.float32[2] = 1.f;
+		__WeightBlue.float32[3] = 1.f;
+		VkImageSubresourceRange __SubresourceRange = {  };
+		__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		__SubresourceRange.baseMipLevel = 0;
+		__SubresourceRange.levelCount = 1;
+		__SubresourceRange.baseArrayLayer = 0;
+		__SubresourceRange.layerCount = 1;
+		vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
+							 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
+		m_TextureUpdate = false;
+	}
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
