@@ -19,6 +19,6 @@ alayout(push_constant) uniform PushConstants
 void main()
 {
 	//pixelColour = texture(tex[pc.texIndex],UV);
-	//pixelColour = texture(tex[0],UV);
-	pixelColour = vec4(Normal,1);
+	pixelColour = texture(tex[0],UV);
+	//pixelColour = vec4(Normal,1);
 }

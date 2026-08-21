@@ -17,8 +17,8 @@ void RoomVoxels::init(Font* font)
 
 	// load room
 	Mesh __RoomMesh = Mesh("./res/private/test.obj");
-	Texture* __RoomTexture = g_Renderer.register_texture("./res/private/test.png");
-	vector<Texture*> __RoomTextures = { __RoomTexture };
+	GPUPixelBuffer* __RoomTexture = g_Renderer.register_texture("./res/private/test.png");
+	vector<Texture*> __RoomTextures = { };
 	__RoomBatch->add_geometry(__RoomMesh,__RoomTextures);
 	__RoomBatch->load();
 

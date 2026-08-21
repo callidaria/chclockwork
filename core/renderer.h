@@ -230,7 +230,7 @@ private:
 struct TextureDataTuple
 {
 	TextureData data;
-	Texture* texture;
+	GPUPixelBuffer* texture;
 };
 
 struct GeometryTuple
@@ -355,7 +355,7 @@ public:
 	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
 
 	// textures
-	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	GPUPixelBuffer* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
@@ -409,7 +409,7 @@ private:
 	GPUPixelBuffer m_GPUFontTextures;
 
 	// mesh textures
-	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	InPlaceArray<GPUPixelBuffer> m_MeshTextures = InPlaceArray<GPUPixelBuffer>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
 	std::mutex m_MutexMeshTextureUpload;
 

@@ -1221,11 +1221,12 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
  *	\param data_queue: queue for texture vram upload
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
-void _load_texture(Texture* texture,const char* path,TextureFormat format,
+void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
 				   queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data = TextureData(format);
 	__Data.load(path);
+	texture->allocate(__Data.width,__Data.height,format);
 	queue_mutex->lock();
 	data_queue->push(TextureDataTuple{ __Data,texture });
 	queue_mutex->unlock();
@@ -1237,11 +1238,11 @@ void _load_texture(Texture* texture,const char* path,TextureFormat format,
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
  *	\returns pointer to texture in ram, referencing texture in vram
  */
-Texture* Renderer::register_texture(const char* path,TextureFormat format)
+GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format)
 {
 	COMM_LOG("mesh texture register of %s",path);
-	Texture* p_Texture = m_MeshTextures.next_free();
-	new(p_Texture) Texture();
+	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
+	new(p_Texture) GPUPixelBuffer();
 	thread __LoadThread(_load_texture,p_Texture,path,format,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();
@@ -1351,7 +1352,19 @@ void Renderer::_gpu_upload()
 	}
 	m_TextInstanceBuffer.update();
 	m_GPUFontTextures.gpu_upload();
+
+	// mesh textures
+	bool __MeshTextureUpdated = false;
+	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
+	{
+		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
+		p_Tuple.texture->load_requests.push(p_Tuple.data);
+		p_Tuple.texture->gpu_upload();
+		__MeshTextureUpdated = true;
+	}
+	if (__MeshTextureUpdated) g_UniformBuffer.update_texture_set();
 }
+// TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state
 // TODO skip parts of this upload based on change signals by load commands

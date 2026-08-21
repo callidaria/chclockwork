@@ -166,6 +166,22 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	__SamplerInfo.maxLod = 0;
 	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
+	
+	// mesh image info setup
+	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
+	{
+		m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		m_MeshTextureInfo[i].imageView = m_PlaceholderTexture;
+		m_MeshTextureInfo[i].sampler = m_DefaultSampler;
+	}
+
+	// texture descriptor presets
+	m_MeshTextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	m_MeshTextureSet.dstBinding = 0;
+	m_MeshTextureSet.dstArrayElement = 0;
+	m_MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	m_MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
+	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
 }
 
 /**
@@ -351,24 +367,6 @@ void UniformBuffer::finalize()
 {
 	COMM_AWT("update ubo linking");
 
-	// mesh image info setup
-	VkDescriptorImageInfo __MeshTextureInfo[RENDERER_MAXIMUM_TEXTURE_COUNT];
-	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
-	{
-		__MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		__MeshTextureInfo[i].imageView = m_PlaceholderTexture;
-		__MeshTextureInfo[i].sampler = m_DefaultSampler;
-	}
-
-	// texture descriptor presets
-	VkWriteDescriptorSet __MeshTextureSet = {  };
-	__MeshTextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__MeshTextureSet.dstBinding = 0;
-	__MeshTextureSet.dstArrayElement = 0;
-	__MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
-	__MeshTextureSet.pImageInfo = __MeshTextureInfo;
-
 	// iterate per-backbuffer uniform data
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
@@ -389,9 +387,47 @@ void UniformBuffer::finalize()
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 
 		// mesh texture data
-		__MeshTextureSet.dstSet = m_DSets[i].textures;
+		/*
+		m_MeshTextureSet.dstSet = m_DSets[i].textures;
 		vkUpdateDescriptorSets(g_GPU.gpu,1,&__MeshTextureSet,0,nullptr);
+		*/
 	}
+
+	update_texture_set();
+
+	// placeholder mem barrier
+	VkImageMemoryBarrier __Barrier = {  };
+	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	__Barrier.image = m_PlaceholderImage;
+	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__Barrier.subresourceRange.baseArrayLayer = 0;
+	__Barrier.subresourceRange.baseMipLevel = 0;
+	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.subresourceRange.levelCount = 1;
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.srcAccessMask = 0;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
+						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
+
+	// clear placeholders
+	VkClearColorValue __WeightBlue = {  };
+	__WeightBlue.float32[0] = .0f;
+	__WeightBlue.float32[1] = .0f;
+	__WeightBlue.float32[2] = 1.f;
+	__WeightBlue.float32[3] = 1.f;
+	VkImageSubresourceRange __SubresourceRange = {  };
+	__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__SubresourceRange.baseMipLevel = 0;
+	__SubresourceRange.levelCount = 1;
+	__SubresourceRange.baseArrayLayer = 0;
+	__SubresourceRange.layerCount = 1;
+	vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
+						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
 
 	COMM_CNF();
 }
@@ -402,44 +438,24 @@ void UniformBuffer::finalize()
  */
 void UniformBuffer::update(void* data,size_t size)
 {
-	if (m_TextureUpdate)
-	{
-		VkImageMemoryBarrier __Barrier = {  };
-		__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		__Barrier.image = m_PlaceholderImage;
-		__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		__Barrier.subresourceRange.baseArrayLayer = 0;
-		__Barrier.subresourceRange.baseMipLevel = 0;
-		__Barrier.subresourceRange.layerCount = 1;
-		__Barrier.subresourceRange.levelCount = 1;
-		__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		__Barrier.srcAccessMask = 0;
-		__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
-							 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-							 0,0,nullptr,0,nullptr,1,&__Barrier);
-
-		VkClearColorValue __WeightBlue = {  };
-		__WeightBlue.float32[0] = .0f;
-		__WeightBlue.float32[1] = .0f;
-		__WeightBlue.float32[2] = 1.f;
-		__WeightBlue.float32[3] = 1.f;
-		VkImageSubresourceRange __SubresourceRange = {  };
-		__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		__SubresourceRange.baseMipLevel = 0;
-		__SubresourceRange.levelCount = 1;
-		__SubresourceRange.baseArrayLayer = 0;
-		__SubresourceRange.layerCount = 1;
-		vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
-							 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
-		m_TextureUpdate = false;
-	}
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
+
+/**
+ *	TODO
+ */
+void UniformBuffer::update_texture_set()
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		m_MeshTextureSet.dstSet = m_DSets[i].textures;
+		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
+	}
+}
+// TODO for performance reasons, maybe it would be faster to not update the whole set,
+//		but instead only updated segments. then again this could also quickly become hazardous when segmentation
+//		is high and many updates occur at the same time?
 
 /**
  *	TODO
