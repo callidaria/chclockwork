@@ -121,23 +121,6 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
 	vkBindImageMemory(g_GPU.gpu,m_PlaceholderImage,m_PlaceholderMemory,0);
 
-	// write placeholder data
-	/*
-	VkClearColorValue __WeightBlue = {  };
-	__WeightBlue.float32[0] = .0f;
-	__WeightBlue.float32[1] = .0f;
-	__WeightBlue.float32[2] = 1.f;
-	__WeightBlue.float32[3] = 1.f;
-	VkImageSubresourceRange __SubresourceRange = {  };
-	__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__SubresourceRange.baseMipLevel = 0;
-	__SubresourceRange.levelCount = 1;
-	__SubresourceRange.baseArrayLayer = 0;
-	__SubresourceRange.layerCount = 1;
-	vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
-						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
-	*/
-
 	// create image view
 	VkImageViewCreateInfo __PlaceholderViewInfo = {  };
 	__PlaceholderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -421,6 +404,24 @@ void UniformBuffer::update(void* data,size_t size)
 {
 	if (m_TextureUpdate)
 	{
+		VkImageMemoryBarrier __Barrier = {  };
+		__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		__Barrier.image = m_PlaceholderImage;
+		__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		__Barrier.subresourceRange.baseArrayLayer = 0;
+		__Barrier.subresourceRange.baseMipLevel = 0;
+		__Barrier.subresourceRange.layerCount = 1;
+		__Barrier.subresourceRange.levelCount = 1;
+		__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		__Barrier.srcAccessMask = 0;
+		__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
+							 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+							 0,0,nullptr,0,nullptr,1,&__Barrier);
+
 		VkClearColorValue __WeightBlue = {  };
 		__WeightBlue.float32[0] = .0f;
 		__WeightBlue.float32[1] = .0f;
