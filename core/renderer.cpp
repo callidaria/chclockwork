@@ -1226,7 +1226,6 @@ void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format
 {
 	TextureData __Data = TextureData(format);
 	__Data.load(path);
-	texture->allocate(__Data.width,__Data.height,format);
 	queue_mutex->lock();
 	data_queue->push(TextureDataTuple{ __Data,texture });
 	queue_mutex->unlock();
@@ -1358,6 +1357,7 @@ void Renderer::_gpu_upload()
 	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
 		p_Tuple.texture->load_requests.push(p_Tuple.data);
 		p_Tuple.texture->gpu_upload();
 		__MeshTextureUpdated = true;
