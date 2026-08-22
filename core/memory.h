@@ -200,6 +200,7 @@ struct GPUPixelBuffer
 	u32 subtex_padding = 0;
 
 	TextureFormat m_Format;
+	bool allocated = false;  // FIXME no!
 };
 
 

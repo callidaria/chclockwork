@@ -762,6 +762,8 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_formats[format].format,width,height,0,
 				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
 #endif
+
+	allocated = true;
 }
 // TODO use mip definition in allocation for ogl version as well
 

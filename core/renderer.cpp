@@ -1062,6 +1062,13 @@ void Renderer::vanish()
 	// clear active batches
 	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
 
+	// clear registered textures
+	for (size_t i=0;i<m_MeshTextures.active_range;i++)
+	{
+		if (!m_MeshTextures.mem[i].allocated) continue;
+		m_MeshTextures.mem[i].vanish();
+	}
+
 	// clear uniform upload memory
 	g_UniformBuffer.vanish();
 #endif
