@@ -1360,6 +1360,7 @@ void Renderer::_gpu_upload()
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
 		p_Tuple.texture->load_requests.push(p_Tuple.data);
 		p_Tuple.texture->gpu_upload();
+		m_MeshTextureUploadQueue.pop();
 		__MeshTextureUpdated = true;
 	}
 	if (__MeshTextureUpdated) g_UniformBuffer.update_texture_set();
