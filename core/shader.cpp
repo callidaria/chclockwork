@@ -429,6 +429,15 @@ void UniformBuffer::finalize()
 	vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
 						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
 
+	// transfer read
+	__Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
+						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__Barrier);
+
 	COMM_CNF();
 }
 

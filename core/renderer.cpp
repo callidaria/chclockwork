@@ -1368,6 +1368,11 @@ void Renderer::_gpu_upload()
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state
 // TODO skip parts of this upload based on change signals by load commands
+//		i'm afraid those uploads have to be split mid-frame (at least the "binding"), should the gpu not be
+//		capable to fulfill the texture array demands
+// TODO this also proposes the implementation of a maximum allowed texture range by the device.
+//		(also add this as a qualifier when selecting the device), then permit in-frame swapping when necessary
+//		but should this occur it has to be logged for convenience when optimizing for lower end hardware
 
 #else
 
