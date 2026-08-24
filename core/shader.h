@@ -48,6 +48,7 @@ public:
 	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
+	void link_texture(size_t i,GPUPixelBuffer* texture);
 	void assemble();
 	void finalize();
 

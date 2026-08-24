@@ -289,6 +289,16 @@ void UniformBuffer::link_result(size_t i,VkImageView buffer)
 
 /**
  *	TODO
+ */
+void UniformBuffer::link_texture(size_t i,GPUPixelBuffer* texture)
+{
+	m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_MeshTextureInfo[i].imageView = texture->image_view;
+	m_MeshTextureInfo[i].sampler = texture->sampler;
+}
+
+/**
+ *	TODO
  *	NOTE this should only be run by the renderer and also only once at construction!
  */
 void UniformBuffer::assemble()

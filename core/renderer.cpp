@@ -1248,8 +1248,6 @@ GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format
 {
 	COMM_LOG("mesh texture register of %s",path);
 	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
-	//std::cout << &m_MeshTextures << ' ' << p_Texture << '\n';
-	//GPUPixelBuffer* p_Texture = m_MeshTextures.mem;
 	new(p_Texture) GPUPixelBuffer();
 	thread __LoadThread(_load_texture,p_Texture,path,format,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
@@ -1369,6 +1367,14 @@ void Renderer::_gpu_upload()
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
 		p_Tuple.texture->load_requests.push(p_Tuple.data);
 		p_Tuple.texture->gpu_upload();
+
+		for (size_t i=0;i<m_MeshTextures.active_range;i++)
+		{
+			if (!m_MeshTextures.mem[i].allocated) continue;
+			g_UniformBuffer.link_texture(i,&m_MeshTextures.mem[i]);
+		}
+		// FIXME updating all can be avoided, when index is already known!
+
 		m_MeshTextureUploadQueue.pop();
 		//__MeshTextureUpdated = true;
 	}

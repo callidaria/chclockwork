@@ -356,6 +356,7 @@ public:
 	{
 		if (overwrites.size())
 		{
+			std::cout << "overwritten\n";
 			T* out = &mem[overwrites.front()];
 			overwrites.pop();
 			return out;
@@ -370,8 +371,9 @@ public:
 	u16 active_range = 0;
 	queue<u16> overwrites;
 
+private:
 #ifdef DEBUG
-private: u16 m_Size;
+	u16 m_Size;
 #endif
 };
 
