@@ -447,20 +447,25 @@ void UniformBuffer::finalize()
  */
 void UniformBuffer::update(void* data,size_t size)
 {
+	// data
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
+
+	// textures
+	m_MeshTextureSet.dstSet = m_DSets[g_GPU.active_buffer].textures;
+	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
+// TODO dont always update the mesh textures, only when necessary!
 
 /**
  *	TODO
  */
 void UniformBuffer::update_texture_set()
 {
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		m_MeshTextureSet.dstSet = m_DSets[i].textures;
-		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
-	}
+	/*
+	m_MeshTextureSet.dstSet = m_DSets[g_GPU.active_buffer].textures;
+	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
+	*/
 }
 // TODO for performance reasons, maybe it would be faster to not update the whole set,
 //		but instead only updated segments. then again this could also quickly become hazardous when segmentation
