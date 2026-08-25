@@ -54,7 +54,6 @@ public:
 
 	// action
 	void update(void* data,size_t size);
-	void update_texture_set();
 
 	// final
 	void vanish();

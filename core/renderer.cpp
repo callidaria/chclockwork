@@ -724,6 +724,8 @@ void GeometryBatch::load()
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
 	vbo.update();
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+
+	// vertex array
 	vao.allocate(1);
 	vao.register_buffer(vbo);
 }
@@ -735,6 +737,63 @@ void GeometryBatch::vanish()
 {
 	vbo.free();
 	vbo.vanish();
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Particle Batching
+
+/**
+ *	setup particle batch by mesh geometry
+ *	\param mesh: loaded mesh for explicit geometry information
+ *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
+ */
+void ParticleBatch::load(Mesh& mesh,u32 particles,size_t isize)
+{
+	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles,isize);
+}
+
+/**
+ *	load particle mesh into batch memory
+ *	\param verts: single precision floats, explicitly defining geometry
+ *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
+ *	\param ssize: upload dimension !in memory width!
+ *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
+ */
+void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize)
+{
+	COMM_LOG("loading particle mesh geometry information");
+	size_t size = vsize*ssize;
+	geometry.resize(size/sizeof(f32));
+	memcpy(&geometry[0],verts,size);
+
+	// auto-mapping particle shader pipeline
+	vbo.allocate(geometry.size()*sizeof(f32));
+	ibo.allocate(particles*isize);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
+	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
+
+	// vertex array
+	vao.allocate(2);
+	vao.register_buffer(vbo);
+	vao.register_buffer_dynamic(ibo);
+
+	// store geometry information
+	vertex_count = vsize;
+	active_particles = particles;
+}
+
+/**
+ *	TODO
+ */
+void ParticleBatch::vanish()
+{
+	vbo.free();
+	ibo.free();
+	vbo.vanish();
+	ibo.vanish();
 }
 
 
@@ -853,11 +912,6 @@ Renderer::Renderer()
 
 	// load mesh data
 	/*
-	Mesh __Mesh = Mesh("./res/private/test.obj");
-	vector<u32> __Indices(__Mesh.vertices.size());
-	std::iota(__Indices.begin(),__Indices.end(),0);
-	m_RenderSize = __Indices.size();
-
 	// instances
 	u32 i = 0;
 	ObjectInstance __Instances[TEST_INSTANCE_AMOUNT_GENERAL] = { };
@@ -912,12 +966,11 @@ Renderer::Renderer()
 void Renderer::update()
 {
 	// camera update
-	/*
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
-	*/
 	// TODO also create the ability the link a camera to the uniform
 	//		right now this happens for both matrices individually, which is not appropriate
+	// TODO dont copy over like this
 
 	// data update
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
@@ -1027,6 +1080,7 @@ void Renderer::update()
  *		the hi is supposed to automatically scan for relevant hardware and test it for support upon inclusion
  *		also the hi should globally store the gpu, so that it is accessible to all following components
  */
+
 /**
  *	exit renderer and end all it's subprocesses, also cleanup all resources
  */
@@ -1286,6 +1340,17 @@ lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipel
 }
 
 /**
+ *	register particle batch
+ *	\param pipeline: shader pipeline, handling pixel output for newly created batch
+ *	\returns pointer to created particle batch
+ */
+lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipeline)
+{
+	m_ParticleBatches.push_back({ .shader = pipeline });
+	return std::prev(m_ParticleBatches.end());
+}
+
+/**
  *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1360,25 +1425,27 @@ void Renderer::_gpu_upload()
 	m_GPUFontTextures.gpu_upload();
 
 	// mesh textures
-	//bool __MeshTextureUpdated = false;
+	bool __MeshTextureUpdated = false;
 	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
 		p_Tuple.texture->load_requests.push(p_Tuple.data);
 		p_Tuple.texture->gpu_upload();
+		m_MeshTextureUploadQueue.pop();
+		__MeshTextureUpdated = true;
+	}
 
+	// link results
+	if (__MeshTextureUpdated)
+	{
 		for (size_t i=0;i<m_MeshTextures.active_range;i++)
 		{
 			if (!m_MeshTextures.mem[i].allocated) continue;
 			g_UniformBuffer.link_texture(i,&m_MeshTextures.mem[i]);
 		}
-		// FIXME updating all can be avoided, when index is already known!
-
-		m_MeshTextureUploadQueue.pop();
-		//__MeshTextureUpdated = true;
 	}
-	/*if (__MeshTextureUpdated) g_UniformBuffer.update_texture_set();*/
+	// FIXME updating all can be avoided, when index is already known!
 }
 // TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
@@ -1391,46 +1458,6 @@ void Renderer::_gpu_upload()
 //		but should this occur it has to be logged for convenience when optimizing for lower end hardware
 
 #else
-
-// ----------------------------------------------------------------------------------------------------
-// Geometry Batching
-
-/**
- *	setup particle batch by mesh geometry
- *	\param mesh: loaded mesh for explicit geometry information
- *	\param particles: amount of particles
- *	\param isize: upload dimension of index buffer !in memory width!
- */
-void ParticleBatch::load(Mesh& mesh,u32 particles,size_t isize)
-{
-	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles,isize);
-}
-
-/**
- *	load particle mesh into batch memory
- *	\param verts: single precision floats, explicitly defining geometry
- *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
- *	\param ssize: upload dimension !in memory width!
- *	\param particles: amount of particles
- *	\param isize: upload dimension of index buffer !in memory width!
- */
-void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize)
-{
-	COMM_LOG("loading particle mesh geometry information");
-	size_t size = vsize*ssize;
-	geometry.resize(size/sizeof(f32));
-	memcpy(&geometry[0],verts,size);
-
-	// auto-mapping particle shader pipeline
-	vbo.allocate(geometry.size()*sizeof(f32));
-	//ibo.allocate(particles*isize);
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
-
-	// store geometry information
-	vertex_count = vsize;
-	active_particles = particles;
-}
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -1634,19 +1661,6 @@ lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader
 */
 
 /**
- *	register triangle mesh batch
- *	\param pipeline: shader pipeline, handling pixel output for newly created batch
- *	\returns pointer to created triangle mesh batch
- */
-/*
-lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline)
-{
-	m_GeometryBatches.push_back({ .shader = pipeline });
-	return std::prev(m_GeometryBatches.end());
-}
-*/
-
-/**
  *	register phyiscal mesh batch with standard geometry pass shader
  *	\returns pointer to created physical mesh batch
  */
@@ -1665,17 +1679,6 @@ lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeli
 {
 	m_DeferredGeometryBatches.push_back({ .shader = pipeline });
 	return std::prev(m_DeferredGeometryBatches.end());
-}
-
-/**
- *	register particle batch
- *	\param pipeline: shader pipeline, handling pixel output for newly created batch
- *	\returns pointer to created particle batch
- */
-lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipeline)
-{
-	m_ParticleBatches.push_back({ .shader = pipeline });
-	return std::prev(m_ParticleBatches.end());
 }
 
 /**

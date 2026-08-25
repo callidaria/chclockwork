@@ -403,8 +403,6 @@ void UniformBuffer::finalize()
 		*/
 	}
 
-	update_texture_set();
-
 	// placeholder mem barrier
 	VkImageMemoryBarrier __Barrier = {  };
 	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -466,17 +464,6 @@ void UniformBuffer::update(void* data,size_t size)
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 // TODO dont always update the mesh textures, only when necessary!
-
-/**
- *	TODO
- */
-void UniformBuffer::update_texture_set()
-{
-	/*
-	m_MeshTextureSet.dstSet = m_DSets[g_GPU.active_buffer].textures;
-	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
-	*/
-}
 // TODO for performance reasons, maybe it would be faster to not update the whole set,
 //		but instead only updated segments. then again this could also quickly become hazardous when segmentation
 //		is high and many updates occur at the same time?

@@ -272,8 +272,10 @@ struct ParticleBatch
 	// utility
 	void load(Mesh& mesh,u32 particles,size_t isize);
 	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
+	void vanish();
 
 	// data
+	VertexArray vao;
 	VertexBuffer vbo;
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
@@ -360,10 +362,10 @@ public:
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
+	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	/*
 	lptr<GeometryBatch> register_deferred_geometry_batch();
 	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
-	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_deferred_particle_batch();
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 	*/
@@ -430,6 +432,7 @@ private:
 
 	// batches
 	list<GeometryBatch> m_GeometryBatches;
+	list<ParticleBatch> m_ParticleBatches;
 
 	// uniform buffer
 	UniformBufferMemory m_UBufferMem;
@@ -558,9 +561,6 @@ private:
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
 	// mesh
-	list<ShaderPipeline> m_ShaderPipelines;
-	list<GeometryBatch> m_GeometryBatches;
-	list<ParticleBatch> m_ParticleBatches;
 	list<GeometryBatch> m_DeferredGeometryBatches;
 	list<ParticleBatch> m_DeferredParticleBatches;
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
