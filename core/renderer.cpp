@@ -773,6 +773,8 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vbo.allocate(geometry.size()*sizeof(f32));
 	ibo.allocate(particles*isize);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
+	ibo.update();
+	vbo.update();
 	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// vertex array
@@ -786,7 +788,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 }
 
 /**
- *	TODO
+ *	clean batch memory & destroy buffers
  */
 void ParticleBatch::vanish()
 {
@@ -801,11 +803,6 @@ void ParticleBatch::vanish()
 // Render Unit
 
 #ifdef VKBUILD
-const s32 TEST_INSTANCE_AMOUNT_X = 3;
-const s32 TEST_INSTANCE_AMOUNT_Y = 3;
-const s32 TEST_INSTANCE_AMOUNT_Z = 3;
-const s32 TEST_INSTANCE_AMOUNT_GENERAL
-			= TEST_INSTANCE_AMOUNT_X*TEST_INSTANCE_AMOUNT_Y*TEST_INSTANCE_AMOUNT_Z;
 
 // TODO those are all prototype implementations!
 //		doc will be created later down the line when everything is in order
@@ -912,21 +909,6 @@ Renderer::Renderer()
 
 	// load mesh data
 	/*
-	// instances
-	u32 i = 0;
-	ObjectInstance __Instances[TEST_INSTANCE_AMOUNT_GENERAL] = { };
-	for (s32 z=-TEST_INSTANCE_AMOUNT_Z/2;z<(TEST_INSTANCE_AMOUNT_Z/2)+TEST_INSTANCE_AMOUNT_Z%2;z++)
-	{
-		for (s32 y=-TEST_INSTANCE_AMOUNT_Y/2;y<(TEST_INSTANCE_AMOUNT_Y/2)+TEST_INSTANCE_AMOUNT_Y%2;y++)
-		{
-			for (s32 x=-TEST_INSTANCE_AMOUNT_X/2;x<(TEST_INSTANCE_AMOUNT_X/2)+TEST_INSTANCE_AMOUNT_Z%2;x++)
-			{
-				__Instances[i] = { .position = vec3(x*2,y*2,z*2) };
-				i++;
-			}
-		}
-	}
-
 	// texture
 	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
 	Rect m_PixelBufferComponent;
@@ -938,11 +920,6 @@ Renderer::Renderer()
 	// align atlas
 	for (u8 i=0;i<4;i++) __SpriteInstances[i].pbc = m_SpriteTextureComponent;
 	for (u8 i=0;i<TEST_INSTANCE_AMOUNT_GENERAL;i++) __Instances[i].pbc = m_PixelBufferComponent;
-
-	// update textures
-	m_PixelBuffer.gpu_upload(0);
-	m_SpriteTexture.gpu_upload(0);
-	// TODO possibility to register as dynamic and make it update per frame (intern load requests will handle it)
 
 	// vertex data
 	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
@@ -979,6 +956,7 @@ void Renderer::update()
 	m_Framebuffer.record();
 
 	_update_mesh();
+	_update_particles();
 
 	// END RECORD SCENE
 	m_Framebuffer.stop();
@@ -1115,6 +1093,7 @@ void Renderer::vanish()
 
 	// clear active batches
 	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vanish();
 
 	// clear registered textures
 	for (size_t i=0;i<m_MeshTextures.active_range;i++)
@@ -1400,6 +1379,20 @@ void Renderer::_update_mesh()
 		p_Batch.vao.bind();
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+	}
+}
+
+/**
+ *	update draw of all particle batches
+ */
+void Renderer::_update_particles()
+{
+	for (ParticleBatch& p_Batch : m_ParticleBatches)
+	{
+		p_Batch.shader->enable();
+		p_Batch.vao.bind();
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
+				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
 	}
 }
 

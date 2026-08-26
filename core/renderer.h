@@ -329,13 +329,6 @@ struct ShadowParticleBatch
 
 #ifdef VKBUILD
 
-struct ObjectInstance
-{
-	vec3 position;
-	Rect pbc;
-};
-// TODO prototyping, remove later before merge
-
 class Renderer
 {
 public:
@@ -374,6 +367,7 @@ private:
 	void _update_sprites();
 	void _update_text();
 	void _update_mesh();
+	void _update_particles();
 	void _gpu_upload();
 
 private:
