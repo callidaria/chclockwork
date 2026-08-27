@@ -1277,10 +1277,12 @@ void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
  *	\returns pointer to texture in ram, referencing texture in vram
  */
+constexpr f64 PIXEL_BUFFER_SIZE_INV = 1./sizeof(GPUPixelBuffer);
 GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format)
 {
 	COMM_LOG("mesh texture register of %s",path);
 	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
+	size_t __MemoryID = (p_Texture-m_MeshTextures.mem)*PIXEL_BUFFER_SIZE_INV;  // TODO gather
 	new(p_Texture) GPUPixelBuffer();
 	thread __LoadThread(_load_texture,p_Texture,path,format,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);

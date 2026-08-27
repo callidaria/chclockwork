@@ -372,19 +372,6 @@ private:
 
 private:
 
-	/*
-	VertexBuffer m_VertexBuffer;
-	VertexBuffer m_TargetBuffer;
-	VertexBuffer m_InstanceBuffer;
-	VertexArray m_TargetArray;
-	GPUPixelBuffer m_PixelBuffer;
-	GPUPixelBuffer m_SpriteTexture;
-
-	// testing
-	f32 m_Rotation = .0f;
-	u32 m_RenderSize = 0;
-	*/
-
 	// buffers
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_SpriteInstanceBuffer;

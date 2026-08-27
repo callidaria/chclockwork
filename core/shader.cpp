@@ -73,6 +73,22 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 	}
 }
 
+/**
+ *	TODO
+ */
+static inline void _shader_push_constants(const char* path,vector<UniformAttribute>& pcs)
+{
+	if (pcs.size()) return;
+
+	// open for inspection
+	std::ifstream __File(path);
+	string __Line;
+	while (!__File.eof())
+	{
+		// TODO
+	}
+}
+
 
 // ----------------------------------------------------------------------------------------------------
 // Uniform Buffer
@@ -661,7 +677,7 @@ VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pconstants)
+void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -765,9 +781,14 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pc
 
 	// shader interface automapping for input definition
 	ShaderInterface __Interface;
+	vector<ShaderUniformValue> __PushConstants;
 	std::filesystem::path __VertexSource(vs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 							  __Interface);
+	_shader_push_constants((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
+						   __PushConstants);
+	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
+						   __PushConstants);
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
@@ -899,7 +920,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pc
 
 	// push constants
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (pconstants)
+	if (__PushConstants)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -913,7 +934,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped,bool pc
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = pconstants;
+	__LayoutInfo.pushConstantRangeCount = __PushConstants.size();
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);

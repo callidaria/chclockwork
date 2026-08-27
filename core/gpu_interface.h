@@ -28,13 +28,4 @@ struct UniformBufferMemory
 };
 
 
-// ----------------------------------------------------------------------------------------------------
-// Push Constants
-
-struct PushConstantMemory
-{
-	u32 texID;
-};
-
-
 #endif
