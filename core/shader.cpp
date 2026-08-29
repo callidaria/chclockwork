@@ -832,14 +832,13 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// shader interface automapping for input definition
 	ShaderInterface __Interface;
-	size_t __PushConstantCount = 0,__PushConstantSize = 0;
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 							  __Interface);
 	_shader_push_constants((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-						   __PushConstantCount,__PushConstantSize);
+						   push_constant_count,push_constant_size);
 	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
-						   __PushConstantCount,__PushConstantSize);
+						   push_constant_count,push_constant_size);
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
@@ -971,12 +970,12 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// push constants
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__PushConstantSize)
+	if (push_constant_count)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
-		__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		__PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = __PushConstantSize;
+		__PushConstantRange.size = push_constant_size;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 
@@ -985,7 +984,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = __PushConstantCount;
+	__LayoutInfo.pushConstantRangeCount = push_constant_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
@@ -1126,6 +1125,28 @@ void ShaderPipeline::disable()
 	glUseProgram(0);
 #endif
 }
+
+/**
+ *	TODO
+ */
+void ShaderPipeline::generate_pcm(void* pcm,u32 repeat)
+{
+	if (!push_constant_count) return;
+	pcm = malloc(push_constant_size*repeat);
+}
+
+/**
+ *	TODO
+ */
+void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
+{
+	if (!push_constant_count) return;
+	vkCmdPushConstants(g_GPU.acquire_graphical_command_buffer()->buffer,pipeline_layout,
+					   VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,ofs*push_constant_size,
+					   push_constant_size,pcm);
+}
+// FIXME i'd rather not check every time
+// TODO research if it is supported by transfer queue
 
 /**
  *	extract uniform location from shader program

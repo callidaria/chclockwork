@@ -182,6 +182,10 @@ public:
 	static void disable();
 	u32 get_uniform_location(const char* uname);
 
+	// pcm
+	void generate_pcm(void* pcm,u32 repeat=1);
+	void upload_pcm(void* pcm,u32 ofs=0);
+
 	// upload
 	void upload(const char* varname,s32 value);
 	void upload(const char* varname,f32 value);
@@ -212,6 +216,7 @@ public:
 	VkRenderPass render_pass;
 	VkAttachmentDescription* descriptions;
 	BitwiseWords result_attachment;
+	size_t push_constant_count = 0,push_constant_size = 0;
 #else
 #endif
 	u8 depth_channel;

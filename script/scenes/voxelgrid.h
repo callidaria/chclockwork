@@ -7,6 +7,12 @@
 #include "../../core/wheel.h"
 
 
+struct UploadData
+{
+	u32 texture;
+};
+
+
 class RoomVoxels
 {
 public:
@@ -15,6 +21,7 @@ public:
 	void vanish();
 
 private:
+	UploadData m_TextureData;
 };
 
 

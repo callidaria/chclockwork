@@ -728,6 +728,9 @@ void GeometryBatch::load()
 	// vertex array
 	vao.allocate(1);
 	vao.register_buffer(vbo);
+
+	// generate push constant memory
+	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
 
 /**
@@ -781,6 +784,9 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vao.allocate(2);
 	vao.register_buffer(vbo);
 	vao.register_buffer_dynamic(ibo);
+
+	// generate push constant memory
+	shader->generate_pcm(pcm);
 
 	// store geometry information
 	vertex_count = vsize;
@@ -1380,9 +1386,13 @@ void Renderer::_update_mesh()
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
+		{
+			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+		}
 	}
 }
+// TODO combine draws for all geometry tuples to a single draw call, or allow different pcs
 
 /**
  *	update draw of all particle batches
@@ -1393,6 +1403,7 @@ void Renderer::_update_particles()
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
+		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
 	}

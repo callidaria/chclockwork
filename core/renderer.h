@@ -260,6 +260,7 @@ struct GeometryBatch
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
+	void* pcm;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
@@ -280,6 +281,7 @@ struct ParticleBatch
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
 	vector<f32> geometry;
+	void* pcm;
 	u32 vertex_count;
 	u32 active_particles = 0;
 };

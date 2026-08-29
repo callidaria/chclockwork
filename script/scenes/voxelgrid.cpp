@@ -28,6 +28,10 @@ void RoomVoxels::init(Font* font)
 	vector<Texture*> __RoomTextures = { };
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
+	// select texture
+	m_TextureData.texture = 0;
+	__RoomBatch->pcm = &m_TextureData;
+
 	// grid instances
 	u32 i = 0;
 	vec3 __Instances[TEST_INSTANCE_AMOUNT_GENERAL] = {  };
