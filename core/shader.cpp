@@ -2,6 +2,12 @@
 
 
 // ----------------------------------------------------------------------------------------------------
+// constants
+
+const string SHADER_TYPENAMES[SHADER_UNIFORM_FORMAT_COUNT] = { "uint","int","float","vec2","vec3","vec4","mat4" };
+
+
+// ----------------------------------------------------------------------------------------------------
 // Tools
 
 /**
@@ -46,7 +52,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			__WidthHead = &interface.ibo_width;
 			continue;
 		}
-		else if (__Line.find("in")!=0) continue;
+		else if (__Line.find("in")!=0) continue;  // FIXME not compatible with vk version
 		else if (__Line.find("void")==0) break;
 
 		// extract input information
@@ -76,18 +82,50 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 /**
  *	TODO
  */
-static inline void _shader_push_constants(const char* path,vector<UniformAttribute>& pcs)
+static inline void _shader_push_constants(const char* path,vector<UniformDimension>& pcs)
 {
 	if (pcs.size()) return;
 
 	// open for inspection
+	bool __ParsingConstant = false;
 	std::ifstream __File(path);
 	string __Line;
 	while (!__File.eof())
 	{
-		// TODO
+		std::getline(__File,__Line);
+
+		// parse relevant line until end
+		if (!__ParsingConstant)
+		{
+			if (__Line.find("layout(push_constant)")==0)
+				__ParsingConstant = true;
+			continue;
+		}
+		else if (__Line.find("{")==0) continue;
+		else if (__Line.find("}")==0)
+		{
+			__ParsingConstant = false;
+			continue;
+		}
+
+		// gather requested values
+		std::istringstream __LineStream(__Line);
+		std::string __Typename;
+		__LineStream >> __Typename;
+
+		UniformDimension __TypeDimension;
+		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
+		{
+			if (SHADER_TYPENAMES[i]==__Typename)
+			{
+				__TypeDimension = (UniformDimension)i;
+				break;
+			}
+		}
+		pcs.push_back(__TypeDimension);
 	}
 }
+// FIXME this requires the push constants to be defined line by line, without empty lines in between
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -781,14 +819,15 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// shader interface automapping for input definition
 	ShaderInterface __Interface;
-	vector<ShaderUniformValue> __PushConstants;
-	std::filesystem::path __VertexSource(vs);
+	vector<UniformDimension> __PushConstants;
+	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 							  __Interface);
 	_shader_push_constants((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 						   __PushConstants);
 	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
 						   __PushConstants);
+	for (UniformDimension __Dim : __PushConstants) COMM_LOG("shader push constant: DIM(%i)",__Dim);
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
@@ -920,12 +959,12 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// push constants
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__PushConstants)
+	if (__PushConstants.size())
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = sizeof(PushConstantMemory);
+		//__PushConstantRange.size = sizeof(PushConstantMemory);
 		p_PushConstantRange = &__PushConstantRange;
 	}
 
@@ -1095,19 +1134,24 @@ u32 ShaderPipeline::get_uniform_location(const char* uname)
 // uniform variable upload function correlation map
 typedef void (*uniform_upload)(u16,f32*);
 #ifdef VKBUILD
+void _uploadu(u16 uloc,f32* data) { /* TODO */ }
+void _uploadi(u16 uloc,f32* data) { /* TODO */ }
 void _upload1f(u16 uloc,f32* data) { /* TODO */ }
 void _upload2f(u16 uloc,f32* data) { /* TODO */ }
 void _upload3f(u16 uloc,f32* data) { /* TODO */ }
 void _upload4f(u16 uloc,f32* data) { /* TODO */ }
 void _upload4m(u16 uloc,f32* data) { /* TODO */ }
 #else
+void _uploadi(u16 uloc,f32* data) { glUniform1u(uloc,data[0]); }
+void _uploadui(u16 uloc,f32* data) { glUniform1i(uloc,data[0],data[1]); }
 void _upload1f(u16 uloc,f32* data) { glUniform1f(uloc,data[0]); }
 void _upload2f(u16 uloc,f32* data) { glUniform2f(uloc,data[0],data[1]); }
 void _upload3f(u16 uloc,f32* data) { glUniform3f(uloc,data[0],data[1],data[2]); }
 void _upload4f(u16 uloc,f32* data) { glUniform4f(uloc,data[0],data[1],data[2],data[3]); }
 void _upload4m(u16 uloc,f32* data) { glUniformMatrix4fv(uloc,1,GL_FALSE,data); }
 #endif
-uniform_upload uploadf[] = { _upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
+uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
+		= { _uploadu,_uploadi,_upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
 
 /**
  *	upload signed integer to shader

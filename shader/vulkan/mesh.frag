@@ -17,7 +17,5 @@ layout(push_constant) uniform PushConstants
 
 void main()
 {
-	//pixelColour = texture(tex[pc.texIndex],UV);
 	pixelColour = texture(tex[pc.texIndex],UV);
-	//pixelColour = vec4(Normal,1);
 }

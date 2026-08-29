@@ -1305,7 +1305,7 @@ lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,u
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer();
-	p_Pipeline->assemble(vs,fs,false,true);  // TODO setup is not ideal to say the least
+	p_Pipeline->assemble(vs,fs,false);
 	return p_Pipeline;
 }
 
