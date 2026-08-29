@@ -4,7 +4,20 @@
 // ----------------------------------------------------------------------------------------------------
 // constants
 
-const string SHADER_TYPENAMES[SHADER_UNIFORM_FORMAT_COUNT] = { "uint","int","float","vec2","vec3","vec4","mat4" };
+struct ShaderType
+{
+	string name;
+	size_t memsize;
+};
+const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
+	{ "uint",sizeof(u32) },
+	{ "int",sizeof(s32) },
+	{ "float",sizeof(f32) },
+	{ "vec2",sizeof(vec2) },
+	{ "vec3",sizeof(vec3) },
+	{ "vec4",sizeof(vec4) },
+	{ "mat4",sizeof(mat4) },
+};
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -82,9 +95,9 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 /**
  *	TODO
  */
-static inline void _shader_push_constants(const char* path,vector<UniformDimension>& pcs)
+static inline void _shader_push_constants(const char* path,size_t& pccount,size_t& pcrange)
 {
-	if (pcs.size()) return;
+	if (pccount) return;
 
 	// open for inspection
 	bool __ParsingConstant = false;
@@ -113,16 +126,16 @@ static inline void _shader_push_constants(const char* path,vector<UniformDimensi
 		std::string __Typename;
 		__LineStream >> __Typename;
 
-		UniformDimension __TypeDimension;
+		// correlate typename with memory size
 		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
 		{
-			if (SHADER_TYPENAMES[i]==__Typename)
+			if (SHADER_TYPES[i].name==__Typename)
 			{
-				__TypeDimension = (UniformDimension)i;
+				pcrange += SHADER_TYPES[i].memsize;
 				break;
 			}
 		}
-		pcs.push_back(__TypeDimension);
+		pccount++;
 	}
 }
 // FIXME this requires the push constants to be defined line by line, without empty lines in between
@@ -819,15 +832,14 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// shader interface automapping for input definition
 	ShaderInterface __Interface;
-	vector<UniformDimension> __PushConstants;
+	size_t __PushConstantCount = 0,__PushConstantSize = 0;
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 							  __Interface);
 	_shader_push_constants((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-						   __PushConstants);
+						   __PushConstantCount,__PushConstantSize);
 	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
-						   __PushConstants);
-	for (UniformDimension __Dim : __PushConstants) COMM_LOG("shader push constant: DIM(%i)",__Dim);
+						   __PushConstantCount,__PushConstantSize);
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
@@ -959,12 +971,12 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// push constants
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__PushConstants.size())
+	if (__PushConstantSize)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		//__PushConstantRange.size = sizeof(PushConstantMemory);
+		__PushConstantRange.size = __PushConstantSize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 
@@ -973,7 +985,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = __PushConstants.size();
+	__LayoutInfo.pushConstantRangeCount = __PushConstantCount;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
