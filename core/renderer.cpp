@@ -907,7 +907,6 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
 	// upload camera
-	m_UBufferMem.otrafo.model = mat4(1.f);
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
@@ -1288,8 +1287,8 @@ GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format
 {
 	COMM_LOG("mesh texture register of %s",path);
 	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
-	size_t __MemoryID = (p_Texture-m_MeshTextures.mem)*PIXEL_BUFFER_SIZE_INV;  // TODO gather
 	new(p_Texture) GPUPixelBuffer();
+	p_Texture->memID = (p_Texture-m_MeshTextures.mem)*PIXEL_BUFFER_SIZE_INV;
 	thread __LoadThread(_load_texture,p_Texture,path,format,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();

@@ -198,6 +198,7 @@ struct GPUPixelBuffer
 	queue<TextureData> load_requests;
 	ThreadSignal signal;
 	u32 subtex_padding = 0;
+	size_t memID;
 
 	TextureFormat m_Format;
 	bool allocated = false;  // FIXME no!

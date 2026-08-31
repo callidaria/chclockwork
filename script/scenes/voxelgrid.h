@@ -9,6 +9,7 @@
 
 struct UploadData
 {
+	mat4 model = mat4(1.f);
 	u32 texture;
 };
 

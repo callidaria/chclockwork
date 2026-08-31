@@ -25,11 +25,10 @@ void RoomVoxels::init(Font* font)
 	// load room
 	Mesh __RoomMesh = Mesh("./res/private/test.obj");
 	GPUPixelBuffer* __RoomTexture = g_Renderer.register_texture("./res/private/test.png");
-	vector<Texture*> __RoomTextures = { };
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
 	// select texture
-	m_TextureData.texture = 0;
+	m_TextureData.texture = __RoomTexture->memID;
 	__RoomBatch->pcm = &m_TextureData;
 
 	// grid instances

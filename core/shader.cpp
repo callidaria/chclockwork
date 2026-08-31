@@ -42,7 +42,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// line trim for layout prefix
 #ifdef VKBUILD
 		s64 __Location = -1;
-		if (__Line.find("layout")==0)
+		if (__Line.find("layout")==0&&__Line.find("layout(push_constant)")!=0)
 		{
 			size_t __LocationDef = __Line.find('=')+1;
 			size_t __Until = __Line.find(')');
@@ -123,7 +123,7 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 
 		// gather requested values
 		std::istringstream __LineStream(__Line);
-		std::string __Typename;
+		std::string __Typename,__Varname;
 		__LineStream >> __Typename;
 
 		// correlate typename with memory size
@@ -839,6 +839,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 						   push_constant_count,push_constant_size);
 	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
 						   push_constant_count,push_constant_size);
+	// TODO split definitions into two different for each shader, to allow for some independence
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
@@ -984,7 +985,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = push_constant_count;
+	__LayoutInfo.pushConstantRangeCount = !!push_constant_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);

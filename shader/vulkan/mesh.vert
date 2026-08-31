@@ -15,15 +15,20 @@ layout(location = 2) out mat3 TBN;
 
 layout(set = 0,binding = 0) uniform ObjectTransformation
 {
-	mat4 model;
 	mat4 view;
 	mat4 proj;
 } ot;
 
+layout(push_constant) uniform PushConstants
+{
+	mat4 model;
+	uint texIndex;
+} pc;
+
 
 void main()
 {
-	gl_Position = ot.proj*ot.view*ot.model*vec4(position+offset,1.);
+	gl_Position = ot.proj*ot.view*pc.model*vec4(position+offset,1.);
 
 	// pass
 	UV = uv;
