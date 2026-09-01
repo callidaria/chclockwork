@@ -911,36 +911,6 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
 	g_UniformBuffer.finalize();
-
-	// load mesh data
-	/*
-	// texture
-	m_PixelBuffer.allocate(1500,1500,TEXTURE_FORMAT_SRGB);
-	Rect m_PixelBufferComponent;
-	Rect m_SpriteTextureComponent;
-	GPUPixelBuffer::load_texture(&m_PixelBuffer,&m_PixelBufferComponent,"./res/private/test.png");
-	GPUPixelBuffer::load_texture(&m_SpriteTexture,&m_SpriteTextureComponent,"./res/test/cld.jpeg");
-	// TODO subthread
-
-	// align atlas
-	for (u8 i=0;i<4;i++) __SpriteInstances[i].pbc = m_SpriteTextureComponent;
-	for (u8 i=0;i<TEST_INSTANCE_AMOUNT_GENERAL;i++) __Instances[i].pbc = m_PixelBufferComponent;
-
-	// vertex data
-	m_VertexBuffer.allocate(sizeof(Vertex)*__Mesh.vertices.size()+sizeof(u32)*__Indices.size(),true);
-	m_VertexBuffer.upload(&__Mesh.vertices[0],sizeof(Vertex)*__Mesh.vertices.size(),
-						  &__Indices[0],sizeof(u32)*__Indices.size());
-	m_VertexBuffer.update();
-
-	// instance data
-	m_InstanceBuffer.allocate(sizeof(__Instances));
-	m_InstanceBuffer.upload(__Instances,sizeof(__Instances));
-
-	// vertex array
-	m_VertexArray.allocate(2);
-	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
-	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
-	*/
 }
 
 void Renderer::update()
@@ -987,70 +957,14 @@ void Renderer::update()
 	m_VertexArray.transfer_ownership_read();
 	m_SpriteArray.transfer_ownership_read();
 
-	// START SCENE
-
-	// start voxelgrid
-	m_TestingPipeline.enable();
-	m_VertexArray.bind_indexed();
+	// prepare text updates
+	m_TextArray.transfer_ownership_write();
 	*/
 
-	// prepare text updates
-	//m_TextArray.transfer_ownership_write();
 }
 // TODO find out when to call the ownership transfers / when those memory barriers are needed
 // TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
 // TODO also use the first index feature. this can fix some bullet system issues i faced earlier
-
-/**
- *	sorting out how this makes most sense:
- *
- *	1st the buffers
- *		creating a buffer should be done by generating a buffer, uploading to it and having a few options
- *		options when and if to include index buffers might be offered here, but that really just happens at bind
- *		if a buffer is staged, mapped and unmapped is a hugely important distinction
- *		there is a difference between vertex buffers only in the case of upload additional index information
- *		vertex buffers (as they are) only hold geometrical information, fed to the shaders. this is their purpose
- *		the vertex buffer should store it's offset, so that authoritative callers can utilize them when uploading
- *		maybe it should be possible to store multiple geometric buffers into a single vbo??
- *		research if streaming into a single global vbo for all equi-material wg is an efficient alternative
- *		the default case for upload is always through a staging buffer. this seems to be the fastest way
- *		this includes all vbs, those that stay the same throughout and also dynamic instance data buffers
- *		vertex buffer memory is static and can be freed immediately, while instance memory needs to stay active
- *		this suggests, that the staging/upload and the unmap/free call are to be separated, depending on usage
- *		also there must be a feature to directly update data in-memory
- *		copy must be part of an update function, that can be called once in case of vb or per-frame in case of ib
- *
- *	2nd the "vertex array"
- *		to bind and upload the buffers they will be called by bind vertex/index buffer commands descriptively
- *		the vertex array should not be a distict structure or class, it only acts as an analogue to ogl
- *		during the bind process, the cmd_buffer in framebuffer will be used to store the command until execution
- *		this raises the important question if the framebuffer as such should take care of buffer upload
- *
- *	3rd the static pipeline
- *		the pipeline should work with the buffers and uniforms, but it should NOT be defined by them.
- *		the pipeline setup will consist of only direct decisions and automatically analyzed shader states
- *		an example of the latter is already implemented in the ogl version:
- *		the pipeline will read the defined needs by the shader and adopt the desired upload structure
- *		it is then the duty of the buffers to provide the requested data, they have no influence over the demands
- *
- *	4th the framebuffer rendertarget
- *		the rendertarget is supposed to be !the! command authority. all draw commands belong to a target
- *		a rendertarget should also stand on it's own feet and should not obey any other authority, besides mutex
- *		this should suggest that the framebuffer rendertarget and the blitter are to be unified into one
- *		for each target there is a respective command buffer, as there should be when flipping asynchronously
- *		but right now blitter and framebuffer are in a dire war over resource authority, that should be sorted
- *
- *	5th the blitter
- *		the blitter should only receive what is designated as the final result in form of a rendertarget
- *		first it has to create the frame, setup swapchain et cetera and then it should draw the target
- *		this is the full extent of the blitters purpose
- *
- *	6th the hardware interface
- *		the hardware interface is supposed to be handling all frees and mundane creations
- *		creations that require a complex info struct setup are not to be misinterpreted as mundane
- *		the hi is supposed to automatically scan for relevant hardware and test it for support upon inclusion
- *		also the hi should globally store the gpu, so that it is accessible to all following components
- */
 
 /**
  *	exit renderer and end all it's subprocesses, also cleanup all resources
