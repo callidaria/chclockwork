@@ -227,6 +227,16 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
+struct PBGMaterials
+{
+	mat4 model = mat4(1.f);
+	f32 texel = 1.f;
+	u32 colour;
+	u32 normal;
+	u32 material;
+	u32 emission;
+};
+
 struct TextureDataTuple
 {
 	TextureData data;
@@ -360,7 +370,7 @@ public:
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch();
 	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
-	lptr<ParticleBatch> register_deferred_particle_batch();
+	//lptr<ParticleBatch> register_deferred_particle_batch();
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
 private:

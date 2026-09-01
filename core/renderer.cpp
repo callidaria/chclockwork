@@ -881,8 +881,11 @@ Renderer::Renderer()
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
 	//		but it might just work, if definition and linking is separated as they might be in the future
+	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
+	//		setup, when reading the shader code for interfacing & push constants!
+	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
-	// pipelines
+	// UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
 	m_TextPipeline.out_define_colour_buffer();
@@ -890,13 +893,9 @@ Renderer::Renderer()
 	m_TargetPipeline.out_define_colour_buffer();
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 
-	// deferred structure pipelines
-	m_GeometryPassPipeline.out_define_colour_buffer();
-	m_GeometryPassPipeline.out_define_colour_buffer();
-	m_GeometryPassPipeline.out_define_colour_buffer();
-	m_GeometryPassPipeline.out_define_colour_buffer();
-	m_GeometryPassPipeline.out_define_colour_buffer();
-	m_GeometryPassPipeline.assemble("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag");
+	// pipelines, setup for deferred scene processing
+	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+											   5,true);
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
@@ -1270,11 +1269,13 @@ lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeli
  *	register phyiscal particle batch
  *	\returns pointer to created physical particle batch
  */
+/*
 lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
 {
 	m_DeferredParticleBatches.push_back({ .shader = m_ParticlePassPipeline });
 	return std::prev(m_DeferredParticleBatches.end());
 }
+*/
 
 /**
  *	register phyiscal particle batch

@@ -15,6 +15,7 @@ public:
 	void vanish();
 
 private:
+	PBGMaterials m_Materials;
 };
 
 
