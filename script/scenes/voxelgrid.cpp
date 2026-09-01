@@ -55,7 +55,9 @@ void RoomVoxels::init(Font* font)
  */
 void RoomVoxels::update()
 {
-	// TODO
+	// update grid rotation
+	m_TextureData.model = glm::rotate(mat4(1.f),glm::radians(m_Rotation),vec3(0,0,1));
+	m_Rotation = fmod(m_Rotation-4.f*g_Frame.delta_time,360.f);
 }
 
 /**

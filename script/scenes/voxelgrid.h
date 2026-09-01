@@ -23,6 +23,7 @@ public:
 
 private:
 	UploadData m_TextureData;
+	f32 m_Rotation = -100.f;
 };
 
 

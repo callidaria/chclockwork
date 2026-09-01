@@ -940,8 +940,6 @@ Renderer::Renderer()
 	m_VertexArray.allocate(2);
 	m_VertexArray.register_buffer_indexed(m_VertexBuffer);
 	m_VertexArray.register_buffer_dynamic(m_InstanceBuffer);
-
-	m_Rotation = glm::radians(-120.f);
 	*/
 }
 
@@ -994,17 +992,6 @@ void Renderer::update()
 	// start voxelgrid
 	m_TestingPipeline.enable();
 	m_VertexArray.bind_indexed();
-
-	// prototype update tbr
-	//m_Rotation += g_Frame.delta_time*glm::radians(4.f);
-	m_UBufferMem.otrafo.model = glm::rotate(mat4(1.f),m_Rotation,vec3(0,0,1));
-
-	// drawcall
-	vkCmdDrawIndexed(g_GPU.acquire_graphical_command_buffer()->buffer,
-					 m_RenderSize,TEST_INSTANCE_AMOUNT_GENERAL,0,0,0);
-	// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
-
-	// END SCENE
 	*/
 
 	// prepare text updates
@@ -1012,6 +999,7 @@ void Renderer::update()
 }
 // TODO find out when to call the ownership transfers / when those memory barriers are needed
 // TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
+// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 /**
  *	sorting out how this makes most sense:

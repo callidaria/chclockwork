@@ -11,6 +11,7 @@ layout(set = 1,binding = 0) uniform sampler2D tex[64];
 
 layout(push_constant) uniform PushConstants
 {
+	mat4 model;
 	uint texIndex;
 } pc;
 
