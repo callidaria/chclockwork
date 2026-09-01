@@ -139,6 +139,8 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 	}
 }
 // FIXME this requires the push constants to be defined line by line, without empty lines in between
+//		why is this not implemented using istringstream for the whole process?
+//		maybe it could be beneficial, to combine interface & push constant processing together in a single read
 
 
 // ----------------------------------------------------------------------------------------------------

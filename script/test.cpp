@@ -25,6 +25,7 @@ SceneListing::SceneListing(Font* font)
 	Rect* __ButtonBase = g_Renderer.register_sprite_texture("./res/ui/button_base.png");
 	Rect* __ButtonHover = g_Renderer.register_sprite_texture("./res/ui/button_hover.png");
 	Rect* __ButtonClick = g_Renderer.register_sprite_texture("./res/ui/button_click.png");
+	// TODO register instead as a tuple, then refer to the button style anywhere in the program
 
 	// heading
 	lptr<Text> __Text = g_Renderer.write_text(font,"Test Scenes",vec3(0,-10,7),15,vec4(1),

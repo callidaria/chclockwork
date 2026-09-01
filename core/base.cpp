@@ -23,7 +23,7 @@ bool check_file_exists(const char* path)
 u8* read_file_binary(const char* path,u32& buffer_size)
 {
 	FILE* __File = fopen(path,"rb");
-	COMM_ERR_COND(!__File,"could not open file to read binary information from");
+	COMM_ERR_COND(!__File,"could not open file in order to read it's binary information");
 	fseek(__File,0,SEEK_END);
 	buffer_size = ftell(__File);
 	rewind(__File);

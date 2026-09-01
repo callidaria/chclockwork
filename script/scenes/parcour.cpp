@@ -6,7 +6,9 @@
  */
 void ParcourParcs::init()
 {
-	// TODO
+	// setup batch
+	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
+
 	g_Wheel.call(this);
 }
 

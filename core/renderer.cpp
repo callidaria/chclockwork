@@ -890,6 +890,14 @@ Renderer::Renderer()
 	m_TargetPipeline.out_define_colour_buffer();
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 
+	// deferred structure pipelines
+	m_GeometryPassPipeline.out_define_colour_buffer();
+	m_GeometryPassPipeline.out_define_colour_buffer();
+	m_GeometryPassPipeline.out_define_colour_buffer();
+	m_GeometryPassPipeline.out_define_colour_buffer();
+	m_GeometryPassPipeline.out_define_colour_buffer();
+	m_GeometryPassPipeline.assemble("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag");
+
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
 		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
@@ -960,7 +968,6 @@ void Renderer::update()
 	// prepare text updates
 	m_TextArray.transfer_ownership_write();
 	*/
-
 }
 // TODO find out when to call the ownership transfers / when those memory barriers are needed
 // TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
@@ -1236,6 +1243,48 @@ lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipel
 {
 	m_ParticleBatches.push_back({ .shader = pipeline });
 	return std::prev(m_ParticleBatches.end());
+}
+
+/**
+ *	register phyiscal mesh batch with standard geometry pass shader
+ *	\returns pointer to created physical mesh batch
+ */
+lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
+{
+	m_DeferredGeometryBatches.push_back({ .shader = m_GeometryPassPipeline });
+	return std::prev(m_DeferredGeometryBatches.end());
+}
+
+/**
+ *	register physical mesh batch
+ *	\param pipeline: shader pipeline, handling physical pass for newly created batch
+ *	\returns pointer to created physical mesh batch
+ */
+lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline)
+{
+	m_DeferredGeometryBatches.push_back({ .shader = pipeline });
+	return std::prev(m_DeferredGeometryBatches.end());
+}
+
+/**
+ *	register phyiscal particle batch
+ *	\returns pointer to created physical particle batch
+ */
+lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
+{
+	m_DeferredParticleBatches.push_back({ .shader = m_ParticlePassPipeline });
+	return std::prev(m_DeferredParticleBatches.end());
+}
+
+/**
+ *	register phyiscal particle batch
+ *	\param pipeline: shader pipeline, handling physical pass for newly created batch
+ *	\returns pointer to created physical particle batch
+ */
+lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeline> pipeline)
+{
+	m_DeferredParticleBatches.push_back({ .shader = pipeline });
+	return std::prev(m_DeferredParticleBatches.end());
 }
 
 /**
@@ -1566,48 +1615,6 @@ lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader
 	return p_Pipeline;
 }
 */
-
-/**
- *	register phyiscal mesh batch with standard geometry pass shader
- *	\returns pointer to created physical mesh batch
- */
-lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
-{
-	m_DeferredGeometryBatches.push_back({ .shader = m_GeometryPassPipeline });
-	return std::prev(m_DeferredGeometryBatches.end());
-}
-
-/**
- *	register physical mesh batch
- *	\param pipeline: shader pipeline, handling physical pass for newly created batch
- *	\returns pointer to created physical mesh batch
- */
-lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline)
-{
-	m_DeferredGeometryBatches.push_back({ .shader = pipeline });
-	return std::prev(m_DeferredGeometryBatches.end());
-}
-
-/**
- *	register phyiscal particle batch
- *	\returns pointer to created physical particle batch
- */
-lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
-{
-	m_DeferredParticleBatches.push_back({ .shader = m_ParticlePassPipeline });
-	return std::prev(m_DeferredParticleBatches.end());
-}
-
-/**
- *	register phyiscal particle batch
- *	\param pipeline: shader pipeline, handling physical pass for newly created batch
- *	\returns pointer to created physical particle batch
- */
-lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeline> pipeline)
-{
-	m_DeferredParticleBatches.push_back({ .shader = pipeline });
-	return std::prev(m_DeferredParticleBatches.end());
-}
 
 /**
  *	allow a geometry batch to cast shadows onto the scene

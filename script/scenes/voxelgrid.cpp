@@ -18,8 +18,8 @@ void RoomVoxels::init(Font* font)
 											  Alignment{ .alignment=SCREEN_ALIGN_TOPLEFT });
 
 	// setup batch
-	lptr<ShaderPipeline> __RoomShader
-		= g_Renderer.register_pipeline("./shader/vulkan/bin/mesh.vert","./shader/vulkan/bin/mesh.frag",1,true);
+	lptr<ShaderPipeline> __RoomShader = g_Renderer.register_pipeline(
+			"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",1,true);
 	lptr<ParticleBatch> __RoomBatch = g_Renderer.register_particle_batch(__RoomShader);
 
 	// load room

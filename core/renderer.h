@@ -358,12 +358,10 @@ public:
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
-	/*
 	lptr<GeometryBatch> register_deferred_geometry_batch();
 	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_deferred_particle_batch();
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
-	*/
 
 private:
 	void _update_sprites();
@@ -411,11 +409,15 @@ private:
 	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
+	lptr<ShaderPipeline> m_GeometryPassPipeline;
+	//lptr<ShaderPipeline> m_ParticlePassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
 
 	// batches
 	list<GeometryBatch> m_GeometryBatches;
 	list<ParticleBatch> m_ParticleBatches;
+	list<GeometryBatch> m_DeferredGeometryBatches;
+	list<ParticleBatch> m_DeferredParticleBatches;
 
 	// uniform buffer
 	UniformBufferMemory m_UBufferMem;
@@ -544,8 +546,6 @@ private:
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
 	// mesh
-	list<GeometryBatch> m_DeferredGeometryBatches;
-	list<ParticleBatch> m_DeferredParticleBatches;
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
 
@@ -554,8 +554,6 @@ private:
 	// FIXME figure out what happens to deleted animated meshes that are linked here and in geometry batch
 
 	// lighting
-	lptr<ShaderPipeline> m_GeometryPassPipeline;
-	lptr<ShaderPipeline> m_ParticlePassPipeline;
 	lptr<ShaderPipeline> m_GeometryShadowPipeline;
 	lptr<ShaderPipeline> m_ParticleShadowPipeline;
 	Lighting m_Lighting;
