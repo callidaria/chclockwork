@@ -6,10 +6,10 @@
 
 struct ShaderType
 {
-	string name;
+	const char* name;
 	size_t memsize;
 };
-const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
+inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "uint",sizeof(u32) },
 	{ "int",sizeof(s32) },
 	{ "float",sizeof(f32) },
@@ -129,7 +129,7 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 		// correlate typename with memory size
 		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
 		{
-			if (SHADER_TYPES[i].name==__Typename)
+			if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
 			{
 				pcrange += SHADER_TYPES[i].memsize;
 				break;
