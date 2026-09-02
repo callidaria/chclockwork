@@ -376,8 +376,8 @@ public:
 private:
 	void _update_sprites();
 	void _update_text();
-	void _update_mesh();
-	void _update_particles();
+	static void _update_mesh(list<GeometryBatch>& batches);
+	static void _update_particles(list<ParticleBatch>& batches);
 	void _gpu_upload();
 
 private:
@@ -396,6 +396,7 @@ private:
 	// targets
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
 	Framebuffer m_Framebuffer;  // FIXME naming!!!!
+	Framebuffer m_GBuffer;
 
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;

@@ -32,11 +32,10 @@ private:
 #else
 	u32 m_Buffer;
 #endif
-	u8 m_DepthChannel;
-	bool m_HasDepth;
 
 public:
 	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
+	vector<VkClearValue> m_ClearValues;
 };
 
 

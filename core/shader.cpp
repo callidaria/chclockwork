@@ -929,24 +929,28 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
 
 	// colour blending attachment
-	VkPipelineColorBlendAttachmentState __CBlendAttachment = {  };
-	__CBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
-			|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT;
-	__CBlendAttachment.blendEnable = VK_TRUE;
-	__CBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	__CBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	__CBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	__CBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	__CBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	__CBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+	vector<VkPipelineColorBlendAttachmentState> __CBlendAttachment(depth_channel);
+	for (u8 i=0;i<depth_channel;i++)
+	{
+		__CBlendAttachment[i] = {  };
+		__CBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
+				|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT;
+		__CBlendAttachment[i].blendEnable = VK_TRUE;
+		__CBlendAttachment[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		__CBlendAttachment[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		__CBlendAttachment[i].colorBlendOp = VK_BLEND_OP_ADD;
+		__CBlendAttachment[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+		__CBlendAttachment[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+		__CBlendAttachment[i].alphaBlendOp = VK_BLEND_OP_ADD;
+	}
 
 	// fixed function colour blending
 	VkPipelineColorBlendStateCreateInfo __BlendingInfo = {  };
 	__BlendingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	__BlendingInfo.logicOpEnable = VK_FALSE;
 	__BlendingInfo.logicOp = VK_LOGIC_OP_COPY;
-	__BlendingInfo.attachmentCount = 1;
-	__BlendingInfo.pAttachments = &__CBlendAttachment;
+	__BlendingInfo.attachmentCount = depth_channel;
+	__BlendingInfo.pAttachments = &__CBlendAttachment[0];
 	__BlendingInfo.blendConstants[0] = .0f;
 	__BlendingInfo.blendConstants[1] = .0f;
 	__BlendingInfo.blendConstants[2] = .0f;

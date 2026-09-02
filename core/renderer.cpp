@@ -902,7 +902,12 @@ Renderer::Renderer()
 		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
 								 m_SpritePipeline,i);
 	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);  // FIXME mismatch?
+	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
 	// TODO routinize
+
+	// TODO fix like above
+	// gbuffer setup
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);
 
 	// link buffer results
 	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
@@ -932,13 +937,16 @@ void Renderer::update()
 	// data update
 	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
-	// START RECORD SCENE
+	// RECORD SCENE DEFERRED
+	m_GBuffer.record();
+	_update_mesh(m_DeferredGeometryBatches);
+	//_pass_particles(m_Deferred);
+	m_GBuffer.stop();
+
+	// RECORD SCENE FORWARD
 	m_Framebuffer.record();
-
-	_update_mesh();
-	_update_particles();
-
-	// END RECORD SCENE
+	_update_mesh(m_GeometryBatches);
+	_update_particles(m_ParticleBatches);
 	m_Framebuffer.stop();
 
 	// START RESULT ASSEMBLY
@@ -985,6 +993,7 @@ void Renderer::vanish()
 	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
 
 	// clean framebuffers
+	m_GBuffer.vanish();
 	m_Framebuffer.vanish();
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
 
@@ -1330,9 +1339,9 @@ void Renderer::_update_text()
 /**
  *	update draw of all registered batches
  */
-void Renderer::_update_mesh()
+void Renderer::_update_mesh(list<GeometryBatch>& batches)
 {
-	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	for (GeometryBatch& p_Batch : batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
@@ -1348,9 +1357,9 @@ void Renderer::_update_mesh()
 /**
  *	update draw of all particle batches
  */
-void Renderer::_update_particles()
+void Renderer::_update_particles(list<ParticleBatch>& batches)
 {
-	for (ParticleBatch& p_Batch : m_ParticleBatches)
+	for (ParticleBatch& p_Batch : batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();

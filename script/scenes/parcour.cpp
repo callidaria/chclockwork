@@ -25,6 +25,7 @@ void ParcourParcs::init()
 	m_Materials.emission = __NeutralEmissionTexture->memID;
 	__EnviroBatch->pcm = &m_Materials;
 
+	__EnviroBatch->load();
 	g_Wheel.call(this);
 }
 

@@ -179,6 +179,10 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	glGenFramebuffers(1,&m_Buffer);
 	glGenTextures(__ComponentCount,&components[0]);
 #endif
+
+	// populate clear values
+	m_ClearValues = vector<VkClearValue>(components.size(),g_Frame.clear_colour[0]);
+	if (sp.has_depth) m_ClearValues.back() = g_Frame.clear_colour[1];
 };
 
 /**
@@ -308,7 +312,7 @@ void Framebuffer::record()
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
 	__RPBeginInfo.clearValueCount = components.size();
-	__RPBeginInfo.pClearValues = g_Frame.clear_colour;
+	__RPBeginInfo.pClearValues = &m_ClearValues[0];
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 
 	// viewport setup
