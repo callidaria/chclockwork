@@ -905,10 +905,6 @@ Renderer::Renderer()
 	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
 	// TODO routinize
 
-	// TODO fix like above
-	// gbuffer setup
-	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);
-
 	// link buffer results
 	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
 	g_UniformBuffer.link_result(__TextBufferID,m_GPUFontTextures);
@@ -1013,9 +1009,10 @@ void Renderer::vanish()
 	m_TextInstanceBuffer.vanish();
 	m_TargetVertexBuffer.vanish();
 
-	// clear active batches
+	// clear active batchesn
 	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
 	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vanish();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
 
 	// clear registered textures
 	for (size_t i=0;i<m_MeshTextures.active_range;i++)
