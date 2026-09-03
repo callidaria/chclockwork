@@ -291,6 +291,7 @@ void UploadSet::vanish()
 UniformBuffer::UniformBuffer()
 {
 	// define placeholder graphic for unwritten mesh texture memory
+	/*
 	VkImageCreateInfo __PlaceholderInfo = {};
 	__PlaceholderInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__PlaceholderInfo.flags = 0;
@@ -382,6 +383,7 @@ UniformBuffer::UniformBuffer()
 	m_MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	m_MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
 	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
+	*/
 }
 
 /**

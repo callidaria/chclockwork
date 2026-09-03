@@ -81,15 +81,19 @@ private:
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 	VkDescriptorPool m_DescriptorPool;
+	/*
 	VkImage m_PlaceholderImage;
 	VkDeviceMemory m_PlaceholderMemory;
 	VkImageView m_PlaceholderTexture;
 	VkSampler m_DefaultSampler;
+	*/
 	size_t m_Size = 0;
 
 	// texture set
+	/*
 	VkDescriptorImageInfo m_MeshTextureInfo[RENDERER_MAXIMUM_TEXTURE_COUNT];
 	VkWriteDescriptorSet m_MeshTextureSet = {  };
+	*/
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer(12);
 // TODO definition through config or something else, that the developer is capable to easily find & change
