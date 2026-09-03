@@ -873,6 +873,18 @@ Renderer::Renderer()
 	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __ResultDepthID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferColourID = g_UniformBuffer.define_pixel_buffer(6,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferPositionID
+			= g_UniformBuffer.define_pixel_buffer(7,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferNormalID
+			= g_UniformBuffer.define_pixel_buffer(8,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferMaterialID
+			= g_UniformBuffer.define_pixel_buffer(9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferEmissionID
+			= g_UniformBuffer.define_pixel_buffer(10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferDepthID
+			= g_UniformBuffer.define_pixel_buffer(11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	/*
 	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 														  RENDERER_MAXIMUM_TEXTURE_COUNT);
@@ -909,6 +921,13 @@ Renderer::Renderer()
 	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
 	g_UniformBuffer.link_result(__TextBufferID,m_GPUFontTextures);
 	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
+	g_UniformBuffer.link_result(__ResultDepthID,m_Framebuffer.components[1]);
+	g_UniformBuffer.link_result(__GBufferColourID,m_GBuffer.components[0]);
+	g_UniformBuffer.link_result(__GBufferPositionID,m_GBuffer.components[1]);
+	g_UniformBuffer.link_result(__GBufferNormalID,m_GBuffer.components[2]);
+	g_UniformBuffer.link_result(__GBufferMaterialID,m_GBuffer.components[3]);
+	g_UniformBuffer.link_result(__GBufferEmissionID,m_GBuffer.components[4]);
+	g_UniformBuffer.link_result(__GBufferDepthID,m_GBuffer.components[5]);
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -936,7 +955,7 @@ void Renderer::update()
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
 	_update_mesh(m_DeferredGeometryBatches);
-	//_pass_particles(m_Deferred);
+	//_update_particles(m_DeferredGeometryBatches);
 	m_GBuffer.stop();
 
 	// RECORD SCENE FORWARD

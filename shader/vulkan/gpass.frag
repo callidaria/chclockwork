@@ -11,7 +11,12 @@ layout(location = 2) out vec4 gbuffer_normals;
 layout(location = 3) out vec4 gbuffer_materials;
 layout(location = 4) out vec4 gbuffer_emission;
 
-layout(set = 1,binding = 0) uniform sampler2D tex[64];
+layout(set = 2,binding = 0) uniform sampler2D albedo;
+layout(set = 2,binding = 1) uniform sampler2D normal_map;
+layout(set = 2,binding = 2) uniform sampler2D material_map;
+layout(set = 2,binding = 3) uniform sampler2D emission_map;
+
+// layout(set = 1,binding = 0) uniform sampler2D tex[64];
 
 layout(push_constant) uniform PushConstants
 {

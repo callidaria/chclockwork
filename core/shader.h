@@ -36,6 +36,24 @@ struct DescriptorSets
 	VkDescriptorSet textures;
 };
 
+class UploadSet
+{
+public:
+	UploadSet(size_t bindings);
+	void define_geometry_buffer(u32 location,size_t size);
+	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
+	void link_texture(size_t i,GPUPixelBuffer* texture);
+	void vanish();
+
+private:
+	vector<VkDescriptorPoolSize> m_PSizes;
+	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<DescriptorInfo> m_DescriptorInfos;
+};
+
 constexpr u8 UNIFORM_DESCRIPTOR_SET_COUNT = sizeof(DescriptorSets)/sizeof(VkDescriptorSet);
 
 class UniformBuffer
@@ -44,11 +62,7 @@ public:
 	UniformBuffer(u32 binding_count);
 
 	// setup
-	void define_geometry_buffer(u32 location,size_t size);
-	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
-	void link_result(size_t i,GPUPixelBuffer& texture);
-	void link_result(size_t i,VkImageView buffer);
-	void link_texture(size_t i,GPUPixelBuffer* texture);
+	void add_set(UploadSet& set);
 	void assemble();
 	void finalize();
 
@@ -67,10 +81,6 @@ private:
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 	VkDescriptorPool m_DescriptorPool;
-	vector<VkDescriptorPoolSize> m_PSizes;
-	vector<VkDescriptorSetLayoutBinding> m_Bindings;
-	vector<VkWriteDescriptorSet> m_Writes;
-	vector<DescriptorInfo> m_DescriptorInfos;
 	VkImage m_PlaceholderImage;
 	VkDeviceMemory m_PlaceholderMemory;
 	VkImageView m_PlaceholderTexture;
@@ -81,7 +91,7 @@ private:
 	VkDescriptorImageInfo m_MeshTextureInfo[RENDERER_MAXIMUM_TEXTURE_COUNT];
 	VkWriteDescriptorSet m_MeshTextureSet = {  };
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(5);
+inline UniformBuffer g_UniformBuffer = UniformBuffer(12);
 // TODO definition through config or something else, that the developer is capable to easily find & change
 #endif
 

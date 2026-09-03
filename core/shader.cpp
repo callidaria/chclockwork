@@ -144,6 +144,143 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 
 
 // ----------------------------------------------------------------------------------------------------
+// Uniform Set
+
+/**
+ *	TODO
+ */
+UploadSet::UploadSet(size_t bindings)
+{
+	m_PSizes.reserve(binding_count);
+	m_Bindings.reserve(binding_count);
+	m_Writes.reserve(binding_count);
+	m_DescriptorInfos.reserve(binding_count);
+	// TODO those can be free'd after setup has finished
+}
+
+/**
+ *	TODO
+ */
+void UploadSet::define_geometry_buffer(u32 location,size_t size)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __PSize = {  };
+	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
+	m_PSizes.push_back(__PSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizing!
+	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO dynamics. what for? just to be sure i guess.
+	__Binding.pImmutableSamplers = nullptr;  // TODO research
+	m_Bindings.push_back(__Binding);
+	// TODO debug level map if location is a duplicate to easily check development time mismatch!
+	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;  // TODO research
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+
+	DescriptorInfo __Desc = {};
+	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = m_Size;
+	__Desc.info.buffer.range = size;
+	m_DescriptorInfos.push_back(__Desc);
+	m_Size += size;
+}
+
+/**
+ *	TODO
+ */
+size_t UploadSet::define_pixel_buffer(u32 location,VkDescriptorType type)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __PSize = {  };
+	__PSize.type = type;
+	__PSize.descriptorCount = GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT);
+	m_PSizes.push_back(__PSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorCount = 1;
+	__Binding.descriptorType = type;
+	__Binding.pImmutableSamplers = nullptr;
+	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	m_Bindings.push_back(__Binding);
+	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = type;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+
+	// image info
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_DescriptorInfos.push_back(__Desc);
+	return m_DescriptorInfos.size()-1;
+}
+
+/**
+ *	TODO
+ */
+void UploadSet::link_result(size_t i,GPUPixelBuffer& texture)
+{
+	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+}
+
+/**
+ *	TODO
+ */
+void UploadSet::link_result(size_t i,VkImageView buffer)
+{
+	m_DescriptorInfos[i].info.image.imageView = buffer;
+	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
+}
+
+/**
+ *	TODO
+ */
+void UploadSet::link_texture(size_t i,GPUPixelBuffer* texture)
+{
+	m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_MeshTextureInfo[i].imageView = texture->image_view;
+	m_MeshTextureInfo[i].sampler = texture->sampler;
+}
+
+/**
+ *	TODO
+ */
+void UploadSet::vanish()
+{
+	// TODO
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Uniform Buffer
 
 #ifdef VKBUILD
@@ -151,14 +288,8 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 /**
  *	TODO
  */
-UniformBuffer::UniformBuffer(u32 binding_count)
+UniformBuffer::UniformBuffer()
 {
-	m_PSizes.reserve(binding_count);
-	m_Bindings.reserve(binding_count);
-	m_Writes.reserve(binding_count);
-	m_DescriptorInfos.reserve(binding_count);
-	// TODO those can be free'd after setup has finished
-
 	// define placeholder graphic for unwritten mesh texture memory
 	VkImageCreateInfo __PlaceholderInfo = {};
 	__PlaceholderInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -235,7 +366,7 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	__SamplerInfo.maxLod = 0;
 	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
-	
+
 	// mesh image info setup
 	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
 	{
@@ -251,119 +382,6 @@ UniformBuffer::UniformBuffer(u32 binding_count)
 	m_MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	m_MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
 	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
-{
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-
-	// descriptor pool size
-	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
-	m_PSizes.push_back(__PSize);
-
-	// bindings
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizing!
-	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO dynamics. what for? just to be sure i guess.
-	__Binding.pImmutableSamplers = nullptr;  // TODO research
-	m_Bindings.push_back(__Binding);
-	// TODO debug level map if location is a duplicate to easily check development time mismatch!
-	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;  // TODO research
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
-
-	DescriptorInfo __Desc = {};
-	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = m_Size;
-	__Desc.info.buffer.range = size;
-	m_DescriptorInfos.push_back(__Desc);
-	m_Size += size;
-}
-
-/**
- *	TODO
- */
-size_t UniformBuffer::define_pixel_buffer(u32 location,VkDescriptorType type)
-{
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-
-	// descriptor pool size
-	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = type;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT);
-	m_PSizes.push_back(__PSize);
-
-	// bindings
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorCount = 1;
-	__Binding.descriptorType = type;
-	__Binding.pImmutableSamplers = nullptr;
-	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	m_Bindings.push_back(__Binding);
-	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = type;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
-
-	// image info
-	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_DescriptorInfos.push_back(__Desc);
-	return m_DescriptorInfos.size()-1;
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::link_result(size_t i,GPUPixelBuffer& texture)
-{
-	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
-	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::link_result(size_t i,VkImageView buffer)
-{
-	m_DescriptorInfos[i].info.image.imageView = buffer;
-	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::link_texture(size_t i,GPUPixelBuffer* texture)
-{
-	m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_MeshTextureInfo[i].imageView = texture->image_view;
-	m_MeshTextureInfo[i].sampler = texture->sampler;
 }
 
 /**
@@ -495,7 +513,7 @@ void UniformBuffer::finalize()
 	VkClearColorValue __WeightBlue = {  };
 	__WeightBlue.float32[0] = .0f;
 	__WeightBlue.float32[1] = .0f;
-	__WeightBlue.float32[2] = 1.f;
+	__WeightBlue.float32[2] = .0f;
 	__WeightBlue.float32[3] = 1.f;
 	VkImageSubresourceRange __SubresourceRange = {  };
 	__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
