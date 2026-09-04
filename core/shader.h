@@ -30,39 +30,25 @@ struct DescriptorInfo
 	} info;
 };
 
-struct DescriptorSets
-{
-	VkDescriptorSet data;
-	VkDescriptorSet textures;
-};
-
-class UploadSet
+class TextureSet
 {
 public:
-	UploadSet(size_t bindings);
-	void define_geometry_buffer(u32 location,size_t size);
+	TextureSet(size_t bindings);
 	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 	void link_texture(size_t i,GPUPixelBuffer* texture);
 	void vanish();
-
-private:
-	vector<VkDescriptorPoolSize> m_PSizes;
-	vector<VkDescriptorSetLayoutBinding> m_Bindings;
-	vector<VkWriteDescriptorSet> m_Writes;
-	vector<DescriptorInfo> m_DescriptorInfos;
 };
-
-constexpr u8 UNIFORM_DESCRIPTOR_SET_COUNT = sizeof(DescriptorSets)/sizeof(VkDescriptorSet);
 
 class UniformBuffer
 {
 public:
-	UniformBuffer(u32 binding_count);
+	UniformBuffer(u32 bindings);
 
 	// setup
-	void add_set(UploadSet& set);
+	void define_geometry_buffer(u32 location,size_t size);
+	void add_set(TextureSet& set);
 	void assemble();
 	void finalize();
 
@@ -74,13 +60,17 @@ public:
 
 public:
 	VkDescriptorSetLayout dset_layout,dset_layout_textures;
-	DescriptorSets m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 	VkDescriptorPool m_DescriptorPool;
+	vector<VkDescriptorPoolSize> m_DescriptorPoolSizes;
+	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<DescriptorInfo> m_DescriptorInfos;
 	/*
 	VkImage m_PlaceholderImage;
 	VkDeviceMemory m_PlaceholderMemory;
@@ -95,8 +85,7 @@ private:
 	VkWriteDescriptorSet m_MeshTextureSet = {  };
 	*/
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(12);
-// TODO definition through config or something else, that the developer is capable to easily find & change
+inline UniformBuffer g_UniformBuffer = UniformBuffer(2);
 #endif
 
 

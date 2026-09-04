@@ -14,5 +14,10 @@ by texture coordinate. \
 TODO better: there will be two available, once this part is optimized accordingly \
 
 
-$2
-TODO
+$2 Modi of the Texture System
+Due to big differences in driver- & hardware-side modernization there must be two different texture handling systems,
+depending on the device capabilities. Such is the curse of the PC developer. \
+1) The modern way of handling textures is probably through sparse binding, although not available on all devices. \
+2) Binding pre-updated descriptor sets as materials, for each draw call (OpenGL-esque) \
+
+TODO: sparse binding is not implemented yet, everything is managed by the fallback system for now.

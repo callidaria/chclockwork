@@ -32,15 +32,15 @@ layout(push_constant) uniform PushConstants
 void main()
 {
 	// extract colour & position
-	gbuffer_colour = vec4(texture(tex[pc.colour_map],UV).rgb,1.);
+	gbuffer_colour = vec4(texture(albedo,UV).rgb,1.);
 	gbuffer_position = vec4(Position,1.);
 
 	// translate normals
-	vec3 normals = texture(tex[pc.normal_map],UV).rgb*2.0-1.0;
+	vec3 normals = texture(normal_map,UV).rgb*2.0-1.0;
 	gbuffer_normals = vec4(normalize(TBN*normals),1.);
 
 	// extract surface materials
-	gbuffer_materials = vec4(texture(tex[pc.material_map],UV).rgb,1.);
-	gbuffer_emission = vec4(texture(tex[pc.emission_map],UV).rgb,1.);
+	gbuffer_materials = vec4(texture(material_map,UV).rgb,1.);
+	gbuffer_emission = vec4(texture(emission_map,UV).rgb,1.);
 }
-// FIXME alpha values are completely unused here, this should be abused!
+// FIXME alpha values are completely unused here, what a waste of valuable information!

@@ -144,67 +144,20 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 
 
 // ----------------------------------------------------------------------------------------------------
-// Uniform Set
+// Texture Set
 
 /**
  *	TODO
  */
-UploadSet::UploadSet(size_t bindings)
+TextureSet::TextureSet(size_t bindings)
 {
-	m_PSizes.reserve(binding_count);
-	m_Bindings.reserve(binding_count);
-	m_Writes.reserve(binding_count);
-	m_DescriptorInfos.reserve(binding_count);
-	// TODO those can be free'd after setup has finished
+	// TODO
 }
 
 /**
  *	TODO
  */
-void UploadSet::define_geometry_buffer(u32 location,size_t size)
-{
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-
-	// descriptor pool size
-	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
-	m_PSizes.push_back(__PSize);
-
-	// bindings
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__Binding.descriptorCount = 1;  // TODO allow for multiple definitions at the same time? careful! sizing!
-	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // TODO dynamics. what for? just to be sure i guess.
-	__Binding.pImmutableSamplers = nullptr;  // TODO research
-	m_Bindings.push_back(__Binding);
-	// TODO debug level map if location is a duplicate to easily check development time mismatch!
-	// TODO research if there is more to binding index than reference? maybe performance downsides to splits?
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;  // TODO research
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
-
-	DescriptorInfo __Desc = {};
-	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = m_Size;
-	__Desc.info.buffer.range = size;
-	m_DescriptorInfos.push_back(__Desc);
-	m_Size += size;
-}
-
-/**
- *	TODO
- */
-size_t UploadSet::define_pixel_buffer(u32 location,VkDescriptorType type)
+size_t TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -220,7 +173,7 @@ size_t UploadSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 	__Binding.binding = location;
 	__Binding.descriptorCount = 1;
 	__Binding.descriptorType = type;
-	__Binding.pImmutableSamplers = nullptr;
+	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
 	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	m_Bindings.push_back(__Binding);
 	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
@@ -246,7 +199,7 @@ size_t UploadSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 /**
  *	TODO
  */
-void UploadSet::link_result(size_t i,GPUPixelBuffer& texture)
+void TextureSet::link_result(size_t i,GPUPixelBuffer& texture)
 {
 	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
 	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
@@ -255,7 +208,7 @@ void UploadSet::link_result(size_t i,GPUPixelBuffer& texture)
 /**
  *	TODO
  */
-void UploadSet::link_result(size_t i,VkImageView buffer)
+void TextureSet::link_result(size_t i,VkImageView buffer)
 {
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
@@ -264,7 +217,7 @@ void UploadSet::link_result(size_t i,VkImageView buffer)
 /**
  *	TODO
  */
-void UploadSet::link_texture(size_t i,GPUPixelBuffer* texture)
+void TextureSet::link_texture(size_t i,GPUPixelBuffer* texture)
 {
 	m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_MeshTextureInfo[i].imageView = texture->image_view;
@@ -274,7 +227,7 @@ void UploadSet::link_texture(size_t i,GPUPixelBuffer* texture)
 /**
  *	TODO
  */
-void UploadSet::vanish()
+void TextureSet::vanish()
 {
 	// TODO
 }
@@ -288,7 +241,7 @@ void UploadSet::vanish()
 /**
  *	TODO
  */
-UniformBuffer::UniformBuffer()
+UniformBuffer::UniformBuffer(u32 bindings)
 {
 	// define placeholder graphic for unwritten mesh texture memory
 	/*
@@ -384,6 +337,54 @@ UniformBuffer::UniformBuffer()
 	m_MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
 	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
 	*/
+
+	m_PSizes.reserve(bindings);
+	m_Bindings.reserve(bindings);
+	m_Writes.reserve(bindings);
+	m_DescriptorInfos.reserve(bindings);
+	// TODO those can be free'd after setup has finished
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __DescriptorPoolSize = {  };
+	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__DescriptorPoolSize.descriptorCount = GPU_BUFFER_COUNT;
+	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__Binding.descriptorCount = 1;
+	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	__Binding.pImmutableSamplers = nullptr;
+	m_Bindings.push_back(__Binding);
+	// TODO debug level map if location is a duplicate to easily check development time mismatch!
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+
+	DescriptorInfo __Desc = {};
+	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = m_Size;
+	__Desc.info.buffer.range = size;
+	m_DescriptorInfos.push_back(__Desc);
+	m_Size += size;
 }
 
 /**
@@ -394,7 +395,7 @@ void UniformBuffer::assemble()
 {
 	COMM_AWT("allocating the uniform buffer");
 
-	// generate buffer
+	// generate buffer for previously defined geometry ranges
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],m_Size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -406,9 +407,9 @@ void UniformBuffer::assemble()
 	// descriptor pool creation
 	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	__DPoolInfo.poolSizeCount = m_PSizes.size();
-	__DPoolInfo.pPoolSizes = &m_PSizes[0];
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
+	__DPoolInfo.poolSizeCount = m_DescriptorPoolSizes.size();
+	__DPoolInfo.pPoolSizes = &m_DescriptorPoolSizes[0];
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;
 	__DPoolInfo.flags = 0;
 	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
@@ -422,6 +423,7 @@ void UniformBuffer::assemble()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 
 	// setup texture bindings
+	/*
 	VkDescriptorSetLayoutBinding __TextureBindings = {};
 	__TextureBindings.binding = 0;
 	__TextureBindings.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
@@ -436,6 +438,7 @@ void UniformBuffer::assemble()
 	__LayoutInfo.pBindings = &__TextureBindings;
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout_textures);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture layout definition failed");
+	*/
 
 	// descriptor sets
 	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT*2,dset_layout);
@@ -493,6 +496,7 @@ void UniformBuffer::finalize()
 	}
 
 	// placeholder mem barrier
+	/*
 	VkImageMemoryBarrier __Barrier = {  };
 	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	__Barrier.image = m_PlaceholderImage;
@@ -534,6 +538,7 @@ void UniformBuffer::finalize()
 	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
 						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
 						 0,0,nullptr,0,nullptr,1,&__Barrier);
+	*/
 
 	COMM_CNF();
 }
