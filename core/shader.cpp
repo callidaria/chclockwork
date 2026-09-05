@@ -152,7 +152,8 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 TextureSet::TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture)
 {
 	// link texture
-	VkDescriptorImageInfo __MeshTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	VkDescriptorImageInfo __MeshTextureInfo = {  };
+	__MeshTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__MeshTextureInfo.imageView = texture->image_view;
 	__MeshTextureInfo.sampler = texture->sampler;
 
@@ -162,7 +163,7 @@ TextureSet::TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture)
 	m_TextureSet.dstArrayElement = 0;
 	m_TextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	m_TextureSet.descriptorCount = 1;
-	m_TextureSet.pImageInfo = __MeshTextureInfo;
+	m_TextureSet.pImageInfo = &__MeshTextureInfo;
 }
 
 /**
@@ -170,8 +171,10 @@ TextureSet::TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture)
  */
 void TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 {
+	/*
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+	*/
 
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
@@ -205,9 +208,11 @@ void TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 /**
  *	TODO
  */
-void TextureSet::bind()
+void TextureSet::bind(VkPipelineLayout& layout)
 {
-	// TODO
+	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,
+							(VkDescriptorSet*)&m_DSets[g_GPU.active_buffer],0,nullptr);
 }
 
 /**
@@ -292,6 +297,7 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	};
 	__Result = vkCreateImageView(g_GPU.gpu,&__PlaceholderViewInfo,nullptr,&m_PlaceholderTexture);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
+	*/
 	// TODO make the memory (textures) a lot more permissive, this should be a simple conversation with the
 	//		features defined in the memory component, but it very much is NOT that at all.
 	//		this shows, that the intuitive interaction with image memory is not given at this time, improve!
@@ -316,10 +322,11 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	__SamplerInfo.mipLodBias = .0f;
 	__SamplerInfo.minLod = 0;
 	__SamplerInfo.maxLod = 0;
-	__Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
+	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
 
 	// mesh image info setup
+	/*
 	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
 	{
 		m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -337,7 +344,7 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	*/
 
 	// allocate memory for definitions
-	m_PSizes.reserve(bindings);
+	m_DescriptorPoolSizes.reserve(bindings);
 	m_Bindings.reserve(bindings);
 	m_Writes.reserve(bindings);
 	m_DescriptorInfos.reserve(bindings);
@@ -451,7 +458,7 @@ void UniformBuffer::assemble()
 	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
 	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
 	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
-	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0].data);
+	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
 	COMM_CNF();
@@ -536,15 +543,7 @@ void UniformBuffer::finalize()
 /**
  *	TODO
  */
-void UniformBuffer::add_set(TextureSet& set)
-{
-	// TODO
-}
-
-/**
- *	TODO
- */
-void TextureSet::link_result(size_t i,GPUPixelBuffer& texture)
+void UniformBuffer::link_result(size_t i,GPUPixelBuffer& texture)
 {
 	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
 	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
@@ -553,7 +552,7 @@ void TextureSet::link_result(size_t i,GPUPixelBuffer& texture)
 /**
  *	TODO
  */
-void TextureSet::link_result(size_t i,VkImageView buffer)
+void UniformBuffer::link_result(size_t i,VkImageView buffer)
 {
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
@@ -586,10 +585,12 @@ void UniformBuffer::vanish()
 	}
 	g_GPU.free(m_DescriptorPool);
 	g_GPU.free(dset_layout);
+	/*
 	g_GPU.free(m_PlaceholderImage);
 	g_GPU.free(m_PlaceholderMemory);
 	g_GPU.free(m_PlaceholderTexture);
 	g_GPU.free(m_DefaultSampler);
+	*/
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 

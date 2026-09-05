@@ -36,17 +36,19 @@ public:
 	TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture);
 	void define_pixel_buffer(u32 location,VkDescriptorType type);
 	void link_texture(size_t i,GPUPixelBuffer* texture);
-	void bind();
+	void bind(VkPipelineLayout& layout);
+	void update();
 	void vanish();
 
 private:
+	VkWriteDescriptorSet m_TextureSet;
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 };
 
 class UniformBuffer
 {
 public:
-	UniformBuffer(u8 set);
+	UniformBuffer(u32 bindings);
 
 	// setup
 	void define_geometry_buffer(u32 location,size_t size);
@@ -54,7 +56,6 @@ public:
 	void finalize();
 
 	// action
-	friend void add_set(TextureSet& set);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 	void update(void* data,size_t size);
@@ -79,8 +80,8 @@ private:
 	VkImage m_PlaceholderImage;
 	VkDeviceMemory m_PlaceholderMemory;
 	VkImageView m_PlaceholderTexture;
-	VkSampler m_DefaultSampler;
 	*/
+	VkSampler m_DefaultSampler;
 	size_t m_Size = 0;
 
 	// texture set
