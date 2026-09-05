@@ -33,33 +33,37 @@ struct DescriptorInfo
 class TextureSet
 {
 public:
-	TextureSet(size_t bindings);
-	size_t define_pixel_buffer(u32 location,VkDescriptorType type);
-	void link_result(size_t i,GPUPixelBuffer& texture);
-	void link_result(size_t i,VkImageView buffer);
+	TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture);
+	void define_pixel_buffer(u32 location,VkDescriptorType type);
 	void link_texture(size_t i,GPUPixelBuffer* texture);
+	void bind();
 	void vanish();
+
+private:
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 };
 
 class UniformBuffer
 {
 public:
-	UniformBuffer(u32 bindings);
+	UniformBuffer(u8 set);
 
 	// setup
 	void define_geometry_buffer(u32 location,size_t size);
-	void add_set(TextureSet& set);
 	void assemble();
 	void finalize();
 
 	// action
+	friend void add_set(TextureSet& set);
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
 	void update(void* data,size_t size);
 
 	// final
 	void vanish();
 
 public:
-	VkDescriptorSetLayout dset_layout,dset_layout_textures;
+	VkDescriptorSetLayout dset_layout;
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:

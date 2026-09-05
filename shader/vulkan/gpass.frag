@@ -16,8 +16,6 @@ layout(set = 2,binding = 1) uniform sampler2D normal_map;
 layout(set = 2,binding = 2) uniform sampler2D material_map;
 layout(set = 2,binding = 3) uniform sampler2D emission_map;
 
-// layout(set = 1,binding = 0) uniform sampler2D tex[64];
-
 layout(push_constant) uniform PushConstants
 {
 	mat4 model;
@@ -27,6 +25,7 @@ layout(push_constant) uniform PushConstants
 	uint material_map;
 	uint emission_map;
 } pc;
+// TODO remove map ids
 
 
 void main()

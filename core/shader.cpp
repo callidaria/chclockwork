@@ -149,15 +149,26 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 /**
  *	TODO
  */
-TextureSet::TextureSet(size_t bindings)
+TextureSet::TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture)
 {
-	// TODO
+	// link texture
+	VkDescriptorImageInfo __MeshTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__MeshTextureInfo.imageView = texture->image_view;
+	__MeshTextureInfo.sampler = texture->sampler;
+
+	// setup set info
+	m_TextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	m_TextureSet.dstBinding = 0;
+	m_TextureSet.dstArrayElement = 0;
+	m_TextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	m_TextureSet.descriptorCount = 1;
+	m_TextureSet.pImageInfo = __MeshTextureInfo;
 }
 
 /**
  *	TODO
  */
-size_t TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
+void TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -165,8 +176,7 @@ size_t TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 	// descriptor pool size
 	VkDescriptorPoolSize __PSize = {  };
 	__PSize.type = type;
-	__PSize.descriptorCount = GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT);
-	m_PSizes.push_back(__PSize);
+	__PSize.descriptorCount = 1/*GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT)*/;
 
 	// bindings
 	VkDescriptorSetLayoutBinding __Binding = {  };
@@ -175,7 +185,6 @@ size_t TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 	__Binding.descriptorType = type;
 	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
 	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	m_Bindings.push_back(__Binding);
 	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
 
 	// write descriptors
@@ -185,43 +194,32 @@ size_t TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
 	__WriteDescriptor.dstArrayElement = 0;
 	__WriteDescriptor.descriptorType = type;
 	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
 
 	// image info
 	DescriptorInfo __Desc = {  };
 	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
 	__Desc.info.image = {  };
 	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_DescriptorInfos.push_back(__Desc);
-	return m_DescriptorInfos.size()-1;
 }
 
 /**
  *	TODO
  */
-void TextureSet::link_result(size_t i,GPUPixelBuffer& texture)
+void TextureSet::bind()
 {
-	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
-	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+	// TODO
 }
 
 /**
  *	TODO
  */
-void TextureSet::link_result(size_t i,VkImageView buffer)
+void TextureSet::update()
 {
-	m_DescriptorInfos[i].info.image.imageView = buffer;
-	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
-}
-
-/**
- *	TODO
- */
-void TextureSet::link_texture(size_t i,GPUPixelBuffer* texture)
-{
-	m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_MeshTextureInfo[i].imageView = texture->image_view;
-	m_MeshTextureInfo[i].sampler = texture->sampler;
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		m_TextureSet.dstSet = m_DSets[i];
+		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_TextureSet,0,nullptr);
+	}
 }
 
 /**
@@ -338,11 +336,17 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
 	*/
 
+	// allocate memory for definitions
 	m_PSizes.reserve(bindings);
 	m_Bindings.reserve(bindings);
 	m_Writes.reserve(bindings);
 	m_DescriptorInfos.reserve(bindings);
 	// TODO those can be free'd after setup has finished
+	// TODO with the new architecture geometry definitions are predictable and controlled by structure definition
+	//		so this can be removed, there is no preallocation anymore, as well as calling the define by hand
+
+	// texture set definition data predefinition
+	// TODO
 }
 
 /**
@@ -440,20 +444,12 @@ void UniformBuffer::assemble()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture layout definition failed");
 	*/
 
-	// descriptor sets
-	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT*2,dset_layout);
-	__DSetLayouts.reserve(GPU_BUFFER_COUNT*2);
-	for (u8 i=0;i<__DSetLayouts.capacity();i+=2)
-	{
-		__DSetLayouts[i] = dset_layout;
-		__DSetLayouts[i+1] = dset_layout_textures;
-	}
-
-	// allocate descriptor sets
+	// allocate descriptor set 0
+	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,dset_layout);
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
-	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT*UNIFORM_DESCRIPTOR_SET_COUNT;
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
 	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
 	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0].data);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
@@ -475,7 +471,7 @@ void UniformBuffer::finalize()
 		// standard uniform data
 		for (size_t j=0;j<m_Writes.size();j++)
 		{
-			m_Writes[j].dstSet = m_DSets[i].data;
+			m_Writes[j].dstSet = m_DSets[i];
 			switch (m_DescriptorInfos[j].type)
 			{
 			case DESCRIPTOR_TYPE_BUFFER:
@@ -487,12 +483,6 @@ void UniformBuffer::finalize()
 			}
 		}
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
-
-		// mesh texture data
-		/*
-		m_MeshTextureSet.dstSet = m_DSets[i].textures;
-		vkUpdateDescriptorSets(g_GPU.gpu,1,&__MeshTextureSet,0,nullptr);
-		*/
 	}
 
 	// placeholder mem barrier
@@ -545,16 +535,38 @@ void UniformBuffer::finalize()
 
 /**
  *	TODO
+ */
+void UniformBuffer::add_set(TextureSet& set)
+{
+	// TODO
+}
+
+/**
+ *	TODO
+ */
+void TextureSet::link_result(size_t i,GPUPixelBuffer& texture)
+{
+	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+}
+
+/**
+ *	TODO
+ */
+void TextureSet::link_result(size_t i,VkImageView buffer)
+{
+	m_DescriptorInfos[i].info.image.imageView = buffer;
+	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
+}
+
+/**
+ *	TODO
  *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
  */
 void UniformBuffer::update(void* data,size_t size)
 {
 	// data
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
-
-	// textures
-	m_MeshTextureSet.dstSet = m_DSets[g_GPU.active_buffer].textures;
-	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_MeshTextureSet,0,nullptr);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 // TODO dont always update the mesh textures, only when necessary!
@@ -574,7 +586,6 @@ void UniformBuffer::vanish()
 	}
 	g_GPU.free(m_DescriptorPool);
 	g_GPU.free(dset_layout);
-	g_GPU.free(dset_layout_textures);
 	g_GPU.free(m_PlaceholderImage);
 	g_GPU.free(m_PlaceholderMemory);
 	g_GPU.free(m_PlaceholderTexture);
@@ -1139,7 +1150,7 @@ void ShaderPipeline::enable()
 #ifdef VKBUILD
 	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
 	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
-	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,2,
+	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,1,
 							(VkDescriptorSet*)&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
 #else
 	glUseProgram(m_ShaderProgram);
