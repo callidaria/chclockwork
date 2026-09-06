@@ -865,9 +865,10 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.depthWriteEnable = VK_TRUE;
 	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
-	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this. we need stencil trickery
+	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
 	// push constants
+	COMM_MSG_COND(LOG_YELLOW,"the required push constant memory size violates guaranteed minimum of 128 bytes");
 	VkPushConstantRange* p_PushConstantRange = nullptr;
 	if (push_constant_count)
 	{

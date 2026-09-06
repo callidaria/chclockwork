@@ -870,7 +870,6 @@ Renderer::Renderer()
 	// uniform buffer
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
-	/*
 	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -886,7 +885,6 @@ Renderer::Renderer()
 			= g_UniformBuffer.define_pixel_buffer(10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	size_t __GBufferDepthID
 			= g_UniformBuffer.define_pixel_buffer(11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	*/
 	/*
 	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 														  RENDERER_MAXIMUM_TEXTURE_COUNT);
