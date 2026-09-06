@@ -17,6 +17,23 @@ bool check_file_exists(const char* path)
 }
 
 /**
+ *	TODO
+ *	NOTE returned memory has to be freed after using
+ */
+u8* read_file_binary(const char* path,u32& buffer_size)
+{
+	FILE* __File = fopen(path,"rb");
+	COMM_ERR_COND(!__File,"could not open file in order to read it's binary information");
+	fseek(__File,0,SEEK_END);
+	buffer_size = ftell(__File);
+	rewind(__File);
+	u8* __Buffer = (u8*)malloc(buffer_size);
+	fread(__Buffer,1,buffer_size,__File);
+	fclose(__File);
+	return __Buffer;
+}
+
+/**
  *	split line into words
  *	\param words: output vector for words
  *	\param line: raw input line
@@ -44,11 +61,14 @@ BitwiseWords::BitwiseWords(size_t size)
 }
 
 /**
- *	automatically release the allocated data bits on destruction
+ *	copy constructor implementation
+ *	\param o: source bitwise data to be copied
  */
-BitwiseWords::~BitwiseWords()
+BitwiseWords::BitwiseWords(const BitwiseWords& o)
 {
-	free(m_Data);
+	m_Size = o.m_Size;
+	m_Data = (__system_word*)malloc(m_Size*sizeof(__system_word));
+	memcpy(m_Data,o.m_Data,m_Size*sizeof(__system_word));
 }
 
 
@@ -96,9 +116,27 @@ void ThreadSignal::exit()
  *	\param point: point in 2D space to check relationship with rect
  *	\returns true if point is inside rect bounds
  */
-bool Rect::intersect(vec2 point)
+bool Rect::intersects(vec2 point)
 {
 	return (point.x<extent.x&&point.x>position.x)&&(point.y<extent.y&&point.y>position.y);
+}
+
+/**
+ *	TODO
+ */
+bool Rect::intersects(const Rect& r)
+{
+	return !(position.x>=(r.position.x+r.extent.x)||(position.x+extent.x)<=r.position.x
+			 ||position.y>=(r.position.y+r.extent.y)||(position.y+extent.y)<=r.position.y);
+}
+
+/**
+ *	TODO
+ */
+bool Rect::contains(const Rect& r)
+{
+	return r.position.x>=position.x&&r.position.y>=position.y
+		&&(r.position.x+r.extent.x)<=(position.x+extent.x)&&(r.position.y+r.extent.y)<=(position.y+extent.y);
 }
 
 
@@ -291,7 +329,11 @@ void Transform3D::reset()
 CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 {
 	view = glm::lookAt(vec3(0,-.0001f,1),vec3(.0f),vec3(0,0,1));
+#ifdef VKBUILD
+	proj = glm::orthoLH_ZO(.0f,xaxis,.0f,yaxis,.1f,10.f);
+#else
 	proj = glm::ortho(.0f,xaxis,.0f,yaxis,.1f,10.f);
+#endif
 }
 
 
@@ -372,6 +414,9 @@ void Camera3D::force_position()
 void Camera3D::project()
 {
 	proj = glm::perspective(glm::radians(fov),m_Ratio,near,far);
+#ifdef VKBUILD
+	proj[1][1] *= -1;
+#endif
 }
 
 /**
@@ -400,6 +445,7 @@ void Camera3D::roll(f32 r)
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
  *	\param t: amount of time in seconds the momentum takes to snap to target position
+ *	WARNING: this is not intended for usage with character movement! you can, but the user will loose precision.
  */
 TargetMomentumSnap::TargetMomentumSnap(f32 t)
 	: m_Omega(2.f/t) {  }

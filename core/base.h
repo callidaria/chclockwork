@@ -22,20 +22,32 @@
 #include <vector>
 #include <list>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <filesystem>
 
-// ogl
+// graphics
+#ifdef VKBUILD
+#include <vulkan/vulkan.h>
+#else
 #include <GL/glew.h>
+#endif
+
+// handler
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL_main.h>
 #endif
 #include <SDL2/SDL.h>
+#ifdef VKBUILD
+#include <SDL2/SDL_vulkan.h>
+#else
 #include <SDL2/SDL_opengl.h>
+#endif
 
 // math
 #define GLM_ENABLE_EXPERIMENTAL
@@ -99,8 +111,19 @@ typedef std::thread thread;
 template<typename T> using vector = std::vector<T>;
 template<typename T> using list = std::list<T>;
 template<typename T> using queue = std::queue<T>;
+template<typename T> using set = std::set<T>;
 template<typename T,typename U> using map = std::unordered_map<T,U>;
 template<typename T> using lptr = typename std::list<T>::iterator;
+
+
+// typeswitches
+#ifdef VKBUILD
+typedef VkFormat __texture_format;
+typedef VkImageView __fbuffer_component;
+#else
+typedef s32 __texture_format;
+typedef u32 __fbuffer_component;
+#endif
 
 
 // constants
@@ -253,6 +276,14 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 
 // ----------------------------------------------------------------------------------------------------
+// Utility
+
+bool check_file_exists(const char* path);
+u8* read_file_binary(const char* path,u32& buffer_size);
+void split_words(vector<string>& words,string& line);
+
+
+// ----------------------------------------------------------------------------------------------------
 // Math
 
 // math
@@ -262,7 +293,7 @@ static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
 static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
 static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
 
-// matrixmath
+// matrix math
 static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
 {
 	p = m[3];
@@ -285,18 +316,23 @@ static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat
 class BitwiseWords
 {
 public:
-	BitwiseWords(size_t size);
-	~BitwiseWords();
+	BitwiseWords() {  }
+	BitwiseWords(size_t s);
+	BitwiseWords(const BitwiseWords& o);
 
 	inline bool operator[](size_t i) { return (*(m_Data+(i>>MEM_SHIFT))>>(i&MEM_MASK))&(__system_word)1; }
 	inline void set(size_t i) { *(m_Data+(i>>MEM_SHIFT))|=(__system_word)1<<(i&MEM_MASK); }
 	inline void unset(size_t i) { *(m_Data+(i>>MEM_SHIFT))&=~((__system_word)1<<(i&MEM_MASK)); }
 	inline void reset() { memset(m_Data,0,m_Size*sizeof(__system_word)); }
+	inline void vanish() { free(m_Data); };
+
+public:
 
 private:
-	__system_word* m_Data;
 	size_t m_Size;
+	__system_word* m_Data;
 };
+// FIXME especially with the copy, this might lead to many minor allocations, which is bad for performance
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -320,6 +356,7 @@ public:
 	{
 		if (overwrites.size())
 		{
+			std::cout << "overwritten\n";
 			T* out = &mem[overwrites.front()];
 			overwrites.pop();
 			return out;
@@ -330,12 +367,13 @@ public:
 	}
 
 public:
-	u16 active_range = 0;
 	T* mem;
+	u16 active_range = 0;
 	queue<u16> overwrites;
 
+private:
 #ifdef DEBUG
-private: u16 m_Size;
+	u16 m_Size;
 #endif
 };
 
@@ -368,11 +406,13 @@ struct ThreadSignal
 struct Rect
 {
 	// utility
-	bool intersect(vec2 point);
+	bool intersects(vec2 point);
+	bool intersects(const Rect& r);
+	bool contains(const Rect& r);
 
 	// data
-	vec2 position;
-	vec2 extent;
+	vec2 position = vec2(0);
+	vec2 extent = vec2(0);
 };
 
 
@@ -482,6 +522,19 @@ private:
 
 // ----------------------------------------------------------------------------------------------------
 // Additional Globals
+
+#ifdef VKBUILD
+inline vector<const char*> g_GPUExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+};
+
+#ifdef DEBUG
+inline vector<const char*> g_ValidationLayers = {
+	"VK_LAYER_KHRONOS_validation"
+};
+#endif
+#endif
+// FIXME would love to only define this for blitter.cpp in the future. globals for this are overkill
 
 inline FT_Library g_FreetypeLibrary;
 

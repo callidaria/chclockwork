@@ -20,6 +20,39 @@ ThreadSignal _sprite_signal
 
 
 // ----------------------------------------------------------------------------------------------------
+// Additional Utility
+
+/**
+ *	geometry realignment based on position
+ *	\param geom: intersection rectangle over aligning geometry
+ *	\returns new position of geometry after alignment process
+ */
+vec2 Alignment::align(Rect geom)
+{
+	// setup
+	vec2 __Position = geom.position;
+	vec2 __GeomCenter = geom.extent*vec2(.5f);
+	vec2 __BorderCenter = border.extent*vec2(.5f)+border.position;
+
+	// alignment status & coordinate flip for ogl version
+#ifdef VKBUILD
+	u8 vertical_alignment = alignment%3;
+#else
+	vertical_alignment = 2-vertical_alignment;
+	//__Position.y *= -1;
+#endif
+
+	// adjust vertical alignment
+	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
+
+	// adjust horizontal alignment
+	u8 horizontal_alignment = alignment/3;
+	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
+	return __Position;
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Text Component
 
 /**
@@ -32,9 +65,9 @@ void Text::align()
 	dimensions = vec2(wordlen,font->size)*scale;
 
 	// calculate position based on alignment and dimensions
-	if (alignment.align<SCREEN_ALIGN_NEUTRAL)
+	if (alignment.alignment<SCREEN_ALIGN_NEUTRAL)
 	{
-		vec2 __AlignedOffset = Renderer::align({ position,dimensions },alignment);
+		vec2 __AlignedOffset = alignment.align({ position,dimensions });
 		offset.x = __AlignedOffset.x;
 		offset.y = __AlignedOffset.y;
 		return;
@@ -50,8 +83,7 @@ void Text::align()
  */
 void Text::load_buffer()
 {
-	bool reallocate = buffer.capacity()<data.size();
-	COMM_LOG_COND(reallocate,"allocating memory for text buffer");
+	COMM_LOG_COND(buffer.capacity()<data.size(),"allocating memory for text buffer");
 	buffer.resize(data.size());
 
 	// load font information for characters
@@ -59,7 +91,7 @@ void Text::load_buffer()
 	for (u32 i=0;i<data.size();i++)
 	{
 		TextCharacter& p_Character = buffer[i];
-		PixelBufferComponent& p_Component = font->tex[data[i]-32];
+		Rect& p_Component = font->tex[data[i]-32];
 		Glyph& p_Glyph = font->glyphs[data[i]-32];
 
 		// load text data
@@ -310,7 +342,7 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 
 /**
  *	(called by AnimatedMesh::AnimatedMesh())
- *	aquire joint numerical id from joint list by it's joint string id
+ *	acquire joint numerical id from joint list by it's joint string id
  *	\param joints: list of joints
  *	\param id: alphanumeric joint id as imported from file structure
  *	\returns numerical joint id as given by depthsearch layout assembly
@@ -491,6 +523,7 @@ void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 {
 	m_StandardAnimation = id;
 	m_StandardTransitionTime = tt;
+	current_animation = id;
 }
 
 /**
@@ -535,7 +568,7 @@ MeshJoint* AnimatedMesh::find_joint(const string& id)
 }
 
 /**
- *	aquire progress of current animation
+ *	acquire progress of current animation
  *	\returns animation progress between 0 and 1
  */
 f64 AnimatedMesh::get_progress()
@@ -636,6 +669,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 {
 	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
 }
+// FIXME make this vector a Texture* with lenth pass default = 1 instead, this makes is way more usable
 
 /**
  *	add animated mesh geometry to batch
@@ -686,20 +720,41 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vao.bind();
-	vbo.bind();
-	vbo.upload_vertices(geometry);
-	shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+	vbo.allocate(geometry.size()*sizeof(f32),false);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
+	vbo.update();
+	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+
+	// vertex array
+	vao.allocate(1);
+	vao.register_buffer(vbo);
+
+	// generate push constant memory
+	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
+
+/**
+ *	clean batch memory & destroy buffers
+ */
+void GeometryBatch::vanish()
+{
+	vbo.free();
+	vbo.vanish();
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Particle Batching
 
 /**
  *	setup particle batch by mesh geometry
  *	\param mesh: loaded mesh for explicit geometry information
  *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
  */
-void ParticleBatch::load(Mesh& mesh,u32 particles)
+void ParticleBatch::load(Mesh& mesh,u32 particles,size_t isize)
 {
-	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles);
+	load(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),particles,isize);
 }
 
 /**
@@ -708,8 +763,9 @@ void ParticleBatch::load(Mesh& mesh,u32 particles)
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
  *	\param particles: amount of particles
+ *	\param isize: upload dimension of index buffer !in memory width!
  */
-void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
+void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize)
 {
 	COMM_LOG("loading particle mesh geometry information");
 	size_t size = vsize*ssize;
@@ -717,204 +773,285 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles)
 	memcpy(&geometry[0],verts,size);
 
 	// auto-mapping particle shader pipeline
-	vao.bind();
-	vbo.bind();
-	vbo.upload_vertices(geometry);
-	shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
+	vbo.allocate(geometry.size()*sizeof(f32));
+	ibo.allocate(particles*isize);
+	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
+	ibo.update();
+	vbo.update();
+	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
+
+	// vertex array
+	vao.allocate(2);
+	vao.register_buffer(vbo);
+	vao.register_buffer_dynamic(ibo);
+
+	// generate push constant memory
+	shader->generate_pcm(pcm);
 
 	// store geometry information
 	vertex_count = vsize;
 	active_particles = particles;
 }
 
+/**
+ *	clean batch memory & destroy buffers
+ */
+void ParticleBatch::vanish()
+{
+	vbo.free();
+	ibo.free();
+	vbo.vanish();
+	ibo.vanish();
+}
+
 
 // ----------------------------------------------------------------------------------------------------
-// Renderer Main Features
+// Render Unit
 
-/**
- *	setup renderer
- */
+#ifdef VKBUILD
+
+// TODO those are all prototype implementations!
+//		doc will be created later down the line when everything is in order
 Renderer::Renderer()
 {
-	COMM_MSG(LOG_CYAN,"starting render system");
-
 	COMM_LOG("starting font rasterizer");
 	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
 	COMM_ERR_COND(_failed,"text rasterizer not available");
+	g_GPU.swap();
 
-	COMM_LOG("pre-loading basic geometry data");
+	// primitive sprite & canvas data
 	f32 __QuadVertices[] = {
-		-.5f,.5f,.0f,.0f, .5f,-.5f,1.f,1.f, .5f,.5f,1.f,.0f,
-		.5f,-.5f,1.f,1.f, -.5f,.5f,.0f,.0f, -.5f,-.5f,.0f,1.f
+		-.5f,-.5f,.0f,1.f, .5f,.5f,1.f,.0f, .5f,-.5f,1.f,1.f,
+		.5f,.5f,1.f,.0f, -.5f,-.5f,.0f,1.f, -.5f,.5f,.0f,.0f
 	};
-	f32 __CanvasVertices[] = {
-		-1.f,1.f,.0f,1.f, 1.f,-1.f,1.f,.0f, 1.f,1.f,1.f,1.f,
-		1.f,-1.f,1.f,.0f, -1.f,1.f,.0f,1.f, -1.f,-1.f,.0f,.0f
+	f32 __FBVertices[] = {
+		-1.f,-1.f,.0f,.0f, 1.f,1.f,1.f,1.f, 1.f,-1.f,1.f,.0f,
+		1.f,1.f,1.f,1.f, -1.f,-1.f,.0f,.0f, -1.f,1.f,.0f,1.f
 	};
 
-	COMM_LOG("compiling shaders");
-	VertexShader __SpriteVertexShader = VertexShader("core/shader/sprite.vert");
-	FragmentShader __DirectFragmentShader = FragmentShader("core/shader/sprite.frag");
-	VertexShader __TextVertexShader = VertexShader("core/shader/text.vert");
-	FragmentShader __TextFragmentShader = FragmentShader("core/shader/text.frag");
-	VertexShader __CanvasVertexShader = VertexShader("core/shader/canvas.vert");
-	FragmentShader __LightingPassFragmentShader = FragmentShader("core/shader/pbs.frag");
-	VertexShader __GeometryPassVertexShader = VertexShader("core/shader/gpass.vert");
-	FragmentShader __GeometryPassFragmentShader = FragmentShader("core/shader/gpass.frag");
-	VertexShader __ParticlePassVertexShader = VertexShader("core/shader/ipass.vert");
-	FragmentShader __ParticlePassFragmentShader = FragmentShader("core/shader/ipass.frag");
-	VertexShader __GeometryShadowVertexShader = VertexShader("core/shader/gshadow.vert");
-	VertexShader __ParticleShadowVertexShader = VertexShader("core/shader/ishadow.vert");
-	FragmentShader __ShadowFragmentShader = FragmentShader("core/shader/shadow.frag");
+	// SPRITES
+	// sprite vertex data
+	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
+	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
+	m_SpriteVertexBuffer.update();
+	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT);
 
-	// ----------------------------------------------------------------------------------------------------
-	// Sprite Pipeline
+	// sprite vertex array
+	m_SpriteVertexArray.allocate(2);
+	m_SpriteVertexArray.register_buffer(m_SpriteVertexBuffer);
+	m_SpriteVertexArray.register_buffer_dynamic(m_SpriteInstanceBuffer);
 
-	COMM_LOG("assembling pipelines:");
-	COMM_LOG("sprite pipeline");
-	m_SpritePipeline.assemble(__SpriteVertexShader,__DirectFragmentShader);
-	m_SpriteVertexArray.bind();
-	m_SpriteVertexBuffer.bind();
-	m_SpriteVertexBuffer.upload_vertices(__QuadVertices,24);
-	m_SpritePipeline.map(RENDERER_TEXTURE_SPRITES,&m_SpriteVertexBuffer,&m_SpriteInstanceBuffer);
-	m_SpritePipeline.upload_coordinate_system();
+	// TEXT
+	// text vertex data
+	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
 
-	COMM_LOG("text pipeline");
-	m_TextPipeline.assemble(__TextVertexShader,__TextFragmentShader);
-	m_TextVertexArray.bind();
-	m_SpriteVertexBuffer.bind();
-	m_TextPipeline.map(RENDERER_TEXTURE_FONTS,&m_SpriteVertexBuffer,&m_TextInstanceBuffer);
-	m_TextPipeline.upload_coordinate_system();
+	// text vertex array
+	m_TextVertexArray.allocate(2);
+	m_TextVertexArray.register_buffer(m_SpriteVertexBuffer);
+	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
 
-	COMM_LOG("canvas pipeline");
-	m_CanvasPipeline.assemble(__CanvasVertexShader,__LightingPassFragmentShader);
-	m_CanvasVertexArray.bind();
-	m_CanvasVertexBuffer.bind();
-	m_CanvasVertexBuffer.upload_vertices(__CanvasVertices,24);
-	m_CanvasPipeline.map(RENDERER_TEXTURE_FORWARD,&m_CanvasVertexBuffer);
+	// SCENE FRAMEBUFFER
+	// framebuffer vertex data
+	m_TargetVertexBuffer.allocate(sizeof(__FBVertices));
+	m_TargetVertexBuffer.upload(__FBVertices,sizeof(__FBVertices));
+	m_TargetVertexBuffer.update();
 
-	COMM_LOG("geometry pass pipelines");
-	m_GeometryPassPipeline = register_pipeline(__GeometryPassVertexShader,__GeometryPassFragmentShader);
-	m_ParticlePassPipeline = register_pipeline(__ParticlePassVertexShader,__ParticlePassFragmentShader);
+	// framebuffer vertex array
+	m_TargetVertexArray.allocate(1);
+	m_TargetVertexArray.register_buffer(m_TargetVertexBuffer);
 
-	COMM_LOG("shadow projection piplines");
-	m_GeometryShadowPipeline = register_pipeline(__GeometryShadowVertexShader,__ShadowFragmentShader);
-	m_ParticleShadowPipeline = register_pipeline(__ParticleShadowVertexShader,__ShadowFragmentShader);
+	// RESOURCE SETUP
+	// textures
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
+								 TEXTURE_FORMAT_SRGB,ATLAS_SPRITES_PADDING);
+	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
+							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
-	// ----------------------------------------------------------------------------------------------------
-	// GPU Memory
+	// uniform buffer
+	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
+	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
+	/*
+	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __ResultDepthID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferColourID = g_UniformBuffer.define_pixel_buffer(6,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferPositionID
+			= g_UniformBuffer.define_pixel_buffer(7,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferNormalID
+			= g_UniformBuffer.define_pixel_buffer(8,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferMaterialID
+			= g_UniformBuffer.define_pixel_buffer(9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferEmissionID
+			= g_UniformBuffer.define_pixel_buffer(10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	size_t __GBufferDepthID
+			= g_UniformBuffer.define_pixel_buffer(11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	*/
+	/*
+	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+														  RENDERER_MAXIMUM_TEXTURE_COUNT);
+	*/
+	g_UniformBuffer.assemble();
+	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
+	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
+	//		but it might just work, if definition and linking is separated as they might be in the future
+	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
+	//		setup, when reading the shader code for interfacing & push constants!
+	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
-	COMM_LOG("allocating sprite memory");
-	m_GPUSpriteTextures.atlas.bind(RENDERER_TEXTURE_SPRITES);
-	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,GL_RGBA);
-	Texture::set_texture_parameter_linear_mipmap();
-	Texture::set_texture_parameter_clamp_to_edge();
+	// UI pipelines
+	m_SpritePipeline.out_define_result_buffer();
+	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
+	m_TextPipeline.out_define_colour_buffer();
+	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
+	m_TargetPipeline.out_define_colour_buffer();
+	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 
-	COMM_LOG("allocating font memory");
-	m_GPUFontTextures.atlas.bind(RENDERER_TEXTURE_FONTS);
-	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,GL_RED);
-	Texture::set_texture_parameter_linear_mipmap();
-	Texture::set_texture_parameter_clamp_to_edge();
+	// pipelines, setup for deferred scene processing
+	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+											   5,true);
 
-	// ----------------------------------------------------------------------------------------------------
-	// Render Targets
+	// result target & geometry target
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
+		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
+								 m_SpritePipeline,i);
+	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);  // FIXME mismatch?
+	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
+	// TODO routinize
 
-	COMM_LOG("creating forward render target");
-	m_ForwardFrameBuffer.start();
-	m_ForwardFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_ForwardFrameBuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_ForwardFrameBuffer.finalize();
+	// link buffer results
+	/*
+	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
+	g_UniformBuffer.link_result(__TextBufferID,m_GPUFontTextures);
+	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
+	g_UniformBuffer.link_result(__ResultDepthID,m_Framebuffer.components[1]);
+	g_UniformBuffer.link_result(__GBufferColourID,m_GBuffer.components[0]);
+	g_UniformBuffer.link_result(__GBufferPositionID,m_GBuffer.components[1]);
+	g_UniformBuffer.link_result(__GBufferNormalID,m_GBuffer.components[2]);
+	g_UniformBuffer.link_result(__GBufferMaterialID,m_GBuffer.components[3]);
+	g_UniformBuffer.link_result(__GBufferEmissionID,m_GBuffer.components[4]);
+	g_UniformBuffer.link_result(__GBufferDepthID,m_GBuffer.components[5]);
+	*/
 
-	COMM_LOG("creating deferred render target");
-	m_DeferredFrameBuffer.start();
-	m_DeferredFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_DeferredFrameBuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
-	m_DeferredFrameBuffer.define_colour_component(2,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
-	m_DeferredFrameBuffer.define_colour_component(3,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
-	m_DeferredFrameBuffer.define_colour_component(4,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_DeferredFrameBuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_DeferredFrameBuffer.finalize();
+	// upload 2D coordinate system
+	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
+	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
-	COMM_LOG("creating shadow projection render target");
-	m_ShadowFrameBuffer.start();
-	m_ShadowFrameBuffer.define_depth_component(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
-	Texture::set_texture_parameter_clamp_to_border();
-	Texture::set_texture_parameter_border_colour(vec4(1));
-	Framebuffer::stop();
+	// upload camera
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
-	// ----------------------------------------------------------------------------------------------------
-	// Start Subprocesses
-
-	COMM_LOG("starting renderer subprocesses");
-	_sprite_signal.stall();
-	m_SpriteCollector = thread(Renderer::_collector<Sprite>,&m_Sprites,&_sprite_signal);
-	m_SpriteCollector.detach();
-	_sprite_texture_signal.stall();
-	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
-									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
-	m_SpriteTextureCollector.detach();
-	COMM_SCC("render system ready.");
-}
-// TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
-
-/**
- *	precalculating setup (before wheel system setup)
- */
-void Renderer::precalculate()
-{
-	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
-	for (GeometryBatch& p_Batch : m_GeometryBatches)
-	{
-		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
-			p_Mesh->update();
-	}
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
-	{
-		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
-			p_Mesh->update();
-	}
+	g_UniformBuffer.finalize();
 }
 
-/**
- *	render visual result
- */
 void Renderer::update()
 {
-	// shadow projection
-	glCullFace(GL_FRONT);
-	glViewport(0,0,RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
-	m_ShadowFrameBuffer.start();
-	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
-	glCullFace(GL_BACK);
+	// camera update
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	// TODO also create the ability the link a camera to the uniform
+	//		right now this happens for both matrices individually, which is not appropriate
+	// TODO dont copy over like this
 
-	// 3D segment
-	glViewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	m_ForwardFrameBuffer.start();
-	_update_mesh(m_GeometryBatches,m_ParticleBatches);
-	m_DeferredFrameBuffer.start();
-	_update_mesh(m_DeferredGeometryBatches,m_DeferredParticleBatches);
-	Framebuffer::stop();
+	// data update
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
-	// rendertargets
-	glDisable(GL_DEPTH_TEST);
-	_update_canvas();
-	glEnable(GL_DEPTH_TEST);
+	// RECORD SCENE DEFERRED
+	m_GBuffer.record();
+	_update_mesh(m_DeferredGeometryBatches);
+	//_update_particles(m_DeferredGeometryBatches);
+	m_GBuffer.stop();
 
-	// 2D segment
+	// RECORD SCENE FORWARD
+	m_Framebuffer.record();
+	_update_mesh(m_GeometryBatches);
+	_update_particles(m_ParticleBatches);
+	m_Framebuffer.stop();
+
+	// START RESULT ASSEMBLY
+	m_ResultBuffers[g_Frame.frame_id].record();
+
+	// perspective section
+	m_TargetPipeline.enable();
+	m_TargetVertexArray.bind();
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
+
+	// orthogonal section
 	_update_sprites();
 	_update_text();
 
-	// end-frame gpu management
+	// END RESULT ASSEMBLY
+	m_ResultBuffers[g_Frame.frame_id].stop();
+
 	_gpu_upload();
+
+	// transfer instance data
+	/*
+	m_InstanceBuffer.update();
+	m_VertexArray.transfer_ownership_read();
+	m_SpriteArray.transfer_ownership_read();
+
+	// prepare text updates
+	m_TextArray.transfer_ownership_write();
+	*/
 }
+// TODO find out when to call the ownership transfers / when those memory barriers are needed
+// TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
+// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 /**
- *	exit renderer and end all it's subprocesses
+ *	exit renderer and end all it's subprocesses, also cleanup all resources
  */
-void Renderer::exit()
+void Renderer::vanish()
 {
+#ifdef VKBUILD
+	// clean pipelines
+	m_TargetPipeline.vanish();
+	m_SpritePipeline.vanish();
+	m_TextPipeline.vanish();
+	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
+
+	// clean framebuffers
+	m_GBuffer.vanish();
+	m_Framebuffer.vanish();
+	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
+
+	// clear pixel buffers
+	m_GPUSpriteTextures.vanish();
+	m_GPUFontTextures.vanish();
+
+	// free vertex buffers
+	m_SpriteVertexBuffer.free();
+	m_SpriteInstanceBuffer.free();
+	m_TextInstanceBuffer.free();
+	m_TargetVertexBuffer.free();
+
+	// clear vertex buffers
+	m_SpriteVertexBuffer.vanish();
+	m_SpriteInstanceBuffer.vanish();
+	m_TextInstanceBuffer.vanish();
+	m_TargetVertexBuffer.vanish();
+
+	// clear active batchesn
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vanish();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
+
+	// clear registered textures
+	for (size_t i=0;i<m_MeshTextures.active_range;i++)
+	{
+		if (!m_MeshTextures.mem[i].allocated) continue;
+		m_MeshTextures.mem[i].vanish();
+	}
+
+	// clear uniform upload memory
+	g_UniformBuffer.vanish();
+#endif
+
+	/*
 	_sprite_texture_signal.exit();
 	_sprite_signal.exit();
+	*/
 }
 
 /**
@@ -922,9 +1059,9 @@ void Renderer::exit()
  *	\param path: path to texture file
  *	\returns pointer to texture component info to assign to a sprite later
  */
-PixelBufferComponent* Renderer::register_sprite_texture(const char* path)
+Rect* Renderer::register_sprite_texture(const char* path)
 {
-	PixelBufferComponent* p_Comp = m_GPUSpriteTextures.textures.next_free();
+	Rect* p_Comp = m_GPUSpriteTextures.textures.next_free();
 	m_GPUSpriteTextures.signal.stall();
 
 	COMM_LOG("sprite texture register of %s",path);
@@ -944,22 +1081,22 @@ PixelBufferComponent* Renderer::register_sprite_texture(const char* path)
  *	\param alignment: (default fullscreen neutral) sprite position alignment within borders
  *	\returns pointer to sprite data for modification purposes
  */
-Sprite* Renderer::register_sprite(PixelBufferComponent* texture,vec3 position,vec2 size,f32 rotation,
-								  f32 alpha,Alignment alignment)
+Sprite* Renderer::register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation,f32 alpha,
+								  Alignment alignment)
 {
-	// determine memory location, overwrite has priority over appending
 	Sprite* p_Sprite = m_Sprites.next_free();
-	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
-			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
 
 	// align sprite into borders
-	if (alignment.align!=SCREEN_ALIGN_NEUTRAL)
+	if (alignment.alignment!=SCREEN_ALIGN_NEUTRAL)
 	{
 		vec2 hsize = size*.5f;
-		vec2 __AlignedPosition = align({ vec2(position)-hsize,size },alignment)+size;
+		vec2 __AlignedPosition = alignment.align({ vec2(position)-hsize,size })+size;
 		position.x = __AlignedPosition.x;
 		position.y = __AlignedPosition.y;
 	}
+
+	COMM_LOG("sprite register at: (%f,%f), %fx%f, %f° -> count = %d",
+			 position.x,position.y,size.x,size.y,rotation,m_Sprites.active_range);
 
 	// write information to memory
 	(*p_Sprite) = {
@@ -977,21 +1114,20 @@ Sprite* Renderer::register_sprite(PixelBufferComponent* texture,vec3 position,ve
  *	\param sprite: pointer to the sprite canvas received at creation
  *	\param texture: pointer to texture component info received at load request
  */
-void Renderer::assign_sprite_texture(Sprite* sprite,PixelBufferComponent* texture)
+void Renderer::assign_sprite_texture(Sprite* sprite,Rect* texture)
 {
 	m_GPUSpriteTextures.signal.wait();
-	sprite->tex_position = texture->offset;
-	sprite->tex_dimension = texture->dimensions;
+	sprite->pbc = *texture;
 }
 
 /**
  *	remove given sprite texture and free memory in array as well as releasing memory space on atlas
  *	\param texture: pointer to texture, which shall be removed
  */
-void Renderer::delete_sprite_texture(PixelBufferComponent* texture)
+void Renderer::delete_sprite_texture(Rect* texture)
 {
 	// signal cleanup
-	texture->offset.x = RENDERER_POSITIONAL_DELETION_CODE;
+	texture->position.x = RENDERER_POSITIONAL_DELETION_CODE;
 	_sprite_texture_signal.proceed();
 
 	// free texture atlas memory
@@ -1021,7 +1157,7 @@ void Renderer::delete_sprite(Sprite* sprite)
  */
 Font* Renderer::register_font(const char* path,u16 size)
 {
-	COMM_LOG("font register from source %s",path);
+	COMM_AWT("register font from source %s",path);
 	Font* p_Font = m_Fonts.next_free();
 	m_GPUFontTextures.signal.stall();
 	thread __LoadThread(GPUPixelBuffer::load_font,&m_GPUFontTextures,p_Font,path,size);
@@ -1041,6 +1177,8 @@ Font* Renderer::register_font(const char* path,u16 size)
  */
 lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour,Alignment align)
 {
+	COMM_ERR_COND(position.z>=10||position.z<=0,"text positioning is out of orthographic clipping range");
+	// FIXME inaccurate guard, after projection even 1 is clipped, while 7 works no problem?
 	m_GPUFontTextures.signal.wait();
 	m_Texts.push_back({
 			.font = font,
@@ -1065,7 +1203,7 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
  *	\param data_queue: queue for texture vram upload
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
-void _load_texture(Texture* texture,const char* path,TextureFormat format,
+void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
 				   queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data = TextureData(format);
@@ -1081,27 +1219,35 @@ void _load_texture(Texture* texture,const char* path,TextureFormat format,
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
  *	\returns pointer to texture in ram, referencing texture in vram
  */
-Texture* Renderer::register_texture(const char* path,TextureFormat format)
+constexpr f64 PIXEL_BUFFER_SIZE_INV = 1./sizeof(GPUPixelBuffer);
+GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format)
 {
 	COMM_LOG("mesh texture register of %s",path);
-	Texture* p_Texture = m_MeshTextures.next_free();
-	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
+	new(p_Texture) GPUPixelBuffer();
+	p_Texture->memID = (p_Texture-m_MeshTextures.mem)*PIXEL_BUFFER_SIZE_INV;
+	thread __LoadThread(_load_texture,p_Texture,path,format,
+						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();
 	return p_Texture;
 }
+// TODO default texture format should be srgb, not linear rgb values.
+//		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 /**
  *	register shader pipeline
- *	\param vs: vertex shader
- *	\param fs: fragment shader
- *	returns pointer to registered shader pipeline
+ *	\param vs: path to vertex shader
+ *	\param fs: path to fragment shader
+ *	\param bfr_count: count of output buffers, amount of channels that the shader writes to
+ *	\param depth: (default false) record depth result after shader processing
+ *	\returns pointer to registered shader pipeline
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
+lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline());
+	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(vs,fs);
+	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer();
+	p_Pipeline->assemble(vs,fs,false);
 	return p_Pipeline;
 }
 
@@ -1114,6 +1260,17 @@ lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipel
 {
 	m_GeometryBatches.push_back({ .shader = pipeline });
 	return std::prev(m_GeometryBatches.end());
+}
+
+/**
+ *	register particle batch
+ *	\param pipeline: shader pipeline, handling pixel output for newly created batch
+ *	\returns pointer to created particle batch
+ */
+lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipeline)
+{
+	m_ParticleBatches.push_back({ .shader = pipeline });
+	return std::prev(m_ParticleBatches.end());
 }
 
 /**
@@ -1138,25 +1295,16 @@ lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeli
 }
 
 /**
- *	register particle batch
- *	\param pipeline: shader pipeline, handling pixel output for newly created batch
- *	\returns pointer to created particle batch
- */
-lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipeline)
-{
-	m_ParticleBatches.push_back({ .shader = pipeline });
-	return std::prev(m_ParticleBatches.end());
-}
-
-/**
  *	register phyiscal particle batch
  *	\returns pointer to created physical particle batch
  */
+/*
 lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
 {
 	m_DeferredParticleBatches.push_back({ .shader = m_ParticlePassPipeline });
 	return std::prev(m_DeferredParticleBatches.end());
 }
+*/
 
 /**
  *	register phyiscal particle batch
@@ -1168,6 +1316,335 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 	m_DeferredParticleBatches.push_back({ .shader = pipeline });
 	return std::prev(m_DeferredParticleBatches.end());
 }
+
+/**
+ *	update draw of all registered sprites
+ */
+void Renderer::_update_sprites()
+{
+#ifdef VKBUILD
+	m_SpritePipeline.enable();
+	m_SpriteVertexArray.bind();
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
+#else
+	m_SpriteVertexArray.bind();
+	m_SpriteInstanceBuffer.bind();
+	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem);
+	m_SpritePipeline.enable();
+	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
+#endif
+}
+
+/**
+ *	update draw of all registered characters from text components
+ */
+void Renderer::_update_text()
+{
+#ifdef VKBUILD
+	m_TextPipeline.enable();
+	m_TextVertexArray.bind();
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
+#else
+	m_TextVertexArray.bind();
+	m_TextInstanceBuffer.bind();
+	m_TextPipeline.enable();
+	for (Text& p_Text : m_Texts)
+	{
+		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
+		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
+	}
+#endif
+}
+
+/**
+ *	update draw of all registered batches
+ */
+void Renderer::_update_mesh(list<GeometryBatch>& batches)
+{
+	for (GeometryBatch& p_Batch : batches)
+	{
+		p_Batch.shader->enable();
+		p_Batch.vao.bind();
+		for (GeometryTuple& p_Tuple : p_Batch.objects)
+		{
+			p_Batch.shader->upload_pcm(p_Batch.pcm);
+			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+		}
+	}
+}
+// TODO combine draws for all geometry tuples to a single draw call, or allow different pcs
+
+/**
+ *	update draw of all particle batches
+ */
+void Renderer::_update_particles(list<ParticleBatch>& batches)
+{
+	for (ParticleBatch& p_Batch : batches)
+	{
+		p_Batch.shader->enable();
+		p_Batch.vao.bind();
+		p_Batch.shader->upload_pcm(p_Batch.pcm);
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
+				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
+	}
+}
+
+/**
+ *	handle pending gpu uploads for all forwarded data
+ */
+void Renderer::_gpu_upload()
+{
+	// sprites
+	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
+	m_SpriteInstanceBuffer.update();
+	m_GPUSpriteTextures.gpu_upload();
+
+	// text
+	m_CharCount = 0;
+	for (Text& p_Text : m_Texts)
+	{
+		m_TextInstanceBuffer.upload(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter),
+									m_CharCount*sizeof(TextCharacter));
+		m_CharCount += p_Text.buffer.size();
+	}
+	m_TextInstanceBuffer.update();
+	m_GPUFontTextures.gpu_upload();
+
+	// mesh textures
+	bool __MeshTextureUpdated = false;
+	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
+	{
+		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
+		p_Tuple.texture->load_requests.push(p_Tuple.data);
+		p_Tuple.texture->gpu_upload();
+		m_MeshTextureUploadQueue.pop();
+		__MeshTextureUpdated = true;
+	}
+
+	// link results
+	if (__MeshTextureUpdated)
+	{
+		for (size_t i=0;i<m_MeshTextures.active_range;i++)
+		{
+			if (!m_MeshTextures.mem[i].allocated) continue;
+			//g_UniformBuffer.link_texture(i,&m_MeshTextures.mem[i]);
+		}
+	}
+	// FIXME updating all can be avoided, when index is already known!
+}
+// TODO wasted memory space, specialized texture structure
+// TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
+//		the measurement has to apply to a single update state
+// TODO skip parts of this upload based on change signals by load commands
+//		i'm afraid those uploads have to be split mid-frame (at least the "binding"), should the gpu not be
+//		capable to fulfill the texture array demands
+// TODO this also proposes the implementation of a maximum allowed texture range by the device.
+//		(also add this as a qualifier when selecting the device), then permit in-frame swapping when necessary
+//		but should this occur it has to be logged for convenience when optimizing for lower end hardware
+
+#else
+
+
+// ----------------------------------------------------------------------------------------------------
+// Renderer Main Features
+
+/**
+ *	setup renderer
+ */
+Renderer::Renderer()
+{
+	COMM_MSG(LOG_CYAN,"starting render system");
+	COMM_LOG("starting font rasterizer");
+	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
+	COMM_ERR_COND(_failed,"text rasterizer not available");
+
+	COMM_LOG("pre-loading basic geometry data");
+	f32 __QuadVertices[] = {
+		-.5f,.5f,.0f,.0f, .5f,-.5f,1.f,1.f, .5f,.5f,1.f,.0f,
+		.5f,-.5f,1.f,1.f, -.5f,.5f,.0f,.0f, -.5f,-.5f,.0f,1.f
+	};
+	f32 __CanvasVertices[] = {
+		-1.f,1.f,.0f,1.f, 1.f,-1.f,1.f,.0f, 1.f,1.f,1.f,1.f,
+		1.f,-1.f,1.f,.0f, -1.f,1.f,.0f,1.f, -1.f,-1.f,.0f,.0f
+	};
+
+	COMM_LOG("compiling shaders");
+	VertexShader __SpriteVertexShader = VertexShader("shader/ogl/sprite.vert");
+	FragmentShader __DirectFragmentShader = FragmentShader("shader/ogl/sprite.frag");
+	VertexShader __TextVertexShader = VertexShader("shader/ogl/text.vert");
+	FragmentShader __TextFragmentShader = FragmentShader("shader/ogl/text.frag");
+	VertexShader __CanvasVertexShader = VertexShader("shader/ogl/canvas.vert");
+	FragmentShader __LightingPassFragmentShader = FragmentShader("shader/ogl/pbs.frag");
+	VertexShader __GeometryPassVertexShader = VertexShader("shader/ogl/gpass.vert");
+	FragmentShader __GeometryPassFragmentShader = FragmentShader("shader/ogl/gpass.frag");
+	VertexShader __ParticlePassVertexShader = VertexShader("shader/ogl/ipass.vert");
+	FragmentShader __ParticlePassFragmentShader = FragmentShader("shader/ogl/ipass.frag");
+	VertexShader __GeometryShadowVertexShader = VertexShader("shader/ogl/gshadow.vert");
+	VertexShader __ParticleShadowVertexShader = VertexShader("shader/ogl/ishadow.vert");
+	FragmentShader __ShadowFragmentShader = FragmentShader("shader/ogl/shadow.frag");
+
+	// ----------------------------------------------------------------------------------------------------
+	// Sprite Pipeline
+
+	COMM_LOG("assembling pipelines:");
+	COMM_LOG("sprite pipeline");
+	/*
+	m_SpritePipeline.assemble(__SpriteVertexShader,__DirectFragmentShader);
+	m_SpriteVertexBuffer.allocate(24*sizeof(f32));
+	m_SpriteInstanceBuffer.allocate(BUFFER_MAXIMUM_TEXTURE_COUNT*sizeof(Sprite),BUFFER_TYPE_INDEX);
+	m_SpriteVertexBuffer.upload(__QuadVertices);
+	m_SpritePipeline.map(RENDERER_TEXTURE_SPRITES,&m_SpriteVertexBuffer,&m_SpriteInstanceBuffer);
+	m_SpritePipeline.upload_coordinate_system();
+
+	COMM_LOG("text pipeline");
+	m_TextPipeline.assemble(__TextVertexShader,__TextFragmentShader);
+	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter),BUFFER_TYPE_INDEX);
+	m_TextPipeline.map(RENDERER_TEXTURE_FONTS,&m_SpriteVertexBuffer,&m_TextInstanceBuffer);
+	m_TextPipeline.upload_coordinate_system();
+	*/
+
+	COMM_LOG("canvas pipeline");
+	m_CanvasPipeline.assemble(__CanvasVertexShader,__LightingPassFragmentShader);
+	m_CanvasVertexBuffer.allocate(24*sizeof(f32));
+	m_CanvasVertexBuffer.upload(__CanvasVertices,sizeof(__CanvasVertices));  // FIXME duplicate?!??
+	m_CanvasPipeline.map(RENDERER_TEXTURE_FORWARD,&m_CanvasVertexBuffer);
+
+	COMM_LOG("geometry pass pipelines");
+	m_GeometryPassPipeline = register_pipeline(__GeometryPassVertexShader,__GeometryPassFragmentShader);
+	m_ParticlePassPipeline = register_pipeline(__ParticlePassVertexShader,__ParticlePassFragmentShader);
+
+	COMM_LOG("shadow projection piplines");
+	m_GeometryShadowPipeline = register_pipeline(__GeometryShadowVertexShader,__ShadowFragmentShader);
+	m_ParticleShadowPipeline = register_pipeline(__ParticleShadowVertexShader,__ShadowFragmentShader);
+
+	// ----------------------------------------------------------------------------------------------------
+	// GPU Memory
+
+	COMM_LOG("allocating sprite memory");
+	m_GPUSpriteTextures.atlas.bind(RENDERER_TEXTURE_SPRITES);
+	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
+								 TEXTURE_FORMAT_RGBA);
+	Texture::set_texture_parameter_linear_mipmap();
+	Texture::set_texture_parameter_clamp_to_edge();
+
+	COMM_LOG("allocating font memory");
+	m_GPUFontTextures.atlas.bind(RENDERER_TEXTURE_FONTS);
+	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
+							   TEXTURE_FORMAT_MONOCHROME);
+	Texture::set_texture_parameter_linear_mipmap();
+	Texture::set_texture_parameter_clamp_to_edge();
+
+	// ----------------------------------------------------------------------------------------------------
+	// Render Targets
+
+	COMM_LOG("creating forward render target");
+	m_ForwardFrameBuffer.record();
+	m_ForwardFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_ForwardFrameBuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_ForwardFrameBuffer.finalize();
+
+	COMM_LOG("creating deferred render target");
+	m_DeferredFrameBuffer.record();
+	m_DeferredFrameBuffer.define_colour_component(0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_DeferredFrameBuffer.define_colour_component(1,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
+	m_DeferredFrameBuffer.define_colour_component(2,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
+	m_DeferredFrameBuffer.define_colour_component(3,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,true);
+	m_DeferredFrameBuffer.define_colour_component(4,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_DeferredFrameBuffer.define_depth_component(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_DeferredFrameBuffer.finalize();
+
+	COMM_LOG("creating shadow projection render target");
+	m_ShadowFrameBuffer.record();
+	m_ShadowFrameBuffer.define_depth_component(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+	Texture::set_texture_parameter_clamp_to_border();
+	Texture::set_texture_parameter_border_colour(vec4(1));
+	m_ShadowFrameBuffer.stop();
+
+	// ----------------------------------------------------------------------------------------------------
+	// Start Subprocesses
+
+	COMM_LOG("starting renderer subprocesses");
+	/*
+	_sprite_signal.stall();
+	m_SpriteCollector = thread(Renderer::_collector<Sprite>,&m_Sprites,&_sprite_signal);
+	m_SpriteCollector.detach();
+	_sprite_texture_signal.stall();
+	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
+									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
+	m_SpriteTextureCollector.detach();
+	*/
+
+	COMM_SCC("render system ready.");
+}
+// TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
+
+/**
+ *	precalculating setup (before wheel system setup)
+ */
+void Renderer::precalculate()
+{
+	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
+	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+}
+
+/**
+ *	render visual result
+ */
+void Renderer::update()
+{
+	// shadow projection
+	g_GPU.cull_backfaces(false);
+	g_Frame.set_viewport(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+	m_ShadowFrameBuffer.record();
+	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
+	g_GPU.cull_backfaces(true);
+
+	// 3D segment
+	g_Frame.set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	m_ForwardFrameBuffer.record();
+	_update_mesh(m_GeometryBatches,m_ParticleBatches);
+	m_DeferredFrameBuffer.record();
+	_update_mesh(m_DeferredGeometryBatches,m_DeferredParticleBatches);
+	m_DeferredFrameBuffer.stop();
+
+	// rendertargets
+	g_GPU.disable_feature(GPU_FEATURE_DEPTH_TEST);
+	_update_canvas();
+	g_GPU.enable_feature(GPU_FEATURE_DEPTH_TEST);
+
+	// 2D segment
+	_update_sprites();
+	_update_text();
+
+	// end-frame gpu management
+	_gpu_upload();
+}
+
+/**
+ *	register shader pipeline
+ *	\param vs: vertex shader
+ *	\param fs: fragment shader
+ *	\returns pointer to registered shader pipeline
+ */
+/*
+lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
+{
+	m_ShaderPipelines.push_back(ShaderPipeline());
+	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
+	p_Pipeline->assemble(vs,fs);
+	return p_Pipeline;
+}
+*/
 
 /**
  *	allow a geometry batch to cast shadows onto the scene
@@ -1349,64 +1826,11 @@ void Renderer::animate(AnimatedMesh* mesh)
 }
 
 /**
- *	geometry realignment based on position
- *	\param geom: intersection rectangle over aligning geometry
- *	\param alignment: (default fullscreen neutral) target alignment within specified border
- *	\returns new position of geometry after alignment process
- */
-vec2 Renderer::align(Rect geom,Alignment alignment)
-{
-	// setup
-	vec2 __Position = geom.position;
-	vec2 __GeomCenter = geom.extent*vec2(.5f);
-	vec2 __BorderCenter = alignment.border.extent*vec2(.5f)+alignment.border.position;
-
-	// adjust vertical alignment
-	u8 vertical_alignment = 2-(alignment.align%3);
-	__Position.y += vertical_alignment*(__BorderCenter.y-__GeomCenter.y);
-
-	// adjust horizontal alignment
-	u8 horizontal_alignment = alignment.align/3;
-	if (!!horizontal_alignment) __Position.x += horizontal_alignment*(__BorderCenter.x-__GeomCenter.x);
-	return __Position;
-}
-
-/**
- *	update all registered sprites
- */
-void Renderer::_update_sprites()
-{
-	m_SpriteVertexArray.bind();
-	m_SpriteInstanceBuffer.bind();
-	m_SpriteInstanceBuffer.upload_vertices(m_Sprites.mem,BUFFER_MAXIMUM_TEXTURE_COUNT,GL_DYNAMIC_DRAW);
-	m_SpritePipeline.enable();
-	glDrawArraysInstanced(GL_TRIANGLES,0,6,m_Sprites.active_range);
-}
-
-/**
- *	update all registered text
- */
-void Renderer::_update_text()
-{
-	// prepare gpu
-	m_TextVertexArray.bind();
-	m_TextInstanceBuffer.bind();
-	m_TextPipeline.enable();
-
-	// iterate text entities
-	for (Text& p_Text : m_Texts)
-	{
-		m_TextInstanceBuffer.upload_vertices(p_Text.buffer,GL_DYNAMIC_DRAW);
-		glDrawArraysInstanced(GL_TRIANGLES,0,6,p_Text.buffer.size());
-	}
-}
-
-/**
  *	update framebuffer representations
  */
 void Renderer::_update_canvas()
 {
-	m_CanvasVertexArray.bind();
+	m_CanvasVertexBuffer.bind();
 	m_CanvasPipeline.enable();
 	m_ForwardFrameBuffer.bind_colour_component(RENDERER_TEXTURE_FORWARD,0);
 	m_DeferredFrameBuffer.bind_colour_component(RENDERER_TEXTURE_DEFERRED_COLOUR,0);
@@ -1436,7 +1860,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 	for (GeometryBatch& p_Batch : gb)
 	{
 		p_Batch.shader->enable();
-		p_Batch.vao.bind();
+		p_Batch.vbo.bind();
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
 			// texture upload
@@ -1455,13 +1879,15 @@ void Renderer::_update_mesh(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 	// FIXME uploading camera and then afterwards maybe overwrite it is working but it is shite
 
 	// iterate particle geometry
+	/*
 	for (ParticleBatch& p_Batch : pb)
 	{
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera();
-		p_Batch.vao.bind();
+		p_Batch.vbo.bind();
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.vertex_count,p_Batch.active_particles);
 	}
+	*/
 }
 
 /**
@@ -1476,7 +1902,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	{
 		p_Batch.shader->enable();
 		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
-		p_Batch.batch->vao.bind();
+		p_Batch.batch->vbo.bind();
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
@@ -1487,6 +1913,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	}
 
 	// iterate particle geometry
+	/*
 	for (ShadowParticleBatch& p_Batch : pb)
 	{
 		p_Batch.shader->enable();
@@ -1494,6 +1921,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		p_Batch.batch->vao.bind();
 		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
 	}
+	*/
 }
 
 /**
@@ -1566,4 +1994,6 @@ template<typename T> void Renderer::_collector(InPlaceArray<T>* xs,ThreadSignal*
 	COMM_LOG("%s collector background process finished",signal->name);
 }
 template void Renderer::_collector<Sprite>(InPlaceArray<Sprite>*,ThreadSignal*);
-template void Renderer::_collector<PixelBufferComponent>(InPlaceArray<PixelBufferComponent>*,ThreadSignal*);
+template void Renderer::_collector<Rect>(InPlaceArray<Rect>*,ThreadSignal*);
+
+#endif
