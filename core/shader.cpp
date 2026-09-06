@@ -246,63 +246,6 @@ void TextureSet::vanish()
  */
 UniformBuffer::UniformBuffer(u32 bindings)
 {
-	// define placeholder graphic for unwritten mesh texture memory
-	/*
-	VkImageCreateInfo __PlaceholderInfo = {};
-	__PlaceholderInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	__PlaceholderInfo.flags = 0;
-	__PlaceholderInfo.imageType = VK_IMAGE_TYPE_2D;
-	__PlaceholderInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-	__PlaceholderInfo.extent.width = 1;
-	__PlaceholderInfo.extent.height = 1;
-	__PlaceholderInfo.extent.depth = 1;
-	__PlaceholderInfo.mipLevels = 1;
-	__PlaceholderInfo.arrayLayers = 1;
-	__PlaceholderInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	__PlaceholderInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	__PlaceholderInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
-	__PlaceholderInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	__PlaceholderInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	VkResult __Result = vkCreateImage(g_GPU.gpu,&__PlaceholderInfo,nullptr,&m_PlaceholderImage);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"mesh placeholder texture creation failed");
-
-	// allocate placeholder memory
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,m_PlaceholderImage,&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-														   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_PlaceholderMemory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
-	vkBindImageMemory(g_GPU.gpu,m_PlaceholderImage,m_PlaceholderMemory,0);
-
-	// create image view
-	VkImageViewCreateInfo __PlaceholderViewInfo = {  };
-	__PlaceholderViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__PlaceholderViewInfo.image = m_PlaceholderImage;
-	__PlaceholderViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__PlaceholderViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-	__PlaceholderViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__PlaceholderViewInfo.subresourceRange.baseMipLevel = 0;
-	__PlaceholderViewInfo.subresourceRange.levelCount = 1;
-	__PlaceholderViewInfo.subresourceRange.baseArrayLayer = 0;
-	__PlaceholderViewInfo.subresourceRange.layerCount = 1;
-	__PlaceholderViewInfo.components = {
-		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-	};
-	__Result = vkCreateImageView(g_GPU.gpu,&__PlaceholderViewInfo,nullptr,&m_PlaceholderTexture);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
-	*/
-	// TODO make the memory (textures) a lot more permissive, this should be a simple conversation with the
-	//		features defined in the memory component, but it very much is NOT that at all.
-	//		this shows, that the intuitive interaction with image memory is not given at this time, improve!
-	//		also code repitition due to the aforementioned problem
-
 	// setup default sampler
 	VkSamplerCreateInfo __SamplerInfo = {  };
 	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -324,24 +267,6 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	__SamplerInfo.maxLod = 0;
 	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
-
-	// mesh image info setup
-	/*
-	for (size_t i=0;i<RENDERER_MAXIMUM_TEXTURE_COUNT;i++)
-	{
-		m_MeshTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		m_MeshTextureInfo[i].imageView = m_PlaceholderTexture;
-		m_MeshTextureInfo[i].sampler = m_DefaultSampler;
-	}
-
-	// texture descriptor presets
-	m_MeshTextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	m_MeshTextureSet.dstBinding = 0;
-	m_MeshTextureSet.dstArrayElement = 0;
-	m_MeshTextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	m_MeshTextureSet.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
-	m_MeshTextureSet.pImageInfo = m_MeshTextureInfo;
-	*/
 
 	// allocate memory for definitions
 	m_DescriptorPoolSizes.reserve(bindings);
@@ -433,24 +358,6 @@ void UniformBuffer::assemble()
 	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 
-	// setup texture bindings
-	/*
-	VkDescriptorSetLayoutBinding __TextureBindings = {};
-	__TextureBindings.binding = 0;
-	__TextureBindings.descriptorCount = RENDERER_MAXIMUM_TEXTURE_COUNT;
-	__TextureBindings.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__TextureBindings.pImmutableSamplers = nullptr;
-	__TextureBindings.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// texture layout
-	__LayoutInfo = {  };
-	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__LayoutInfo.bindingCount = 1;
-	__LayoutInfo.pBindings = &__TextureBindings;
-	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout_textures);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture layout definition failed");
-	*/
-
 	// allocate descriptor set 0
 	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,dset_layout);
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
@@ -492,51 +399,6 @@ void UniformBuffer::finalize()
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 	}
 
-	// placeholder mem barrier
-	/*
-	VkImageMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	__Barrier.image = m_PlaceholderImage;
-	__Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__Barrier.subresourceRange.baseArrayLayer = 0;
-	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.layerCount = 1;
-	__Barrier.subresourceRange.levelCount = 1;
-	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__Barrier.srcAccessMask = 0;
-	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
-						 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__Barrier);
-
-	// clear placeholders
-	VkClearColorValue __WeightBlue = {  };
-	__WeightBlue.float32[0] = .0f;
-	__WeightBlue.float32[1] = .0f;
-	__WeightBlue.float32[2] = .0f;
-	__WeightBlue.float32[3] = 1.f;
-	VkImageSubresourceRange __SubresourceRange = {  };
-	__SubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__SubresourceRange.baseMipLevel = 0;
-	__SubresourceRange.levelCount = 1;
-	__SubresourceRange.baseArrayLayer = 0;
-	__SubresourceRange.layerCount = 1;
-	vkCmdClearColorImage(g_GPU.acquire_graphical_command_buffer()->buffer,m_PlaceholderImage,
-						 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,&__WeightBlue,1,&__SubresourceRange);
-
-	// transfer read
-	__Barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	__Barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	vkCmdPipelineBarrier(g_GPU.acquire_graphical_command_buffer()->buffer,
-						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__Barrier);
-	*/
-
 	COMM_CNF();
 }
 
@@ -564,7 +426,6 @@ void UniformBuffer::link_result(size_t i,VkImageView buffer)
  */
 void UniformBuffer::update(void* data,size_t size)
 {
-	// data
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
@@ -585,12 +446,6 @@ void UniformBuffer::vanish()
 	}
 	g_GPU.free(m_DescriptorPool);
 	g_GPU.free(dset_layout);
-	/*
-	g_GPU.free(m_PlaceholderImage);
-	g_GPU.free(m_PlaceholderMemory);
-	g_GPU.free(m_PlaceholderTexture);
-	g_GPU.free(m_DefaultSampler);
-	*/
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
