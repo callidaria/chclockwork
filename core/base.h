@@ -524,10 +524,23 @@ private:
 // Additional Globals
 
 #ifdef VKBUILD
+
+// defaults
+class Constants
+{
+public:
+	Constants();
+public:
+	VkSampler default_sampler;
+};
+inline Constants g_Constants = Constants();
+
+// required extensions
 inline vector<const char*> g_GPUExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
+// validation layers on debug build
 #ifdef DEBUG
 inline vector<const char*> g_ValidationLayers = {
 	"VK_LAYER_KHRONOS_validation"

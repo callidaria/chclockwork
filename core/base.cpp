@@ -463,3 +463,34 @@ void TargetMomentumSnap::update(vec3& pos,f32 dt)
 	momentum = (momentum-m_Omega*__v)*__e;
 	pos = target+(__Delta+__v)*__e;
 }
+
+
+// ----------------------------------------------------------------------------------------------------
+// Global Constants
+
+/**
+ *	TODO
+ */
+Constants::Constants()
+{
+	// setup default sampler
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.anisotropyEnable = VK_FALSE;
+	__SamplerInfo.maxAnisotropy = 0;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = 0;
+	__SamplerInfo.maxLod = 0;
+	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
+}

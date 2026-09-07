@@ -30,34 +30,43 @@ struct DescriptorInfo
 	} info;
 };
 
-class TextureSet
+class DescriptorSet
 {
 public:
-	TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture);
-	void define_pixel_buffer(u32 location,VkDescriptorType type);
-	void link_texture(size_t i,GPUPixelBuffer* texture);
+
+	// setup
+	DescriptorSet(u8 set,u32 bindings);
+	void define_geometry(u32 location,size_t size);
+	void define_texture(u32 location);
+
+	// interaction
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
+
+	// state
 	void bind(VkPipelineLayout& layout);
 	void update();
 	void vanish();
 
 private:
-	VkWriteDescriptorSet m_TextureSet;
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
+	vector<VkDescriptorPoolSize> m_DescriptorPoolSizes;
+	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<DescriptorInfo> m_DescriptorInfos;
+	u8 m_Set;
+	size_t m_Size = 0;
 };
 
 class UniformBuffer
 {
 public:
-	UniformBuffer(u32 bindings);
 
 	// setup
-	void define_geometry_buffer(u32 location,size_t size);
 	void assemble();
 	void finalize();
 
 	// action
-	void link_result(size_t i,GPUPixelBuffer& texture);
-	void link_result(size_t i,VkImageView buffer);
 	void update(void* data,size_t size);
 
 	// final
@@ -72,25 +81,8 @@ private:
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 	VkDescriptorPool m_DescriptorPool;
-	vector<VkDescriptorPoolSize> m_DescriptorPoolSizes;
-	vector<VkDescriptorSetLayoutBinding> m_Bindings;
-	vector<VkWriteDescriptorSet> m_Writes;
-	vector<DescriptorInfo> m_DescriptorInfos;
-	/*
-	VkImage m_PlaceholderImage;
-	VkDeviceMemory m_PlaceholderMemory;
-	VkImageView m_PlaceholderTexture;
-	*/
-	VkSampler m_DefaultSampler;
-	size_t m_Size = 0;
-
-	// texture set
-	/*
-	VkDescriptorImageInfo m_MeshTextureInfo[RENDERER_MAXIMUM_TEXTURE_COUNT];
-	VkWriteDescriptorSet m_MeshTextureSet = {  };
-	*/
 };
-inline UniformBuffer g_UniformBuffer = UniformBuffer(2);
+inline UniformBuffer g_UniformBuffer = UniformBuffer();
 #endif
 
 

@@ -149,125 +149,9 @@ static inline void _shader_push_constants(const char* path,size_t& pccount,size_
 /**
  *	TODO
  */
-TextureSet::TextureSet(u32 set,u32 binding,GPUPixelBuffer* texture)
+DescriptorSet::DescriptorSet(u8 set,u32 bindings)
+	: m_Set(set)
 {
-	// link texture
-	VkDescriptorImageInfo __MeshTextureInfo = {  };
-	__MeshTextureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__MeshTextureInfo.imageView = texture->image_view;
-	__MeshTextureInfo.sampler = texture->sampler;
-
-	// setup set info
-	m_TextureSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	m_TextureSet.dstBinding = 0;
-	m_TextureSet.dstArrayElement = 0;
-	m_TextureSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	m_TextureSet.descriptorCount = 1;
-	m_TextureSet.pImageInfo = &__MeshTextureInfo;
-}
-
-/**
- *	TODO
- */
-void TextureSet::define_pixel_buffer(u32 location,VkDescriptorType type)
-{
-	/*
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-	*/
-
-	// descriptor pool size
-	VkDescriptorPoolSize __PSize = {  };
-	__PSize.type = type;
-	__PSize.descriptorCount = 1/*GPU_BUFFER_COUNT*(5+RENDERER_MAXIMUM_TEXTURE_COUNT)*/;
-
-	// bindings
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorCount = 1;
-	__Binding.descriptorType = type;
-	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
-	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = type;
-	__WriteDescriptor.descriptorCount = 1;
-
-	// image info
-	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-}
-
-/**
- *	TODO
- */
-void TextureSet::bind(VkPipelineLayout& layout)
-{
-	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,
-							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,
-							(VkDescriptorSet*)&m_DSets[g_GPU.active_buffer],0,nullptr);
-}
-
-/**
- *	TODO
- */
-void TextureSet::update()
-{
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		m_TextureSet.dstSet = m_DSets[i];
-		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_TextureSet,0,nullptr);
-	}
-}
-
-/**
- *	TODO
- */
-void TextureSet::vanish()
-{
-	// TODO
-}
-
-
-// ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
-
-#ifdef VKBUILD
-
-/**
- *	TODO
- */
-UniformBuffer::UniformBuffer(u32 bindings)
-{
-	// setup default sampler
-	VkSamplerCreateInfo __SamplerInfo = {  };
-	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
-	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
-	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.anisotropyEnable = VK_FALSE;
-	__SamplerInfo.maxAnisotropy = 0;
-	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
-	// TODO research, this is an interesting feature. unfortunately only works with nearest
-	__SamplerInfo.compareEnable = VK_FALSE;
-	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	__SamplerInfo.mipLodBias = .0f;
-	__SamplerInfo.minLod = 0;
-	__SamplerInfo.maxLod = 0;
-	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&m_DefaultSampler);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"ubo default sampler creation failed");
-
 	// allocate memory for definitions
 	m_DescriptorPoolSizes.reserve(bindings);
 	m_Bindings.reserve(bindings);
@@ -276,15 +160,12 @@ UniformBuffer::UniformBuffer(u32 bindings)
 	// TODO those can be free'd after setup has finished
 	// TODO with the new architecture geometry definitions are predictable and controlled by structure definition
 	//		so this can be removed, there is no preallocation anymore, as well as calling the define by hand
-
-	// texture set definition data predefinition
-	// TODO
 }
 
 /**
  *	TODO
  */
-void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
+void DescriptorSet::define_geometry(u32 location,size_t size)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
@@ -322,6 +203,111 @@ void UniformBuffer::define_geometry_buffer(u32 location,size_t size)
 	m_DescriptorInfos.push_back(__Desc);
 	m_Size += size;
 }
+
+/**
+ *	TODO
+ */
+void DescriptorSet::define_texture(u32 location)
+{
+	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
+				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+
+	// descriptor pool size
+	VkDescriptorPoolSize __DescriptorPoolSize = {  };
+	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__DescriptorPoolSize.descriptorCount = GPU_BUFFER_COUNT;
+	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
+
+	// bindings
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = location;
+	__Binding.descriptorCount = 1;
+	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
+	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	m_Bindings.push_back(__Binding);
+	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+
+	// image info
+	DescriptorInfo __Desc = {  };
+	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_DescriptorInfos.push_back(__Desc);
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSet::link_result(size_t i,GPUPixelBuffer& texture)
+{
+	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSet::link_result(size_t i,VkImageView buffer)
+{
+	m_DescriptorInfos[i].info.image.imageView = buffer;
+	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSet::bind(VkPipelineLayout& layout)
+{
+	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,
+							(VkDescriptorSet*)&m_DSets[g_GPU.active_buffer],0,nullptr);
+}
+
+/**
+ *	TODO
+ *	\note it is advisable to use update(), when set is updated rarely or on condition
+ */
+void DescriptorSet::update()
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		m_TextureSet.dstSet = m_DSets[i];
+		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_TextureSet,0,nullptr);
+	}
+}
+
+/**
+ *	TODO
+ *	\note it is advisable to use update_frame(), when set is updated every frame, regardless of change
+ */
+void DescriptorSet::update_frame()
+{
+	// TODO
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSet::vanish()
+{
+	// TODO
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer
+
+#ifdef VKBUILD
 
 /**
  *	TODO
@@ -400,24 +386,6 @@ void UniformBuffer::finalize()
 	}
 
 	COMM_CNF();
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::link_result(size_t i,GPUPixelBuffer& texture)
-{
-	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
-	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::link_result(size_t i,VkImageView buffer)
-{
-	m_DescriptorInfos[i].info.image.imageView = buffer;
-	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
 }
 
 /**
