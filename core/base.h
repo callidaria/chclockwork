@@ -154,6 +154,9 @@ constexpr u8 MEM_SHIFT = 5;
 constexpr u8 MEM_WIDTH = sizeof(__system_word)*8;
 constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
+// gpu constants
+constexpr size_t GPU_GUARANTEED_PCU_MEMSIZE = 128;
+
 
 // ----------------------------------------------------------------------------------------------------
 // Utility
@@ -524,16 +527,6 @@ private:
 // Additional Globals
 
 #ifdef VKBUILD
-
-// defaults
-class Constants
-{
-public:
-	Constants();
-public:
-	VkSampler default_sampler;
-};
-inline Constants g_Constants = Constants();
 
 // required extensions
 inline vector<const char*> g_GPUExtensions = {

@@ -46,6 +46,7 @@ public:
 	// state
 	void bind(VkPipelineLayout& layout);
 	void update();
+	void update_frame();
 	void vanish();
 
 private:
@@ -63,6 +64,7 @@ class UniformBuffer
 public:
 
 	// setup
+	UniformBuffer();
 	void assemble();
 	void finalize();
 
@@ -74,6 +76,7 @@ public:
 
 public:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
+	VkSampler default_sampler;
 
 private:
 	VkBuffer m_UBO[GPU_BUFFER_COUNT];
@@ -88,6 +91,26 @@ inline UniformBuffer g_UniformBuffer = UniformBuffer();
 // ----------------------------------------------------------------------------------------------------
 // Shader Pipeline
 
+enum UniformAttributeType : u8
+{
+	UNIFORM_ATTRIBUTE_TYPE_DATA,
+	UNIFORM_ATTRIBUTE_TYPE_TEXTURE,
+};
+
+enum UniformDimension : u8
+{
+	SHADER_UNIFORM_UNDEFINED,
+	SHADER_UNIFORM_UINT,
+	SHADER_UNIFORM_INT,
+	SHADER_UNIFORM_FLOAT,
+	SHADER_UNIFORM_VEC2,
+	SHADER_UNIFORM_VEC3,
+	SHADER_UNIFORM_VEC4,
+	SHADER_UNIFORM_MAT44,
+	SHADER_UNIFORM_TEXTURE,
+	SHADER_UNIFORM_FORMAT_COUNT
+};
+
 struct ShaderAttribute
 {
 #ifdef VKBUILD
@@ -97,13 +120,21 @@ struct ShaderAttribute
 #endif
 	location;
 	size_t offset;
-	u8 dim;
+	UniformDimension dim;
+};
+
+struct UniformAttribute
+{
+	UniformAttributeType type;
+	u8 set;
+	u32 binding;
 };
 
 struct ShaderInterface
 {
 	vector<ShaderAttribute> vbo_attribs;
 	vector<ShaderAttribute> ibo_attribs;
+	vector<UniformAttribute> ubo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
 	size_t pc_count,pc_memsize;
@@ -140,20 +171,6 @@ public:
 #endif
 
 
-enum UniformDimension : u8
-{
-	SHADER_UNIFORM_UNDEFINED,
-	SHADER_UNIFORM_UINT,
-	SHADER_UNIFORM_INT,
-	SHADER_UNIFORM_FLOAT,
-	SHADER_UNIFORM_VEC2,
-	SHADER_UNIFORM_VEC3,
-	SHADER_UNIFORM_VEC4,
-	SHADER_UNIFORM_MAT44,
-	SHADER_UNIFORM_TEXTURE,
-	SHADER_UNIFORM_FORMAT_COUNT
-};
-
 struct ShaderUniformValue
 {
 	string name;
@@ -174,7 +191,9 @@ public:
 
 	// assembly
 	void assemble(const char* vs,const char* fs,bool flipped=false);
+#ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
+#endif
 	//void map(u16 channel);
 	void vanish();
 
@@ -227,13 +246,12 @@ private:
 	VkDescriptorSetLayout m_DSetLayout;
 	VkAttachmentReference* m_References;
 	u8 m_Cursor = 0;
+	size_t push_constant_count,push_constant_size;  // TODO remove
 #else
-	u32 m_ShaderProgram;
-#endif
-
-	// shader components
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;
+	u32 m_ShaderProgram;
+#endif
 
 	// working iteration
 	size_t m_VertexCursor = 0;

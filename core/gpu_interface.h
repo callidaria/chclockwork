@@ -26,5 +26,7 @@ struct UniformBufferMemory
 	SpriteTransformation strafo;
 };
 
+constexpr size_t INTERFACE_COMBINED_GLOBAL_MEMSIZE = sizeof(UniformBufferMemory);
+
 
 #endif

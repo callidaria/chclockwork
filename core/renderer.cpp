@@ -868,6 +868,7 @@ Renderer::Renderer()
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
 	// uniform buffer
+	/*
 	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
 	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
 	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);

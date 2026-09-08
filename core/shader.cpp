@@ -89,7 +89,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 				__Location = stoi(__Line.substr(__LocationDef,__Until));
 				COMM_ERR_COND(__Location<0,
 							  "no location extracted, this will lead to faulty data reads in shader: \"%s\"",
-							  __Line.c_str);
+							  __Line.c_str());
 				__Line = __Line.substr(__Until+2);
 				// FIXME this will break when there is no whitespace between the location and in signifier
 			}
@@ -142,8 +142,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// this automatically ignores out variable definitions
 		if (tokens[0][0]=='i')
 		{
-			UniformDimension __Dim = (tokens[1]=="float")
-					? SHADER_UNIFORM_FLOAT : tokens[1][3]-SHADER_UNIFORM_FLOAT;
+			UniformDimension __Dim = (UniformDimension)((tokens[1]=="float")
+														? SHADER_UNIFORM_FLOAT : tokens[1][3]-0x30);
 			__WriteHead->push_back({
 #ifdef VKBUILD
 					.location = (u32)__Location,
@@ -151,7 +151,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 					.location = tokens[2],
 #endif
 					.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
-					.dim = dim
+					.dim = __Dim
 				});
 			(*__WidthHead) += __Dim-SHADER_UNIFORM_FLOAT-1;
 		}
@@ -175,18 +175,23 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 				{
 					if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
 					{
-						interface.pcrange += SHADER_TYPES[i].memsize;
+						interface.pc_memsize += SHADER_TYPES[i].memsize;
 						break;
 					}
 				}
-				interface.pccount++;
+				interface.pc_count++;
 			}
 		}
 
 		// check for uniform definition
 		else if (tokens[0][0]=='u')
 		{
-			// TODO
+			interface.ubo_attribs.push_back({
+					.type = (UniformAttributeType)((u8)UNIFORM_ATTRIBUTE_TYPE_TEXTURE
+												   -(__Line.find("sampler2D")==string::npos)),
+					.set = (u8)__Set,
+					.binding = (u32)__Binding
+				});
 		}
 	}
 }
@@ -267,7 +272,7 @@ void DescriptorSet::define_texture(u32 location)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-
+	
 	// descriptor pool size
 	VkDescriptorPoolSize __DescriptorPoolSize = {  };
 	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -316,7 +321,8 @@ void DescriptorSet::link_result(size_t i,GPUPixelBuffer& texture)
 void DescriptorSet::link_result(size_t i,VkImageView buffer)
 {
 	m_DescriptorInfos[i].info.image.imageView = buffer;
-	m_DescriptorInfos[i].info.image.sampler = m_DefaultSampler;
+	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
+	// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
 }
 
 /**
@@ -337,8 +343,11 @@ void DescriptorSet::update()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
+		// TODO
+		/*
 		m_TextureSet.dstSet = m_DSets[i];
 		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_TextureSet,0,nullptr);
+		*/
 	}
 }
 
@@ -367,6 +376,33 @@ void DescriptorSet::vanish()
 
 /**
  *	TODO
+ */
+UniformBuffer::UniformBuffer()
+{
+	// setup default sampler
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.anisotropyEnable = VK_FALSE;
+	__SamplerInfo.maxAnisotropy = 0;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = 0;
+	__SamplerInfo.maxLod = 0;
+	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
+}
+
+/**
+ *	TODO
  *	NOTE this should only be run by the renderer and also only once at construction!
  */
 void UniformBuffer::assemble()
@@ -376,23 +412,27 @@ void UniformBuffer::assemble()
 	// generate buffer for previously defined geometry ranges
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],m_Size,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],
+							 INTERFACE_COMBINED_GLOBAL_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,m_Size,0,&m_UBOMapped[i]);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_COMBINED_GLOBAL_MEMSIZE,0,&m_UBOMapped[i]);
 	}
 	// TODO stage this too? host_visible? i don't think so bröther
 
 	// descriptor pool creation
 	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	/*
 	__DPoolInfo.poolSizeCount = m_DescriptorPoolSizes.size();
 	__DPoolInfo.pPoolSizes = &m_DescriptorPoolSizes[0];
+	*/  // FIXME aquire
 	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;
 	__DPoolInfo.flags = 0;
 	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
 	// uniform layout
+	/*
 	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	__LayoutInfo.bindingCount = m_Bindings.size();
@@ -409,6 +449,7 @@ void UniformBuffer::assemble()
 	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
 	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
+	*/
 
 	COMM_CNF();
 }
@@ -419,6 +460,7 @@ void UniformBuffer::assemble()
  */
 void UniformBuffer::finalize()
 {
+	/*
 	COMM_AWT("update ubo linking");
 
 	// iterate per-backbuffer uniform data
@@ -442,6 +484,7 @@ void UniformBuffer::finalize()
 	}
 
 	COMM_CNF();
+	*/
 }
 
 /**
@@ -469,7 +512,7 @@ void UniformBuffer::vanish()
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(m_DescriptorPool);
-	g_GPU.free(dset_layout);
+	//g_GPU.free(dset_layout);
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
@@ -740,10 +783,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
 							  __Interface);
-	_shader_push_constants((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-						   push_constant_count,push_constant_size);
-	_shader_push_constants((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
-						   push_constant_count,push_constant_size);
+	push_constant_count = __Interface.pc_count;
+	push_constant_size = __Interface.pc_memsize;
 	// TODO split definitions into two different for each shader, to allow for some independence
 
 	// vertex binding setup
@@ -879,14 +920,15 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
 	// push constants
-	COMM_MSG_COND(LOG_YELLOW,"the required push constant memory size violates guaranteed minimum of 128 bytes");
+	COMM_MSG_COND(__Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
+				  "the required push constant memory size violates guaranteed minimum of 128 bytes");
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (push_constant_count)
+	if (__Interface.pc_count)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = push_constant_size;
+		__PushConstantRange.size = __Interface.pc_memsize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 
@@ -895,7 +937,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = !!push_constant_count;
+	__LayoutInfo.pushConstantRangeCount = !!__Interface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
@@ -945,6 +987,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
  *	\param vs: compiled vertex shader
  *	\param fs: compiled fragment shader
  */
+#ifdef GLBUILD
 void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
 {
 	m_VertexShader = vs;
@@ -952,16 +995,12 @@ void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
 	// FIXME this CAN and SHOULD be critisized! awful memory management through heavy copy!
 
 	// assemble program
-#ifdef VKBUILD
-	// TODO
-
-#else
 	m_ShaderProgram = glCreateProgram();
 	glAttachShader(m_ShaderProgram,vs.shader);
 	glAttachShader(m_ShaderProgram,fs.shader);
 	glLinkProgram(m_ShaderProgram);
-#endif
 }
+#endif
 
 /**
  *	automatically map vertex and index buffer object to vertex shader input
