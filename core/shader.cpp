@@ -159,7 +159,28 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// check for push constant structure definition
 		else if (__PCD)
 		{
-			// TODO
+			while (!__File.eof())
+			{
+				std::getline(__File,__Line);
+				if (__Line[0]=='}') break;
+				else if (__Line.find("{")==0) continue;
+
+				// gather requested values
+				std::istringstream __LineStream(__Line);
+				std::string __Typename,__Varname;
+				__LineStream >> __Typename;
+
+				// correlate typename with memory size
+				for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
+				{
+					if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
+					{
+						interface.pcrange += SHADER_TYPES[i].memsize;
+						break;
+					}
+				}
+				interface.pccount++;
+			}
 		}
 
 		// check for uniform definition
@@ -169,56 +190,13 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		}
 	}
 }
-
-/**
- *	TODO
- */
-static inline void _shader_push_constants(const char* path,size_t& pccount,size_t& pcrange)
-{
-	if (pccount) return;
-
-	// open for inspection
-	bool __ParsingConstant = false;
-	std::ifstream __File(path);
-	string __Line;
-	while (!__File.eof())
-	{
-		std::getline(__File,__Line);
-
-		// parse relevant line until end
-		if (!__ParsingConstant)
-		{
-			if (__Line.find("layout(push_constant)")==0)
-				__ParsingConstant = true;
-			continue;
-		}
-		else if (__Line.find("{")==0) continue;
-		else if (__Line.find("}")==0)
-		{
-			__ParsingConstant = false;
-			continue;
-		}
-
-		// gather requested values
-		std::istringstream __LineStream(__Line);
-		std::string __Typename,__Varname;
-		__LineStream >> __Typename;
-
-		// correlate typename with memory size
-		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
-		{
-			if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
-			{
-				pcrange += SHADER_TYPES[i].memsize;
-				break;
-			}
-		}
-		pccount++;
-	}
-}
+// TODO significant distictions between vertex and fragment shader significance for the interface like the
+//		enable/disable of in variable processing & replacement probibition for double stage uniforms
+//		need to be implemented in order for this to even work
+// TODO this way push constants, used by both shaders are implemented twice, signify per shader!
+//		this also makes it possible to exactly assign uploads either vertex or fragment shader stage bit
 // FIXME this requires the push constants to be defined line by line, without empty lines in between
 //		why is this not implemented using istringstream for the whole process?
-//		maybe it could be beneficial, to combine interface & push constant processing together in a single read
 
 
 // ----------------------------------------------------------------------------------------------------
