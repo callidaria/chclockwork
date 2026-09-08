@@ -2,14 +2,34 @@
 
 
 // ----------------------------------------------------------------------------------------------------
-// constants
+// Constants
 
+#ifdef VKBUILD
+
+// vertex shader input format correlation
+const VkFormat _vertex_shader_input_formats[SHADER_UNIFORM_FORMAT_COUNT] = {
+	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_R32_SFLOAT,
+	VK_FORMAT_R32G32_SFLOAT,
+	VK_FORMAT_R32G32B32_SFLOAT,
+	VK_FORMAT_R32G32B32A32_SFLOAT,
+	VK_FORMAT_UNDEFINED,
+};
+
+// dynamic state
+constexpr u32 _dynamic_state_count = 2;
+VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
+
+// shader uniform name to size correlation tuples
 struct ShaderType
 {
 	const char* name;
 	size_t memsize;
 };
 inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
+	{ "",0 },
 	{ "uint",sizeof(u32) },
 	{ "int",sizeof(s32) },
 	{ "float",sizeof(f32) },
@@ -18,6 +38,8 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "vec4",sizeof(vec4) },
 	{ "mat4",sizeof(mat4) },
 };
+
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -38,44 +60,94 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 	while (!__File.eof())
 	{
 		std::getline(__File,__Line);
+		s32 __Location = -1;
+		s16 __Set = -1,__Binding = -1;
+		bool __PCD = false;
 
-		// line trim for layout prefix
-#ifdef VKBUILD
-		s64 __Location = -1;
-		if (__Line.find("layout")==0&&__Line.find("layout(push_constant)")!=0)
-		{
-			size_t __LocationDef = __Line.find('=')+1;
-			size_t __Until = __Line.find(')');
-
-			// extract data input location
-			__Location = stoi(__Line.substr(__LocationDef,__Until));
-			COMM_ERR_COND(__Location<0,"no location extracted, this will lead to faulty data reads in shader");
-			// FIXME this will also read location from uniforms, which is unnecessary
-
-			// trim
-			if (__Until!=std::string::npos) __Line = __Line.substr(__Until+2);
-			// FIXME this will break when there is no whitespace between the location and in signifier
-		}
-#endif
-
-		// definition processing
-		if (__Line.find("// engine: ibo")==0)
+		// shader head line identification for interface extraction
+		// read shader engine annotation for start of ibo input variable definiton
+		if (!__Line.find("// engine: ibo"))
 		{
 			__WriteHead = &interface.ibo_attribs;
 			__WidthHead = &interface.ibo_width;
 			continue;
 		}
-		else if (__Line.find("in")!=0) continue;  // FIXME not compatible with vk version
+
+		// preprocessing for vulkan glsl 450 dialect, which requires layout prefix before variable definition
+#ifdef VKBUILD
+		// any layout definition, of relevance are in and uniform, because the user interfaces with them
+		// out definitions shall be ignored, they are not relevant. neither the engine nor the user care at all
+		else if (!__Line.find("layout"))
+		{
+			// in or output variable
+			if (__Line[7]=='l')
+			{
+				size_t __LocationDef = __Line.find('=')+1;
+				size_t __Until = __Line.find(')',__LocationDef);
+				__Location = stoi(__Line.substr(__LocationDef,__Until));
+				COMM_ERR_COND(__Location<0,
+							  "no location extracted, this will lead to faulty data reads in shader");
+				__Line = __Line.substr(__Until+2);
+				// FIXME this will break when there is no whitespace between the location and in signifier
+			}
+
+			// uniform variable
+			else if (__Line[7]=='s')
+			{
+				size_t __SetDef = __Line.find('=')+1;
+				size_t __BindingDef = __Line.find('=',__SetDef)+1;
+				size_t __SetUntil = __Line.find(',',__SetDef);
+				size_t __BindingUntil = __Line.find(')',__BindingDef);
+				__Set = stoi(__Line.substr(__SetDef,__SetUntil));
+				__Binding = stoi(__Line.substr(__BindingDef,__BindingUntil));
+				__Line = __Line.substr(__BindingUntil+2);
+			}
+
+			// push constant
+			else if (__Line[7]=='p')
+			{
+				size_t __End = __Line.find(')');
+				__Line = __Line.substr(__End+2);
+				__PCD = true;
+			}
+
+			// error in case none of the upper patterns match, which should be a grave mistake in shader code
+			COMM_ERR_FALLBACK("layout was found in shader, but following parameters are violating expectations");
+		}
+#endif
+
+		// sensibly, end head interpretation when shader function implementation starts
 		else if (__Line.find("void")==0) break;
 
+		// interpret the actual definition by its source (in,uniform,pcs) and its type
 		// extract input information
 		vector<string> tokens;
 		split_words(tokens,__Line);
 
-		// trim location
+		// trim ';' from location, due to ogl version using a name based uloc as opposed to the int uloc in vk
 #ifdef GLBUILD
 		tokens[2].pop_back();
 #endif
+
+		// check for in definition
+		// this automatically ignores out variable definitions
+		if (tokens[0][0]=='i')
+		{
+			// TODO
+		}
+
+		// check for push constant structure definition
+		else if (__PCD)
+		{
+			// TODO
+		}
+
+		// check for uniform definition
+		else if (tokens[0][0]=='u')
+		{
+			// TODO
+		}
+
 
 		// interpret input definition line
 		u8 dim = (tokens[1]=="float") ? 1 : tokens[1][3]-0x30;
@@ -423,7 +495,7 @@ void UniformBuffer::vanish()
 // ----------------------------------------------------------------------------------------------------
 // Shader Pipeline
 
-#ifndef VKBUILD
+#ifdef GLBUILD
 
 /**
  *	compile given shader program
@@ -527,7 +599,6 @@ FragmentShader::FragmentShader(const char* path)
 	}
 }
 
-
 #endif
 
 
@@ -573,18 +644,6 @@ u8 ShaderPipeline::out_define_result_buffer()
 	result_attachment.set(m_Cursor);
 	return m_Cursor++;
 }
-
-#ifdef VKBUILD
-const VkFormat _vertex_shader_input_formats[5] = {
-	VK_FORMAT_UNDEFINED,
-	VK_FORMAT_R32_SFLOAT,
-	VK_FORMAT_R32G32_SFLOAT,
-	VK_FORMAT_R32G32B32_SFLOAT,
-	VK_FORMAT_R32G32B32A32_SFLOAT,
-};
-constexpr u32 _dynamic_state_count = 2;
-VkDynamicState _dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT,VK_DYNAMIC_STATE_SCISSOR };
-#endif
 
 /**
  *	TODO

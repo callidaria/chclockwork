@@ -73,7 +73,6 @@ public:
 	void vanish();
 
 public:
-	VkDescriptorSetLayout dset_layout;
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
 
 private:
@@ -107,15 +106,15 @@ struct ShaderInterface
 	vector<ShaderAttribute> ibo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
+	size_t pc_count,pc_memsize;
 };
 
-#ifndef VKBUILD
+#ifdef GLBUILD
 class Shader
 {
 public:
 	static u32 compile(const char* path,GLenum type);
 };
-#endif
 
 class VertexShader
 {
@@ -138,10 +137,12 @@ public:
 	u32 shader;
 	vector<string> sampler_attribs;
 };
+#endif
 
 
 enum UniformDimension : u8
 {
+	SHADER_UNIFORM_UNDEFINED,
 	SHADER_UNIFORM_UINT,
 	SHADER_UNIFORM_INT,
 	SHADER_UNIFORM_FLOAT,
@@ -151,7 +152,6 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_MAT44,
 	SHADER_UNIFORM_FORMAT_COUNT
 };
-// FIXME has no undefined!
 
 struct ShaderUniformValue
 {
@@ -216,7 +216,6 @@ public:
 	VkRenderPass render_pass;
 	VkAttachmentDescription* descriptions;
 	BitwiseWords result_attachment;
-	size_t push_constant_count = 0,push_constant_size = 0;
 #else
 #endif
 	u8 depth_channel;
@@ -224,6 +223,7 @@ public:
 
 private:
 #ifdef VKBUILD
+	VkDescriptorSetLayout m_DSetLayout;
 	VkAttachmentReference* m_References;
 	u8 m_Cursor = 0;
 #else
