@@ -16,6 +16,7 @@ const VkFormat _vertex_shader_input_formats[SHADER_UNIFORM_FORMAT_COUNT] = {
 	VK_FORMAT_R32G32B32_SFLOAT,
 	VK_FORMAT_R32G32B32A32_SFLOAT,
 	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
 };
 
 // dynamic state
@@ -37,6 +38,7 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "vec3",sizeof(vec3) },
 	{ "vec4",sizeof(vec4) },
 	{ "mat4",sizeof(mat4) },
+	{ "sampler2D",0 }
 };
 
 #endif
@@ -86,7 +88,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 				size_t __Until = __Line.find(')',__LocationDef);
 				__Location = stoi(__Line.substr(__LocationDef,__Until));
 				COMM_ERR_COND(__Location<0,
-							  "no location extracted, this will lead to faulty data reads in shader");
+							  "no location extracted, this will lead to faulty data reads in shader: \"%s\"",
+							  __Line.c_str);
 				__Line = __Line.substr(__Until+2);
 				// FIXME this will break when there is no whitespace between the location and in signifier
 			}
@@ -100,6 +103,12 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 				size_t __BindingUntil = __Line.find(')',__BindingDef);
 				__Set = stoi(__Line.substr(__SetDef,__SetUntil));
 				__Binding = stoi(__Line.substr(__BindingDef,__BindingUntil));
+				COMM_ERR_COND(__Set<0,
+							  "no set extracted, this will lead to faulty data reads in shader: \"%s\"",
+							  __Line.c_str());
+				COMM_ERR_COND(__Binding<0,
+							  "no binding extracted, this will lead to faulty data reads in shader: \"%s\"",
+							  __Line.c_str());
 				__Line = __Line.substr(__BindingUntil+2);
 			}
 
@@ -133,7 +142,18 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// this automatically ignores out variable definitions
 		if (tokens[0][0]=='i')
 		{
-			// TODO
+			UniformDimension __Dim = (tokens[1]=="float")
+					? SHADER_UNIFORM_FLOAT : tokens[1][3]-SHADER_UNIFORM_FLOAT;
+			__WriteHead->push_back({
+#ifdef VKBUILD
+					.location = (u32)__Location,
+#else
+					.location = tokens[2],
+#endif
+					.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
+					.dim = dim
+				});
+			(*__WidthHead) += __Dim-SHADER_UNIFORM_FLOAT-1;
 		}
 
 		// check for push constant structure definition
@@ -147,20 +167,6 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		{
 			// TODO
 		}
-
-
-		// interpret input definition line
-		u8 dim = (tokens[1]=="float") ? 1 : tokens[1][3]-0x30;
-		__WriteHead->push_back({
-#ifdef VKBUILD
-				.location = (u32)__Location,
-#else
-				.location = tokens[2],
-#endif
-				.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
-				.dim = dim
-			});
-		(*__WidthHead) += dim;
 	}
 }
 
