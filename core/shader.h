@@ -91,12 +91,6 @@ inline UniformBuffer g_UniformBuffer = UniformBuffer();
 // ----------------------------------------------------------------------------------------------------
 // Shader Pipeline
 
-enum UniformAttributeType : u8
-{
-	UNIFORM_ATTRIBUTE_TYPE_DATA,
-	UNIFORM_ATTRIBUTE_TYPE_TEXTURE,
-};
-
 enum UniformDimension : u8
 {
 	SHADER_UNIFORM_UNDEFINED,
@@ -125,9 +119,9 @@ struct ShaderAttribute
 
 struct UniformAttribute
 {
-	UniformAttributeType type;
 	u8 set;
 	u32 binding;
+	VkDescriptorType type;
 };
 
 struct ShaderInterface

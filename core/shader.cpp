@@ -187,10 +187,10 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		else if (tokens[0][0]=='u')
 		{
 			interface.ubo_attribs.push_back({
-					.type = (UniformAttributeType)((u8)UNIFORM_ATTRIBUTE_TYPE_TEXTURE
-												   -(__Line.find("sampler2D")==string::npos)),
 					.set = (u8)__Set,
-					.binding = (u32)__Binding
+					.binding = (u32)__Binding,
+					.type = (__Line.find("sampler2D")==string::npos)
+							? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
 				});
 		}
 	}
@@ -272,7 +272,7 @@ void DescriptorSet::define_texture(u32 location)
 {
 	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
-	
+
 	// descriptor pool size
 	VkDescriptorPoolSize __DescriptorPoolSize = {  };
 	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -779,29 +779,32 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// shader interface automapping for input definition
-	ShaderInterface __Interface;
+	ShaderInterface __VertexInterface,__FragmentInterface;
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-							  __Interface);
-	push_constant_count = __Interface.pc_count;
-	push_constant_size = __Interface.pc_memsize;
+							  __VertexInterface);
+	_shader_interface_automap((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
+							  __FragmentInterface);
+	push_constant_count = __VertexInterface.pc_count;
+	push_constant_size = __VertexInterface.pc_memsize;
 	// TODO split definitions into two different for each shader, to allow for some independence
+	// FIXME also LIES! only vertex interface relevant for upload size will break soon
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
-	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.vbo_width;
+	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__VertexInterface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.ibo_width;
+	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__VertexInterface.ibo_width;
 	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 	// TODO find out if this has performance implications
 
 	// vertex attribute setup
 	u32 __Location = 0;
-	u32 __AttributeCount = __Interface.vbo_attribs.size()+__Interface.ibo_attribs.size();
+	u32 __AttributeCount = __VertexInterface.vbo_attribs.size()+__VertexInterface.ibo_attribs.size();
 	vector<VkVertexInputAttributeDescription> __AttributeDesc(__AttributeCount);
-	for (ShaderAttribute& __Attrib : __Interface.vbo_attribs)
+	for (ShaderAttribute& __Attrib : __VertexInterface.vbo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 0;
@@ -812,7 +815,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	}
 
 	// instance attribute setup
-	for (ShaderAttribute& __Attrib : __Interface.ibo_attribs)
+	for (ShaderAttribute& __Attrib : __VertexInterface.ibo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 1;
@@ -920,15 +923,16 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
 	// push constants
-	COMM_MSG_COND(__Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
+	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
+	COMM_MSG_COND(__VertexInterface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
 				  "the required push constant memory size violates guaranteed minimum of 128 bytes");
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__Interface.pc_count)
+	if (__VertexInterface.pc_count)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = __Interface.pc_memsize;
+		__PushConstantRange.size = __VertexInterface.pc_memsize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 
@@ -937,7 +941,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
 	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
-	__LayoutInfo.pushConstantRangeCount = !!__Interface.pc_count;
+	__LayoutInfo.pushConstantRangeCount = !!__VertexInterface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
