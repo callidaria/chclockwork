@@ -215,7 +215,7 @@ DescriptorSet::DescriptorSet(u8 set,u32 bindings)
 {
 	// allocate memory for definitions
 	m_DescriptorPoolSizes.reserve(bindings);
-	m_Bindings.reserve(bindings);
+	//m_Bindings.reserve(bindings);
 	m_Writes.reserve(bindings);
 	m_DescriptorInfos.reserve(bindings);
 	// TODO those can be free'd after setup has finished
@@ -228,8 +228,9 @@ DescriptorSet::DescriptorSet(u8 set,u32 bindings)
  */
 void DescriptorSet::define_geometry(u32 location,size_t size)
 {
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
+				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
+				  m_DescriptorPoolSizes.size());
 
 	// descriptor pool size
 	VkDescriptorPoolSize __DescriptorPoolSize = {  };
@@ -238,6 +239,7 @@ void DescriptorSet::define_geometry(u32 location,size_t size)
 	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
 
 	// bindings
+	/*
 	VkDescriptorSetLayoutBinding __Binding = {  };
 	__Binding.binding = location;
 	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -245,7 +247,7 @@ void DescriptorSet::define_geometry(u32 location,size_t size)
 	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	__Binding.pImmutableSamplers = nullptr;
 	m_Bindings.push_back(__Binding);
-	// TODO debug level map if location is a duplicate to easily check development time mismatch!
+	*/
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -270,8 +272,9 @@ void DescriptorSet::define_geometry(u32 location,size_t size)
  */
 void DescriptorSet::define_texture(u32 location)
 {
-	COMM_MSG_COND(m_Bindings.capacity()<=m_Bindings.size(),LOG_YELLOW,
-				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",m_Bindings.size());
+	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
+				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",
+				  m_DescriptorPoolSizes.size());
 
 	// descriptor pool size
 	VkDescriptorPoolSize __DescriptorPoolSize = {  };
@@ -280,6 +283,7 @@ void DescriptorSet::define_texture(u32 location)
 	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
 
 	// bindings
+	/*
 	VkDescriptorSetLayoutBinding __Binding = {  };
 	__Binding.binding = location;
 	__Binding.descriptorCount = 1;
@@ -287,7 +291,7 @@ void DescriptorSet::define_texture(u32 location)
 	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
 	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	m_Bindings.push_back(__Binding);
-	// TODO solve the same things as in other definition implementation (also fragment bit e.g. height manip)
+	*/
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -431,15 +435,7 @@ void UniformBuffer::assemble()
 	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
-	// uniform layout
 	/*
-	VkDescriptorSetLayoutCreateInfo __LayoutInfo = {  };
-	__LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__LayoutInfo.bindingCount = m_Bindings.size();
-	__LayoutInfo.pBindings = &m_Bindings[0];
-	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&dset_layout);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
-
 	// allocate descriptor set 0
 	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,dset_layout);
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
@@ -512,7 +508,6 @@ void UniformBuffer::vanish()
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(m_DescriptorPool);
-	//g_GPU.free(dset_layout);
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
@@ -824,6 +819,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 		__AttributeDesc[__Location].offset = __Attrib.offset;
 		__Location++;
 	}
+	// TODO debug level map if location is a duplicate to easily check development time mismatch!
 
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
@@ -922,6 +918,44 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
+	// uniform variables vertex shader
+	vector<VkDescriptorSetLayoutBinding> __Bindings;
+	__Bindings.reserve(__VertexInterface.ubo_attribs.size()+__FragmentInterface.ubo_attribs.size());
+	for (UniformAttribute& p_Attr : __VertexInterface.ubo_attribs)
+	{
+		// bindings
+		VkDescriptorSetLayoutBinding __Binding = {  };
+		__Binding.binding = p_Attr.binding;
+		__Binding.descriptorCount = 1;
+		__Binding.descriptorType = p_Attr.type;
+		__Binding.pImmutableSamplers = nullptr;
+		__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		__Bindings.push_back(__Binding);
+	}
+
+	// uniform variables fragment shader
+	for (UniformAttribute& p_Attr : __FragmentInterface.ubo_attribs)
+	{
+		// bindings
+		VkDescriptorSetLayoutBinding __Binding = {  };
+		__Binding.binding = p_Attr.binding;
+		__Binding.descriptorCount = 1;
+		__Binding.descriptorType = p_Attr.type;
+		__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
+		__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		__Bindings.push_back(__Binding);
+	}
+	// TODO also do fragment shader uniform interface
+	// FIXME code copy
+
+	// descriptor set layout
+	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
+	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	__DescriptorLayoutInfo.bindingCount = __Bindings.size();
+	__DescriptorLayoutInfo.pBindings = &__Bindings[0];
+	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&m_DSetLayout);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+
 	// push constants
 	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
 	COMM_MSG_COND(__VertexInterface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
@@ -940,7 +974,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = 2;
-	__LayoutInfo.pSetLayouts = &g_UniformBuffer.dset_layout;
+	__LayoutInfo.pSetLayouts = &m_DSetLayout;
 	__LayoutInfo.pushConstantRangeCount = !!__VertexInterface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
@@ -1047,6 +1081,7 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
+	g_GPU.free(m_DSetLayout);
 	free(descriptions);
 	result_attachment.vanish();
 	g_GPU.free(render_pass);

@@ -52,7 +52,7 @@ public:
 private:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 	vector<VkDescriptorPoolSize> m_DescriptorPoolSizes;
-	vector<VkDescriptorSetLayoutBinding> m_Bindings;
+	//vector<VkDescriptorSetLayoutBinding> m_Bindings;
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
 	u8 m_Set;
