@@ -117,18 +117,19 @@ struct ShaderAttribute
 	UniformDimension dim;
 };
 
+/*
 struct UniformAttribute
 {
-	u8 set;
 	u32 binding;
 	VkDescriptorType type;
 };
+*/
 
 struct ShaderInterface
 {
 	vector<ShaderAttribute> vbo_attribs;
 	vector<ShaderAttribute> ibo_attribs;
-	vector<UniformAttribute> ubo_attribs;
+	vector<map<u32,VkDescriptorType>> ubo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
 	size_t pc_count,pc_memsize;
@@ -237,7 +238,7 @@ public:
 
 private:
 #ifdef VKBUILD
-	VkDescriptorSetLayout m_DSetLayout;
+	vector<VkDescriptorSetLayout> m_DSetLayouts;
 	VkAttachmentReference* m_References;
 	u8 m_Cursor = 0;
 	size_t push_constant_count,push_constant_size;  // TODO remove

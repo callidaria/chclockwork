@@ -186,12 +186,13 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// check for uniform definition
 		else if (tokens[0][0]=='u')
 		{
-			interface.ubo_attribs.push_back({
-					.set = (u8)__Set,
-					.binding = (u32)__Binding,
-					.type = (__Line.find("sampler2D")==string::npos)
-							? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-				});
+			// maximum used set number implicates usage of all sets up until this number
+			// resize imitates this behaviour
+			if (__Set>=interface.ubo_attribs.size()) interface.ubo_attribs.resize(__Set+1);
+
+			// insert detected binding within its set representation
+			interface.ubo_attribs[__Set][__Binding] = (__Line.find("sampler2D")==string::npos)
+					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		}
 	}
 }
@@ -669,6 +670,34 @@ u8 ShaderPipeline::out_define_result_buffer()
 
 /**
  *	TODO
+ */
+inline void _compile_descriptor_uniform_attributes(ShaderInterface& interface,
+												   vector<vector<VkDescriptorSetLayoutBinding>>& binds,
+												   VkShaderStageFlags stage)
+{
+	// iterate active sets
+	for (map<u32,VkDescriptorType>& p_Set : interface.ubo_attribs)
+	{
+		vector<VkDescriptorSetLayoutBinding> __Bindings;
+
+		// iterate bindings map
+		for (auto p_Binding = p_Set.begin();p_Binding != p_Set.end();p_Binding++)
+		{
+			VkDescriptorSetLayoutBinding __Binding = {  };
+			__Binding.binding = p_Binding->first;
+			__Binding.descriptorCount = 1;
+			__Binding.descriptorType = p_Binding->second;
+			__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
+			__Binding.stageFlags = stage;
+			__Bindings.push_back(__Binding);
+		}
+
+		binds.push_back(__Bindings);
+	}
+}
+
+/**
+ *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
 void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
@@ -864,7 +893,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
 	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	__RasterInfo.frontFace = (flipped)?VK_FRONT_FACE_CLOCKWISE:VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	__RasterInfo.frontFace = (flipped) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
 	__RasterInfo.depthBiasClamp = .0f;
@@ -919,42 +948,23 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
 	// uniform variables vertex shader
-	vector<VkDescriptorSetLayoutBinding> __Bindings;
-	__Bindings.reserve(__VertexInterface.ubo_attribs.size()+__FragmentInterface.ubo_attribs.size());
-	for (UniformAttribute& p_Attr : __VertexInterface.ubo_attribs)
-	{
-		// bindings
-		VkDescriptorSetLayoutBinding __Binding = {  };
-		__Binding.binding = p_Attr.binding;
-		__Binding.descriptorCount = 1;
-		__Binding.descriptorType = p_Attr.type;
-		__Binding.pImmutableSamplers = nullptr;
-		__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-		__Bindings.push_back(__Binding);
-	}
-
-	// uniform variables fragment shader
-	for (UniformAttribute& p_Attr : __FragmentInterface.ubo_attribs)
-	{
-		// bindings
-		VkDescriptorSetLayoutBinding __Binding = {  };
-		__Binding.binding = p_Attr.binding;
-		__Binding.descriptorCount = 1;
-		__Binding.descriptorType = p_Attr.type;
-		__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
-		__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-		__Bindings.push_back(__Binding);
-	}
-	// TODO also do fragment shader uniform interface
-	// FIXME code copy
+	vector<vector<VkDescriptorSetLayoutBinding>> __Sets;
+	_compile_descriptor_uniform_attributes(__VertexInterface,__Sets,VK_SHADER_STAGE_VERTEX_BIT);
+	_compile_descriptor_uniform_attributes(__FragmentInterface,__Sets,VK_SHADER_STAGE_FRAGMENT_BIT);
+	// TODO also do fragment shader uniform interface (+ merge info!)
 
 	// descriptor set layout
 	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
 	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	__DescriptorLayoutInfo.bindingCount = __Bindings.size();
-	__DescriptorLayoutInfo.pBindings = &__Bindings[0];
-	__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&m_DSetLayout);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+	m_DSetLayouts.reserve(__Sets.size());
+	for (size_t i=0;i<__Sets.size();i++)
+	{
+		vector<VkDescriptorSetLayoutBinding>& p_Binding = __Sets[i];
+		__DescriptorLayoutInfo.bindingCount = p_Binding.size();
+		__DescriptorLayoutInfo.pBindings = &p_Binding[0];
+		__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&m_DSetLayouts[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+	}
 
 	// push constants
 	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
@@ -969,12 +979,13 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 		__PushConstantRange.size = __VertexInterface.pc_memsize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
+	// TODO correctly establish stage flags from interface mapping
 
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	__LayoutInfo.setLayoutCount = 2;
-	__LayoutInfo.pSetLayouts = &m_DSetLayout;
+	__LayoutInfo.setLayoutCount = m_DSetLayouts.size();
+	__LayoutInfo.pSetLayouts = &m_DSetLayouts[0];
 	__LayoutInfo.pushConstantRangeCount = !!__VertexInterface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
@@ -1081,7 +1092,7 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
-	g_GPU.free(m_DSetLayout);
+	for (VkDescriptorSetLayout& p_DSetLayout : m_DSetLayouts) g_GPU.free(p_DSetLayout);
 	free(descriptions);
 	result_attachment.vanish();
 	g_GPU.free(render_pass);
