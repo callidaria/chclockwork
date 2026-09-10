@@ -117,14 +117,6 @@ struct ShaderAttribute
 	UniformDimension dim;
 };
 
-/*
-struct UniformAttribute
-{
-	u32 binding;
-	VkDescriptorType type;
-};
-*/
-
 struct ShaderInterface
 {
 	vector<ShaderAttribute> vbo_attribs;
@@ -132,7 +124,7 @@ struct ShaderInterface
 	vector<map<u32,VkDescriptorType>> ubo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
-	size_t pc_count,pc_memsize;
+	size_t pc_count = 0,pc_memsize = 0;
 };
 
 #ifdef GLBUILD

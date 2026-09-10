@@ -127,6 +127,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 
 		// sensibly, end head interpretation when shader function implementation starts
 		else if (__Line.find("void")==0) break;
+		else continue;
 
 		// interpret the actual definition by its source (in,uniform,pcs) and its type
 		// extract input information
@@ -142,8 +143,9 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		// this automatically ignores out variable definitions
 		if (tokens[0][0]=='i')
 		{
-			UniformDimension __Dim = (UniformDimension)((tokens[1]=="float")
-														? SHADER_UNIFORM_FLOAT : tokens[1][3]-0x30);
+			UniformDimension __Dim = (tokens[1]=="float")
+					? SHADER_UNIFORM_FLOAT : (UniformDimension)(SHADER_UNIFORM_INT+(tokens[1][3]-0x30));
+			std::cout << (u32)__Dim << std::endl;
 			__WriteHead->push_back({
 #ifdef VKBUILD
 					.location = (u32)__Location,
@@ -153,7 +155,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 					.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
 					.dim = __Dim
 				});
-			(*__WidthHead) += __Dim-SHADER_UNIFORM_FLOAT-1;
+			(*__WidthHead) += SHADER_TYPES[__Dim].memsize;
 		}
 
 		// check for push constant structure definition
