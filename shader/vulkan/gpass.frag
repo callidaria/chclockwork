@@ -1,0 +1,45 @@
+#version 450 core
+
+
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec2 UV;
+layout(location = 2) in mat3 TBN;
+
+layout(location = 0) out vec4 gbuffer_colour;
+layout(location = 1) out vec4 gbuffer_position;
+layout(location = 2) out vec4 gbuffer_normals;
+layout(location = 3) out vec4 gbuffer_materials;
+layout(location = 4) out vec4 gbuffer_emission;
+
+layout(set = 2,binding = 0) uniform sampler2D albedo;
+layout(set = 2,binding = 1) uniform sampler2D normal_map;
+layout(set = 2,binding = 2) uniform sampler2D material_map;
+layout(set = 2,binding = 3) uniform sampler2D emission_map;
+
+layout(push_constant) uniform PushConstants
+{
+	mat4 model;
+	float texel;
+	uint colour_map;
+	uint normal_map;
+	uint material_map;
+	uint emission_map;
+} pc;
+// TODO remove map ids
+
+
+void main()
+{
+	// extract colour & position
+	gbuffer_colour = vec4(texture(albedo,UV).rgb,1.);
+	gbuffer_position = vec4(Position,1.);
+
+	// translate normals
+	vec3 normals = texture(normal_map,UV).rgb*2.0-1.0;
+	gbuffer_normals = vec4(normalize(TBN*normals),1.);
+
+	// extract surface materials
+	gbuffer_materials = vec4(texture(material_map,UV).rgb,1.);
+	gbuffer_emission = vec4(texture(emission_map,UV).rgb,1.);
+}
+// FIXME alpha values are completely unused here, what a waste of valuable information!

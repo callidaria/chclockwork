@@ -2,6 +2,8 @@
 #define CORE_RENDERER_HEADER
 
 
+#include <numeric>
+#include "gpu_interface.h"
 #include "buffer.h"
 #include "shader.h"
 
@@ -31,22 +33,23 @@ enum TextureChannelMap : u16
 
 enum ScreenAlignment
 {
-	SCREEN_ALIGN_TOPLEFT,
-	SCREEN_ALIGN_CENTERLEFT,
 	SCREEN_ALIGN_BOTTOMLEFT,
-	SCREEN_ALIGN_TOPCENTER,
-	SCREEN_ALIGN_CENTER,
+	SCREEN_ALIGN_CENTERLEFT,
+	SCREEN_ALIGN_TOPLEFT,
 	SCREEN_ALIGN_BOTTOMCENTER,
-	SCREEN_ALIGN_TOPRIGHT,
-	SCREEN_ALIGN_CENTERRIGHT,
+	SCREEN_ALIGN_CENTER,
+	SCREEN_ALIGN_TOPCENTER,
 	SCREEN_ALIGN_BOTTOMRIGHT,
+	SCREEN_ALIGN_CENTERRIGHT,
+	SCREEN_ALIGN_TOPRIGHT,
 	SCREEN_ALIGN_NEUTRAL,
 };
 
 struct Alignment
 {
+	vec2 align(Rect geom);
 	Rect border = { vec2(0),vec2(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE) };
-	ScreenAlignment align = SCREEN_ALIGN_NEUTRAL;
+	ScreenAlignment alignment = SCREEN_ALIGN_NEUTRAL;
 };
 
 
@@ -59,8 +62,7 @@ struct Sprite
 	vec2 scale = vec2(0);
 	f32 rotation = .0f;
 	f32 alpha = 1.f;
-	vec2 tex_position;
-	vec2 tex_dimension;
+	Rect pbc;
 };
 
 struct TextCharacter
@@ -69,7 +71,7 @@ struct TextCharacter
 	vec2 scale = vec2(0);
 	vec2 bearing = vec2(0);
 	vec4 colour = vec4(1);
-	PixelBufferComponent comp;
+	Rect comp;
 };
 
 struct Vertex
@@ -210,7 +212,7 @@ public:
 	vector<AnimationVertex> vertices;
 	vector<MeshJoint> joints;
 	vector<Animation> animations;
-	u16 current_animation;
+	u16 current_animation = 0;
 
 private:
 	u16 m_StandardAnimation = 0;
@@ -225,10 +227,20 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
+struct PBGMaterials
+{
+	mat4 model = mat4(1.f);
+	f32 texel = 1.f;
+	u32 colour;
+	u32 normal;
+	u32 material;
+	u32 emission;
+};
+
 struct TextureDataTuple
 {
 	TextureData data;
-	Texture* texture;
+	GPUPixelBuffer* texture;
 };
 
 struct GeometryTuple
@@ -249,6 +261,7 @@ struct GeometryBatch
 	u32 add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex);
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex);
 	void load();
+	void vanish();
 
 	// data
 	VertexArray vao;
@@ -256,8 +269,9 @@ struct GeometryBatch
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
-	vector<float> geometry;
-//vector<u32> elements;
+	vector<f32> geometry;
+	void* pcm;
+	//vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
 	u32 offset_cursor = 0;
@@ -267,15 +281,17 @@ struct GeometryBatch
 struct ParticleBatch
 {
 	// utility
-	void load(Mesh& mesh,u32 particles);
-	void load(void* verts,size_t vsize,size_t ssize,u32 particles);
+	void load(Mesh& mesh,u32 particles,size_t isize);
+	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
+	void vanish();
 
 	// data
 	VertexArray vao;
 	VertexBuffer vbo;
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
-	vector<float> geometry;
+	vector<f32> geometry;
+	void* pcm;
 	u32 vertex_count;
 	u32 active_particles = 0;
 };
@@ -323,6 +339,106 @@ struct ShadowParticleBatch
 };
 
 
+#ifdef VKBUILD
+
+class Renderer
+{
+public:
+	Renderer();
+	void update();
+	void vanish();
+
+	// sprite
+	Rect* register_sprite_texture(const char* path);
+	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
+							f32 alpha=1.f,Alignment alignment={});
+	void assign_sprite_texture(Sprite* sprite,Rect* texture);
+	void delete_sprite_texture(Rect* texture);
+	static void delete_sprite(Sprite* sprite);
+
+	// text
+	Font* register_font(const char* path,u16 size);
+	lptr<Text> write_text(Font* font,string data,vec3 position,f32 scale,vec4 colour=vec4(1),Alignment align={});
+	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
+
+	// textures
+	GPUPixelBuffer* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+
+	// scene
+	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
+	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
+	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
+	lptr<GeometryBatch> register_deferred_geometry_batch();
+	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
+	//lptr<ParticleBatch> register_deferred_particle_batch();
+	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
+
+private:
+	void _update_sprites();
+	void _update_text();
+	static void _update_mesh(list<GeometryBatch>& batches);
+	static void _update_particles(list<ParticleBatch>& batches);
+	void _gpu_upload();
+
+private:
+
+	// buffers
+	VertexBuffer m_SpriteVertexBuffer;
+	VertexBuffer m_SpriteInstanceBuffer;
+	VertexBuffer m_TextInstanceBuffer;
+	VertexBuffer m_TargetVertexBuffer;
+
+	// vertex arrays
+	VertexArray m_SpriteVertexArray;
+	VertexArray m_TextVertexArray;
+	VertexArray m_TargetVertexArray;
+
+	// targets
+	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
+	Framebuffer m_Framebuffer;  // FIXME naming!!!!
+	Framebuffer m_GBuffer;
+
+	// textures
+	GPUPixelBuffer m_GPUSpriteTextures;
+	GPUPixelBuffer m_GPUFontTextures;
+
+	// mesh textures
+	InPlaceArray<GPUPixelBuffer> m_MeshTextures = InPlaceArray<GPUPixelBuffer>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	std::mutex m_MutexMeshTextureUpload;
+
+	// sprites
+	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
+
+	// text
+	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
+	list<Text> m_Texts;
+	size_t m_CharCount = 0;
+	// FIXME font memory is too strict and i don't think this is a nice approach in this case
+
+	// pipelines
+	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
+	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
+	lptr<ShaderPipeline> m_GeometryPassPipeline;
+	//lptr<ShaderPipeline> m_ParticlePassPipeline;
+	list<ShaderPipeline> m_ShaderPipelines;
+
+	// batches
+	list<GeometryBatch> m_GeometryBatches;
+	list<ParticleBatch> m_ParticleBatches;
+	list<GeometryBatch> m_DeferredGeometryBatches;
+	list<ParticleBatch> m_DeferredParticleBatches;
+
+	// uniform buffer
+	UniformBufferMemory m_UBufferMem;
+};
+
+
+// TODO light structures, except for shadow projections are universal and belong outside gfxapi related stuff
+#else
+
+
 // ----------------------------------------------------------------------------------------------------
 // Renderer Component
 
@@ -333,14 +449,14 @@ public:
 
 	void precalculate();
 	void update();
-	void exit();
+	void vanish();
 
 	// sprite
-	PixelBufferComponent* register_sprite_texture(const char* path);
-	Sprite* register_sprite(PixelBufferComponent* texture,vec3 position,vec2 size,f32 rotation=.0f,
+	Rect* register_sprite_texture(const char* path);
+	Sprite* register_sprite(Rect* texture,vec3 position,vec2 size,f32 rotation=.0f,
 							f32 alpha=1.f,Alignment alignment={});
-	void assign_sprite_texture(Sprite* sprite,PixelBufferComponent* texture);
-	void delete_sprite_texture(PixelBufferComponent* texture);
+	void assign_sprite_texture(Sprite* sprite,Rect* texture);
+	void delete_sprite_texture(Rect* texture);
 	static void delete_sprite(Sprite* sprite);
 
 	// text
@@ -375,7 +491,6 @@ public:
 
 	// utility
 	void animate(AnimatedMesh* mesh);
-	static vec2 align(Rect geom,Alignment alignment);
 
 private:
 
@@ -406,10 +521,6 @@ private:
 
 	// ----------------------------------------------------------------------------------------------------
 	// Data Management & Pipelines
-
-	VertexArray m_SpriteVertexArray;
-	VertexArray m_TextVertexArray;
-	VertexArray m_CanvasVertexArray;
 
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_CanvasVertexBuffer;
@@ -446,11 +557,6 @@ private:
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
 	// mesh
-	list<ShaderPipeline> m_ShaderPipelines;
-	list<GeometryBatch> m_GeometryBatches;
-	list<ParticleBatch> m_ParticleBatches;
-	list<GeometryBatch> m_DeferredGeometryBatches;
-	list<ParticleBatch> m_DeferredParticleBatches;
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
 
@@ -459,12 +565,12 @@ private:
 	// FIXME figure out what happens to deleted animated meshes that are linked here and in geometry batch
 
 	// lighting
-	lptr<ShaderPipeline> m_GeometryPassPipeline;
-	lptr<ShaderPipeline> m_ParticlePassPipeline;
 	lptr<ShaderPipeline> m_GeometryShadowPipeline;
 	lptr<ShaderPipeline> m_ParticleShadowPipeline;
 	Lighting m_Lighting;
 };
+
+#endif
 
 inline Renderer g_Renderer = Renderer();
 

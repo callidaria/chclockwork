@@ -21,14 +21,16 @@ struct Button
 
 	// data
 	Sprite* canvas;
-	PixelBufferComponent* idle;
-	PixelBufferComponent* hover;
-	PixelBufferComponent* action;
+	Rect* idle;
+	Rect* hover;
+	Rect* action;
 	lptr<Text> label;
 	Rect bounds;
 	bool holding = false;
 	bool confirm = false;
 };
+// TODO add hover status
+// TODO enumerate bitwise, then use this as status component
 
 struct TextField
 {
@@ -38,9 +40,9 @@ struct TextField
 
 	// data
 	Sprite* canvas;
-	PixelBufferComponent* idle;
-	PixelBufferComponent* hover;
-	PixelBufferComponent* select;
+	Rect* idle;
+	Rect* hover;
+	Rect* select;
 	string buffer;
 	string buffer_head = "";
 	string buffer_tail = "";
@@ -50,15 +52,15 @@ struct TextField
 	bool active = false;
 	bool hidden = false;
 };
+// TODO utilize pointer arithmetics instead of head tail buffer appendix (\0 to end current and point to cursor)
 
 struct UIBatch
 {
 	// utility
-	lptr<Button> add_button(const char* label,PixelBufferComponent* tidle,PixelBufferComponent* thover,
-							PixelBufferComponent* taction,vec3 position,vec2 scale,Alignment alignment={});
-	lptr<TextField> add_text_field(PixelBufferComponent* tidle,PixelBufferComponent* thover,
-								   PixelBufferComponent* tselect,vec3 position,vec2 scale,
-								   Alignment alignment={});
+	lptr<Button> add_button(const char* label,Rect* tidle,Rect* thover,Rect* taction,
+							vec3 position,vec2 scale,Alignment alignment={});
+	lptr<TextField> add_text_field(Rect* tidle,Rect* thover,Rect* tselect,
+								   vec3 position,vec2 scale,Alignment alignment={});
 
 	// data
 	Font* font;
