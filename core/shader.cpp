@@ -121,7 +121,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			}
 
 			// error in case none of the upper patterns match, which should be a grave mistake in shader code
-			COMM_ERR_FALLBACK("layout was found in shader, but following parameters are violating expectations");
+			COMM_ERR_FALLBACK("layout was found in shader, but parameters are violating expectations");
 		}
 #endif
 
@@ -145,7 +145,6 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		{
 			UniformDimension __Dim = (tokens[1]=="float")
 					? SHADER_UNIFORM_FLOAT : (UniformDimension)(SHADER_UNIFORM_INT+(tokens[1][3]-0x30));
-			std::cout << (u32)__Dim << std::endl;
 			__WriteHead->push_back({
 #ifdef VKBUILD
 					.location = (u32)__Location,
@@ -961,9 +960,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	m_DSetLayouts.reserve(__Sets.size());
 	for (size_t i=0;i<__Sets.size();i++)
 	{
-		vector<VkDescriptorSetLayoutBinding>& p_Binding = __Sets[i];
-		__DescriptorLayoutInfo.bindingCount = p_Binding.size();
-		__DescriptorLayoutInfo.pBindings = &p_Binding[0];
+		vector<VkDescriptorSetLayoutBinding>& p_Set = __Sets[i];
+		__DescriptorLayoutInfo.bindingCount = p_Set.size();
+		__DescriptorLayoutInfo.pBindings = &p_Set[0];
 		__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&m_DSetLayouts[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 	}
