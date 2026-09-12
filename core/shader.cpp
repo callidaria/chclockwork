@@ -815,6 +815,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// TODO split definitions into two different for each shader, to allow for some independence
 	// FIXME also LIES! only vertex interface relevant for upload size will break soon
 
+	// combine uniform & pc from fragment interface into vertex
+	// TODO
+
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
