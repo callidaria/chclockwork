@@ -195,14 +195,14 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			if (__Set>=interface.ubo_attribs.size()) interface.ubo_attribs.resize(__Set+1);
 
 			// determine type and check for disagreements with colliding definitions from prev. stages
+			// the check is only reliable, because the read does not allow write of sampler type due to the
+			// default value being 0. that value describes VK_DESCRIPTOR_TYPE_SAMPLER. the precheck would fail!
 			VkDescriptorType __Type = (__Line.find("sampler2D")==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
-			/*
-			COMM_ERR_COND(interface.ubo_attribs[__Set][__Binding].type!=__Type,
+			COMM_ERR_COND(p_Attrib.type!=0&&p_Attrib.type!=__Type,
 						  "uniform variable def. disagrees across two shader stages at set: %i, binding: %i",
 						  __Set,__Binding);
-			*/
 
 			// insert binding information
 			p_Attrib.type = __Type;
