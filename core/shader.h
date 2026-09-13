@@ -117,11 +117,17 @@ struct ShaderAttribute
 	UniformDimension dim;
 };
 
+struct UBOAttribute
+{
+	VkDescriptorType type;
+	VkShaderStageFlags stage = 0;
+};
+
 struct ShaderInterface
 {
 	vector<ShaderAttribute> vbo_attribs;
 	vector<ShaderAttribute> ibo_attribs;
-	vector<map<u32,VkDescriptorType>> ubo_attribs;
+	vector<map<u32,UBOAttribute>> ubo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
 	size_t pc_count = 0,pc_memsize = 0;

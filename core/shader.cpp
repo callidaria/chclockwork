@@ -50,8 +50,11 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 /**
  *	TODO
  */
-static inline void _shader_interface_automap(const char* path,ShaderInterface& interface)
+static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
+											 VkShaderStageFlags stage)
 {
+	bool vshader = stage&VK_SHADER_STAGE_VERTEX_BIT;
+
 	// setup attribute write head for vertex components until engine annotation overwrites to instance
 	vector<ShaderAttribute>* __WriteHead = &interface.vbo_attribs;
 	size_t* __WidthHead = &interface.vbo_width;
@@ -141,7 +144,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 
 		// check for in definition
 		// this automatically ignores out variable definitions
-		if (tokens[0][0]=='i')
+		if (tokens[0][0]=='i'&&vshader)
 		{
 			UniformDimension __Dim = (tokens[1]=="float")
 					? SHADER_UNIFORM_FLOAT : (UniformDimension)(SHADER_UNIFORM_INT+(tokens[1][3]-0x30));
@@ -191,9 +194,19 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// resize imitates this behaviour
 			if (__Set>=interface.ubo_attribs.size()) interface.ubo_attribs.resize(__Set+1);
 
-			// insert detected binding within its set representation
-			interface.ubo_attribs[__Set][__Binding] = (__Line.find("sampler2D")==string::npos)
+			// determine type and check for disagreements with colliding definitions from prev. stages
+			VkDescriptorType __Type = (__Line.find("sampler2D")==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
+			/*
+			COMM_ERR_COND(interface.ubo_attribs[__Set][__Binding].type!=__Type,
+						  "uniform variable def. disagrees across two shader stages at set: %i, binding: %i",
+						  __Set,__Binding);
+			*/
+
+			// insert binding information
+			p_Attrib.type = __Type;
+			p_Attrib.stage |= stage;
 		}
 	}
 }
@@ -673,11 +686,10 @@ u8 ShaderPipeline::out_define_result_buffer()
  *	TODO
  */
 inline void _compile_descriptor_uniform_attributes(ShaderInterface& interface,
-												   vector<vector<VkDescriptorSetLayoutBinding>>& binds,
-												   VkShaderStageFlags stage)
+												   vector<vector<VkDescriptorSetLayoutBinding>>& binds)
 {
 	// iterate active sets
-	for (map<u32,VkDescriptorType>& p_Set : interface.ubo_attribs)
+	for (map<u32,UBOAttribute>& p_Set : interface.ubo_attribs)
 	{
 		vector<VkDescriptorSetLayoutBinding> __Bindings;
 
@@ -687,9 +699,9 @@ inline void _compile_descriptor_uniform_attributes(ShaderInterface& interface,
 			VkDescriptorSetLayoutBinding __Binding = {  };
 			__Binding.binding = p_Binding->first;
 			__Binding.descriptorCount = 1;
-			__Binding.descriptorType = p_Binding->second;
+			__Binding.descriptorType = p_Binding->second.type;
 			__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
-			__Binding.stageFlags = stage;
+			__Binding.stageFlags = p_Binding->second.stage;
 			__Bindings.push_back(__Binding);
 		}
 
@@ -804,35 +816,33 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// shader interface automapping for input definition
-	ShaderInterface __VertexInterface,__FragmentInterface;
+	//ShaderInterface __VertexInterface,__FragmentInterface;
+	ShaderInterface __Interface;
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-							  __VertexInterface);
+							  __Interface,VK_SHADER_STAGE_VERTEX_BIT);
 	_shader_interface_automap((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
-							  __FragmentInterface);
-	push_constant_count = __VertexInterface.pc_count;
-	push_constant_size = __VertexInterface.pc_memsize;
+							  __Interface,VK_SHADER_STAGE_FRAGMENT_BIT);
+	push_constant_count = __Interface.pc_count;
+	push_constant_size = __Interface.pc_memsize;
 	// TODO split definitions into two different for each shader, to allow for some independence
 	// FIXME also LIES! only vertex interface relevant for upload size will break soon
-
-	// combine uniform & pc from fragment interface into vertex
-	// TODO
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
-	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__VertexInterface.vbo_width;
+	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__VertexInterface.ibo_width;
+	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.ibo_width;
 	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 	// TODO find out if this has performance implications
 
 	// vertex attribute setup
 	u32 __Location = 0;
-	u32 __AttributeCount = __VertexInterface.vbo_attribs.size()+__VertexInterface.ibo_attribs.size();
+	u32 __AttributeCount = __Interface.vbo_attribs.size()+__Interface.ibo_attribs.size();
 	vector<VkVertexInputAttributeDescription> __AttributeDesc(__AttributeCount);
-	for (ShaderAttribute& __Attrib : __VertexInterface.vbo_attribs)
+	for (ShaderAttribute& __Attrib : __Interface.vbo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 0;
@@ -843,7 +853,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	}
 
 	// instance attribute setup
-	for (ShaderAttribute& __Attrib : __VertexInterface.ibo_attribs)
+	for (ShaderAttribute& __Attrib : __Interface.ibo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 1;
@@ -953,8 +963,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// uniform variables vertex shader
 	vector<vector<VkDescriptorSetLayoutBinding>> __Sets;
-	_compile_descriptor_uniform_attributes(__VertexInterface,__Sets,VK_SHADER_STAGE_VERTEX_BIT);
-	_compile_descriptor_uniform_attributes(__FragmentInterface,__Sets,VK_SHADER_STAGE_FRAGMENT_BIT);
+	_compile_descriptor_uniform_attributes(__Interface,__Sets);
+	//_compile_descriptor_uniform_attributes(__FragmentInterface,__Sets,VK_SHADER_STAGE_FRAGMENT_BIT);
 	// TODO also do fragment shader uniform interface (+ merge info!)
 
 	// descriptor set layout
@@ -972,15 +982,15 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// push constants
 	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
-	COMM_MSG_COND(__VertexInterface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
+	COMM_MSG_COND(__Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
 				  "the required push constant memory size violates guaranteed minimum of 128 bytes");
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__VertexInterface.pc_count)
+	if (__Interface.pc_count)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = __VertexInterface.pc_memsize;
+		__PushConstantRange.size = __Interface.pc_memsize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 	// TODO correctly establish stage flags from interface mapping
@@ -990,7 +1000,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = m_DSetLayouts.size();
 	__LayoutInfo.pSetLayouts = &m_DSetLayouts[0];
-	__LayoutInfo.pushConstantRangeCount = !!__VertexInterface.pc_count;
+	__LayoutInfo.pushConstantRangeCount = !!__Interface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
