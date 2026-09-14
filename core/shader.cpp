@@ -964,13 +964,11 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// uniform variables vertex shader
 	vector<vector<VkDescriptorSetLayoutBinding>> __Sets;
 	_compile_descriptor_uniform_attributes(__Interface,__Sets);
-	//_compile_descriptor_uniform_attributes(__FragmentInterface,__Sets,VK_SHADER_STAGE_FRAGMENT_BIT);
-	// TODO also do fragment shader uniform interface (+ merge info!)
 
 	// descriptor set layout
 	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
 	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	m_DSetLayouts.reserve(__Sets.size());
+	m_DSetLayouts.resize(__Sets.size());
 	for (size_t i=0;i<__Sets.size();i++)
 	{
 		vector<VkDescriptorSetLayoutBinding>& p_Set = __Sets[i];
