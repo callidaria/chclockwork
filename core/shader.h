@@ -10,86 +10,16 @@ constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
 constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 
-// ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
-
 #ifdef VKBUILD
+
+// ----------------------------------------------------------------------------------------------------
+// Tuples & States
+
 enum DescriptorType : u8
 {
 	DESCRIPTOR_TYPE_BUFFER,
 	DESCRIPTOR_TYPE_IMAGE
 };
-
-struct DescriptorInfo
-{
-	DescriptorType type;
-	union
-	{
-		VkDescriptorBufferInfo buffer;
-		VkDescriptorImageInfo image;
-	} info;
-};
-
-class DescriptorSet
-{
-public:
-
-	// setup
-	DescriptorSet(u8 set,u32 bindings);
-	void define_geometry(u32 location,size_t size);
-	void define_texture(u32 location);
-
-	// interaction
-	void link_result(size_t i,GPUPixelBuffer& texture);
-	void link_result(size_t i,VkImageView buffer);
-
-	// state
-	void bind(VkPipelineLayout& layout);
-	void update();
-	void update_frame();
-	void vanish();
-
-private:
-	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
-	vector<VkDescriptorPoolSize> m_DescriptorPoolSizes;
-	//vector<VkDescriptorSetLayoutBinding> m_Bindings;
-	vector<VkWriteDescriptorSet> m_Writes;
-	vector<DescriptorInfo> m_DescriptorInfos;
-	u8 m_Set;
-	size_t m_Size = 0;
-};
-
-class UniformBuffer
-{
-public:
-
-	// setup
-	UniformBuffer();
-	void assemble();
-	void finalize();
-
-	// action
-	void update(void* data,size_t size);
-
-	// final
-	void vanish();
-
-public:
-	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];  // TODO move this out of public
-	VkSampler default_sampler;
-
-private:
-	VkBuffer m_UBO[GPU_BUFFER_COUNT];
-	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
-	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	VkDescriptorPool m_DescriptorPool;
-};
-inline UniformBuffer g_UniformBuffer = UniformBuffer();
-#endif
-
-
-// ----------------------------------------------------------------------------------------------------
-// Shader Pipeline
 
 enum UniformDimension : u8
 {
@@ -105,6 +35,16 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_FORMAT_COUNT
 };
 
+struct DescriptorInfo
+{
+	DescriptorType type;
+	union
+	{
+		VkDescriptorBufferInfo buffer;
+		VkDescriptorImageInfo image;
+	} info;
+};
+
 struct ShaderAttribute
 {
 #ifdef VKBUILD
@@ -115,6 +55,14 @@ struct ShaderAttribute
 	location;
 	size_t offset;
 	UniformDimension dim;
+};
+
+struct ShaderUniformValue
+{
+	string name;
+	u32 uloc;
+	UniformDimension udim;
+	f32* data;
 };
 
 struct UBOAttribute
@@ -132,6 +80,59 @@ struct ShaderInterface
 	size_t ibo_width = 0;
 	size_t pc_count = 0,pc_memsize = 0;
 };
+
+
+// ----------------------------------------------------------------------------------------------------
+// Descriptor Memory
+
+class DescriptorSetMemory
+{
+public:
+	DescriptorSetMemory(u8 set);
+
+	// interaction
+	void link_result(size_t i,GPUPixelBuffer& texture);
+	void link_result(size_t i,VkImageView buffer);
+
+	// state
+	void allocate();
+	void bind(VkPipelineLayout& layout);
+	void update();
+	void update_frame();
+	void vanish();
+
+private:
+	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
+	vector<VkWriteDescriptorSet> m_Writes;
+	vector<DescriptorInfo> m_DescriptorInfos;
+	u8 m_Set;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer Memory
+
+class UniformBuffer
+{
+public:
+	UniformBuffer();
+	void vanish();
+	
+public:
+	VkSampler default_sampler;
+	VkDescriptorPool descriptor_pool;
+
+private:
+	VkBuffer m_UBO[GPU_BUFFER_COUNT];
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+};
+inline UniformBuffer g_UniformBuffer = UniformBuffer();
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Shader Pipeline
 
 #ifdef GLBUILD
 class Shader
@@ -164,14 +165,6 @@ public:
 #endif
 
 
-struct ShaderUniformValue
-{
-	string name;
-	u32 uloc;
-	UniformDimension udim;
-	f32* data;
-};
-
 class ShaderPipeline
 {
 public:
@@ -194,6 +187,9 @@ public:
 	void enable();
 	static void disable();
 	u32 get_uniform_location(const char* uname);
+
+	// ubo
+	void generate_descriptor_set_memory(DescriptorSetMemory& mem);
 
 	// pcm
 	void generate_pcm(void* pcm,u32 repeat=1);

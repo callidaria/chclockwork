@@ -186,6 +186,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 				interface.pc_count++;
 			}
 		}
+		// FIXME this unfortunately does not work for the current implementation, that combines vertex
+		//		& fragment interface on the fly
 
 		// check for uniform definition
 		else if (tokens[0][0]=='u')
@@ -225,44 +227,19 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 /**
  *	TODO
  */
-DescriptorSet::DescriptorSet(u8 set,u32 bindings)
+DescriptorSetMemory::DescriptorSetMemory(u8 set)
 	: m_Set(set)
-{
-	// allocate memory for definitions
-	m_DescriptorPoolSizes.reserve(bindings);
-	//m_Bindings.reserve(bindings);
-	m_Writes.reserve(bindings);
-	m_DescriptorInfos.reserve(bindings);
-	// TODO those can be free'd after setup has finished
-	// TODO with the new architecture geometry definitions are predictable and controlled by structure definition
-	//		so this can be removed, there is no preallocation anymore, as well as calling the define by hand
-}
+{  }
 
 /**
  *	TODO
  */
+/*
 void DescriptorSet::define_geometry(u32 location,size_t size)
 {
 	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorPoolSizes.size());
-
-	// descriptor pool size
-	VkDescriptorPoolSize __DescriptorPoolSize = {  };
-	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__DescriptorPoolSize.descriptorCount = GPU_BUFFER_COUNT;
-	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
-
-	// bindings
-	/*
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__Binding.descriptorCount = 1;
-	__Binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	__Binding.pImmutableSamplers = nullptr;
-	m_Bindings.push_back(__Binding);
-	*/
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -281,32 +258,17 @@ void DescriptorSet::define_geometry(u32 location,size_t size)
 	m_DescriptorInfos.push_back(__Desc);
 	m_Size += size;
 }
+*/
 
 /**
  *	TODO
  */
+/*
 void DescriptorSet::define_texture(u32 location)
 {
 	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
 				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorPoolSizes.size());
-
-	// descriptor pool size
-	VkDescriptorPoolSize __DescriptorPoolSize = {  };
-	__DescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__DescriptorPoolSize.descriptorCount = GPU_BUFFER_COUNT;
-	m_DescriptorPoolSizes.push_back(__DescriptorPoolSize);
-
-	// bindings
-	/*
-	VkDescriptorSetLayoutBinding __Binding = {  };
-	__Binding.binding = location;
-	__Binding.descriptorCount = 1;
-	__Binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
-	__Binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	m_Bindings.push_back(__Binding);
-	*/
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -324,6 +286,7 @@ void DescriptorSet::define_texture(u32 location)
 	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos.push_back(__Desc);
 }
+*/
 
 /**
  *	TODO
@@ -347,6 +310,25 @@ void DescriptorSet::link_result(size_t i,VkImageView buffer)
 /**
  *	TODO
  */
+void DescriptorSet::allocate()
+{
+	COMM_AWT("allocating descriptor set memory");
+
+	// allocate correlated memory for linked descriptor set layout
+	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
+	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	__DSetAllocInfo.descriptorPool = g_UniformBuffer.descriptor_pool;
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
+	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
+
+	COMM_CNF();
+}
+
+/**
+ *	TODO
+ */
 void DescriptorSet::bind(VkPipelineLayout& layout)
 {
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,
@@ -360,14 +342,7 @@ void DescriptorSet::bind(VkPipelineLayout& layout)
  */
 void DescriptorSet::update()
 {
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		// TODO
-		/*
-		m_TextureSet.dstSet = m_DSets[i];
-		vkUpdateDescriptorSets(g_GPU.gpu,1,&m_TextureSet,0,nullptr);
-		*/
-	}
+	vkUpdateDescriptorSets(g_GPU.gpu,GPU_BUFFER_COUNT,m_DSets,0,nullptr);
 }
 
 /**
@@ -376,7 +351,7 @@ void DescriptorSet::update()
  */
 void DescriptorSet::update_frame()
 {
-	// TODO
+	vkUpdateDescriptorSets(g_GPU.gpu,1,m_DSets[g_GPU.active_buffer],0,nullptr);
 }
 
 /**
@@ -399,6 +374,7 @@ void DescriptorSet::vanish()
 UniformBuffer::UniformBuffer()
 {
 	// setup default sampler
+	COMM_LOG("creating default sampler");
 	VkSamplerCreateInfo __SamplerInfo = {  };
 	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
@@ -418,17 +394,9 @@ UniformBuffer::UniformBuffer()
 	__SamplerInfo.maxLod = 0;
 	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
-}
-
-/**
- *	TODO
- *	NOTE this should only be run by the renderer and also only once at construction!
- */
-void UniformBuffer::assemble()
-{
-	COMM_AWT("allocating the uniform buffer");
 
 	// generate buffer for previously defined geometry ranges
+	COMM_AWT("allocating the uniform buffer");
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],
@@ -438,29 +406,24 @@ void UniformBuffer::assemble()
 	}
 	// TODO stage this too? host_visible? i don't think so bröther
 
-	// descriptor pool creation
-	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
-	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	/*
-	__DPoolInfo.poolSizeCount = m_DescriptorPoolSizes.size();
-	__DPoolInfo.pPoolSizes = &m_DescriptorPoolSizes[0];
-	*/  // FIXME aquire
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;
-	__DPoolInfo.flags = 0;
-	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&m_DescriptorPool);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
+	// entry descriptor pool sizes into configuration
+	// starting with uniform buffer type allocation, then combined image sampler
+	VkDescriptorPoolSize __DescriptorPoolSize[2];
+	__DescriptorPoolSize[0] = {  };
+	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_UNIFORM_COUNT;
+	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_WRITE_DESCRIPTOR_SET;
+	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_SAMPLER_COUNT;
 
-	/*
-	// allocate descriptor set 0
-	vector<VkDescriptorSetLayout> __DSetLayouts(GPU_BUFFER_COUNT,dset_layout);
-	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
-	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	__DSetAllocInfo.descriptorPool = m_DescriptorPool;
-	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
-	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
-	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
-	*/
+	// configurably generous descriptor pool allocation
+	VkDescriptoPoolCreateInfo __DPoolInfo = {  };
+	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	__DPoolInfo.poolSizeCount = 2;
+	__DPoolInfo.pPoolSizes = m_DescriptorPoolSizes;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;  // FIXME is this a bug?
+	__DPoolInfo.flags = 0;
+	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
 	COMM_CNF();
 }
@@ -981,7 +944,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// push constants
 	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
 	COMM_MSG_COND(__Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
-				  "the required push constant memory size violates guaranteed minimum of 128 bytes");
+				  "the required push constant memory size (%li bytes) violates guaranteed minimum of 128 bytes",
+				  __Interface.pc_memsize);
 	VkPushConstantRange* p_PushConstantRange = nullptr;
 	if (__Interface.pc_count)
 	{
@@ -1119,8 +1083,10 @@ void ShaderPipeline::enable()
 #ifdef VKBUILD
 	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
 	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
+	/*
 	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,1,
 							(VkDescriptorSet*)&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
+	*/
 #else
 	glUseProgram(m_ShaderProgram);
 #endif
