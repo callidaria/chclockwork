@@ -227,72 +227,40 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 /**
  *	TODO
  */
-DescriptorSetMemory::DescriptorSetMemory(u8 set)
-	: m_Set(set)
-{  }
-
-/**
- *	TODO
- */
-/*
-void DescriptorSet::define_geometry(u32 location,size_t size)
+void DescriptorSet::define(u32 location,DescriptorType type)
 {
-	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
+	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
-				  m_DescriptorPoolSizes.size());
+				  m_DescriptorInfos.size());
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
 	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
-
-	DescriptorInfo __Desc = {};
-	__Desc.type = DESCRIPTOR_TYPE_BUFFER;
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = m_Size;
-	__Desc.info.buffer.range = size;
-	m_DescriptorInfos.push_back(__Desc);
-	m_Size += size;
-}
-*/
-
-/**
- *	TODO
- */
-/*
-void DescriptorSet::define_texture(u32 location)
-{
-	COMM_MSG_COND(m_DescriptorPoolSizes.capacity()<=m_DescriptorPoolSizes.size(),LOG_YELLOW,
-				  "sampler binding malloc not sufficient, resizing (capacity>%ld)...",
-				  m_DescriptorPoolSizes.size());
-
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorType = (type==DESCRIPTOR_TYPE_BUFFER)
+			? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
 
 	// image info
 	DescriptorInfo __Desc = {  };
-	__Desc.type = DESCRIPTOR_TYPE_IMAGE;
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Desc.type = type;
+	/*
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = m_Size;
+	__Desc.info.buffer.range = size;
+	*/
 	m_DescriptorInfos.push_back(__Desc);
 }
-*/
 
 /**
  *	TODO
  */
-void DescriptorSet::link_result(size_t i,GPUPixelBuffer& texture)
+void DescriptorSetMemory::link_result(size_t i,GPUPixelBuffer& texture)
 {
+	m_DescriptorInfos[i].info.image = {  };
+	m_DescriptorInfos[i].info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
 	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
 }
@@ -300,8 +268,10 @@ void DescriptorSet::link_result(size_t i,GPUPixelBuffer& texture)
 /**
  *	TODO
  */
-void DescriptorSet::link_result(size_t i,VkImageView buffer)
+void DescriptorSetMemory::link_result(size_t i,VkImageView buffer)
 {
+	m_DescriptorInfos[i].info.image = {  };
+	m_DescriptorInfos[i].info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
 	// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
@@ -310,9 +280,14 @@ void DescriptorSet::link_result(size_t i,VkImageView buffer)
 /**
  *	TODO
  */
-void DescriptorSet::allocate()
+void DescriptorSetMemory::allocate(u8 set,size_t size)
 {
+	m_Set = set;
 	COMM_AWT("allocating descriptor set memory");
+
+	// allocate ram for write & descriptor info
+	m_Writes.reserve(size);
+	m_DescriptorInfos.reserve(size);
 
 	// allocate correlated memory for linked descriptor set layout
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
@@ -329,7 +304,7 @@ void DescriptorSet::allocate()
 /**
  *	TODO
  */
-void DescriptorSet::bind(VkPipelineLayout& layout)
+void DescriptorSetMemory::bind(VkPipelineLayout& layout)
 {
 	vkCmdBindDescriptorSets(g_GPU.acquire_graphical_command_buffer()->buffer,
 							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,
@@ -340,7 +315,7 @@ void DescriptorSet::bind(VkPipelineLayout& layout)
  *	TODO
  *	\note it is advisable to use update(), when set is updated rarely or on condition
  */
-void DescriptorSet::update()
+void DescriptorSetMemory::update()
 {
 	vkUpdateDescriptorSets(g_GPU.gpu,GPU_BUFFER_COUNT,m_DSets,0,nullptr);
 }
@@ -349,7 +324,7 @@ void DescriptorSet::update()
  *	TODO
  *	\note it is advisable to use update_frame(), when set is updated every frame, regardless of change
  */
-void DescriptorSet::update_frame()
+void DescriptorSetMemory::update_frame()
 {
 	vkUpdateDescriptorSets(g_GPU.gpu,1,m_DSets[g_GPU.active_buffer],0,nullptr);
 }
@@ -357,7 +332,7 @@ void DescriptorSet::update_frame()
 /**
  *	TODO
  */
-void DescriptorSet::vanish()
+void DescriptorSetMemory::vanish()
 {
 	// TODO
 }
@@ -394,6 +369,7 @@ UniformBuffer::UniformBuffer()
 	__SamplerInfo.maxLod = 0;
 	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
+	// TODO move to renderer instead
 
 	// generate buffer for previously defined geometry ranges
 	COMM_AWT("allocating the uniform buffer");
@@ -779,33 +755,31 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// TODO outsource those shader specific creations to their correlating shader structs
 
 	// shader interface automapping for input definition
-	//ShaderInterface __VertexInterface,__FragmentInterface;
-	ShaderInterface __Interface;
 	std::filesystem::path __VertexSource(vs),__FragmentSource(fs);
 	_shader_interface_automap((__VertexSource.parent_path().parent_path()/__VertexSource.filename()).c_str(),
-							  __Interface,VK_SHADER_STAGE_VERTEX_BIT);
+							  m_Interface,VK_SHADER_STAGE_VERTEX_BIT);
 	_shader_interface_automap((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
-							  __Interface,VK_SHADER_STAGE_FRAGMENT_BIT);
-	push_constant_count = __Interface.pc_count;
-	push_constant_size = __Interface.pc_memsize;
+							  m_Interface,VK_SHADER_STAGE_FRAGMENT_BIT);
+	push_constant_count = m_Interface.pc_count;
+	push_constant_size = m_Interface.pc_memsize;
 	// TODO split definitions into two different for each shader, to allow for some independence
 	// FIXME also LIES! only vertex interface relevant for upload size will break soon
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
-	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.vbo_width;
+	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*m_Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*__Interface.ibo_width;
+	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*m_Interface.ibo_width;
 	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 	// TODO find out if this has performance implications
 
 	// vertex attribute setup
 	u32 __Location = 0;
-	u32 __AttributeCount = __Interface.vbo_attribs.size()+__Interface.ibo_attribs.size();
+	u32 __AttributeCount = m_Interface.vbo_attribs.size()+m_Interface.ibo_attribs.size();
 	vector<VkVertexInputAttributeDescription> __AttributeDesc(__AttributeCount);
-	for (ShaderAttribute& __Attrib : __Interface.vbo_attribs)
+	for (ShaderAttribute& __Attrib : m_Interface.vbo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 0;
@@ -816,7 +790,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	}
 
 	// instance attribute setup
-	for (ShaderAttribute& __Attrib : __Interface.ibo_attribs)
+	for (ShaderAttribute& __Attrib : m_Interface.ibo_attribs)
 	{
 		__AttributeDesc[__Location] = {  };
 		__AttributeDesc[__Location].binding = 1;
@@ -926,7 +900,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// uniform variables vertex shader
 	vector<vector<VkDescriptorSetLayoutBinding>> __Sets;
-	_compile_descriptor_uniform_attributes(__Interface,__Sets);
+	_compile_descriptor_uniform_attributes(m_Interface,__Sets);
 
 	// descriptor set layout
 	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
@@ -943,16 +917,16 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 
 	// push constants
 	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
-	COMM_MSG_COND(__Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
+	COMM_MSG_COND(m_Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
 				  "the required push constant memory size (%li bytes) violates guaranteed minimum of 128 bytes",
-				  __Interface.pc_memsize);
+				  m_Interface.pc_memsize);
 	VkPushConstantRange* p_PushConstantRange = nullptr;
-	if (__Interface.pc_count)
+	if (m_Interface.pc_count)
 	{
 		VkPushConstantRange __PushConstantRange = {  };
 		__PushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT;
 		__PushConstantRange.offset = 0;
-		__PushConstantRange.size = __Interface.pc_memsize;
+		__PushConstantRange.size = m_Interface.pc_memsize;
 		p_PushConstantRange = &__PushConstantRange;
 	}
 	// TODO correctly establish stage flags from interface mapping
@@ -962,7 +936,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	__LayoutInfo.setLayoutCount = m_DSetLayouts.size();
 	__LayoutInfo.pSetLayouts = &m_DSetLayouts[0];
-	__LayoutInfo.pushConstantRangeCount = !!__Interface.pc_count;
+	__LayoutInfo.pushConstantRangeCount = !!m_Interface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"shader layout creation from vs:%s & fs:%s failed",vs,fs);
@@ -1107,10 +1081,21 @@ void ShaderPipeline::disable()
 /**
  *	TODO
  */
+void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
+{
+	for (map<u32,UBOAttribute>& p_Set : m_Interface.ubo_attribs)
+	{
+		// TODO
+	}
+}
+
+/**
+ *	TODO
+ */
 void ShaderPipeline::generate_pcm(void* pcm,u32 repeat)
 {
-	if (!push_constant_count) return;
-	pcm = malloc(push_constant_size*repeat);
+	if (!m_Interface.pc_count) return;
+	pcm = malloc(m_Interface.pc_memsize*repeat);
 }
 
 /**
@@ -1118,10 +1103,10 @@ void ShaderPipeline::generate_pcm(void* pcm,u32 repeat)
  */
 void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
 {
-	if (!push_constant_count) return;
+	if (!m_Interface.pc_count) return;
 	vkCmdPushConstants(g_GPU.acquire_graphical_command_buffer()->buffer,pipeline_layout,
-					   VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,ofs*push_constant_size,
-					   push_constant_size,pcm);
+					   VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,ofs*m_Interface.pc_memsize,
+					   m_Interface.pc_memsize,pcm);
 }
 // FIXME i'd rather not check every time
 // TODO research if it is supported by transfer queue

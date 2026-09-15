@@ -85,17 +85,14 @@ struct ShaderInterface
 // ----------------------------------------------------------------------------------------------------
 // Descriptor Memory
 
-class DescriptorSetMemory
+struct DescriptorSetMemory
 {
-public:
-	DescriptorSetMemory(u8 set);
-
 	// interaction
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 
 	// state
-	void allocate();
+	void allocate(u8 set,size_t size);
 	void bind(VkPipelineLayout& layout);
 	void update();
 	void update_frame();
@@ -188,10 +185,8 @@ public:
 	static void disable();
 	u32 get_uniform_location(const char* uname);
 
-	// ubo
-	void generate_descriptor_set_memory(DescriptorSetMemory& mem);
-
-	// pcm
+	// ubo & pcm
+	void generate_ubo(vector<DescriptorSetMemory>& sets);
 	void generate_pcm(void* pcm,u32 repeat=1);
 	void upload_pcm(void* pcm,u32 ofs=0);
 
@@ -232,10 +227,10 @@ public:
 
 private:
 #ifdef VKBUILD
+	ShaderInterface m_Interface;
 	vector<VkDescriptorSetLayout> m_DSetLayouts;
 	VkAttachmentReference* m_References;
 	u8 m_Cursor = 0;
-	size_t push_constant_count,push_constant_size;  // TODO remove
 #else
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;
