@@ -890,7 +890,7 @@ Renderer::Renderer()
 	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 														  RENDERER_MAXIMUM_TEXTURE_COUNT);
 	*/
-	g_UniformBuffer.assemble();
+	//g_UniformBuffer.assemble();
 	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
 	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
 	//		but it might just work, if definition and linking is separated as they might be in the future
@@ -940,7 +940,7 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
-	g_UniformBuffer.finalize();
+	//g_UniformBuffer.finalize();
 }
 
 void Renderer::update()
@@ -953,7 +953,7 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	// data update
-	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
+	//g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();

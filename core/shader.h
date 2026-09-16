@@ -69,6 +69,7 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
+	size_t offset,memsize;
 };
 
 struct ShaderInterface
@@ -78,6 +79,7 @@ struct ShaderInterface
 	vector<map<u32,UBOAttribute>> ubo_attribs;
 	size_t vbo_width = 0;
 	size_t ibo_width = 0;
+	size_t ubo_width = 0;
 	size_t pc_count = 0,pc_memsize = 0;
 };
 
@@ -88,11 +90,12 @@ struct ShaderInterface
 struct DescriptorSetMemory
 {
 	// interaction
+	void define(u32 location,UBOAttribute& attr);
 	void link_result(size_t i,GPUPixelBuffer& texture);
 	void link_result(size_t i,VkImageView buffer);
 
 	// state
-	void allocate(u8 set,size_t size);
+	void allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts);
 	void bind(VkPipelineLayout& layout);
 	void update();
 	void update_frame();

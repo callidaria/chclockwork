@@ -50,6 +50,44 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 /**
  *	TODO
  */
+static inline void _process_data_block_text(std::ifstream& file,size_t& varcount,size_t& blocksize)
+{
+
+	// continue reading pased file
+	string __Line;
+	while (!file.eof())
+	{
+		std::getline(file,__Line);
+
+		// interrupt scan at end of data block, jump over possible bracket newline
+		if (__Line[0]=='}') break;
+		else if (__Line.find("{")==0) continue;
+
+		// gather requested values
+		std::istringstream __LineStream(__Line);
+		string __Typename,__Varname;
+		__LineStream >> __Typename;
+		__LineStream >> __Varname;
+
+		// correlate typename with memory size
+		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
+		{
+			if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
+			{
+				blocksize += SHADER_TYPES[i].memsize;
+				break;
+			}
+		}
+		varcount++;
+	}
+}
+// FIXME implementation too rigid
+// FIXME this unfortunately does not work for the current implementation, that combines vertex
+//		& fragment interface on the fly
+
+/**
+ *	TODO
+ */
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
 {
@@ -161,33 +199,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 		}
 
 		// check for push constant structure definition
-		else if (__PCD)
-		{
-			while (!__File.eof())
-			{
-				std::getline(__File,__Line);
-				if (__Line[0]=='}') break;
-				else if (__Line.find("{")==0) continue;
-
-				// gather requested values
-				std::istringstream __LineStream(__Line);
-				std::string __Typename,__Varname;
-				__LineStream >> __Typename;
-
-				// correlate typename with memory size
-				for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
-				{
-					if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
-					{
-						interface.pc_memsize += SHADER_TYPES[i].memsize;
-						break;
-					}
-				}
-				interface.pc_count++;
-			}
-		}
-		// FIXME this unfortunately does not work for the current implementation, that combines vertex
-		//		& fragment interface on the fly
+		else if (__PCD) _process_data_block_text(__File,interface.pc_count,interface.pc_memsize);
 
 		// check for uniform definition
 		else if (tokens[0][0]=='u')
@@ -209,6 +221,17 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// insert binding information
 			p_Attrib.type = __Type;
 			p_Attrib.stage |= stage;
+
+			// read data block for size estimation & save offset
+			if (__Line.find("{")!=string::npos)
+			{
+				size_t __Count,__Memsize;
+				_process_data_block_text(__File,__Count,__Memsize);
+				p_Attrib.offset = interface.ubo_width;
+				p_Attrib.memsize = __Memsize;
+				interface.ubo_width += __Memsize;
+			}
+			// FIXME dont run this when repeating read from vertex in fragment source
 		}
 	}
 }
@@ -219,6 +242,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 //		this also makes it possible to exactly assign uploads either vertex or fragment shader stage bit
 // FIXME this requires the push constants to be defined line by line, without empty lines in between
 //		why is this not implemented using istringstream for the whole process?
+// TODO read in one go from file, then store and iterate after file itself is closed
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -227,7 +251,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 /**
  *	TODO
  */
-void DescriptorSet::define(u32 location,DescriptorType type)
+void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 {
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
@@ -238,19 +262,20 @@ void DescriptorSet::define(u32 location,DescriptorType type)
 	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	__WriteDescriptor.dstBinding = location;
 	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = (type==DESCRIPTOR_TYPE_BUFFER)
-			? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__WriteDescriptor.descriptorType = attr.type;
 	__WriteDescriptor.descriptorCount = 1;
 	m_Writes.push_back(__WriteDescriptor);
 
 	// image info
+	DescriptorType __Type = (attr.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+			? DESCRIPTOR_TYPE_BUFFER : DESCRIPTOR_TYPE_IMAGE;
 	DescriptorInfo __Desc = {  };
-	__Desc.type = type;
-	/*
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = m_Size;
-	__Desc.info.buffer.range = size;
-	*/
+	__Desc.type = __Type;
+	if (__Type==DESCRIPTOR_TYPE_BUFFER)
+	{
+		__Desc.info.buffer.offset = attr.offset;
+		__Desc.info.buffer.range = attr.memsize;
+	}
 	m_DescriptorInfos.push_back(__Desc);
 }
 
@@ -260,7 +285,7 @@ void DescriptorSet::define(u32 location,DescriptorType type)
 void DescriptorSetMemory::link_result(size_t i,GPUPixelBuffer& texture)
 {
 	m_DescriptorInfos[i].info.image = {  };
-	m_DescriptorInfos[i].info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
 	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
 }
@@ -271,7 +296,7 @@ void DescriptorSetMemory::link_result(size_t i,GPUPixelBuffer& texture)
 void DescriptorSetMemory::link_result(size_t i,VkImageView buffer)
 {
 	m_DescriptorInfos[i].info.image = {  };
-	m_DescriptorInfos[i].info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
 	// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
@@ -280,7 +305,7 @@ void DescriptorSetMemory::link_result(size_t i,VkImageView buffer)
 /**
  *	TODO
  */
-void DescriptorSetMemory::allocate(u8 set,size_t size)
+void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts)
 {
 	m_Set = set;
 	COMM_AWT("allocating descriptor set memory");
@@ -294,8 +319,8 @@ void DescriptorSetMemory::allocate(u8 set,size_t size)
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = g_UniformBuffer.descriptor_pool;
 	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
-	__DSetAllocInfo.pSetLayouts = &__DSetLayouts[0];
-	__Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
+	__DSetAllocInfo.pSetLayouts = &layouts[0];
+	VkResult __Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
 	COMM_CNF();
@@ -317,7 +342,7 @@ void DescriptorSetMemory::bind(VkPipelineLayout& layout)
  */
 void DescriptorSetMemory::update()
 {
-	vkUpdateDescriptorSets(g_GPU.gpu,GPU_BUFFER_COUNT,m_DSets,0,nullptr);
+	vkUpdateDescriptorSets(g_GPU.gpu,GPU_BUFFER_COUNT,&m_Writes[0],0,nullptr);
 }
 
 /**
@@ -326,7 +351,7 @@ void DescriptorSetMemory::update()
  */
 void DescriptorSetMemory::update_frame()
 {
-	vkUpdateDescriptorSets(g_GPU.gpu,1,m_DSets[g_GPU.active_buffer],0,nullptr);
+	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_Writes[g_GPU.active_buffer],0,nullptr);
 }
 
 /**
@@ -388,17 +413,17 @@ UniformBuffer::UniformBuffer()
 	__DescriptorPoolSize[0] = {  };
 	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_UNIFORM_COUNT;
-	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_WRITE_DESCRIPTOR_SET;
+	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_SAMPLER_COUNT;
 
 	// configurably generous descriptor pool allocation
-	VkDescriptoPoolCreateInfo __DPoolInfo = {  };
+	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	__DPoolInfo.poolSizeCount = 2;
-	__DPoolInfo.pPoolSizes = m_DescriptorPoolSizes;
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;  // FIXME is this a bug?
+	__DPoolInfo.pPoolSizes = __DescriptorPoolSize;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;
 	__DPoolInfo.flags = 0;
-	VkResult __Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
+	__Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
 	COMM_CNF();
@@ -408,9 +433,9 @@ UniformBuffer::UniformBuffer()
  *	TODO
  *	NOTE should only be run once in renderer construction after imageview setup
  */
+/*
 void UniformBuffer::finalize()
 {
-	/*
 	COMM_AWT("update ubo linking");
 
 	// iterate per-backbuffer uniform data
@@ -434,17 +459,19 @@ void UniformBuffer::finalize()
 	}
 
 	COMM_CNF();
-	*/
 }
+*/
 
 /**
  *	TODO
  *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
  */
+/*
 void UniformBuffer::update(void* data,size_t size)
 {
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
+*/
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 // TODO dont always update the mesh textures, only when necessary!
 // TODO for performance reasons, maybe it would be faster to not update the whole set,
@@ -461,7 +488,7 @@ void UniformBuffer::vanish()
 		g_GPU.free(m_UBO[i]);
 		g_GPU.free(m_UBOMemory[i]);
 	}
-	g_GPU.free(m_DescriptorPool);
+	g_GPU.free(descriptor_pool);
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
@@ -760,8 +787,6 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 							  m_Interface,VK_SHADER_STAGE_VERTEX_BIT);
 	_shader_interface_automap((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
 							  m_Interface,VK_SHADER_STAGE_FRAGMENT_BIT);
-	push_constant_count = m_Interface.pc_count;
-	push_constant_size = m_Interface.pc_memsize;
 	// TODO split definitions into two different for each shader, to allow for some independence
 	// FIXME also LIES! only vertex interface relevant for upload size will break soon
 
