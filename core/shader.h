@@ -99,7 +99,6 @@ struct DescriptorSetMemory
 	void bind(VkPipelineLayout& layout);
 	void update();
 	void update_frame();
-	void vanish();
 
 private:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
@@ -116,8 +115,9 @@ class UniformBuffer
 {
 public:
 	UniformBuffer();
+	void update(void* data,size_t size);
 	void vanish();
-	
+
 public:
 	VkSampler default_sampler;
 	VkDescriptorPool descriptor_pool;

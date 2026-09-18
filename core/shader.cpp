@@ -271,11 +271,23 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 			? DESCRIPTOR_TYPE_BUFFER : DESCRIPTOR_TYPE_IMAGE;
 	DescriptorInfo __Desc = {  };
 	__Desc.type = __Type;
-	if (__Type==DESCRIPTOR_TYPE_BUFFER)
+
+	// info initialization based on attribute type
+	switch (__Type)
 	{
+	case DESCRIPTOR_TYPE_BUFFER:
+		__Desc.info.buffer = {  };
 		__Desc.info.buffer.offset = attr.offset;
 		__Desc.info.buffer.range = attr.memsize;
-	}
+		break;
+	case DESCRIPTOR_TYPE_IMAGE:
+		__Desc.info.image = {  };
+		__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		__Desc.info.image.imageView = g_UniformBuffer.default_texture;
+		__Desc.info.image.sampler = g_UniformBuffer.default_sampler;
+		break;
+	};
+
 	m_DescriptorInfos.push_back(__Desc);
 }
 
@@ -299,8 +311,9 @@ void DescriptorSetMemory::link_result(size_t i,VkImageView buffer)
 	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
-	// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
 }
+// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
+//		probably in renderer somewhere, alongside other possible features like placeholder textures & shapes
 
 /**
  *	TODO
@@ -352,14 +365,6 @@ void DescriptorSetMemory::update()
 void DescriptorSetMemory::update_frame()
 {
 	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_Writes[g_GPU.active_buffer],0,nullptr);
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::vanish()
-{
-	// TODO
 }
 
 
@@ -466,17 +471,16 @@ void UniformBuffer::finalize()
  *	TODO
  *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
  */
-/*
 void UniformBuffer::update(void* data,size_t size)
 {
 	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
 }
-*/
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
-// TODO dont always update the mesh textures, only when necessary!
 // TODO for performance reasons, maybe it would be faster to not update the whole set,
 //		but instead only updated segments. then again this could also quickly become hazardous when segmentation
 //		is high and many updates occur at the same time?
+// TODO problem is: this will update the entire ubo memory, no matter what & where.
+//		copy to specific ranges at change for independent information updates? is the memcpy for all as fast?
 
 /**
  *	TODO
