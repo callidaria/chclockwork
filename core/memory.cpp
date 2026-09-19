@@ -757,6 +757,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"texture sampler creation failed");
 	// TODO this will be the texture settings++ from ogl version
 	// FIXME many of this does not need to happen over and over again for each gpupixelbuffer
+	// TODO maybe no 1:1 relationship for samplers. not every texture needs its own sampler
 
 #else
 	// generate buffer

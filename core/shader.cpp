@@ -283,8 +283,8 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	case DESCRIPTOR_TYPE_IMAGE:
 		__Desc.info.image = {  };
 		__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		__Desc.info.image.imageView = g_UniformBuffer.default_texture;
-		__Desc.info.image.sampler = g_UniformBuffer.default_sampler;
+		__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
+		__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
 		break;
 	};
 
@@ -493,6 +493,8 @@ void UniformBuffer::vanish()
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(descriptor_pool);
+	g_GPU.free(default_sampler);
+	default_texture.vanish();
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 

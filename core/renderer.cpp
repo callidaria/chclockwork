@@ -940,6 +940,10 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
+	// load default texture
+	_load_texture(g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
+				  &m_MeshTextureUploadQueue,m_MutexMeshTextureUpload);
+
 	//g_UniformBuffer.finalize();
 }
 
@@ -1202,8 +1206,8 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
  *	\param data_queue: queue for texture vram upload
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
-void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
-				   queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+void Renderer::_load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
+							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data = TextureData(format);
 	__Data.load(path);

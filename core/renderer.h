@@ -494,6 +494,10 @@ public:
 
 private:
 
+	// threaded actions
+	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
+							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();

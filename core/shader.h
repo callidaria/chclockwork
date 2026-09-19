@@ -119,6 +119,7 @@ public:
 	void vanish();
 
 public:
+	GPUPixelBuffer default_texture;
 	VkSampler default_sampler;
 	VkDescriptorPool descriptor_pool;
 
