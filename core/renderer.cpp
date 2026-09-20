@@ -730,6 +730,8 @@ void GeometryBatch::load()
 	vao.register_buffer(vbo);
 
 	// generate push constant memory
+	shader->generate_ubo(ubo);
+	// FIXME optimization, generate descriptor heap manually, there are globals that only need to be updated once
 	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
 
@@ -786,6 +788,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vao.register_buffer_dynamic(ibo);
 
 	// generate push constant memory
+	shader->generate_ubo(ubo);
 	shader->generate_pcm(pcm);
 
 	// store geometry information
@@ -940,9 +943,12 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 
+	// load ubo
+	m_SpritePipeline.generate_ubo(m_SpriteUBO);
+
 	// load default texture
-	_load_texture(g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
-				  &m_MeshTextureUploadQueue,m_MutexMeshTextureUpload);
+	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
+				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 
 	//g_UniformBuffer.finalize();
 }
@@ -1321,6 +1327,14 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 }
 
 /**
+ *	TODO
+ */
+inline void _bind_descriptor_memory(vector<DescriptorSetMemory>& memory)
+{
+	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind();
+}
+
+/**
  *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1328,6 +1342,7 @@ void Renderer::_update_sprites()
 #ifdef VKBUILD
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
+	_bind_descriptor_memory(m_SpriteUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
 	m_SpriteVertexArray.bind();
@@ -1370,6 +1385,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		p_Batch.vao.bind();
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
+			_bind_descriptor_memory(p_Batch.ubo);
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
@@ -1386,6 +1402,7 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
+		_bind_descriptor_memory(p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
@@ -1640,7 +1657,7 @@ void Renderer::update()
  *	\returns pointer to registered shader pipeline
  */
 /*
-lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
+lptr<ShaderPipeline> Renderer::register_piepeline(VertexShader& vs,FragmentShader& fs)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline());
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());

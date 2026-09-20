@@ -1114,11 +1114,20 @@ void ShaderPipeline::disable()
  */
 void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 {
-	for (map<u32,UBOAttribute>& p_Set : m_Interface.ubo_attribs)
+	sets.resize(m_Interface.ubo_attribs.size());
+	for (u8 i=0;i<m_Interface.ubo_attribs.size();i++)
 	{
-		// TODO
+		map<u32,UBOAttribute>& p_Set = m_Interface.ubo_attribs[i];
+		DescriptorSetMemory& p_DSetMemory = sets[i];
+		p_DSetMemory.allocate(i,p_Set.size(),m_DSetLayouts);
+		// FIXME the set layout + size at call does not make sense in the slightest
+		for (auto p_Binding = p_Set.begin();p_Binding != p_Set.end();p_Binding++)
+			p_DSetMemory.define(p_Binding->first,p_Binding->second);
 	}
 }
+// TODO only allocate new descriptor set memory, when the pattern is not already setup.
+//		this will prevent e.g. the allocation for one-time update global states like
+//		3D camera and 2D coordinate system.
 
 /**
  *	TODO

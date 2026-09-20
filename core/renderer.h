@@ -270,6 +270,7 @@ struct GeometryBatch
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
+	vector<DescriptorSetMemory> ubo;
 	void* pcm;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
@@ -291,6 +292,7 @@ struct ParticleBatch
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
 	vector<f32> geometry;
+	vector<DescriptorSetMemory> ubo;
 	void* pcm;
 	u32 vertex_count;
 	u32 active_particles = 0;
@@ -374,6 +376,12 @@ public:
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
 private:
+
+	// threaded actions
+	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
+							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+
+	// pipeline steps
 	void _update_sprites();
 	void _update_text();
 	static void _update_mesh(list<GeometryBatch>& batches);
@@ -409,6 +417,7 @@ private:
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
+	vector<DescriptorSetMemory> m_SpriteUBO;
 
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
@@ -493,10 +502,6 @@ public:
 	void animate(AnimatedMesh* mesh);
 
 private:
-
-	// threaded actions
-	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
-							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 
 	// pipeline steps
 	void _update_sprites();
