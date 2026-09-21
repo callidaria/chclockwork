@@ -417,7 +417,7 @@ private:
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
-	vector<DescriptorSetMemory> m_SpriteUBO;
+	vector<DescriptorSetMemory> m_SpriteUBO,m_TextUBO,m_TargetUBO;
 
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);

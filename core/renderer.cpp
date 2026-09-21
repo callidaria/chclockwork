@@ -945,6 +945,8 @@ Renderer::Renderer()
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
+	m_TextPipeline.generate_ubo(m_TextUBO);
+	m_TargetPipeline.generate_ubo(m_TargetUBO);
 
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
@@ -983,6 +985,7 @@ void Renderer::update()
 	// perspective section
 	m_TargetPipeline.enable();
 	m_TargetVertexArray.bind();
+	for (DescriptorSetMemory& p_Mem : m_TargetUBO) p_Mem.bind(m_TargetPipeline.pipeline_layout);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
@@ -1329,9 +1332,9 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 /**
  *	TODO
  */
-inline void _bind_descriptor_memory(vector<DescriptorSetMemory>& memory)
+inline void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
-	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind();
+	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
 }
 
 /**
@@ -1342,7 +1345,7 @@ void Renderer::_update_sprites()
 #ifdef VKBUILD
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
-	_bind_descriptor_memory(m_SpriteUBO);
+	_bind_descriptor_memory(m_SpritePipeline,m_SpriteUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
 	m_SpriteVertexArray.bind();
@@ -1366,6 +1369,7 @@ void Renderer::_update_text()
 	m_TextVertexArray.bind();
 	m_TextInstanceBuffer.bind();
 	m_TextPipeline.enable();
+	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
 	for (Text& p_Text : m_Texts)
 	{
 		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
@@ -1383,9 +1387,9 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
+		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);  // TODO ubo, pcm & shader are one part?
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
-			_bind_descriptor_memory(p_Batch.ubo);
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
@@ -1402,7 +1406,7 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
-		_bind_descriptor_memory(p_Batch.ubo);
+		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.vertex_count,p_Batch.active_particles,0,0);

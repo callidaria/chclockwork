@@ -331,7 +331,7 @@ void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayo
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = g_UniformBuffer.descriptor_pool;
-	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.descriptorSetCount = /*GPU_BUFFER_COUNT*/layouts.size();
 	__DSetAllocInfo.pSetLayouts = &layouts[0];
 	VkResult __Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
