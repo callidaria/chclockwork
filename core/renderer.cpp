@@ -976,7 +976,7 @@ void Renderer::update()
 	// RECORD SCENE FORWARD
 	m_Framebuffer.record();
 	_update_mesh(m_GeometryBatches);
-	_update_particles(m_ParticleBatches);
+	//_update_particles(m_ParticleBatches);
 	m_Framebuffer.stop();
 
 	// START RESULT ASSEMBLY
