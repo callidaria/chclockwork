@@ -908,7 +908,7 @@ Renderer::Renderer()
 
 	// link forward buffer & gbuffer results
 	m_SpriteUBO[1].link_result(0,m_GPUSpriteTextures);
-	m_SpriteUBO[1].link_result(3,m_GPUFontTextures);
+	m_TextUBO[1].link_result(3,m_GPUFontTextures);
 	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
 	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
 	m_TargetUBO[0].link_result(6,m_GBuffer.components[0]);
@@ -1342,12 +1342,12 @@ void Renderer::_update_text()
 #ifdef VKBUILD
 	m_TextPipeline.enable();
 	m_TextVertexArray.bind();
+	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
 #else
 	m_TextVertexArray.bind();
 	m_TextInstanceBuffer.bind();
 	m_TextPipeline.enable();
-	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
 	for (Text& p_Text : m_Texts)
 	{
 		m_TextInstanceBuffer.upload_vertices(&p_Text.buffer[0],p_Text.buffer.size()*sizeof(TextCharacter));
