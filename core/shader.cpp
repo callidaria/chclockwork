@@ -257,6 +257,9 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorInfos.size());
 
+	// store memory index for shader location id
+	m_LocationIndexCorrelation[location] = m_Writes.size();
+
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
 	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -294,8 +297,9 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 /**
  *	TODO
  */
-void DescriptorSetMemory::link_result(size_t i,GPUPixelBuffer& texture)
+void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer& texture)
 {
+	size_t i = m_LocationIndexCorrelation[location];
 	m_DescriptorInfos[i].info.image = {  };
 	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
@@ -305,8 +309,9 @@ void DescriptorSetMemory::link_result(size_t i,GPUPixelBuffer& texture)
 /**
  *	TODO
  */
-void DescriptorSetMemory::link_result(size_t i,VkImageView buffer)
+void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 {
+	size_t i = m_LocationIndexCorrelation[location];
 	m_DescriptorInfos[i].info.image = {  };
 	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	m_DescriptorInfos[i].info.image.imageView = buffer;
@@ -348,6 +353,7 @@ void DescriptorSetMemory::bind(VkPipelineLayout& layout)
 							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,m_Set,1,
 							(VkDescriptorSet*)&m_DSets[g_GPU.active_buffer],0,nullptr);
 }
+// TODO should layout not be known here already? remove this unnecessary parameter as soon as possible
 
 /**
  *	TODO

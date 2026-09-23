@@ -870,37 +870,6 @@ Renderer::Renderer()
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
-	// uniform buffer
-	/*
-	g_UniformBuffer.define_geometry_buffer(0,sizeof(ObjectTransformation));
-	g_UniformBuffer.define_geometry_buffer(1,sizeof(SpriteTransformation));
-	size_t __SpriteBufferID = g_UniformBuffer.define_pixel_buffer(2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __TextBufferID = g_UniformBuffer.define_pixel_buffer(3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __ResultBufferID = g_UniformBuffer.define_pixel_buffer(4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __ResultDepthID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferColourID = g_UniformBuffer.define_pixel_buffer(6,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferPositionID
-			= g_UniformBuffer.define_pixel_buffer(7,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferNormalID
-			= g_UniformBuffer.define_pixel_buffer(8,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferMaterialID
-			= g_UniformBuffer.define_pixel_buffer(9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferEmissionID
-			= g_UniformBuffer.define_pixel_buffer(10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	size_t __GBufferDepthID
-			= g_UniformBuffer.define_pixel_buffer(11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	/*
-	size_t __MeshTextureID = g_UniformBuffer.define_pixel_buffer(5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-														  RENDERER_MAXIMUM_TEXTURE_COUNT);
-	*/
-	//g_UniformBuffer.assemble();
-	// TODO automatically assess those definitions from shader as well and communicate definition conflicts
-	//		the problem with this is, that the ubo wants concrete image view handles at the time of definition
-	//		but it might just work, if definition and linking is separated as they might be in the future
-	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
-	//		setup, when reading the shader code for interfacing & push constants!
-	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
-
 	// UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
@@ -908,6 +877,9 @@ Renderer::Renderer()
 	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
 	m_TargetPipeline.out_define_colour_buffer();
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
+	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
+	//		setup, when reading the shader code for interfacing & push constants!
+	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
@@ -921,20 +893,6 @@ Renderer::Renderer()
 	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
 	// TODO routinize
 
-	// link buffer results
-	/*
-	g_UniformBuffer.link_result(__SpriteBufferID,m_GPUSpriteTextures);
-	g_UniformBuffer.link_result(__TextBufferID,m_GPUFontTextures);
-	g_UniformBuffer.link_result(__ResultBufferID,m_Framebuffer.components[0]);
-	g_UniformBuffer.link_result(__ResultDepthID,m_Framebuffer.components[1]);
-	g_UniformBuffer.link_result(__GBufferColourID,m_GBuffer.components[0]);
-	g_UniformBuffer.link_result(__GBufferPositionID,m_GBuffer.components[1]);
-	g_UniformBuffer.link_result(__GBufferNormalID,m_GBuffer.components[2]);
-	g_UniformBuffer.link_result(__GBufferMaterialID,m_GBuffer.components[3]);
-	g_UniformBuffer.link_result(__GBufferEmissionID,m_GBuffer.components[4]);
-	g_UniformBuffer.link_result(__GBufferDepthID,m_GBuffer.components[5]);
-	*/
-
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
@@ -947,6 +905,16 @@ Renderer::Renderer()
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
 	m_TextPipeline.generate_ubo(m_TextUBO);
 	m_TargetPipeline.generate_ubo(m_TargetUBO);
+
+	// link forward buffer & gbuffer results
+	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
+	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
+	m_TargetUBO[0].link_result(6,m_GBuffer.components[0]);
+	m_TargetUBO[0].link_result(7,m_GBuffer.components[1]);
+	m_TargetUBO[0].link_result(8,m_GBuffer.components[2]);
+	m_TargetUBO[0].link_result(9,m_GBuffer.components[3]);
+	m_TargetUBO[0].link_result(10,m_GBuffer.components[4]);
+	m_TargetUBO[0].link_result(11,m_GBuffer.components[5]);
 
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
@@ -985,7 +953,11 @@ void Renderer::update()
 	// perspective section
 	m_TargetPipeline.enable();
 	m_TargetVertexArray.bind();
-	for (DescriptorSetMemory& p_Mem : m_TargetUBO) p_Mem.bind(m_TargetPipeline.pipeline_layout);
+	for (DescriptorSetMemory& p_Mem : m_TargetUBO)
+	{
+		p_Mem.update_frame();
+		p_Mem.bind(m_TargetPipeline.pipeline_layout);
+	}
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
@@ -1334,7 +1306,11 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
  */
 inline void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
-	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
+	for (DescriptorSetMemory& p_Mem : memory)
+	{
+		p_Mem.update_frame();  // TODO remove, update once for all not frame here
+		p_Mem.bind(shader.pipeline_layout);
+	}
 }
 
 /**

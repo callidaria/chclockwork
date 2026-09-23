@@ -91,8 +91,8 @@ struct DescriptorSetMemory
 {
 	// interaction
 	void define(u32 location,UBOAttribute& attr);
-	void link_result(size_t i,GPUPixelBuffer& texture);
-	void link_result(size_t i,VkImageView buffer);
+	void link_result(size_t location,GPUPixelBuffer& texture);
+	void link_result(size_t location,VkImageView buffer);
 
 	// state
 	void allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts);
@@ -104,6 +104,7 @@ private:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
+	map<size_t,size_t> m_LocationIndexCorrelation;
 	u8 m_Set;
 };
 
