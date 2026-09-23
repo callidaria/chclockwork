@@ -52,8 +52,7 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
  */
 static inline void _process_data_block_text(std::ifstream& file,size_t& varcount,size_t& blocksize)
 {
-
-	// continue reading pased file
+	// continue reading passed file
 	string __Line;
 	while (!file.eof())
 	{
@@ -225,11 +224,10 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// read data block for size estimation & save offset
 			if (__Line.find("sampler2D")==string::npos)
 			{
-				size_t __Count,__Memsize;
-				_process_data_block_text(__File,__Count,__Memsize);
+				size_t __Count;
+				_process_data_block_text(__File,__Count,p_Attrib.memsize);
 				p_Attrib.offset = interface.ubo_width;
-				p_Attrib.memsize = __Memsize;
-				interface.ubo_width += __Memsize;
+				interface.ubo_width += p_Attrib.memsize;
 			}
 			// FIXME dont run this when repeating read from vertex in fragment source
 		}
