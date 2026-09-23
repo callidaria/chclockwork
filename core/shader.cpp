@@ -342,12 +342,16 @@ void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayo
 	m_Writes.reserve(size);
 	m_DescriptorInfos.reserve(size);
 
+	// populate layouts for each frame in flight
+	VkDescriptorSetLayout __Layouts[GPU_BUFFER_COUNT];
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) __Layouts[i] = layouts[set];
+
 	// allocate correlated memory for linked descriptor set layout
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
 	__DSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	__DSetAllocInfo.descriptorPool = g_UniformBuffer.descriptor_pool;
-	__DSetAllocInfo.descriptorSetCount = /*GPU_BUFFER_COUNTlayouts.size()*/1;
-	__DSetAllocInfo.pSetLayouts = &layouts[set];
+	__DSetAllocInfo.descriptorSetCount = GPU_BUFFER_COUNT;
+	__DSetAllocInfo.pSetLayouts = __Layouts;
 	VkResult __Result = vkAllocateDescriptorSets(g_GPU.gpu,&__DSetAllocInfo,&m_DSets[0]);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate descriptor set memory");
 
