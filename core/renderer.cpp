@@ -907,6 +907,8 @@ Renderer::Renderer()
 	m_TargetPipeline.generate_ubo(m_TargetUBO);
 
 	// link forward buffer & gbuffer results
+	m_SpriteUBO[1].link_result(0,m_GPUSpriteTextures);
+	m_SpriteUBO[1].link_result(3,m_GPUFontTextures);
 	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
 	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
 	m_TargetUBO[0].link_result(6,m_GBuffer.components[0]);

@@ -223,7 +223,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			p_Attrib.stage |= stage;
 
 			// read data block for size estimation & save offset
-			if (__Line.find("{")!=string::npos)
+			if (__Line.find("sampler2D")==string::npos)
 			{
 				size_t __Count,__Memsize;
 				_process_data_block_text(__File,__Count,__Memsize);
@@ -260,15 +260,6 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	// store memory index for shader location id
 	m_LocationIndexCorrelation[location] = m_Writes.size();
 
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = attr.type;
-	__WriteDescriptor.descriptorCount = 1;
-	m_Writes.push_back(__WriteDescriptor);
-
 	// image info
 	DescriptorType __Type = (attr.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 			? DESCRIPTOR_TYPE_BUFFER : DESCRIPTOR_TYPE_IMAGE;
@@ -291,7 +282,28 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 		break;
 	};
 
+	// store permanently for later reference by VkWriteDescriptorSet
 	m_DescriptorInfos.push_back(__Desc);
+
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = attr.type;
+	__WriteDescriptor.descriptorCount = 1;
+
+	// link info to VkWriteDescriptorSet
+	switch (__Type)
+	{
+	case DESCRIPTOR_TYPE_BUFFER: __WriteDescriptor.pBufferInfo = &m_DescriptorInfos.back().info.buffer;
+		break;
+	case DESCRIPTOR_TYPE_IMAGE: __WriteDescriptor.pImageInfo = &m_DescriptorInfos.back().info.image;
+		break;
+	};
+	// FIXME not the most beautiful code
+
+	m_Writes.push_back(__WriteDescriptor);
 }
 
 /**
@@ -353,7 +365,6 @@ void DescriptorSetMemory::bind(VkPipelineLayout& layout)
 							VK_PIPELINE_BIND_POINT_GRAPHICS,layout,m_Set,1,
 							(VkDescriptorSet*)&m_DSets[g_GPU.active_buffer],0,nullptr);
 }
-// TODO should layout not be known here already? remove this unnecessary parameter as soon as possible
 
 /**
  *	TODO
@@ -361,7 +372,16 @@ void DescriptorSetMemory::bind(VkPipelineLayout& layout)
  */
 void DescriptorSetMemory::update()
 {
-	vkUpdateDescriptorSets(g_GPU.gpu,GPU_BUFFER_COUNT,&m_Writes[0],0,nullptr);
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		for (size_t j=0;j<m_Writes.size();j++)
+		{
+			if (m_DescriptorInfos[j].type==DESCRIPTOR_TYPE_BUFFER)
+				m_DescriptorInfos[j].info.buffer.buffer = g_UniformBuffer.ubo[i];
+			m_Writes[j].dstSet = m_DSets[i];
+		}
+		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
+	}
 }
 
 /**
@@ -370,8 +390,16 @@ void DescriptorSetMemory::update()
  */
 void DescriptorSetMemory::update_frame()
 {
-	vkUpdateDescriptorSets(g_GPU.gpu,1,&m_Writes[g_GPU.active_buffer],0,nullptr);
+	for (size_t i=0;i<m_Writes.size();i++)
+	{
+		if (m_DescriptorInfos[i].type==DESCRIPTOR_TYPE_BUFFER)
+			m_DescriptorInfos[i].info.buffer.buffer = g_UniformBuffer.ubo[g_GPU.active_buffer];
+		m_Writes[i].dstSet = m_DSets[g_GPU.active_buffer];
+	}
+	vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 }
+// TODO the writes should not be duplicated per result buffer right? they are bound, then updated?
+// TODO remove the typecheck for buffer! the ubo has to be transferred ONCE, then the copy will suffice
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -411,7 +439,7 @@ UniformBuffer::UniformBuffer()
 	COMM_AWT("allocating the uniform buffer");
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],
+		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
 							 INTERFACE_COMBINED_GLOBAL_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_COMBINED_GLOBAL_MEMSIZE,0,&m_UBOMapped[i]);
@@ -442,39 +470,6 @@ UniformBuffer::UniformBuffer()
 
 /**
  *	TODO
- *	NOTE should only be run once in renderer construction after imageview setup
- */
-/*
-void UniformBuffer::finalize()
-{
-	COMM_AWT("update ubo linking");
-
-	// iterate per-backbuffer uniform data
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		// standard uniform data
-		for (size_t j=0;j<m_Writes.size();j++)
-		{
-			m_Writes[j].dstSet = m_DSets[i];
-			switch (m_DescriptorInfos[j].type)
-			{
-			case DESCRIPTOR_TYPE_BUFFER:
-				m_DescriptorInfos[j].info.buffer.buffer = m_UBO[i];
-				m_Writes[j].pBufferInfo = &m_DescriptorInfos[j].info.buffer;
-				break;
-			case DESCRIPTOR_TYPE_IMAGE: m_Writes[j].pImageInfo = &m_DescriptorInfos[j].info.image;
-				break;
-			}
-		}
-		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
-	}
-
-	COMM_CNF();
-}
-*/
-
-/**
- *	TODO
  *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
  */
 void UniformBuffer::update(void* data,size_t size)
@@ -495,7 +490,7 @@ void UniformBuffer::vanish()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		g_GPU.free(m_UBO[i]);
+		g_GPU.free(ubo[i]);
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(descriptor_pool);

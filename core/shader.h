@@ -69,7 +69,7 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
-	size_t offset,memsize;
+	size_t offset = 0,memsize = 0;
 };
 
 struct ShaderInterface
@@ -123,9 +123,9 @@ public:
 	GPUPixelBuffer default_texture;
 	VkSampler default_sampler;
 	VkDescriptorPool descriptor_pool;
+	VkBuffer ubo[GPU_BUFFER_COUNT];
 
 private:
-	VkBuffer m_UBO[GPU_BUFFER_COUNT];
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
 };
