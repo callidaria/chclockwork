@@ -191,7 +191,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 #else
 					.location = tokens[2],
 #endif
-					.offset = (*__WidthHead)*SHADER_UPLOAD_VALUE_SIZE,
+					.offset = *__WidthHead,
 					.dim = __Dim
 				});
 			(*__WidthHead) += SHADER_TYPES[__Dim].memsize;
@@ -335,8 +335,8 @@ void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
  */
 void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts)
 {
-	m_Set = set;
 	COMM_AWT("allocating descriptor set memory");
+	m_Set = set;
 
 	// allocate ram for write & descriptor info
 	m_Writes.reserve(size);
@@ -802,10 +802,10 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
-	__InputBindings[0].stride = SHADER_UPLOAD_VALUE_SIZE*m_Interface.vbo_width;
+	__InputBindings[0].stride = m_Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = SHADER_UPLOAD_VALUE_SIZE*m_Interface.ibo_width;
+	__InputBindings[1].stride = m_Interface.ibo_width;
 	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 	// TODO find out if this has performance implications
 

@@ -7,7 +7,7 @@
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
-constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
+// constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 
 #ifdef VKBUILD
