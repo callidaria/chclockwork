@@ -417,6 +417,7 @@ private:
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites = InPlaceArray<Sprite>(RENDERER_MAXIMUM_SPRITE_COUNT);
+	DescriptorSetMemory m_GlobalUBO;
 	vector<DescriptorSetMemory> m_SpriteUBO,m_TextUBO,m_TargetUBO;
 
 	// text

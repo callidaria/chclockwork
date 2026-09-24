@@ -269,8 +269,11 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	{
 	case DESCRIPTOR_TYPE_BUFFER:
 		__Desc.info.buffer = {  };
+		/*
 		__Desc.info.buffer.offset = attr.offset;
 		__Desc.info.buffer.range = attr.memsize;
+		*/
+		// TODO remove
 		break;
 	case DESCRIPTOR_TYPE_IMAGE:
 		__Desc.info.image = {  };
@@ -302,6 +305,16 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	// FIXME not the most beautiful code
 
 	m_Writes.push_back(__WriteDescriptor);
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::link_result(size_t location,size_t offset,size_t size)
+{
+	size_t i = m_LocationIndexCorrelation[location];
+	m_DescriptorInfos[i].info.buffer.offset = offset;
+	m_DescriptorInfos[i].info.buffer.range = size;
 }
 
 /**
@@ -1128,6 +1141,8 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 			p_DSetMemory.define(p_Binding->first,p_Binding->second);
 	}
 }
+// TODO generate set specifical. this should then allow a global set at slot 0 for basic data & buffers that
+//		change exactly once each frame, then switch at will for sets 1-3 (<4 is guaranteed)
 // TODO only allocate new descriptor set memory, when the pattern is not already setup.
 //		this will prevent e.g. the allocation for one-time update global states like
 //		3D camera and 2D coordinate system.

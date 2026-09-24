@@ -91,6 +91,7 @@ struct DescriptorSetMemory
 {
 	// interaction
 	void define(u32 location,UBOAttribute& attr);
+	void link_result(size_t location,size_t offset,size_t size);
 	void link_result(size_t location,GPUPixelBuffer& texture);
 	void link_result(size_t location,VkImageView buffer);
 

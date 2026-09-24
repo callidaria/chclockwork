@@ -28,7 +28,7 @@ layout(push_constant) uniform PushConstants
 
 void main()
 {
-	gl_Position = ot.proj*ot.view*pc.model*vec4(position+offset,1.);
+	gl_Position = ot.proj*ot.view*/*pc.model**/vec4(position+offset,1.);
 
 	// pass
 	UV = uv;

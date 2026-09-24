@@ -900,14 +900,21 @@ Renderer::Renderer()
 	// upload camera
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	// TODO actually achieve control over which matrix pair comes first!
+
+	// setup global ubo for slot 0
+	//m_GlobalUBO.allocate(0,12,);
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
 	m_TextPipeline.generate_ubo(m_TextUBO);
 	m_TargetPipeline.generate_ubo(m_TargetUBO);
+	// TODO make set specific (and warn when 0 slot is requested for generation, due to global definition)
 
 	// link forward buffer & gbuffer results
+	m_SpriteUBO[0].link_result(1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	m_SpriteUBO[1].link_result(0,m_GPUSpriteTextures);
+	m_TextUBO[0].link_result(1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	m_TextUBO[1].link_result(3,m_GPUFontTextures);
 	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
 	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
@@ -935,7 +942,7 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	// data update
-	//g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
@@ -946,7 +953,7 @@ void Renderer::update()
 	// RECORD SCENE FORWARD
 	m_Framebuffer.record();
 	_update_mesh(m_GeometryBatches);
-	//_update_particles(m_ParticleBatches);
+	_update_particles(m_ParticleBatches);
 	m_Framebuffer.stop();
 
 	// START RESULT ASSEMBLY

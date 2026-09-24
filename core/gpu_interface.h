@@ -8,13 +8,13 @@
 // ----------------------------------------------------------------------------------------------------
 // Uniform Buffer
 
-struct ObjectTransformation
+struct SpriteTransformation
 {
 	mat4 view __attribute__((aligned(16)));
 	mat4 proj __attribute__((aligned(16)));
 };
 
-struct SpriteTransformation
+struct ObjectTransformation
 {
 	mat4 view __attribute__((aligned(16)));
 	mat4 proj __attribute__((aligned(16)));
@@ -22,8 +22,8 @@ struct SpriteTransformation
 
 struct UniformBufferMemory
 {
-	ObjectTransformation otrafo;
 	SpriteTransformation strafo;
+	ObjectTransformation otrafo;
 };
 
 constexpr size_t INTERFACE_COMBINED_GLOBAL_MEMSIZE = sizeof(UniformBufferMemory);

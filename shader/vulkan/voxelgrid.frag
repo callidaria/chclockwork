@@ -7,7 +7,7 @@ layout(location = 2) in mat3 TBN;
 
 layout(location = 0) out vec4 pixelColour;
 
-layout(set = 1,binding = 0) uniform sampler2D tex[64];
+layout(set = 1,binding = 0) uniform sampler2D tex;
 
 layout(push_constant) uniform PushConstants
 {
@@ -18,5 +18,5 @@ layout(push_constant) uniform PushConstants
 
 void main()
 {
-	pixelColour = texture(tex[pc.texIndex],UV);
+	pixelColour = texture(tex,UV);
 }
