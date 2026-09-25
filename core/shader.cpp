@@ -977,6 +977,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 		p_PushConstantRange = &__PushConstantRange;
 	}
 	// TODO correctly establish stage flags from interface mapping
+	//		also find out if this is still important if layout is only used to create pipeline, not for dsets.
+	//		in the end i don't think it matters much, set generation uses this when sourced from pipeline
 
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
