@@ -65,12 +65,19 @@ struct ShaderUniformValue
 	f32* data;
 };
 
+struct UBOMemoryRange
+{
+	size_t offset = 0;
+	size_t range = 0;
+};
+
 struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
 	size_t offset = 0,memsize = 0;
 };
+// FIXME offset & memsize could also be UBOMemoryRange?
 
 struct ShaderInterface
 {
@@ -91,7 +98,6 @@ struct DescriptorSetMemory
 {
 	// interaction
 	void define(u32 location,UBOAttribute& attr);
-	void link_result(size_t location,size_t offset,size_t size);
 	void link_result(size_t location,GPUPixelBuffer& texture);
 	void link_result(size_t location,VkImageView buffer);
 
@@ -120,11 +126,15 @@ public:
 	void update(void* data,size_t size);
 	void vanish();
 
+	// interaction
+	void define_data_segment(u8 set,u16 location,size_t offset,size_t range);
+
 public:
 	GPUPixelBuffer default_texture;
 	VkSampler default_sampler;
 	VkDescriptorPool descriptor_pool;
 	VkBuffer ubo[GPU_BUFFER_COUNT];
+	map<u16,UBOMemoryRange> memory_range_lut[SHADER_MAXIMUM_DESCRIPTOR_SETS];
 
 private:
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];

@@ -902,7 +902,9 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 	// TODO actually achieve control over which matrix pair comes first!
 
-	// setup global ubo for slot 0
+	// setup global ubo data for slot 0
+	g_UniformBuffer.define_data_segment(0,0,offsetof(UniformBufferMemory,otrafo),sizeof(ObjectTransformation));
+	g_UniformBuffer.define_data_segment(0,1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	//m_GlobalUBO.allocate(0,12,);
 
 	// load ubo
@@ -912,9 +914,7 @@ Renderer::Renderer()
 	// TODO make set specific (and warn when 0 slot is requested for generation, due to global definition)
 
 	// link forward buffer & gbuffer results
-	m_SpriteUBO[0].link_result(1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	m_SpriteUBO[1].link_result(0,m_GPUSpriteTextures);
-	m_TextUBO[0].link_result(1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	m_TextUBO[1].link_result(3,m_GPUFontTextures);
 	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
 	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);

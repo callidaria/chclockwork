@@ -265,15 +265,14 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	__Desc.type = __Type;
 
 	// info initialization based on attribute type
+	UBOMemoryRange __MemRange;
 	switch (__Type)
 	{
 	case DESCRIPTOR_TYPE_BUFFER:
+		__MemRange = g_UniformBuffer.memory_range_lut[m_Set][location];
 		__Desc.info.buffer = {  };
-		/*
-		__Desc.info.buffer.offset = attr.offset;
-		__Desc.info.buffer.range = attr.memsize;
-		*/
-		// TODO remove
+		__Desc.info.buffer.offset = __MemRange.offset;
+		__Desc.info.buffer.range = __MemRange.range;
 		break;
 	case DESCRIPTOR_TYPE_IMAGE:
 		__Desc.info.image = {  };
@@ -305,16 +304,6 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	// FIXME not the most beautiful code
 
 	m_Writes.push_back(__WriteDescriptor);
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::link_result(size_t location,size_t offset,size_t size)
-{
-	size_t i = m_LocationIndexCorrelation[location];
-	m_DescriptorInfos[i].info.buffer.offset = offset;
-	m_DescriptorInfos[i].info.buffer.range = size;
 }
 
 /**
@@ -475,7 +464,7 @@ UniformBuffer::UniformBuffer()
 	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	__DPoolInfo.poolSizeCount = 2;
 	__DPoolInfo.pPoolSizes = __DescriptorPoolSize;
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_DESCRIPTOR_SETS;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_SET_ALLOCATION;
 	__DPoolInfo.flags = 0;
 	__Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
@@ -513,6 +502,17 @@ void UniformBuffer::vanish()
 	default_texture.vanish();
 }
 // TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define_data_segment(u8 set,u16 location,size_t offset,size_t range)
+{
+	memory_range_lut[set][location] = {
+		.offset = offset,
+		.range = range,
+	};
+}
 
 #endif
 
@@ -963,7 +963,6 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	}
 
 	// push constants
-	// FIXME again LIES! push constants are relevant in both vertex and fragment shader
 	COMM_MSG_COND(m_Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
 				  "the required push constant memory size (%li bytes) violates guaranteed minimum of 128 bytes",
 				  m_Interface.pc_memsize);
