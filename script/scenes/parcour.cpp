@@ -11,6 +11,7 @@ void ParcourParcs::init()
 	vector<Texture*> __Textures = {  };
 	Mesh __Sphere = Mesh::sphere();
 	__EnviroBatch->add_geometry(__Sphere,__Textures);
+	__EnviroBatch->load();
 
 	// load textures
 	GPUPixelBuffer* __GoldColourTexture = g_Renderer.register_texture("./res/test/gold_colour.png");
@@ -19,22 +20,14 @@ void ParcourParcs::init()
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
 	// texture assignment
-	/*
-	m_Materials.colour = __GoldColourTexture->memID;
-	m_Materials.normal = __GoldNormalTexture->memID;
-	m_Materials.material = __GoldMaterialTexture->memID;
-	m_Materials.emission = __NeutralEmissionTexture->memID;
-	__EnviroBatch->pcm = &m_Materials;
-	*/
+	__EnviroBatch->pcm = &m_MeshData;
 
 	// register textures
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],0,__GoldColourTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],1,__GoldNormalTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],2,__GoldMaterialTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],3,__NeutralEmissionTexture);
-	// FIXME race condition? can the image be null at this point, after registration?
 
-	__EnviroBatch->load();
 	g_Wheel.call(this);
 }
 

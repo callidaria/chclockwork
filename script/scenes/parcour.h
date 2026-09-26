@@ -15,7 +15,7 @@ public:
 	void vanish();
 
 private:
-	PBGMaterials m_Materials;
+	MeshData m_MeshData;
 };
 
 

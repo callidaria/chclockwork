@@ -227,14 +227,10 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
-struct PBGMaterials
+struct MeshData  // (for now)
 {
 	mat4 model = mat4(1.f);
 	f32 texel = 1.f;
-	u32 colour;
-	u32 normal;
-	u32 material;
-	u32 emission;
 };
 
 struct TextureDataTuple

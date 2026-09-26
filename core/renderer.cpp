@@ -1453,7 +1453,7 @@ void Renderer::_gpu_upload()
 			continue;
 		}
 		p_Attachment->ubo->link_result(p_Attachment->location,p_Attachment->texture);
-		m_TextureAttachments.erase(p_Attachment);
+		p_Attachment = m_TextureAttachments.erase(p_Attachment);
 	}
 }
 // TODO wasted memory space, specialized texture structure
