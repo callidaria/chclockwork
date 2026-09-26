@@ -905,7 +905,6 @@ Renderer::Renderer()
 	// setup global ubo data for slot 0
 	g_UniformBuffer.define_data_segment(0,0,offsetof(UniformBufferMemory,otrafo),sizeof(ObjectTransformation));
 	g_UniformBuffer.define_data_segment(0,1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
-	//m_GlobalUBO.allocate(0,12,);
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
@@ -914,8 +913,8 @@ Renderer::Renderer()
 	// TODO make set specific (and warn when 0 slot is requested for generation, due to global definition)
 
 	// link forward buffer & gbuffer results
-	m_SpriteUBO[1].link_result(0,m_GPUSpriteTextures);
-	m_TextUBO[1].link_result(3,m_GPUFontTextures);
+	m_SpriteUBO[1].link_result(0,&m_GPUSpriteTextures);
+	m_TextUBO[1].link_result(3,&m_GPUFontTextures);
 	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
 	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
 	m_TargetUBO[0].link_result(6,m_GBuffer.components[0]);
@@ -1228,6 +1227,19 @@ GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format
 //		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 /**
+ *	TODO
+ */
+void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture)
+{
+	TextureAttachment __Attachment = {
+		.ubo = ubo,
+		.texture = texture,
+		.location = location,
+	};
+	m_TextureAttachments.push_back(__Attachment);
+}
+
+/**
  *	register shader pipeline
  *	\param vs: path to vertex shader
  *	\param fs: path to fragment shader
@@ -1432,15 +1444,17 @@ void Renderer::_gpu_upload()
 	}
 
 	// link results
-	if (__MeshTextureUpdated)
+	for (lptr<TextureAttachment> p_Attachment = m_TextureAttachments.begin();
+		 p_Attachment!=m_TextureAttachments.end();)
 	{
-		for (size_t i=0;i<m_MeshTextures.active_range;i++)
+		if (!p_Attachment->texture->allocated)
 		{
-			if (!m_MeshTextures.mem[i].allocated) continue;
-			//g_UniformBuffer.link_texture(i,&m_MeshTextures.mem[i]);
+			p_Attachment++;
+			continue;
 		}
+		p_Attachment->ubo->link_result(p_Attachment->location,p_Attachment->texture);
+		m_TextureAttachments.erase(p_Attachment);
 	}
-	// FIXME updating all can be avoided, when index is already known!
 }
 // TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots

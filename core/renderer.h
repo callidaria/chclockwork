@@ -243,6 +243,13 @@ struct TextureDataTuple
 	GPUPixelBuffer* texture;
 };
 
+struct TextureAttachment
+{
+	DescriptorSetMemory* ubo;
+	GPUPixelBuffer* texture;
+	u16 location;
+};
+
 struct GeometryTuple
 {
 	size_t offset;
@@ -365,6 +372,7 @@ public:
 
 	// textures
 	GPUPixelBuffer* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
@@ -413,6 +421,7 @@ private:
 	// mesh textures
 	InPlaceArray<GPUPixelBuffer> m_MeshTextures = InPlaceArray<GPUPixelBuffer>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	list<TextureAttachment> m_TextureAttachments;
 	std::mutex m_MutexMeshTextureUpload;
 
 	// sprites

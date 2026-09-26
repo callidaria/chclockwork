@@ -20,12 +20,7 @@ layout(push_constant) uniform PushConstants
 {
 	mat4 model;
 	float texel;
-	uint colour_map;
-	uint normal_map;
-	uint material_map;
-	uint emission_map;
 } pc;
-// TODO remove map ids
 
 
 void main()

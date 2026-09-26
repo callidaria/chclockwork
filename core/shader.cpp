@@ -309,13 +309,13 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 /**
  *	TODO
  */
-void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer& texture)
+void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
 {
 	size_t i = m_LocationIndexCorrelation[location];
 	m_DescriptorInfos[i].info.image = {  };
 	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_DescriptorInfos[i].info.image.imageView = texture.image_view;
-	m_DescriptorInfos[i].info.image.sampler = texture.sampler;
+	m_DescriptorInfos[i].info.image.imageView = texture->image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture->sampler;
 }
 
 /**

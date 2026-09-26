@@ -30,6 +30,7 @@ void RoomVoxels::init(Font* font)
 	// select texture
 	m_TextureData.texture = __RoomTexture->memID;
 	__RoomBatch->pcm = &m_TextureData;
+	// FIXME this is outdated, not solved with index anymore, now it is solved through binding
 
 	// grid instances
 	u32 i = 0;
