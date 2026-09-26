@@ -1,6 +1,7 @@
 #ifndef SCRIPT_CLOCKWORK_HEADER
 #define SCRIPT_CLOCKWORK_HEADER
-#ifdef DEBUG
+//#ifdef DEBUG
+
 
 
 #include "../core/blitter.h"
@@ -24,17 +25,23 @@ class Clockwork
 public:
 	Clockwork(Font* font);
 	void update();
+	void vanish();
 
 private:
 
 	TargetMomentumSnap m_CameraPosition = TargetMomentumSnap(CLOCKWORK_MVMT_FLOATFACTOR);
 	TargetMomentumSnap m_CameraRotation = TargetMomentumSnap(CLOCKWORK_ROTATION_FLOATFACTOR);
-	vec3 m_TargetingVector = vec3(0,25.f,0);
+
+	vec3 m_TargetingVector =
+#ifdef VKBUILD
+		vec3(0);
+#else
+		vec3(0,25.f,0);
+#endif
 
 	// measurements
 	lptr<Text> m_FPS;
 };
 
 
-#endif
 #endif

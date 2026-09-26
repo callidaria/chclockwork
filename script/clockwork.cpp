@@ -8,11 +8,12 @@
 Clockwork::Clockwork(Font* font)
 {
 	// camera setup
-	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch,g_Camera.distance);
+	m_TargetingVector = vec3(g_Camera.yaw,g_Camera.pitch+25.f,g_Camera.distance);
 	m_CameraRotation.target = m_TargetingVector;
 
 	// fps display
-	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,0),15,vec4(1),Alignment{ .align=SCREEN_ALIGN_TOPRIGHT });
+	m_FPS = g_Renderer.write_text(font,"",vec3(-10,-10,7),15,vec4(1),
+								  Alignment{ .alignment=SCREEN_ALIGN_TOPRIGHT });
 
 	g_Wheel.call(this);
 }
@@ -38,6 +39,11 @@ void Clockwork::update()
 	m_FPS->align();
 	m_FPS->load_buffer();
 }
+
+/**
+ *	clockwork interface is always enabled in debug, there will be no destruction
+ */
+void Clockwork::vanish() {  }
 
 
 #endif

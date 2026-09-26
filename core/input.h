@@ -33,6 +33,7 @@ class Input
 public:
 	Input();
 	void update(bool& running);
+	void vanish();
 
 	// text input
 	void set_input_mode(string* buffer);
