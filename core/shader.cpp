@@ -271,6 +271,7 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	case DESCRIPTOR_TYPE_BUFFER:
 		__MemRange = g_UniformBuffer.memory_range_lut[m_Set][location];
 		__Desc.info.buffer = {  };
+		COMM_LOG("%u: %lu, %lu",location,__MemRange.offset,__MemRange.range);
 		__Desc.info.buffer.offset = __MemRange.offset;
 		__Desc.info.buffer.range = __MemRange.range;
 		break;
@@ -444,9 +445,9 @@ UniformBuffer::UniformBuffer()
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
 		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
-							 INTERFACE_COMBINED_GLOBAL_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+							 INTERFACE_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_COMBINED_GLOBAL_MEMSIZE,0,&m_UBOMapped[i]);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
 	}
 	// TODO stage this too? host_visible? i don't think so bröther
 

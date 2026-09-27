@@ -905,6 +905,9 @@ Renderer::Renderer()
 	// setup global ubo data for slot 0
 	g_UniformBuffer.define_data_segment(0,0,offsetof(UniformBufferMemory,otrafo),sizeof(ObjectTransformation));
 	g_UniformBuffer.define_data_segment(0,1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
+	g_UniformBuffer.define_data_segment(0,40,offsetof(UniformBufferMemory,camera),sizeof(SpriteTransformation));
+	g_UniformBuffer.define_data_segment(0,41,offsetof(UniformBufferMemory,lighting),
+										sizeof(SpriteTransformation));
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
@@ -936,6 +939,7 @@ void Renderer::update()
 	// camera update
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	m_UBufferMem.camera.position = g_Camera.position;
 	// TODO also create the ability the link a camera to the uniform
 	//		right now this happens for both matrices individually, which is not appropriate
 	// TODO dont copy over like this
@@ -1444,6 +1448,7 @@ void Renderer::_gpu_upload()
 	}
 
 	// link results
+	if (!__MeshTextureUpdated) return;
 	for (lptr<TextureAttachment> p_Attachment = m_TextureAttachments.begin();
 		 p_Attachment!=m_TextureAttachments.end();)
 	{

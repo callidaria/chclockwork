@@ -6,27 +6,66 @@
 
 
 // ----------------------------------------------------------------------------------------------------
+// Basic Structures
+
+struct SunLight
+{
+	vec3 position;
+	vec3 colour;
+};
+
+struct PointLight
+{
+	vec3 position;
+	vec3 colour;
+	f32 constant;
+	f32 linear;
+	f32 quadratic;
+};
+// TODO maybe outsource into its own special lighting component
+
+
+// ----------------------------------------------------------------------------------------------------
 // Uniform Buffer
 
 struct SpriteTransformation
 {
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
+	mat4 view;
+	mat4 proj;
 };
 
 struct ObjectTransformation
 {
-	mat4 view __attribute__((aligned(16)));
-	mat4 proj __attribute__((aligned(16)));
+	mat4 view;
+	mat4 proj;
 };
+
+struct CameraAttributes
+{
+	vec3 position;
+	f32 exposure = 1.f;
+	f32 gamma = 1.f/2.2f;
+} __attribute__((aligned(64)));
+
+struct Lighting
+{
+	SunLight sunlights[8];
+	PointLight pointlights[64];
+	u8 sunlights_active = 0;
+	u8 pointlights_active = 0;
+} __attribute__((aligned(64)));
 
 struct UniformBufferMemory
 {
 	SpriteTransformation strafo;
 	ObjectTransformation otrafo;
-};
+	CameraAttributes camera;
+	Lighting lighting;
+} __attribute__((aligned(64)));
+// TODO it should be possible to save quite some memory here!
 
-constexpr size_t INTERFACE_COMBINED_GLOBAL_MEMSIZE = sizeof(UniformBufferMemory);
+constexpr size_t INTERFACE_UNIFORM_BUFFER_MEMSIZE = sizeof(UniformBufferMemory);
+//= (sizeof(UniformBufferMemory)+(size_t)0x111111)&(size_t)0x111111;
 
 
 #endif

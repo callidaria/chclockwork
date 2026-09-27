@@ -305,21 +305,7 @@ struct ParticleBatch
 // ----------------------------------------------------------------------------------------------------
 // Lighting
 
-struct SunLight
-{
-	vec3 position;
-	vec3 colour;
-};
-
-struct PointLight
-{
-	vec3 position;
-	vec3 colour;
-	f32 constant;
-	f32 linear;
-	f32 quadratic;
-};
-
+/*
 struct Lighting
 {
 	SunLight sunlights[8];
@@ -329,6 +315,7 @@ struct Lighting
 	Camera3D shadow_projection;
 	bool shadow_forced = false;
 };
+*/
 
 struct ShadowGeometryBatch
 {
