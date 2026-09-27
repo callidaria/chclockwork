@@ -12,7 +12,7 @@ struct SunLight
 {
 	vec3 position;
 	vec3 colour;
-};
+} __attribute__((aligned(64)));
 
 struct PointLight
 {
@@ -21,7 +21,7 @@ struct PointLight
 	f32 constant;
 	f32 linear;
 	f32 quadratic;
-};
+} __attribute__((aligned(64)));
 // TODO maybe outsource into its own special lighting component
 
 
@@ -49,10 +49,10 @@ struct CameraAttributes
 
 struct Lighting
 {
-	SunLight sunlights[8];
-	PointLight pointlights[64];
-	u8 sunlights_active = 0;
-	u8 pointlights_active = 0;
+	SunLight sunlights[8] __attribute__((aligned(64)));
+	PointLight pointlights[64] __attribute__((aligned(64)));
+	u32 sunlights_active = 0;
+	u32 pointlights_active = 0;
 } __attribute__((aligned(64)));
 
 struct UniformBufferMemory
