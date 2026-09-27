@@ -17,6 +17,8 @@ const VkFormat _vertex_shader_input_formats[SHADER_UNIFORM_FORMAT_COUNT] = {
 	VK_FORMAT_R32G32B32A32_SFLOAT,
 	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
 };
 
 // dynamic state
@@ -38,8 +40,12 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "vec3",sizeof(vec3) },
 	{ "vec4",sizeof(vec4) },
 	{ "mat4",sizeof(mat4) },
-	{ "sampler2D",0 }
+	{ "sampler2D",0 },
+	{ "light_sun",sizeof(SunLight) },
+	{ "light_point",sizeof(PointLight) },
 };
+// TODO write a system, that can assess custom structures automatically
+// TODO write this as a map instead, non-linear lookup
 
 #endif
 
@@ -68,14 +74,26 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
 		__LineStream >> __Typename;
 		__LineStream >> __Varname;
 
+		// array count processing
+		size_t __ArrCount = 1;
+		size_t __ArrStart = __Varname.find('[');
+		size_t __ArrEnd = __Varname.find(']',__ArrStart);
+		if (__ArrStart!=string::npos)
+		{
+			char* __Arrnumber = &__Varname[__ArrStart+1];
+			__Varname[__ArrEnd] = '\0';
+			__ArrCount = atoi(__Arrnumber);
+		}
+
 		// correlate typename with memory size
 		for (u8 i=0;i<SHADER_UNIFORM_FORMAT_COUNT;i++)
 		{
 			if (!strcmp(SHADER_TYPES[i].name,__Typename.c_str()))
 			{
-				blocksize += SHADER_TYPES[i].memsize;
+				blocksize += SHADER_TYPES[i].memsize*__ArrCount;
 				break;
 			}
+			COMM_ERR_COND(i==SHADER_UNIFORM_FORMAT_COUNT-1,"could not correlate data type in shader");
 		}
 		varcount++;
 	}
@@ -270,8 +288,8 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	{
 	case DESCRIPTOR_TYPE_BUFFER:
 		__MemRange = g_UniformBuffer.memory_range_lut[m_Set][location];
-		__Desc.info.buffer = {  };
 		COMM_LOG("%u: %lu, %lu",location,__MemRange.offset,__MemRange.range);
+		__Desc.info.buffer = {  };
 		__Desc.info.buffer.offset = __MemRange.offset;
 		__Desc.info.buffer.range = __MemRange.range;
 		break;
