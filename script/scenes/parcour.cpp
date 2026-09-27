@@ -19,7 +19,11 @@ void ParcourParcs::init()
 	GPUPixelBuffer* __GoldMaterialTexture = g_Renderer.register_texture("./res/test/gold_material.png");
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
-	// texture assignment
+	// setup lighting
+	g_Renderer.add_pointlight(vec3(1,1,1),vec3(1,1,1),10.f,100.f,10.f,.4f);
+	g_Renderer.add_pointlight(vec3(-1,1,-1),vec3(.4f,1,.8f),10.f,100.f,10.f,.4f);
+
+	// texture assignment (old, remove)
 	__EnviroBatch->pcm = &m_MeshData;
 
 	// register textures

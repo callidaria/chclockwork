@@ -288,7 +288,6 @@ void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
 	{
 	case DESCRIPTOR_TYPE_BUFFER:
 		__MemRange = g_UniformBuffer.memory_range_lut[m_Set][location];
-		COMM_LOG("%u: %lu, %lu",location,__MemRange.offset,__MemRange.range);
 		__Desc.info.buffer = {  };
 		__Desc.info.buffer.offset = __MemRange.offset;
 		__Desc.info.buffer.range = __MemRange.range;

@@ -366,6 +366,10 @@ public:
 	//lptr<ParticleBatch> register_deferred_particle_batch();
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
+	// lighting
+	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity);
+	PointLight* add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,f32 linear,f32 quadratic);
+
 private:
 
 	// threaded actions

@@ -813,8 +813,9 @@ void ParticleBatch::vanish()
 
 #ifdef VKBUILD
 
-// TODO those are all prototype implementations!
-//		doc will be created later down the line when everything is in order
+/**
+ *	TODO
+ */
 Renderer::Renderer()
 {
 	COMM_LOG("starting font rasterizer");
@@ -933,6 +934,9 @@ Renderer::Renderer()
 	//g_UniformBuffer.finalize();
 }
 
+/**
+ *	TODO
+ */
 void Renderer::update()
 {
 	// camera update
@@ -1323,6 +1327,35 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 {
 	m_DeferredParticleBatches.push_back({ .shader = pipeline });
 	return std::prev(m_DeferredParticleBatches.end());
+}
+
+/**
+ *	TODO
+ */
+SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity)
+{
+	m_UBufferMem.lighting.sunlights[m_UBufferMem.lighting.sunlights_active] = {
+		.position = position,
+		.colour = colour*intensity
+	};
+	return &m_UBufferMem.lighting.sunlights[m_UBufferMem.lighting.sunlights_active++];
+}
+// TODO shadowing assignment
+
+/**
+ *	TODO
+ */
+PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
+									 f32 constant,f32 linear,f32 quadratic)
+{
+	m_UBufferMem.lighting.pointlights[m_UBufferMem.lighting.pointlights_active] = {
+		.position = position,
+		.colour = colour*intensity,
+		.constant = constant,
+		.linear = linear,
+		.quadratic = quadratic
+	};
+	return &m_UBufferMem.lighting.pointlights[m_UBufferMem.lighting.pointlights_active++];
 }
 
 /**
