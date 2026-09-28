@@ -14,9 +14,9 @@ void ParcourParcs::init()
 	__EnviroBatch->load();
 
 	// load textures
-	GPUPixelBuffer* __GoldColourTexture = g_Renderer.register_texture("./res/test/gold_colour.png");
-	GPUPixelBuffer* __GoldNormalTexture = g_Renderer.register_texture("./res/test/gold_normal.png");
-	GPUPixelBuffer* __GoldMaterialTexture = g_Renderer.register_texture("./res/test/gold_material.png");
+	GPUPixelBuffer* __FloorColourTexture = g_Renderer.register_texture("./res/test/floor_colour.png");
+	GPUPixelBuffer* __FloorNormalTexture = g_Renderer.register_texture("./res/test/floor_normal.png");
+	GPUPixelBuffer* __FloorMaterialTexture = g_Renderer.register_texture("./res/test/floor_material.png");
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
 	// setup lighting
@@ -27,9 +27,9 @@ void ParcourParcs::init()
 	__EnviroBatch->pcm = &m_MeshData;
 
 	// register textures
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],0,__GoldColourTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],1,__GoldNormalTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],2,__GoldMaterialTexture);
+	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],0,__FloorColourTexture);
+	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],1,__FloorNormalTexture);
+	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],2,__FloorMaterialTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],3,__NeutralEmissionTexture);
 
 	g_Wheel.call(this);

@@ -48,8 +48,8 @@ layout(set = 0,binding = 41) uniform Lighting
 {
 	light_sun sunlights[8];
 	light_point pointlights[64];
-	int sunlights_active;
-	int pointlights_active;
+	uint sunlights_active;
+	uint pointlights_active;
 } lgt;
 
 

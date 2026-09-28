@@ -10,18 +10,18 @@
 
 struct SunLight
 {
-	vec3 position;
-	vec3 colour;
-} __attribute__((aligned(64)));
+	vec3 position __attribute__((aligned(16))) = vec3(0);
+	vec3 colour __attribute__((aligned(16))) = vec3(0);
+};
 
 struct PointLight
 {
-	vec3 position;
-	vec3 colour;
-	f32 constant;
-	f32 linear;
-	f32 quadratic;
-} __attribute__((aligned(64)));
+	vec3 position __attribute__((aligned(16))) = vec3(0);
+	vec3 colour __attribute__((aligned(16))) = vec3(0);
+	f32 constant = 0;
+	f32 linear = 0;
+	f32 quadratic = 0;
+};
 // TODO maybe outsource into its own special lighting component
 
 
@@ -63,6 +63,7 @@ struct UniformBufferMemory
 	Lighting lighting;
 } __attribute__((aligned(64)));
 // TODO it should be possible to save quite some memory here!
+//		though it is advisable to respect the alignment conformity, given by the shader data layout!
 
 constexpr size_t INTERFACE_UNIFORM_BUFFER_MEMSIZE = sizeof(UniformBufferMemory);
 //= (sizeof(UniformBufferMemory)+(size_t)0x111111)&(size_t)0x111111;

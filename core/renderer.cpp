@@ -948,7 +948,7 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	// data update
-	g_UniformBuffer.update(&m_UBufferMem,sizeof(m_UBufferMem));
+	g_UniformBuffer.update(&m_UBufferMem,sizeof(UniformBufferMemory));
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
