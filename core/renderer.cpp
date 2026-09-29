@@ -871,12 +871,12 @@ Renderer::Renderer()
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
-	// UI pipelines
+	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
-	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_RGB);
+	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
 	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
-	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_RGB);
+	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
