@@ -112,7 +112,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = g_Formats.depthbuffer;
+		__ImageInfo.format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
 		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -141,7 +141,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		__ImageViewInfo.image = m_AttachmentImages[sp.depth_channel];
 		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		__ImageViewInfo.format = g_Formats.depthbuffer;
+		__ImageViewInfo.format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
 		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 		__ImageViewInfo.subresourceRange.levelCount = 1;

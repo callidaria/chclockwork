@@ -18,8 +18,11 @@ void RoomVoxels::init(Font* font)
 											  Alignment{ .alignment=SCREEN_ALIGN_TOPLEFT });
 
 	// setup batch
+	GPUBufferFormat format = GPU_BUFFER_FORMAT_SRGB;
 	lptr<ShaderPipeline> __RoomShader = g_Renderer.register_pipeline(
-			"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",1,true);
+			"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",
+			&format,1,true
+		);
 	lptr<ParticleBatch> __RoomBatch = g_Renderer.register_particle_batch(__RoomShader);
 
 	// load room

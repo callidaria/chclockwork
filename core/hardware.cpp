@@ -60,20 +60,23 @@ void GPUDevice::select()
 	g_GPU.setup_command_buffers();
 
 	// choose formats
-	g_Formats = {
-		.colourbuffer = g_GPU.choose_texture_format(
-				{ VK_FORMAT_B8G8R8A8_SRGB,VK_FORMAT_R8G8B8A8_SRGB },
-				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-			),  // FIXME maybe this is just swapchain format acquired from frame, no fb result conversions
-		.floatbuffer = g_GPU.choose_texture_format(
-				{ VK_FORMAT_R16G16B16A16_SFLOAT },
-				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
-			),
-		.depthbuffer = g_GPU.choose_texture_format(
-				{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
-				VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-			),
-	};
+	g_Formats[GPU_BUFFER_FORMAT_SRGB] = g_GPU.choose_texture_format(
+			{ VK_FORMAT_B8G8R8A8_SRGB,VK_FORMAT_R8G8B8A8_SRGB },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+		);
+	g_Formats[GPU_BUFFER_FORMAT_RGB] = g_GPU.choose_texture_format(
+			{ VK_FORMAT_B8G8R8A8_UNORM,VK_FORMAT_R8G8B8A8_UNORM },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+		);
+	g_Formats[GPU_BUFFER_FORMAT_FLOAT] = g_GPU.choose_texture_format(
+			{ VK_FORMAT_R16G16B16A16_SFLOAT },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT
+		);
+	g_Formats[GPU_BUFFER_FORMAT_DEPTH] = g_GPU.choose_texture_format(
+			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
+			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+		);
+	// FIXME maybe this is just swapchain format acquired from frame, no fb result conversions
 }
 
 /**

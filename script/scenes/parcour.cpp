@@ -9,7 +9,7 @@ void ParcourParcs::init()
 	// setup batch
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
 	vector<Texture*> __Textures = {  };
-	Mesh __Sphere = Mesh::cube();
+	Mesh __Sphere = Mesh::sphere();
 	__EnviroBatch->add_geometry(__Sphere,__Textures);
 	__EnviroBatch->load();
 
@@ -21,7 +21,7 @@ void ParcourParcs::init()
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
 	// setup lighting
-	g_Renderer.add_sunlight(vec3(10,10,10),vec3(1,1,1),10.f);
+	g_Renderer.add_sunlight(vec3(10,10,10),vec3(1,1,1),1.f);
 	//g_Renderer.add_pointlight(vec3(1,1,1),vec3(1,1,1),10.f,100.f,10.f,.4f);
 	//g_Renderer.add_pointlight(vec3(-1,1,-1),vec3(.4f,1,.8f),10.f,100.f,10.f,.4f);
 

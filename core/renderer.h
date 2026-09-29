@@ -358,7 +358,8 @@ public:
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth=false);
+	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,
+										   GPUBufferFormat* formats,u8 bfr_count,bool depth=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch();

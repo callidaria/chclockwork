@@ -113,21 +113,17 @@ void main()
 	// TODO shadow processing
 
 	// combination
-	vec3 final = /*vec3(SchlickOut);*//*sdw_component*/normal;
+	vec3 final = sdw_component;
 
 	// process sub-geometric occlusion & emission
-	/*
 	final = final*occlusion;
 	final = max(final,emission);
-	*/
 
 	// TODO light processing (for now until upgrade)
 
 	// colour corrections
-	/*
 	final = vec3(1.)-exp(-final*cam.exposure);
 	final = pow(final,vec3(cam.gamma));
-	*/
 
 	//final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
 	pixelColour = vec4(final,1.);

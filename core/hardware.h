@@ -29,13 +29,15 @@ struct SwapChain
 };
 // FIXME only used in blitter!
 
-struct Formats
+enum GPUBufferFormat : u8
 {
-	VkFormat colourbuffer;
-	VkFormat floatbuffer;
-	VkFormat depthbuffer;
+	GPU_BUFFER_FORMAT_SRGB,
+	GPU_BUFFER_FORMAT_RGB,
+	GPU_BUFFER_FORMAT_FLOAT,
+	GPU_BUFFER_FORMAT_DEPTH,
+	GPU_BUFFER_FORMAT_COUNT
 };
-inline Formats g_Formats;
+inline VkFormat g_Formats[GPU_BUFFER_FORMAT_COUNT];
 
 struct CommandBufferGFX
 {

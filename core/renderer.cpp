@@ -874,17 +874,22 @@ Renderer::Renderer()
 	// UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
-	m_TextPipeline.out_define_colour_buffer();
+	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_RGB);
 	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
-	m_TargetPipeline.out_define_colour_buffer();
+	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_RGB);
 	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
 	// pipelines, setup for deferred scene processing
+	GPUBufferFormat formats[5] = {
+		GPU_BUFFER_FORMAT_SRGB,
+		GPU_BUFFER_FORMAT_RGB,GPU_BUFFER_FORMAT_RGB,GPU_BUFFER_FORMAT_RGB,
+		GPU_BUFFER_FORMAT_SRGB
+	};
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-											   5,true);
+											   formats,5,true);
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
@@ -1253,12 +1258,14 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
  *	\param bfr_count: count of output buffers, amount of channels that the shader writes to
  *	\param depth: (default false) record depth result after shader processing
  *	\returns pointer to registered shader pipeline
+ *	TODO amend
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,u8 bfr_count,bool depth)
+lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,
+												 GPUBufferFormat* formats,u8 bfr_count,bool depth)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer();
+	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
 	p_Pipeline->assemble(vs,fs,false);
 	return p_Pipeline;
 }

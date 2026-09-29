@@ -186,7 +186,7 @@ public:
 	ShaderPipeline(u8 bfr_count,bool depth=false);
 
 	// definition
-	u8 out_define_colour_buffer(bool floatbuffer=false);
+	u8 out_define_colour_buffer(GPUBufferFormat format);
 	u8 out_define_result_buffer();
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
