@@ -309,8 +309,8 @@ s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
  *	allocation and setup for texture data load
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture channel format
  */
-TextureData::TextureData(TextureFormat format)
-	: m_Format(format)
+TextureData::TextureData(TextureFormat f)
+	: format(f)
 {  }
 
 /**
@@ -344,8 +344,8 @@ void TextureData::gpu_upload(
 #ifdef VKBUILD
 	_copy_buffer(image,buf,mem,0);
 #else
-	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
-				 _texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data);
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[format],width,height,0,
+				 _texture_formats[format].format,GL_UNSIGNED_BYTE,data);
 #endif
 	_free();
 }
@@ -364,7 +364,7 @@ void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
 	_copy_buffer(image,buf,mem,ofs);
 #else
-	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data);
+	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,_texture_formats[format].format,GL_UNSIGNED_BYTE,data);
 #endif
 	_free();
 }
@@ -380,7 +380,7 @@ void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,siz
 		COMM_ERR("buffer without width or height has been submitted");
 		return;
 	}
-	size_t __ImageSize = width*height*_texture_formats[m_Format].size;
+	size_t __ImageSize = width*height*_texture_formats[format].size;
 
 	// stage memory
 	void* __Data;

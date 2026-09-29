@@ -85,7 +85,7 @@ void main()
 	float cmp_fdepth = texture(fpass_depth,EdgeCoordinates).r;
 	float cmp_gdepth = texture(gpass_depth,EdgeCoordinates).r;
 	*/
-	
+
 	// translating buffer information
 	vec3 colour = cmp_gcolour.rgb;
 	vec3 position = cmp_position.rgb;
@@ -113,17 +113,21 @@ void main()
 	// TODO shadow processing
 
 	// combination
-	vec3 final = lgt_component;
+	vec3 final = /*vec3(SchlickOut);*//*sdw_component*/normal;
 
 	// process sub-geometric occlusion & emission
+	/*
 	final = final*occlusion;
 	final = max(final,emission);
+	*/
 
 	// TODO light processing (for now until upgrade)
 
 	// colour corrections
+	/*
 	final = vec3(1.)-exp(-final*cam.exposure);
 	final = pow(final,vec3(cam.gamma));
+	*/
 
 	//final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
 	pixelColour = vec4(final,1.);

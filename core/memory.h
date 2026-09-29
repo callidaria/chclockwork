@@ -88,7 +88,7 @@ enum TextureFormat : u8
 struct TextureData
 {
 public:
-	TextureData(TextureFormat format=TEXTURE_FORMAT_RGBA);
+	TextureData(TextureFormat f=TEXTURE_FORMAT_RGBA);
 
 	void load(const char* path);
 	void gpu_upload(
@@ -109,12 +109,12 @@ private:
 	void _free();
 
 public:
+	TextureFormat format = TEXTURE_FORMAT_RGBA;
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
 	u8* data;
 
 private:
-	TextureFormat m_Format = TEXTURE_FORMAT_RGBA;
 	bool m_TextureFlag = false;
 };
 

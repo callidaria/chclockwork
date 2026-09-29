@@ -1472,7 +1472,7 @@ void Renderer::_gpu_upload()
 	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
-		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,TEXTURE_FORMAT_SRGB);
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.data.format);
 		p_Tuple.texture->load_requests.push(p_Tuple.data);
 		p_Tuple.texture->gpu_upload();
 		m_MeshTextureUploadQueue.pop();
