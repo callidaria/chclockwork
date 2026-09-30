@@ -885,7 +885,7 @@ Renderer::Renderer()
 	// pipelines, setup for deferred scene processing
 	GPUBufferFormat formats[5] = {
 		GPU_BUFFER_FORMAT_SRGB,
-		GPU_BUFFER_FORMAT_RGB,GPU_BUFFER_FORMAT_RGB,GPU_BUFFER_FORMAT_RGB,
+		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
 		GPU_BUFFER_FORMAT_SRGB
 	};
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",

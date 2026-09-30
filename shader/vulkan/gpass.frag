@@ -4,7 +4,6 @@
 layout(location = 0) in vec3 Position;
 layout(location = 1) in vec2 UV;
 layout(location = 2) in mat3 TBN;
-layout(location = 10) in vec3 Debug;
 
 layout(location = 0) out vec4 gbuffer_colour;
 layout(location = 1) out vec4 gbuffer_position;

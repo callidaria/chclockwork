@@ -113,7 +113,7 @@ void main()
 	// TODO shadow processing
 
 	// combination
-	vec3 final = sdw_component;
+	vec3 final = sdw_component+lgt_component;
 
 	// process sub-geometric occlusion & emission
 	final = final*occlusion;

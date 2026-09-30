@@ -9,7 +9,6 @@ layout(location = 3) in vec3 tangent;
 layout(location = 0) out vec3 Position;
 layout(location = 1) out vec2 UV;
 layout(location = 2) out mat3 TBN;
-layout(location = 10) out vec3 Debug;
 
 layout(set = 0,binding = 0) uniform ObjectTransformation
 {
@@ -44,5 +43,4 @@ void main()
 //	TBN = mat3(Tangent,Bitangent,Normal);
 	vec3 Tangent = normalize(tangent-dot(tangent,normal)*normal);
 	TBN = mat3(Tangent,cross(normal,Tangent),normal);
-	//Debug = cross(normal,Tangent);
 }
