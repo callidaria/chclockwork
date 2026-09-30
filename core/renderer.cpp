@@ -886,7 +886,7 @@ Renderer::Renderer()
 	GPUBufferFormat formats[5] = {
 		GPU_BUFFER_FORMAT_SRGB,
 		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
-		GPU_BUFFER_FORMAT_SRGB
+		GPU_BUFFER_FORMAT_FLOAT
 	};
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
 											   formats,5,true);
@@ -966,6 +966,10 @@ void Renderer::update()
 	_update_mesh(m_GeometryBatches);
 	_update_particles(m_ParticleBatches);
 	m_Framebuffer.stop();
+
+	// transition results
+	Texture::transition_depth_texture(m_Framebuffer.attachment_images[1]);
+	Texture::transition_depth_texture(m_GBuffer.attachment_images[5]);
 
 	// START RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].record();

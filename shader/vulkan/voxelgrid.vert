@@ -10,8 +10,6 @@ layout(location = 3) in vec3 tangent;
 layout(location = 10) in vec3 offset;
 
 layout(location = 0) out vec2 UV;
-layout(location = 1) out vec3 Normal;
-layout(location = 2) out mat3 TBN;
 
 layout(set = 0,binding = 0) uniform ObjectTransformation
 {
@@ -19,22 +17,17 @@ layout(set = 0,binding = 0) uniform ObjectTransformation
 	mat4 proj;
 } ot;
 
-layout(push_constant) uniform PushConstants
-{
-	mat4 model;
-	uint texIndex;
-} pc;
+/*
+#layout(push_constant) uniform PushConstants
+#{
+#	mat4 model;
+#	uint texIndex;
+#} pc;
+*/
 
 
 void main()
 {
 	gl_Position = ot.proj*ot.view*/*pc.model**/vec4(position+offset,1.);
-
-	// pass
 	UV = uv;
-	Normal = normal;
-
-	// gram-schmidt reorthogonalization
-	vec3 Tangent = normalize(tangent-dot(tangent,normal)*normal);
-	TBN = mat3(Tangent,cross(normal,Tangent),normal);
 }

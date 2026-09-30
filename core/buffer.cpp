@@ -27,7 +27,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
 
 	// allocate handler memory
-	m_AttachmentImages.resize(__ComponentCount);
+	attachment_images.resize(__ComponentCount);
 	m_AttachmentMemory.resize(__ComponentCount);
 #endif
 
@@ -37,7 +37,7 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		if (m_ResultAttachmentMap[i])
 		{
 			COMM_ERR_COND(result_buffer<0,"result attachment defined but no buffer id given");
-			m_AttachmentImages[i] = g_Frame.result_images[result_buffer];
+			attachment_images[i] = g_Frame.result_images[result_buffer];
 			components[i] = g_Frame.result_image_views[result_buffer];
 			continue;
 		}
@@ -58,12 +58,12 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[i]);
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&attachment_images[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create colour attachment %d for some reason",i);
 
 		// allocate vram
 		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[i],&__MemoryRequirements);
+		vkGetImageMemoryRequirements(g_GPU.gpu,attachment_images[i],&__MemoryRequirements);
 		VkMemoryAllocateInfo __MemoryInfo = {  };
 		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		__MemoryInfo.allocationSize = __MemoryRequirements.size;
@@ -71,14 +71,14 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 															   __MemoryRequirements.memoryTypeBits);
 		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for colour buffer %d for some reason",i);
-		vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[i],m_AttachmentMemory[i],0);
+		vkBindImageMemory(g_GPU.gpu,attachment_images[i],m_AttachmentMemory[i],0);
 		// FIXME repeat code chunk for vram allocation here (identical to depth buffer allocation)
 		// TODO check for allocation success (also for depth buffer)
 
 		// colour buffer image view handle
 		VkImageViewCreateInfo __ImageViewInfo = {  };
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = m_AttachmentImages[i];
+		__ImageViewInfo.image = attachment_images[i];
 		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		__ImageViewInfo.format = sp.descriptions[i].format;
 		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -119,13 +119,13 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_AttachmentImages[sp.depth_channel]);
+		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&attachment_images[sp.depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
 		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
 		// allocate vram
 		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,m_AttachmentImages[sp.depth_channel],&__MemoryRequirements);
+		vkGetImageMemoryRequirements(g_GPU.gpu,attachment_images[sp.depth_channel],&__MemoryRequirements);
 		VkMemoryAllocateInfo __MemoryInfo = {  };
 		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		__MemoryInfo.allocationSize = __MemoryRequirements.size;
@@ -133,13 +133,13 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 															   __MemoryRequirements.memoryTypeBits);
 		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[sp.depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
-		vkBindImageMemory(g_GPU.gpu,m_AttachmentImages[sp.depth_channel],m_AttachmentMemory[sp.depth_channel],0);
+		vkBindImageMemory(g_GPU.gpu,attachment_images[sp.depth_channel],m_AttachmentMemory[sp.depth_channel],0);
 		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
 		// depth buffer image view handle
 		VkImageViewCreateInfo __ImageViewInfo = {  };
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = m_AttachmentImages[sp.depth_channel];
+		__ImageViewInfo.image = attachment_images[sp.depth_channel];
 		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		__ImageViewInfo.format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
 		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -287,7 +287,7 @@ void Framebuffer::vanish()
 		// free component memory should it have been allocated by the framebuffer
 		if (m_ResultAttachmentMap[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
-		g_GPU.free(m_AttachmentImages[i]);
+		g_GPU.free(attachment_images[i]);
 	}
 	m_ResultAttachmentMap.vanish();
 

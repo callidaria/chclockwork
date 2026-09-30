@@ -81,10 +81,8 @@ void main()
 	vec4 cmp_normal = texture(gpass_normal,EdgeCoordinates);
 	vec4 cmp_material = texture(gpass_material,EdgeCoordinates);
 	vec4 cmp_emission = texture(gpass_emission,EdgeCoordinates);
-	/*
 	float cmp_fdepth = texture(fpass_depth,EdgeCoordinates).r;
 	float cmp_gdepth = texture(gpass_depth,EdgeCoordinates).r;
-	*/
 
 	// translating buffer information
 	vec3 colour = cmp_gcolour.rgb;
@@ -125,7 +123,9 @@ void main()
 	final = vec3(1.)-exp(-final*cam.exposure);
 	final = pow(final,vec3(cam.gamma));
 
-	//final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
+	// combination with forward component
+	final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
+
 	pixelColour = vec4(final,1.);
 }
 

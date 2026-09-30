@@ -123,7 +123,9 @@ class Texture
 public:
 	Texture();
 
-#ifndef VKBUILD
+#ifdef VKBUILD
+	static void transition_depth_texture(VkImage buffer);
+#else
 	static void set_channel(u8 i);
 	void bind(u8 i);
 	static void unbind();

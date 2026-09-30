@@ -24,7 +24,6 @@ public:
 
 private:
 #ifdef VKBUILD
-	vector<VkImage> m_AttachmentImages;
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
 	VkRenderPass m_RenderPass;
@@ -34,6 +33,7 @@ private:
 #endif
 
 public:
+	vector<VkImage> attachment_images;
 	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
 	vector<VkClearValue> m_ClearValues;
 };

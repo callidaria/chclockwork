@@ -734,9 +734,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 		descriptions[depth_channel].format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
 		descriptions[depth_channel].samples = VK_SAMPLE_COUNT_1_BIT;
 		descriptions[depth_channel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // TODO enable/disable
 		descriptions[depth_channel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		descriptions[depth_channel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		descriptions[depth_channel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 		descriptions[depth_channel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		descriptions[depth_channel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
