@@ -16,31 +16,26 @@ layout(set = 0,binding = 0) uniform ObjectTransformation
 	mat4 proj;
 } ot;
 
-/*
-#layout(push_constant) uniform PushConstants
-#{
-#	mat4 model;
-#	float texel;
-#} pc;
-*/
-// TODO allow for standard values (here texel = 1.)
+layout(set = 0,binding = 70) uniform ObjectInfo
+{
+	mat4 model;
+	float texel;
+} trafo;
 
 
 void main()
 {
-	vec4 world_position = /*pc.model**/vec4(position,1.);
+	vec4 world_position = trafo.model*vec4(position,1.);
 	Position = world_position.xyz;
 	gl_Position = ot.proj*ot.view*world_position;
 
 	// calculate texture coordinates
-	UV = uv/**pc.texel*/;
+	UV = uv*trafo.texel;
 
 	// gram-schmidt orthogonalization
-//	vec3 Tangent = normalize((/*pc.model**/vec4(tangent,0)).xyz);
-//	vec3 Normal = normalize((/*pc.model**/vec4(normal,0)).xyz);
-//	Tangent = normalize(Tangent-dot(Tangent,Normal)*Normal);
-//	vec3 Bitangent = cross(Normal,Tangent);
-//	TBN = mat3(Tangent,Bitangent,Normal);
-	vec3 Tangent = normalize(tangent-dot(tangent,normal)*normal);
-	TBN = mat3(Tangent,cross(normal,Tangent),normal);
+	vec3 Tangent = normalize((trafo.model*vec4(tangent,0)).xyz);
+	vec3 Normal = normalize((trafo.model*vec4(normal,0)).xyz);
+	Tangent = normalize(Tangent-dot(Tangent,Normal)*Normal);
+	vec3 Bitangent = cross(Normal,Tangent);
+	TBN = mat3(Tangent,Bitangent,Normal);
 }

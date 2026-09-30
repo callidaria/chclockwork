@@ -227,12 +227,6 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
-struct MeshData  // (for now)
-{
-	mat4 model = mat4(1.f);
-	f32 texel = 1.f;
-};
-
 struct TextureDataTuple
 {
 	TextureData data;
@@ -301,22 +295,6 @@ struct ParticleBatch
 	u32 active_particles = 0;
 };
 
-
-// ----------------------------------------------------------------------------------------------------
-// Lighting
-
-/*
-struct Lighting
-{
-	SunLight sunlights[8];
-	PointLight pointlights[64];
-	u8 sunlights_active = 0;
-	u8 pointlights_active = 0;
-	Camera3D shadow_projection;
-	bool shadow_forced = false;
-};
-*/
-
 struct ShadowGeometryBatch
 {
 	lptr<GeometryBatch> batch;
@@ -330,6 +308,9 @@ struct ShadowParticleBatch
 	lptr<ShaderPipeline> shader;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Renderer
 
 #ifdef VKBUILD
 

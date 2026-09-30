@@ -126,6 +126,7 @@ class UniformBuffer
 public:
 	UniformBuffer();
 	void update(void* data,size_t size);
+	void update(void* data,size_t offset,size_t size);
 	void vanish();
 
 	// interaction

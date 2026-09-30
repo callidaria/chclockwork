@@ -26,7 +26,7 @@ struct PointLight
 
 
 // ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
+// Uniform Buffer Globals
 
 struct SpriteTransformation
 {
@@ -65,8 +65,23 @@ struct UniformBufferMemory
 // TODO it should be possible to save quite some memory here!
 //		though it is advisable to respect the alignment conformity, given by the shader data layout!
 
-constexpr size_t INTERFACE_UNIFORM_BUFFER_MEMSIZE = sizeof(UniformBufferMemory);
-//= (sizeof(UniformBufferMemory)+(size_t)0x111111)&(size_t)0x111111;
 
+// ----------------------------------------------------------------------------------------------------
+// Uniform Buffer Object Locals
+
+struct ObjectInfo
+{
+	mat4 model = mat4(1.f);
+	f32 texel = 1.f;
+} __attribute((aligned(64)));
+
+struct ObjectMemory
+{
+	ObjectInfo objinfo;
+};
+
+
+constexpr size_t INTERFACE_UNIFORM_BUFFER_MEMSIZE = sizeof(UniformBufferMemory)+sizeof(ObjectMemory);
+//= (sizeof(UniformBufferMemory)+(size_t)0x111111)&(size_t)0x111111;
 
 #endif

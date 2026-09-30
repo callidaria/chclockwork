@@ -913,6 +913,8 @@ Renderer::Renderer()
 	g_UniformBuffer.define_data_segment(0,1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
 	g_UniformBuffer.define_data_segment(0,40,offsetof(UniformBufferMemory,camera),sizeof(CameraAttributes));
 	g_UniformBuffer.define_data_segment(0,41,offsetof(UniformBufferMemory,lighting),sizeof(Lighting));
+	g_UniformBuffer.define_data_segment(0,70,sizeof(UniformBufferMemory)+offsetof(ObjectMemory,objinfo),
+										sizeof(ObjectInfo));
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
@@ -935,8 +937,6 @@ Renderer::Renderer()
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
 				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
-
-	//g_UniformBuffer.finalize();
 }
 
 /**
@@ -958,7 +958,7 @@ void Renderer::update()
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
 	_update_mesh(m_DeferredGeometryBatches);
-	//_update_particles(m_DeferredGeometryBatches);
+	//_update_particles(m_DeferredParticleBatches);
 	m_GBuffer.stop();
 
 	// RECORD SCENE FORWARD
@@ -1434,6 +1434,10 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);  // TODO ubo, pcm & shader are one part?
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
+			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
+			// TODO map<u32,void*> can also describe memory uploads pretty independently
+			g_UniformBuffer.update(&p_Tuple.transform.model,sizeof(UniformBufferMemory),sizeof(mat4));
+			g_UniformBuffer.update(&p_Tuple.texel,sizeof(UniformBufferMemory)+sizeof(mat4),sizeof(f32));
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}

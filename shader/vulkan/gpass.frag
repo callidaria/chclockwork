@@ -16,12 +16,6 @@ layout(set = 2,binding = 1) uniform sampler2D normal_map;
 layout(set = 2,binding = 2) uniform sampler2D material_map;
 layout(set = 2,binding = 3) uniform sampler2D emission_map;
 
-layout(push_constant) uniform PushConstants
-{
-	mat4 model;
-	float texel;
-} pc;
-
 
 void main()
 {

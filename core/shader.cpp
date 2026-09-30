@@ -508,6 +508,14 @@ void UniformBuffer::update(void* data,size_t size)
 /**
  *	TODO
  */
+void UniformBuffer::update(void* data,size_t offset,size_t size)
+{
+	memcpy(m_UBOMapped[g_GPU.active_buffer]+offset,data,size);
+}
+
+/**
+ *	TODO
+ */
 void UniformBuffer::vanish()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
