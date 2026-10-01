@@ -16,7 +16,9 @@ void ParcourParcs::init()
 	__EnviroBatch->load();
 
 	// transform objects
-	__EnviroBatch->objects[__CubeID].transform.transform(vec3(0,0,1.5f),vec3(10,10,1),vec3(.0f));
+	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,0,1.5f),vec3(10,10,1),vec3(.0f));
+	__EnviroBatch->objects[__SphereID].texel = 25.f;
+	//__EnviroBatch->objects[__CubeID].transform.scale(vec3(10,10,1));
 
 	// load textures
 	GPUPixelBuffer* __FabricColourTexture = g_Renderer.register_texture("./res/test/fabric_colour.png",
@@ -26,9 +28,10 @@ void ParcourParcs::init()
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
 	// setup lighting
-	g_Renderer.add_sunlight(vec3(10,10,10),vec3(1,1,1),1.f);
+	g_Renderer.add_sunlight(vec3(2,2,4),vec3(1,1,1),1.f);
 	//g_Renderer.add_pointlight(vec3(4,4,4),vec3(1,1,1),10.f,100.f,10.f,.4f);
 	//g_Renderer.add_pointlight(vec3(-4,4,-4),vec3(.4f,1,.8f),10.f,100.f,10.f,.4f);
+	// TODO offcenter position + sun behaves like a pointlight? this is all wrong
 
 	// register textures
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[2],0,__FabricColourTexture);

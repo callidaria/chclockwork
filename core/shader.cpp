@@ -510,7 +510,7 @@ void UniformBuffer::update(void* data,size_t size)
  */
 void UniformBuffer::update(void* data,size_t offset,size_t size)
 {
-	memcpy(m_UBOMapped[g_GPU.active_buffer]+offset,data,size);
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+sizeof(UniformBufferMemory)+offset,data,size);
 }
 
 /**

@@ -1436,8 +1436,8 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		{
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
-			g_UniformBuffer.update(&p_Tuple.transform.model,sizeof(UniformBufferMemory),sizeof(mat4));
-			g_UniformBuffer.update(&p_Tuple.texel,sizeof(UniformBufferMemory)+sizeof(mat4),sizeof(f32));
+			g_UniformBuffer.update(&p_Tuple.transform.model,0,sizeof(mat4));
+			g_UniformBuffer.update(&p_Tuple.texel,sizeof(mat4),sizeof(f32));
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
