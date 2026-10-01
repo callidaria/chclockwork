@@ -262,7 +262,115 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 
 
 // ----------------------------------------------------------------------------------------------------
-// Texture Set
+// Uniform Buffer
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+UniformBuffer::UniformBuffer()
+{
+	// setup default sampler
+	COMM_LOG("creating default sampler");
+	VkSamplerCreateInfo __SamplerInfo = {  };
+	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
+	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	__SamplerInfo.anisotropyEnable = VK_FALSE;
+	__SamplerInfo.maxAnisotropy = 0;
+	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
+	__SamplerInfo.compareEnable = VK_FALSE;
+	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	__SamplerInfo.mipLodBias = .0f;
+	__SamplerInfo.minLod = 0;
+	__SamplerInfo.maxLod = 0;
+	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
+	// TODO move to renderer instead
+
+	// generate buffer for previously defined geometry ranges
+	COMM_AWT("allocating the uniform buffer");
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
+							 INTERFACE_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
+	}
+	// TODO stage this too? host_visible? i don't think so bröther
+
+	// entry descriptor pool sizes into configuration
+	// starting with uniform buffer type allocation, then combined image sampler
+	VkDescriptorPoolSize __DescriptorPoolSize[2];
+	__DescriptorPoolSize[0] = {  };
+	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_UNIFORM_COUNT;
+	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_SAMPLER_COUNT;
+
+	// configurably generous descriptor pool allocation
+	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
+	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	__DPoolInfo.poolSizeCount = 2;
+	__DPoolInfo.pPoolSizes = __DescriptorPoolSize;
+	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_SET_ALLOCATION;
+	__DPoolInfo.flags = 0;
+	__Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
+
+	COMM_CNF();
+}
+
+/**
+ *	TODO
+ *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
+ */
+void UniformBuffer::update(void* data,size_t size)
+{
+	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
+}
+// FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
+// TODO for performance reasons, maybe it would be faster to not update the whole set,
+//		but instead only updated segments. then again this could also quickly become hazardous when segmentation
+//		is high and many updates occur at the same time?
+// TODO problem is: this will update the entire ubo memory, no matter what & where.
+//		copy to specific ranges at change for independent information updates? is the memcpy for all as fast?
+
+/**
+ *	TODO
+ */
+void UniformBuffer::update(void* data,size_t offset,size_t size)
+{
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+sizeof(UniformBufferMemory)+offset,data,size);
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::vanish()
+{
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		g_GPU.free(ubo[i]);
+		g_GPU.free(m_UBOMemory[i]);
+	}
+	g_GPU.free(descriptor_pool);
+	g_GPU.free(default_sampler);
+	default_texture.vanish();
+}
+// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
+
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Uniform Set
 
 /**
  *	TODO
@@ -423,124 +531,24 @@ void DescriptorSetMemory::update_frame()
 // TODO the writes should not be duplicated per result buffer right? they are bound, then updated?
 // TODO remove the typecheck for buffer! the ubo has to be transferred ONCE, then the copy will suffice
 
-
-// ----------------------------------------------------------------------------------------------------
-// Uniform Buffer
-
-#ifdef VKBUILD
-
 /**
  *	TODO
  */
-UniformBuffer::UniformBuffer()
+void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
 {
-	// setup default sampler
-	COMM_LOG("creating default sampler");
-	VkSamplerCreateInfo __SamplerInfo = {  };
-	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	__SamplerInfo.magFilter = VK_FILTER_NEAREST;
-	__SamplerInfo.minFilter = VK_FILTER_NEAREST;
-	__SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	__SamplerInfo.anisotropyEnable = VK_FALSE;
-	__SamplerInfo.maxAnisotropy = 0;
-	__SamplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	__SamplerInfo.unnormalizedCoordinates = VK_FALSE;
-	__SamplerInfo.compareEnable = VK_FALSE;
-	__SamplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	__SamplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-	__SamplerInfo.mipLodBias = .0f;
-	__SamplerInfo.minLod = 0;
-	__SamplerInfo.maxLod = 0;
-	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
-	// TODO move to renderer instead
-
-	// generate buffer for previously defined geometry ranges
-	COMM_AWT("allocating the uniform buffer");
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
-							 INTERFACE_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
-	}
-	// TODO stage this too? host_visible? i don't think so bröther
-
-	// entry descriptor pool sizes into configuration
-	// starting with uniform buffer type allocation, then combined image sampler
-	VkDescriptorPoolSize __DescriptorPoolSize[2];
-	__DescriptorPoolSize[0] = {  };
-	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_UNIFORM_COUNT;
-	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_SAMPLER_COUNT;
-
-	// configurably generous descriptor pool allocation
-	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
-	__DPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	__DPoolInfo.poolSizeCount = 2;
-	__DPoolInfo.pPoolSizes = __DescriptorPoolSize;
-	__DPoolInfo.maxSets = GPU_BUFFER_COUNT*SHADER_MAXIMUM_SET_ALLOCATION;
-	__DPoolInfo.flags = 0;
-	__Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
-
-	COMM_CNF();
-}
-
-/**
- *	TODO
- *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
- */
-void UniformBuffer::update(void* data,size_t size)
-{
-	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
-}
-// FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
-// TODO for performance reasons, maybe it would be faster to not update the whole set,
-//		but instead only updated segments. then again this could also quickly become hazardous when segmentation
-//		is high and many updates occur at the same time?
-// TODO problem is: this will update the entire ubo memory, no matter what & where.
-//		copy to specific ranges at change for independent information updates? is the memcpy for all as fast?
-
-/**
- *	TODO
- */
-void UniformBuffer::update(void* data,size_t offset,size_t size)
-{
-	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+sizeof(UniformBufferMemory)+offset,data,size);
-}
-
-/**
- *	TODO
- */
-void UniformBuffer::vanish()
-{
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		g_GPU.free(ubo[i]);
-		g_GPU.free(m_UBOMemory[i]);
-	}
-	g_GPU.free(descriptor_pool);
-	g_GPU.free(default_sampler);
-	default_texture.vanish();
-}
-// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
-
-/**
- *	TODO
- */
-void UniformBuffer::define_data_segment(u8 set,u16 location,size_t offset,size_t range)
-{
-	memory_range_lut[set][location] = {
+	m_MemoryRangeLUT[location] = {
 		.offset = offset,
 		.range = range,
 	};
 }
 
-#endif
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
+{
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
+}
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -1164,7 +1172,7 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		DescriptorSetMemory& p_DSetMemory = sets[i];
 		p_DSetMemory.allocate(i,p_Set.size(),m_DSetLayouts);
 		// FIXME the set layout + size at call does not make sense in the slightest
-		for (auto p_Binding = p_Set.begin();p_Binding != p_Set.end();p_Binding++)
+		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
 			p_DSetMemory.define(p_Binding->first,p_Binding->second);
 	}
 }

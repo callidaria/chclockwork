@@ -94,6 +94,30 @@ struct ShaderInterface
 
 
 // ----------------------------------------------------------------------------------------------------
+// Uniform Buffer Memory
+
+class UniformBuffer
+{
+public:
+	UniformBuffer();
+	void vanish();
+
+public:
+	GPUPixelBuffer default_texture;
+	VkSampler default_sampler;
+	VkDescriptorPool descriptor_pool;
+	VkBuffer ubo[GPU_BUFFER_COUNT];
+	map<u16,UBOMemoryRange> memory_range_lut[SHADER_MAXIMUM_DESCRIPTOR_SETS];
+
+private:
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+};
+inline UniformBuffer g_UniformBuffer = UniformBuffer();
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------
 // Descriptor Memory
 
 struct DescriptorSetMemory
@@ -109,42 +133,18 @@ struct DescriptorSetMemory
 	void update();
 	void update_frame();
 
+	// data
+	void define_data_segment(u16 location,size_t offset,size_t range);
+	void write(void* data,size_t size,size_t offset=0);
+
 private:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
 	map<size_t,size_t> m_LocationIndexCorrelation;
+	map<u16,UBOMemoryRange> m_MemoryRangeLUT;
 	u8 m_Set;
 };
-
-
-// ----------------------------------------------------------------------------------------------------
-// Uniform Buffer Memory
-
-class UniformBuffer
-{
-public:
-	UniformBuffer();
-	void update(void* data,size_t size);
-	void update(void* data,size_t offset,size_t size);
-	void vanish();
-
-	// interaction
-	void define_data_segment(u8 set,u16 location,size_t offset,size_t range);
-
-public:
-	GPUPixelBuffer default_texture;
-	VkSampler default_sampler;
-	VkDescriptorPool descriptor_pool;
-	VkBuffer ubo[GPU_BUFFER_COUNT];
-	map<u16,UBOMemoryRange> memory_range_lut[SHADER_MAXIMUM_DESCRIPTOR_SETS];
-
-private:
-	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
-	void* m_UBOMapped[GPU_BUFFER_COUNT];
-};
-inline UniformBuffer g_UniformBuffer = UniformBuffer();
-#endif
 
 
 // ----------------------------------------------------------------------------------------------------
