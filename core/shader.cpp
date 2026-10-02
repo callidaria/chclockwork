@@ -375,61 +375,52 @@ void UniformBuffer::vanish()
 /**
  *	TODO
  */
-void DescriptorSetMemory::define(u32 location,UBOAttribute& attr)
+void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
 {
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
-				  "uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
+				  "data segment: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorInfos.size());
 
-	// store memory index for shader location id
-	m_LocationIndexCorrelation[location] = m_Writes.size();
-
-	// image info
-	DescriptorType __Type = (attr.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-			? DESCRIPTOR_TYPE_BUFFER : DESCRIPTOR_TYPE_IMAGE;
-	DescriptorInfo __Desc = {  };
-	__Desc.type = __Type;
-
-	// info initialization based on attribute type
-	UBOMemoryRange __MemRange;
-	switch (__Type)
-	{
-	case DESCRIPTOR_TYPE_BUFFER:
-		__MemRange = g_UniformBuffer.memory_range_lut[m_Set][location];
-		__Desc.info.buffer = {  };
-		__Desc.info.buffer.offset = __MemRange.offset;
-		__Desc.info.buffer.range = __MemRange.range;
-		break;
-	case DESCRIPTOR_TYPE_IMAGE:
-		__Desc.info.image = {  };
-		__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
-		__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
-		break;
-	};
-
-	// store permanently for later reference by VkWriteDescriptorSet
+	// buffer info
+	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_BUFFER };
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = offset;
+	__Desc.info.buffer.range = range;
 	m_DescriptorInfos.push_back(__Desc);
 
-	// write descriptors
-	VkWriteDescriptorSet __WriteDescriptor = {  };
-	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	__WriteDescriptor.dstBinding = location;
-	__WriteDescriptor.dstArrayElement = 0;
-	__WriteDescriptor.descriptorType = attr.type;
-	__WriteDescriptor.descriptorCount = 1;
+	// define & link info to VkWriteDescriptorSet
+	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	p_Write->pBufferInfo = &m_DescriptorInfos.back().info.buffer;
+}
 
-	// link info to VkWriteDescriptorSet
-	switch (__Type)
-	{
-	case DESCRIPTOR_TYPE_BUFFER: __WriteDescriptor.pBufferInfo = &m_DescriptorInfos.back().info.buffer;
-		break;
-	case DESCRIPTOR_TYPE_IMAGE: __WriteDescriptor.pImageInfo = &m_DescriptorInfos.back().info.image;
-		break;
-	};
-	// FIXME not the most beautiful code
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::define_texture_segment(u16 location)
+{
+	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
+				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
+				  m_DescriptorInfos.size());
 
-	m_Writes.push_back(__WriteDescriptor);
+	// image info
+	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
+	__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+	m_DescriptorInfos.push_back(__Desc);
+
+	// define & link info to VkWriteDescriptorSet
+	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	p_Write->pImageInfo = &m_DescriptorInfos.back().info.image;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
+{
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
 }
 
 /**
@@ -460,6 +451,7 @@ void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 
 /**
  *	TODO
+ *	NOTE this must be called before definitions and therefore also before any write & update
  */
 void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts)
 {
@@ -534,20 +526,21 @@ void DescriptorSetMemory::update_frame()
 /**
  *	TODO
  */
-void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
+VkWriteDescriptorSet* DescriptorSetMemory::_define_general(u32 location,VkDescriptorType type)
 {
-	m_MemoryRangeLUT[location] = {
-		.offset = offset,
-		.range = range,
-	};
-}
+	// store memory index for shader location id
+	m_LocationIndexCorrelation[location] = m_Writes.size();
 
-/**
- *	TODO
- */
-void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
-{
-	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
+	// write descriptors
+	VkWriteDescriptorSet __WriteDescriptor = {  };
+	__WriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	__WriteDescriptor.dstBinding = location;
+	__WriteDescriptor.dstArrayElement = 0;
+	__WriteDescriptor.descriptorType = type;
+	__WriteDescriptor.descriptorCount = 1;
+	m_Writes.push_back(__WriteDescriptor);
+
+	return &m_Writes.back();
 }
 
 

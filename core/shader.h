@@ -123,7 +123,9 @@ inline UniformBuffer g_UniformBuffer = UniformBuffer();
 struct DescriptorSetMemory
 {
 	// interaction
-	void define(u32 location,UBOAttribute& attr);
+	void define_data_segment(u16 location,size_t offset,size_t range);
+	void define_texture_segment(u32 location);
+	void write(void* data,size_t size,size_t offset=0);
 	void link_result(size_t location,GPUPixelBuffer* texture);
 	void link_result(size_t location,VkImageView buffer);
 
@@ -133,16 +135,14 @@ struct DescriptorSetMemory
 	void update();
 	void update_frame();
 
-	// data
-	void define_data_segment(u16 location,size_t offset,size_t range);
-	void write(void* data,size_t size,size_t offset=0);
+private:
+	void _define_general(u32 location,VkDescriptorType type);
 
 private:
 	VkDescriptorSet m_DSets[GPU_BUFFER_COUNT];
 	vector<VkWriteDescriptorSet> m_Writes;
 	vector<DescriptorInfo> m_DescriptorInfos;
 	map<size_t,size_t> m_LocationIndexCorrelation;
-	map<u16,UBOMemoryRange> m_MemoryRangeLUT;
 	u8 m_Set;
 };
 
