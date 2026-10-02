@@ -38,6 +38,7 @@
 #define SHADER_MAXIMUM_DESCRIPTOR_SETS 4		// support guaranteed
 #define SHADER_DESCRIPTOR_UNIFORM_COUNT 90		// support guaranteed
 #define SHADER_DESCRIPTOR_SAMPLER_COUNT 256		// support guaranteed
+#define SHADER_UNIFORM_BUFFER_MEMSIZE 65536
 
 // atlas
 #define ATLAS_SPRITES_PADDING 4

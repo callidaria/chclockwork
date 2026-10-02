@@ -294,17 +294,6 @@ UniformBuffer::UniformBuffer()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
 	// TODO move to renderer instead
 
-	// generate buffer for previously defined geometry ranges
-	COMM_AWT("allocating the uniform buffer");
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
-							 INTERFACE_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,INTERFACE_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
-	}
-	// TODO stage this too? host_visible? i don't think so bröther
-
 	// entry descriptor pool sizes into configuration
 	// starting with uniform buffer type allocation, then combined image sampler
 	VkDescriptorPoolSize __DescriptorPoolSize[2];
@@ -324,16 +313,67 @@ UniformBuffer::UniformBuffer()
 	__Result = vkCreateDescriptorPool(g_GPU.gpu,&__DPoolInfo,nullptr,&descriptor_pool);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate driver descriptor pool");
 
+	// data buffer memory
+	COMM_AWT("allocating uniform buffer memory");
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],
+							 SHADER_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,SHADER_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
+		// TODO stage this too or leave it?
+	}
+
+	// register unsegmented splice
+	m_MemorySegments.push_back({
+			.offset = 0,
+			.range = SHADER_UNIFORM_BUFFER_MEMSIZE
+		});
+
 	COMM_CNF();
 }
 
 /**
  *	TODO
- *	TODO add an offset to allow for bundling later (or maybe just push constants? research!)
  */
-void UniformBuffer::update(void* data,size_t size)
+size_t UniformBuffer::acquire_memory_segment(size_t size)
 {
-	memcpy(m_UBOMapped[g_GPU.active_buffer],data,size);
+	COMM_AWT("uniform buffer memory requested, splitting segments");
+	size_t __Delta = SHADER_UNIFORM_BUFFER_MEMSIZE;
+
+	// search for most fitting segment
+	size_t i,__Segment = m_MemorySegments.size();
+	for (i=0;i<m_MemorySegments.size();i++)
+	{
+		if (m_MemorySegments[i].range<size||(m_MemorySegments[i].range-size)>=__Delta) continue;
+		__Segment = i;
+		__Delta = m_MemorySegments[i].range-size;
+	}
+	COMM_ERR_COND(__Segment==m_MemorySegments.size(),
+				  "uniform buffer memory is fully allocated or segmented. size: %lu",size);
+
+	// split segment
+	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
+	if (size<__SelectedSegment.range)
+	{
+		m_MemorySegments.push_back({
+				.offset = __SelectedSegment.offset+size,
+				.range = __SelectedSegment.range-size
+			});
+	}
+	m_MemorySegments[__Segment] = m_MemorySegments.back();
+	m_MemorySegments.pop_back();
+
+	COMM_CNF();
+	return __SelectedSegment.offset;
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::write(void* data,size_t size,size_t offset)
+{
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
 }
 // FIXME isn't g_GPU.active_buffer the next buffer from the currently selected one (referencing in hardware.h)
 // TODO for performance reasons, maybe it would be faster to not update the whole set,
@@ -345,19 +385,11 @@ void UniformBuffer::update(void* data,size_t size)
 /**
  *	TODO
  */
-void UniformBuffer::update(void* data,size_t offset,size_t size)
-{
-	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+sizeof(UniformBufferMemory)+offset,data,size);
-}
-
-/**
- *	TODO
- */
 void UniformBuffer::vanish()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		g_GPU.free(ubo[i]);
+		g_GPU.free(m_UBO[i]);
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(descriptor_pool);
@@ -374,86 +406,9 @@ void UniformBuffer::vanish()
 
 /**
  *	TODO
+ *	\note this must be called before anything else
  */
-void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
-{
-	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
-				  "data segment: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
-				  m_DescriptorInfos.size());
-
-	// buffer info
-	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_BUFFER };
-	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = offset;
-	__Desc.info.buffer.range = range;
-	m_DescriptorInfos.push_back(__Desc);
-
-	// define & link info to VkWriteDescriptorSet
-	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	p_Write->pBufferInfo = &m_DescriptorInfos.back().info.buffer;
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::define_texture_segment(u16 location)
-{
-	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
-				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
-				  m_DescriptorInfos.size());
-
-	// image info
-	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
-	__Desc.info.image = {  };
-	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
-	__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
-	m_DescriptorInfos.push_back(__Desc);
-
-	// define & link info to VkWriteDescriptorSet
-	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	p_Write->pImageInfo = &m_DescriptorInfos.back().info.image;
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
-{
-	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
-{
-	size_t i = m_LocationIndexCorrelation[location];
-	m_DescriptorInfos[i].info.image = {  };
-	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_DescriptorInfos[i].info.image.imageView = texture->image_view;
-	m_DescriptorInfos[i].info.image.sampler = texture->sampler;
-}
-
-/**
- *	TODO
- */
-void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
-{
-	size_t i = m_LocationIndexCorrelation[location];
-	m_DescriptorInfos[i].info.image = {  };
-	m_DescriptorInfos[i].info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	m_DescriptorInfos[i].info.image.imageView = buffer;
-	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
-}
-// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
-//		probably in renderer somewhere, alongside other possible features like placeholder textures & shapes
-
-/**
- *	TODO
- *	NOTE this must be called before definitions and therefore also before any write & update
- */
-void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayout>& layouts)
+void DescriptorSetMemory::allocate(u8 set,size_t size,VkDescriptorSetLayout& layout)
 {
 	COMM_AWT("allocating descriptor set memory");
 	m_Set = set;
@@ -464,7 +419,7 @@ void DescriptorSetMemory::allocate(u8 set,size_t size,vector<VkDescriptorSetLayo
 
 	// populate layouts for each frame in flight
 	VkDescriptorSetLayout __Layouts[GPU_BUFFER_COUNT];
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) __Layouts[i] = layouts[set];
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) __Layouts[i] = layout;
 
 	// allocate correlated memory for linked descriptor set layout
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
@@ -522,6 +477,82 @@ void DescriptorSetMemory::update_frame()
 }
 // TODO the writes should not be duplicated per result buffer right? they are bound, then updated?
 // TODO remove the typecheck for buffer! the ubo has to be transferred ONCE, then the copy will suffice
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::define_data_segment(u16 location,size_t range)
+{
+	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
+				  "data segment: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
+				  m_DescriptorInfos.size());
+
+	// reserve memory
+	__Offset = g_UniformBuffer.acquire_memory_segment(range);
+
+	// buffer info
+	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_BUFFER };
+	__Desc.info.buffer = {  };
+	__Desc.info.buffer.offset = __Offset;
+	__Desc.info.buffer.range = range;
+	m_DescriptorInfos.push_back(__Desc);
+
+	// define & link info to VkWriteDescriptorSet
+	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	p_Write->pBufferInfo = &m_DescriptorInfos.back().info.buffer;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::define_texture_segment(u16 location)
+{
+	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
+				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
+				  m_DescriptorInfos.size());
+
+	// image info
+	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
+	__Desc.info.image = {  };
+	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
+	__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+	m_DescriptorInfos.push_back(__Desc);
+
+	// define & link info to VkWriteDescriptorSet
+	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	p_Write->pImageInfo = &m_DescriptorInfos.back().info.image;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
+{
+	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
+{
+	size_t i = m_LocationIndexCorrelation[location];
+	m_DescriptorInfos[i].info.image.imageView = texture->image_view;
+	m_DescriptorInfos[i].info.image.sampler = texture->sampler;
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
+{
+	size_t i = m_LocationIndexCorrelation[location];
+	m_DescriptorInfos[i].info.image.imageView = buffer;
+	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
+}
+// TODO not sure where this fallback sampler stuff belongs really, cannot be predefined. needs device
+//		probably in renderer somewhere, alongside other possible features like placeholder textures & shapes
 
 /**
  *	TODO
