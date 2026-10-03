@@ -336,6 +336,62 @@ UniformBuffer::UniformBuffer()
 /**
  *	TODO
  */
+void UniformBuffer::vanish()
+{
+	// defaults
+	g_GPU.free(default_sampler);
+	default_texture.vanish();
+
+	// uniform buffer memory
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
+	{
+		g_GPU.free(ubo[i]);
+		g_GPU.free(m_UBOMemory[i]);
+	}
+
+	// layouts & pool
+	for (VkDescriptorSetLayout& p_Layout : layouts) g_GPU.free(p_Layout);
+	g_GPU.free(descriptor_pool);
+}
+// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
+
+/**
+ *	TODO
+ */
+void UniformBuffer::define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFlags stage)
+{
+	COMM_ERR_COND(set>=SHADER_MAXIMUM_DESCRIPTOR_SETS,
+				  "requested definition is not allowed for set %u. support for this set is not guaranteed",set);
+
+	VkDescriptorSetLayoutBinding __Binding = {  };
+	__Binding.binding = loc;
+	__Binding.descriptorCount = 1;
+	__Binding.descriptorType = type;
+	__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
+	__Binding.stageFlags = stage;
+	m_Bindings[set].push_back(__Binding);
+}
+
+/**
+ *	TODO
+ */
+void UniformBuffer::generate_layouts()
+{
+	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
+	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	for (u8 i=0;i<SHADER_MAXIMUM_DESCRIPTOR_SETS;i++)
+	{
+		vector<VkDescriptorSetLayoutBinding>& p_Set = m_Bindings[i];
+		__DescriptorLayoutInfo.bindingCount = p_Set.size();
+		__DescriptorLayoutInfo.pBindings = &p_Set[0];
+		VkResult __Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&layouts[i]);
+		COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
+	}
+}
+
+/**
+ *	TODO
+ */
 size_t UniformBuffer::acquire_memory_segment(size_t size)
 {
 	COMM_AWT("uniform buffer memory requested, splitting segments");
@@ -382,22 +438,6 @@ void UniformBuffer::write(void* data,size_t size,size_t offset)
 // TODO problem is: this will update the entire ubo memory, no matter what & where.
 //		copy to specific ranges at change for independent information updates? is the memcpy for all as fast?
 
-/**
- *	TODO
- */
-void UniformBuffer::vanish()
-{
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
-	{
-		g_GPU.free(ubo[i]);
-		g_GPU.free(m_UBOMemory[i]);
-	}
-	g_GPU.free(descriptor_pool);
-	g_GPU.free(default_sampler);
-	default_texture.vanish();
-}
-// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
-
 #endif
 
 
@@ -406,26 +446,18 @@ void UniformBuffer::vanish()
 
 /**
  *	TODO
+ *	\note this must be called before anything else
  */
 void DescriptorSetMemory::allocate(u8 set,size_t size)
 {
+	COMM_AWT("allocating descriptor set memory");
 	m_Set = set;
 	m_Writes.reserve(size);
 	m_DescriptorInfos.reserve(size);
-}
-
-/**
- *	TODO
- *	\note this must be called before anything else
- */
-void DescriptorSetMemory::allocate(u8 set,size_t size,VkDescriptorSetLayout& layout)
-{
-	COMM_AWT("allocating descriptor set memory");
-	allocate(set,size);
 
 	// populate layouts for each frame in flight
 	VkDescriptorSetLayout __Layouts[GPU_BUFFER_COUNT];
-	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) __Layouts[i] = layout;
+	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) __Layouts[i] = g_UniformBuffer.layouts[set];
 
 	// allocate correlated memory for linked descriptor set layout
 	VkDescriptorSetAllocateInfo __DSetAllocInfo = {  };
@@ -505,7 +537,7 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
 	// buffer info
 	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_BUFFER };
 	__Desc.info.buffer = {  };
-	__Desc.info.buffer.offset = __Offset;
+	__Desc.info.buffer.offset = offset;
 	__Desc.info.buffer.range = range;
 	m_DescriptorInfos.push_back(__Desc);
 
@@ -750,33 +782,6 @@ u8 ShaderPipeline::out_define_result_buffer()
 	_define_colour_component(m_Cursor,g_Frame.swapchain.format.format,true);
 	result_attachment.set(m_Cursor);
 	return m_Cursor++;
-}
-
-/**
- *	TODO
- */
-inline void _compile_descriptor_uniform_attributes(ShaderInterface& interface,
-												   vector<vector<VkDescriptorSetLayoutBinding>>& binds)
-{
-	// iterate active sets
-	for (map<u32,UBOAttribute>& p_Set : interface.ubo_attribs)
-	{
-		vector<VkDescriptorSetLayoutBinding> __Bindings;
-
-		// iterate bindings map
-		for (auto p_Binding = p_Set.begin();p_Binding != p_Set.end();p_Binding++)
-		{
-			VkDescriptorSetLayoutBinding __Binding = {  };
-			__Binding.binding = p_Binding->first;
-			__Binding.descriptorCount = 1;
-			__Binding.descriptorType = p_Binding->second.type;
-			__Binding.pImmutableSamplers = nullptr;  // TODO research, only relevant for texture upload
-			__Binding.stageFlags = p_Binding->second.stage;
-			__Bindings.push_back(__Binding);
-		}
-
-		binds.push_back(__Bindings);
-	}
 }
 
 /**
@@ -1027,23 +1032,6 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 
-	// uniform variables vertex shader
-	vector<vector<VkDescriptorSetLayoutBinding>> __Sets;
-	_compile_descriptor_uniform_attributes(m_Interface,__Sets);
-
-	// descriptor set layout
-	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
-	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	m_DSetLayouts.resize(__Sets.size());
-	for (size_t i=0;i<__Sets.size();i++)
-	{
-		vector<VkDescriptorSetLayoutBinding>& p_Set = __Sets[i];
-		__DescriptorLayoutInfo.bindingCount = p_Set.size();
-		__DescriptorLayoutInfo.pBindings = &p_Set[0];
-		__Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&m_DSetLayouts[i]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
-	}
-
 	// push constants
 	COMM_MSG_COND(m_Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
 				  "the required push constant memory size (%li bytes) violates guaranteed minimum of 128 bytes",
@@ -1064,8 +1052,8 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	__LayoutInfo.setLayoutCount = m_DSetLayouts.size();
-	__LayoutInfo.pSetLayouts = &m_DSetLayouts[0];
+	__LayoutInfo.setLayoutCount = SHADER_MAXIMUM_DESCRIPTOR_SETS;
+	__LayoutInfo.pSetLayouts = g_UniformBuffer.layouts;
 	__LayoutInfo.pushConstantRangeCount = !!m_Interface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
 	__Result = vkCreatePipelineLayout(g_GPU.gpu,&__LayoutInfo,nullptr,&pipeline_layout);
@@ -1172,7 +1160,6 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
-	for (VkDescriptorSetLayout& p_DSetLayout : m_DSetLayouts) g_GPU.free(p_DSetLayout);
 	free(descriptions);
 	result_attachment.vanish();
 	g_GPU.free(render_pass);
@@ -1218,7 +1205,7 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 	{
 		map<u32,UBOAttribute>& p_Set = m_Interface.ubo_attribs[i];
 		DescriptorSetMemory& p_DSetMemory = sets[i];
-		p_DSetMemory.allocate(i,p_Set.size(),m_DSetLayouts[i]);
+		p_DSetMemory.allocate(i,p_Set.size());
 		// FIXME the set layout + size at call does not make sense in the slightest
 		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
 		{

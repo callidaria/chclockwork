@@ -909,15 +909,15 @@ Renderer::Renderer()
 	// TODO actually achieve control over which matrix pair comes first!
 
 	// setup global ubo data for slot 0
-	size_t __GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
+	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
 	m_GlobalDescriptorSet.allocate(0,12);
-	m_GlobalDescriptorSet.define_data_segment(0,__GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
+	m_GlobalDescriptorSet.define_data_segment(0,m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
 											  sizeof(ObjectTransformation));
-	m_GlobalDescriptorSet.define_data_segment(1,__GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
+	m_GlobalDescriptorSet.define_data_segment(1,m_GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
 											  sizeof(SpriteTransformation));
-	m_GlobalDescriptorSet.define_data_segment(40,__GlobalSetOffset+offsetof(UniformBufferMemory,camera),
+	m_GlobalDescriptorSet.define_data_segment(40,m_GlobalSetOffset+offsetof(UniformBufferMemory,camera),
 											  sizeof(CameraAttributes));
-	m_GlobalDescriptorSet.define_data_segment(41,__GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
+	m_GlobalDescriptorSet.define_data_segment(41,m_GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
 											  sizeof(Lighting));
 	m_GlobalDescriptorSet.define_texture_segment(4,8);
 
@@ -960,7 +960,7 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	// data update
-	g_UniformBuffer.update(&m_UBufferMem,sizeof(UniformBufferMemory));
+	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
@@ -1443,8 +1443,10 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		{
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
+			/*
 			g_UniformBuffer.update(&p_Tuple.transform.model,0,sizeof(mat4));
 			g_UniformBuffer.update(&p_Tuple.texel,sizeof(mat4),sizeof(f32));
+			*/
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}

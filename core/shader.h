@@ -100,12 +100,19 @@ class UniformBuffer
 {
 public:
 	UniformBuffer();
+	void vanish();
+
+	// set endpoint definition
+	void define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFlags stage);
+	void generate_layouts();
+
+	// memory management
 	size_t acquire_memory_segment(size_t size);
 	void write(void* data,size_t size,size_t offset=0);
-	void vanish();
 
 public:
 	VkDescriptorPool descriptor_pool;
+	VkDescriptorSetLayout layouts[SHADER_MAXIMUM_DESCRIPTOR_SETS];
 	VkBuffer ubo[GPU_BUFFER_COUNT];
 
 	// standards
@@ -113,6 +120,8 @@ public:
 	VkSampler default_sampler;
 
 private:
+	vector<VkDescriptorSetLayoutBinding> m_Bindings[SHADER_MAXIMUM_DESCRIPTOR_SETS];
+
 	// uniform buffer memory
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
@@ -128,7 +137,7 @@ inline UniformBuffer g_UniformBuffer = UniformBuffer();
 struct DescriptorSetMemory
 {
 	// state
-	void allocate(u8 set,size_t size,VkDescriptorSetLayout& layout);
+	void allocate(u8 set,size_t size);
 	void bind(VkPipelineLayout& layout);
 	void update();
 	void update_frame();
@@ -257,7 +266,6 @@ public:
 private:
 #ifdef VKBUILD
 	ShaderInterface m_Interface;
-	vector<VkDescriptorSetLayout> m_DSetLayouts;
 	VkAttachmentReference* m_References;
 	u8 m_Cursor = 0;
 #else

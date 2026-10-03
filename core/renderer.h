@@ -419,7 +419,9 @@ private:
 	list<ParticleBatch> m_DeferredParticleBatches;
 
 	// uniform buffer
+	DescriptorSetMemory m_GlobalDescriptorSet;
 	UniformBufferMemory m_UBufferMem;
+	size_t m_GlobalSetOffset;
 };
 
 
