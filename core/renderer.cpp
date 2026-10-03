@@ -871,6 +871,29 @@ Renderer::Renderer()
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
+	// SHADERS
+	// setup shader endpoint
+	g_UniformBuffer.define(0,0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(0,1,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(0,4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,6,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,7,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,8,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,40,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,41,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(1,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(1,70,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(2,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(2,1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(2,2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(2,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.generate_layouts();
+
 	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
@@ -907,6 +930,11 @@ Renderer::Renderer()
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 	// TODO actually achieve control over which matrix pair comes first!
+	// TODO place this either in some list file or create a secluded setup script for this,
+	//		but in any case: move it out from here, it clutters the file & restricts setup for normal users
+	//		another idea: read all shaders, compare definitions and finally automatically setup
+	//		this can be supported by the existing shader crawler!
+	// TODO also log endpoint afterwards
 
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
@@ -934,12 +962,10 @@ Renderer::Renderer()
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
 	m_TextPipeline.generate_ubo(m_TextUBO);
-	m_TargetPipeline.generate_ubo(m_TargetUBO);
-	// TODO make set specific (and warn when 0 slot is requested for generation, due to global definition)
 
 	// link forward buffer & gbuffer results
-	m_SpriteUBO[1].link_result(0,&m_GPUSpriteTextures);
-	m_TextUBO[1].link_result(3,&m_GPUFontTextures);
+	m_SpriteUBO[0].link_result(0,&m_GPUSpriteTextures);
+	m_TextUBO[0].link_result(3,&m_GPUFontTextures);
 
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
@@ -961,6 +987,7 @@ void Renderer::update()
 
 	// data update
 	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
+	m_GlobalDescriptorSet.update_frame();
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();

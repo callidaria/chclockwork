@@ -1200,11 +1200,11 @@ void ShaderPipeline::disable()
  */
 void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 {
-	sets.resize(m_Interface.ubo_attribs.size());
+	sets.resize(m_Interface.ubo_attribs.size()-1);
 	for (u8 i=1;i<m_Interface.ubo_attribs.size();i++)
 	{
 		map<u32,UBOAttribute>& p_Set = m_Interface.ubo_attribs[i];
-		DescriptorSetMemory& p_DSetMemory = sets[i];
+		DescriptorSetMemory& p_DSetMemory = sets[i-1];
 		p_DSetMemory.allocate(i,p_Set.size());
 		// FIXME the set layout + size at call does not make sense in the slightest
 		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
