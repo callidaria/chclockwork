@@ -317,7 +317,7 @@ UniformBuffer::UniformBuffer()
 	COMM_AWT("allocating uniform buffer memory");
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		GPU::generate_buffer(m_UBO[i],m_UBOMemory[i],
+		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
 							 SHADER_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,SHADER_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
@@ -389,7 +389,7 @@ void UniformBuffer::vanish()
 {
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		g_GPU.free(m_UBO[i]);
+		g_GPU.free(ubo[i]);
 		g_GPU.free(m_UBOMemory[i]);
 	}
 	g_GPU.free(descriptor_pool);
@@ -406,16 +406,22 @@ void UniformBuffer::vanish()
 
 /**
  *	TODO
+ */
+void DescriptorSetMemory::allocate(u8 set,size_t size)
+{
+	m_Set = set;
+	m_Writes.reserve(size);
+	m_DescriptorInfos.reserve(size);
+}
+
+/**
+ *	TODO
  *	\note this must be called before anything else
  */
 void DescriptorSetMemory::allocate(u8 set,size_t size,VkDescriptorSetLayout& layout)
 {
 	COMM_AWT("allocating descriptor set memory");
-	m_Set = set;
-
-	// allocate ram for write & descriptor info
-	m_Writes.reserve(size);
-	m_DescriptorInfos.reserve(size);
+	allocate(set,size);
 
 	// populate layouts for each frame in flight
 	VkDescriptorSetLayout __Layouts[GPU_BUFFER_COUNT];
@@ -483,12 +489,18 @@ void DescriptorSetMemory::update_frame()
  */
 void DescriptorSetMemory::define_data_segment(u16 location,size_t range)
 {
+	size_t __Offset = g_UniformBuffer.acquire_memory_segment(range);
+	define_data_segment(location,__Offset,range);
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
+{
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "data segment: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorInfos.size());
-
-	// reserve memory
-	__Offset = g_UniformBuffer.acquire_memory_segment(range);
 
 	// buffer info
 	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_BUFFER };
@@ -527,9 +539,21 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 /**
  *	TODO
  */
-void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
+void DescriptorSetMemory::define_texture_segment(u16 location,u16 range)
 {
-	memcpy(((u8*)m_UBOMapped[g_GPU.active_buffer])+offset,data,size);
+	for (u16 i=location;i<location+range;i++)
+		define_texture_segment(i);
+}
+
+/**
+ *	TODO
+ */
+void DescriptorSetMemory::write(u16 location,void* data)
+{
+	size_t i = m_LocationIndexLUT[location];
+	COMM_ERR_COND(m_DescriptorInfos[i].type!=DESCRIPTOR_TYPE_BUFFER,"attempting to write to non-data location");
+	m_DescriptorInfos[i].info.buffer.offset;
+	g_UniformBuffer.write(data,m_DescriptorInfos[i].info.buffer.range,m_DescriptorInfos[i].info.buffer.offset);
 }
 
 /**
@@ -537,7 +561,7 @@ void DescriptorSetMemory::write(void* data,size_t size,size_t offset)
  */
 void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
 {
-	size_t i = m_LocationIndexCorrelation[location];
+	size_t i = m_LocationIndexLUT[location];
 	m_DescriptorInfos[i].info.image.imageView = texture->image_view;
 	m_DescriptorInfos[i].info.image.sampler = texture->sampler;
 }
@@ -547,7 +571,7 @@ void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
  */
 void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 {
-	size_t i = m_LocationIndexCorrelation[location];
+	size_t i = m_LocationIndexLUT[location];
 	m_DescriptorInfos[i].info.image.imageView = buffer;
 	m_DescriptorInfos[i].info.image.sampler = g_UniformBuffer.default_sampler;
 }
@@ -557,10 +581,10 @@ void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 /**
  *	TODO
  */
-VkWriteDescriptorSet* DescriptorSetMemory::_define_general(u32 location,VkDescriptorType type)
+VkWriteDescriptorSet* DescriptorSetMemory::_define_general(u16 location,VkDescriptorType type)
 {
 	// store memory index for shader location id
-	m_LocationIndexCorrelation[location] = m_Writes.size();
+	m_LocationIndexLUT[location] = m_Writes.size();
 
 	// write descriptors
 	VkWriteDescriptorSet __WriteDescriptor = {  };
@@ -1190,14 +1214,18 @@ void ShaderPipeline::disable()
 void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 {
 	sets.resize(m_Interface.ubo_attribs.size());
-	for (u8 i=0;i<m_Interface.ubo_attribs.size();i++)
+	for (u8 i=1;i<m_Interface.ubo_attribs.size();i++)
 	{
 		map<u32,UBOAttribute>& p_Set = m_Interface.ubo_attribs[i];
 		DescriptorSetMemory& p_DSetMemory = sets[i];
-		p_DSetMemory.allocate(i,p_Set.size(),m_DSetLayouts);
+		p_DSetMemory.allocate(i,p_Set.size(),m_DSetLayouts[i]);
 		// FIXME the set layout + size at call does not make sense in the slightest
 		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
-			p_DSetMemory.define(p_Binding->first,p_Binding->second);
+		{
+			if (p_Binding->second.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+				p_DSetMemory.define_data_segment(p_Binding->first,p_Binding->second.memsize);
+			else p_DSetMemory.define_texture_segment(p_Binding->first);
+		}
 	}
 }
 // TODO generate set specifical. this should then allow a global set at slot 0 for basic data & buffers that

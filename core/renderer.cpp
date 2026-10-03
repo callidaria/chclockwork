@@ -909,12 +909,27 @@ Renderer::Renderer()
 	// TODO actually achieve control over which matrix pair comes first!
 
 	// setup global ubo data for slot 0
-	g_UniformBuffer.define_data_segment(0,0,offsetof(UniformBufferMemory,otrafo),sizeof(ObjectTransformation));
-	g_UniformBuffer.define_data_segment(0,1,offsetof(UniformBufferMemory,strafo),sizeof(SpriteTransformation));
-	g_UniformBuffer.define_data_segment(0,40,offsetof(UniformBufferMemory,camera),sizeof(CameraAttributes));
-	g_UniformBuffer.define_data_segment(0,41,offsetof(UniformBufferMemory,lighting),sizeof(Lighting));
-	g_UniformBuffer.define_data_segment(0,70,sizeof(UniformBufferMemory)+offsetof(ObjectMemory,objinfo),
-										sizeof(ObjectInfo));
+	size_t __GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
+	m_GlobalDescriptorSet.allocate(0,12);
+	m_GlobalDescriptorSet.define_data_segment(0,__GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
+											  sizeof(ObjectTransformation));
+	m_GlobalDescriptorSet.define_data_segment(1,__GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
+											  sizeof(SpriteTransformation));
+	m_GlobalDescriptorSet.define_data_segment(40,__GlobalSetOffset+offsetof(UniformBufferMemory,camera),
+											  sizeof(CameraAttributes));
+	m_GlobalDescriptorSet.define_data_segment(41,__GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
+											  sizeof(Lighting));
+	m_GlobalDescriptorSet.define_texture_segment(4,8);
+
+	// linking buffer results
+	m_GlobalDescriptorSet.link_result(4,m_Framebuffer.components[0]);
+	m_GlobalDescriptorSet.link_result(5,m_Framebuffer.components[1]);
+	m_GlobalDescriptorSet.link_result(6,m_GBuffer.components[0]);
+	m_GlobalDescriptorSet.link_result(7,m_GBuffer.components[1]);
+	m_GlobalDescriptorSet.link_result(8,m_GBuffer.components[2]);
+	m_GlobalDescriptorSet.link_result(9,m_GBuffer.components[3]);
+	m_GlobalDescriptorSet.link_result(10,m_GBuffer.components[4]);
+	m_GlobalDescriptorSet.link_result(11,m_GBuffer.components[5]);
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
@@ -925,14 +940,6 @@ Renderer::Renderer()
 	// link forward buffer & gbuffer results
 	m_SpriteUBO[1].link_result(0,&m_GPUSpriteTextures);
 	m_TextUBO[1].link_result(3,&m_GPUFontTextures);
-	m_TargetUBO[0].link_result(4,m_Framebuffer.components[0]);
-	m_TargetUBO[0].link_result(5,m_Framebuffer.components[1]);
-	m_TargetUBO[0].link_result(6,m_GBuffer.components[0]);
-	m_TargetUBO[0].link_result(7,m_GBuffer.components[1]);
-	m_TargetUBO[0].link_result(8,m_GBuffer.components[2]);
-	m_TargetUBO[0].link_result(9,m_GBuffer.components[3]);
-	m_TargetUBO[0].link_result(10,m_GBuffer.components[4]);
-	m_TargetUBO[0].link_result(11,m_GBuffer.components[5]);
 
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,

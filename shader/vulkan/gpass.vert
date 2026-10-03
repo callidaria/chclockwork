@@ -16,7 +16,7 @@ layout(set = 0,binding = 0) uniform ObjectTransformation
 	mat4 proj;
 } ot;
 
-layout(set = 0,binding = 70) uniform ObjectInfo
+layout(set = 1,binding = 70) uniform ObjectInfo
 {
 	mat4 model;
 	float texel;

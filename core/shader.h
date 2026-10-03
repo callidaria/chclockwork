@@ -101,20 +101,22 @@ class UniformBuffer
 public:
 	UniformBuffer();
 	size_t acquire_memory_segment(size_t size);
+	void write(void* data,size_t size,size_t offset=0);
 	void vanish();
 
 public:
 	VkDescriptorPool descriptor_pool;
-
-	// uniform buffer memory
-	VkBuffer m_UBO[GPU_BUFFER_COUNT];
-	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
-	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	vector<UBOMemoryRange> m_MemorySegments;
+	VkBuffer ubo[GPU_BUFFER_COUNT];
 
 	// standards
 	GPUPixelBuffer default_texture;
 	VkSampler default_sampler;
+
+private:
+	// uniform buffer memory
+	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
+	void* m_UBOMapped[GPU_BUFFER_COUNT];
+	vector<UBOMemoryRange> m_MemorySegments;
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer();
 #endif
@@ -133,13 +135,15 @@ struct DescriptorSetMemory
 
 	// interaction
 	void define_data_segment(u16 location,size_t range);
-	void define_texture_segment(u32 location);
-	void write(void* data,size_t size,size_t offset=0);
+	void define_data_segment(u16 location,size_t offset,size_t range);
+	void define_texture_segment(u16 location);
+	void define_texture_segment(u16 location,u16 range);
+	void write(u16 location,void* data);
 	void link_result(size_t location,GPUPixelBuffer* texture);
 	void link_result(size_t location,VkImageView buffer);
 
 private:
-	void _define_general(u32 location,VkDescriptorType type);
+	VkWriteDescriptorSet* _define_general(u16 location,VkDescriptorType type);
 
 private:
 	// setup
