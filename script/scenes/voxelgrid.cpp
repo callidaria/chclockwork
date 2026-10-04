@@ -31,7 +31,7 @@ void RoomVoxels::init(Font* font)
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
 	// attach textures
-	g_Renderer.attach_texture(&__RoomBatch->ubo[1],0,__RoomTexture);
+	g_Renderer.attach_texture(&__RoomBatch->ubo[0],0,__RoomTexture);
 
 	// select texture
 	/*

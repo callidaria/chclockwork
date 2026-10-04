@@ -267,7 +267,7 @@ struct GeometryBatch
 	vector<GeometryTuple> objects;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
-	vector<DescriptorSetMemory> ubo;
+	vector<vector<DescriptorSetMemory>> ubo;
 	void* pcm;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
@@ -357,12 +357,13 @@ private:
 	// threaded actions
 	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+	void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory);
 
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();
-	static void _update_mesh(list<GeometryBatch>& batches);
-	static void _update_particles(list<ParticleBatch>& batches);
+	void _update_mesh(list<GeometryBatch>& batches);
+	void _update_particles(list<ParticleBatch>& batches);
 	void _gpu_upload();
 
 private:

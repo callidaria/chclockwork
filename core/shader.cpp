@@ -410,11 +410,12 @@ size_t UniformBuffer::acquire_memory_segment(size_t size)
 
 	// split segment
 	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
-	if (size<__SelectedSegment.range)
+	size_t __SizeAligned = (size+63)&~(size_t)63;
+	if (__SizeAligned<__SelectedSegment.range)
 	{
 		m_MemorySegments.push_back({
-				.offset = __SelectedSegment.offset+size,
-				.range = __SelectedSegment.range-size
+				.offset = __SelectedSegment.offset+__SizeAligned,
+				.range = __SelectedSegment.range-__SizeAligned
 			});
 	}
 	m_MemorySegments[__Segment] = m_MemorySegments.back();
@@ -564,7 +565,7 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 	m_DescriptorInfos.push_back(__Desc);
 
 	// define & link info to VkWriteDescriptorSet
-	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	VkWriteDescriptorSet* p_Write = _define_general(location,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	p_Write->pImageInfo = &m_DescriptorInfos.back().info.image;
 }
 

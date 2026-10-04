@@ -73,15 +73,12 @@ struct ObjectInfo
 {
 	mat4 model = mat4(1.f);
 	f32 texel = 1.f;
-} __attribute((aligned(64)));
+} __attribute__((aligned(64)));
 
 struct ObjectMemory
 {
 	ObjectInfo objinfo;
-};
+} __attribute__((aligned(64)));
 
-
-constexpr size_t INTERFACE_UNIFORM_BUFFER_MEMSIZE = sizeof(UniformBufferMemory)+sizeof(ObjectMemory);
-//= (sizeof(UniformBufferMemory)+(size_t)0x111111)&(size_t)0x111111;
 
 #endif

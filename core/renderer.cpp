@@ -709,6 +709,8 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 			.textures = tex,
 		});
 	objects.back().uniform.shader = shader;
+	ubo.push_back(vector<DescriptorSetMemory>());
+	shader->generate_ubo(ubo.back());
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
 	return objects.size()-1;
@@ -730,7 +732,6 @@ void GeometryBatch::load()
 	vao.register_buffer(vbo);
 
 	// generate push constant memory
-	shader->generate_ubo(ubo);
 	// FIXME optimization, generate descriptor heap manually, there are globals that only need to be updated once
 	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
@@ -970,6 +971,8 @@ Renderer::Renderer()
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
 				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+
+	// bind global descriptor set
 }
 
 /**
@@ -1011,6 +1014,7 @@ void Renderer::update()
 	// perspective section
 	m_TargetPipeline.enable();
 	m_TargetVertexArray.bind();
+	m_GlobalDescriptorSet.bind(m_TargetPipeline.pipeline_layout);
 	for (DescriptorSetMemory& p_Mem : m_TargetUBO)
 	{
 		p_Mem.update_frame();
@@ -1406,8 +1410,9 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
 /**
  *	TODO
  */
-inline void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
+void Renderer::_bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
+	m_GlobalDescriptorSet.bind(shader.pipeline_layout);
 	for (DescriptorSetMemory& p_Mem : memory)
 	{
 		p_Mem.update_frame();  // TODO remove, update once for all not frame here
@@ -1465,15 +1470,13 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
-		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);  // TODO ubo, pcm & shader are one part?
+		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
-			/*
-			g_UniformBuffer.update(&p_Tuple.transform.model,0,sizeof(mat4));
-			g_UniformBuffer.update(&p_Tuple.texel,sizeof(mat4),sizeof(f32));
-			*/
+			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
+			p_Batch.ubo[i++][0].write(70,&p_Tuple.transform.model);
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
