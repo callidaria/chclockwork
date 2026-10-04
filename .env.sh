@@ -1,6 +1,11 @@
 #!/bin/bash
 
 
+GPU_VULKAN_MODE=true
+GPU_BUILD_SUFFIX="-DVKBUILD"
+GPU_CURRENT_MODE="vulkan mode (default)"
+
+
 cw_setup()
 {
 	echo "running linux project setup"
@@ -64,12 +69,65 @@ cw_setup()
 	echo "done."
 }
 
+sc()
+{
+	# filesystem stuffs
+	SHADER_DIR="./shader/vulkan/"
+	BINARY_DIR="$SHADER_DIR"bin/
+	mkdir -p "$BINARY_DIR"
+
+	# iterate shader files
+	for shader in "$SHADER_DIR"*; do
+		if [ -f "$shader" ]; then
+			time_start=$(date +%s%3N)
+			file=$(basename "$shader")
+			printf "compiling shader %-75s%s" "$file"
+
+			# check if shader binary is outdated to skip unnecessary recompiles
+			compile=1
+			other_file="${BINARY_DIR}${file}"
+			if [ -f "$other_file" ]; then
+				stamp0=$(stat -c %Y "$shader")
+				stamp1=$(stat -c %Y "$other_file")
+				compile=$((stamp0>stamp1))
+			fi
+
+			# compile glsl shader code to spir-v
+			if ((compile)); then
+				glslc "$shader" -o "$other_file"
+			fi
+
+			# compile time output
+			time_end=$(date +%s%3N)
+			time_delta=$((time_end-time_start))
+			printf "| done in %sms\n" "$time_delta"
+		fi
+	done
+}
+
+cgl()
+{
+	echo "currently building ${GPU_CURRENT_MODE}"
+}
+
+sgl()
+{
+	if $GPU_VULKAN_MODE; then
+		GPU_VULKAN_MODE=false
+		GPU_BUILD_SUFFIX="-DGLBUILD"
+		GPU_CURRENT_MODE="opengl mode"
+	else
+		GPU_VULKAN_MODE=true
+		GPU_BUILD_SUFFIX="-DVKBUILD"
+		GPU_CURRENT_MODE="vulkan mode"
+	fi
+	echo "${GPU_CURRENT_MODE} enabled"
+}
 
 cw_memfix()
 {
 	valgrind --leak-check=full ./chcw
 }
-
 
 cw_profile()
 {
@@ -84,29 +142,38 @@ cw_profile()
 	fi
 }
 
-
 cw_help()
 {
-	printf "C. Hanson's Clockwork Environment Helpdesk:\n\n"
+	printf "C. Hansen's Counter-Clockwork Environment Helpdesk:\n\n"
 	printf "%-15s - %s\n" "cw_help" "i didn't need to tell you that for recursive reasons"
 	printf "%-15s - %s\n" "cw_setup" "project setup for build & development purposes"
 	printf "%-15s - %s\n" "cw_memfix" "run the engine with memory checking enabled for console output"
 	printf "%-15s - %s\n" "cw_profile" "run the engine with cpu performance profiling & open for analysis after"
+	printf "%-15s - %s\n" "cgl" "show currently active graphics library for next version build"
+	printf "%-15s - %s\n" "sgl" "switch graphics api library to specify next version build"
 	printf "%-15s - %s\n" "d" "build debug (only outdated libs)"
 	printf "%-15s - %s\n" "da" "build debug, force build all libs"
 	printf "%-15s - %s\n" "r" "build release (only outdated libs). WARNING: will not override debug versions!"
 	printf "%-15s - %s\n" "ra" "build release, force build all libs"
+	printf "%-15s - %s\n" "sc" "compile shader binaries for vulkan version"
 	printf "%-15s - %s\n" "e" "execute engine binary"
 }
 
 
-alias d='make debug'
-alias da='make debug -B'
-alias r='make release'
-alias ra='make release -B'
+# settings
+alias d='make debug GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias da='make debug -B GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias r='make release GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
+alias ra='make release -B GPUAPI_SUFFIX="${GPU_BUILD_SUFFIX}"'
 
 if [ "$OS" == "Windows_NT" ]; then
 	alias e="./chcw.exe"
 else
 	alias e="./chcw"
+	alias ea="valgrind --suppressions=gfxapi.supp ./chcw"
 fi
+
+
+# setup actions
+cgl
+sc

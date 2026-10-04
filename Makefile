@@ -10,15 +10,17 @@ ifeq ($(OS),Windows_NT)
 	TARGET = chcw.exe
 else
 	INCLUDE = -I/usr/include/freetype2 -I/usr/include/libpng16
-	LINKER = -lpthread -lGL -lGLEW -lSDL2 -lassimp -lfreetype
+	LINKER = -lpthread -lGL -lGLEW -lSDL2 -lassimp -lfreetype -lvulkan
 	TARGET = chcw
 endif
 
-DEBUG_SUFFIX = -pg -g -O0 -DDEBUG
+DEBUG_SUFFIX = -O0 -DDEBUG -pg -g
 RELEASE_SUFFIX = -O3 -fno-gcse
+GPUAPI_SUFFIX ?= -DVKBUILD
 
-SRCS_CORE = $(wildcard $(SDST_CORE)*.cpp)
-SRCS_SCRIPT = $(wildcard $(SDST_SCRIPT)*.cpp)
+rcwild = $(foreach d,$(wildcard $1*),$(call rcwild,$d/,$2) $(filter $(subst *,%,$2),$d))
+SRCS_CORE = $(call rcwild,$(SDST_CORE),*.cpp)
+SRCS_SCRIPT = $(call rcwild,$(SDST_SCRIPT),*.cpp)
 SRCS = $(SRCS_CORE) $(SRCS_SCRIPT)
 OBJS = $(SRCS:%.cpp=$(LDST)%.o)
 MAIN = main.cpp
@@ -28,10 +30,10 @@ CXXFLAGS =
 
 all: $(TARGET)
 
-debug: CXXFLAGS = $(DEBUG_SUFFIX)
+debug: CXXFLAGS = $(DEBUG_SUFFIX) $(GPUAPI_SUFFIX)
 debug: $(TARGET)
 
-release: CXXFLAGS = $(RELEASE_SUFFIX)
+release: CXXFLAGS = $(RELEASE_SUFFIX) $(GPUAPI_SUFFIX)
 release: $(TARGET)
 
 $(TARGET): $(OBJS) $(MAIN)
