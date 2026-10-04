@@ -34,6 +34,7 @@ layout(set = 0,binding = 8) uniform sampler2D gpass_normal;
 layout(set = 0,binding = 9) uniform sampler2D gpass_material;
 layout(set = 0,binding = 10) uniform sampler2D gpass_emission;
 layout(set = 0,binding = 11) uniform sampler2D gpass_depth;
+layout(set = 0,binding = 12) uniform sampler2D shadow_map;
 
 // camera parameters
 layout(set = 0,binding = 40) uniform CameraAttributes

@@ -885,6 +885,7 @@ Renderer::Renderer()
 	g_UniformBuffer.define(0,9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,12,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,40,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,41,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -908,13 +909,16 @@ Renderer::Renderer()
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
 	// pipelines, setup for deferred scene processing
-	GPUBufferFormat formats[5] = {
+	GPUBufferFormat gformats[5] = {
 		GPU_BUFFER_FORMAT_SRGB,
 		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
 		GPU_BUFFER_FORMAT_FLOAT
 	};
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-											   formats,5,true);
+											   gformats,5,true);
+	m_ShadowPassPipeline = register_pipeline("./shader/vulkan/bin/shadow.vert",
+											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true);
+	// TODO this is just an alibi format, to allow draw to shadow map for now
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
@@ -922,6 +926,7 @@ Renderer::Renderer()
 								 m_SpritePipeline,i);
 	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);  // FIXME mismatch?
 	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
+	m_ShadowMap.setup(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION,*m_ShadowPassPipeline);
 	// TODO routinize
 
 	// upload 2D coordinate system
@@ -940,7 +945,7 @@ Renderer::Renderer()
 
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
-	m_GlobalDescriptorSet.allocate(0,12);
+	m_GlobalDescriptorSet.allocate(0,13);
 	m_GlobalDescriptorSet.define_data_segment(0,m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
 											  sizeof(ObjectTransformation));
 	m_GlobalDescriptorSet.define_data_segment(1,m_GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
@@ -949,7 +954,7 @@ Renderer::Renderer()
 											  sizeof(CameraAttributes));
 	m_GlobalDescriptorSet.define_data_segment(41,m_GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
 											  sizeof(Lighting));
-	m_GlobalDescriptorSet.define_texture_segment(4,8);
+	m_GlobalDescriptorSet.define_texture_segment(4,9);
 
 	// linking buffer results
 	m_GlobalDescriptorSet.link_result(4,m_Framebuffer.components[0]);
@@ -960,6 +965,7 @@ Renderer::Renderer()
 	m_GlobalDescriptorSet.link_result(9,m_GBuffer.components[3]);
 	m_GlobalDescriptorSet.link_result(10,m_GBuffer.components[4]);
 	m_GlobalDescriptorSet.link_result(11,m_GBuffer.components[5]);
+	m_GlobalDescriptorSet.link_result(12,m_ShadowMap.components[0]);
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
@@ -992,6 +998,13 @@ void Renderer::update()
 	// data update
 	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
 	m_GlobalDescriptorSet.update_frame();
+
+	// SHADOW PASS
+	m_ShadowMap.record();
+	_update_mesh(m_DeferredGeometryBatches,true);
+	//_update_particles(m_DeferredParticleBatches);
+	m_ShadowMap.stop();
+	// TODO can be rendered less rich for the shadow pass
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
@@ -1059,6 +1072,7 @@ void Renderer::vanish()
 	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
 
 	// clean framebuffers
+	m_ShadowMap.vanish();
 	m_GBuffer.vanish();
 	m_Framebuffer.vanish();
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
@@ -1320,7 +1334,7 @@ lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,
  */
 lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline)
 {
-	m_GeometryBatches.push_back({ .shader = pipeline });
+	m_GeometryBatches.push_back({ .shader = pipeline, });
 	return std::prev(m_GeometryBatches.end());
 }
 
@@ -1341,7 +1355,7 @@ lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipel
  */
 lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
 {
-	m_DeferredGeometryBatches.push_back({ .shader = m_GeometryPassPipeline });
+	m_DeferredGeometryBatches.push_back({ .shader = m_GeometryPassPipeline,.shadow_shader = m_ShadowPassPipeline });
 	return std::prev(m_DeferredGeometryBatches.end());
 }
 
@@ -1465,11 +1479,12 @@ void Renderer::_update_text()
 /**
  *	update draw of all registered batches
  */
-void Renderer::_update_mesh(list<GeometryBatch>& batches)
+void Renderer::_update_mesh(list<GeometryBatch>& batches,bool shadow)
 {
 	for (GeometryBatch& p_Batch : batches)
 	{
-		p_Batch.shader->enable();
+		if (!shadow) p_Batch.shader->enable();
+		else p_Batch.shadow_shader->enable();
 		p_Batch.vao.bind();
 		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)

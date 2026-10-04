@@ -264,6 +264,7 @@ struct GeometryBatch
 	VertexArray vao;
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
+	lptr<ShaderPipeline> shadow_shader;
 	vector<GeometryTuple> objects;
 	vector<ObjectInfo> data;
 	vector<AnimatedMesh*> anim_meshes;
@@ -363,7 +364,7 @@ private:
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();
-	void _update_mesh(list<GeometryBatch>& batches);
+	void _update_mesh(list<GeometryBatch>& batches,bool shadow=false);
 	void _update_particles(list<ParticleBatch>& batches);
 	void _gpu_upload();
 
@@ -384,6 +385,7 @@ private:
 	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
 	Framebuffer m_Framebuffer;  // FIXME naming!!!!
 	Framebuffer m_GBuffer;
+	Framebuffer m_ShadowMap;
 
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;
@@ -411,6 +413,7 @@ private:
 	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
+	lptr<ShaderPipeline> m_ShadowPassPipeline;
 	//lptr<ShaderPipeline> m_ParticlePassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
 

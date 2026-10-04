@@ -555,6 +555,7 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
 				  m_DescriptorInfos.size());
+	// FIXME defining more than allocated actually breaks with brutal write attempts of corrupted data!
 
 	// image info
 	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
