@@ -265,6 +265,7 @@ struct GeometryBatch
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
 	vector<GeometryTuple> objects;
+	vector<ObjectInfo> data;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
 	vector<vector<DescriptorSetMemory>> ubo;

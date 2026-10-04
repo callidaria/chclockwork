@@ -709,6 +709,7 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 			.textures = tex,
 		});
 	objects.back().uniform.shader = shader;
+	data.push_back({  });
 	ubo.push_back(vector<DescriptorSetMemory>());
 	shader->generate_ubo(ubo.back());
 	offset_cursor += vsize;
@@ -1476,7 +1477,10 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
-			p_Batch.ubo[i++][0].write(70,&p_Tuple.transform.model);
+			p_Batch.data[i].model = p_Tuple.transform.model;
+			p_Batch.data[i].texel = p_Tuple.texel;
+			p_Batch.ubo[i][0].write(70,&p_Batch.data[i]);
+			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
