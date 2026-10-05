@@ -978,8 +978,6 @@ Renderer::Renderer()
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
 				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
-
-	// bind global descriptor set
 }
 
 /**
@@ -1355,7 +1353,9 @@ lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipel
  */
 lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
 {
-	m_DeferredGeometryBatches.push_back({ .shader = m_GeometryPassPipeline,.shadow_shader = m_ShadowPassPipeline });
+	m_DeferredGeometryBatches.push_back({
+			.shader = m_GeometryPassPipeline,.shadow_shader = m_ShadowPassPipeline
+		});
 	return std::prev(m_DeferredGeometryBatches.end());
 }
 
@@ -1422,17 +1422,19 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
 	return &m_UBufferMem.lighting.pointlights[m_UBufferMem.lighting.pointlights_active++];
 }
 
+void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
+{
+	for (DescriptorSetMemory& p_Mem : memory)
+		p_Mem.update_frame();  // TODO remove, update once for all not frame here
+}
+
 /**
  *	TODO
  */
 void Renderer::_bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
 	m_GlobalDescriptorSet.bind(shader.pipeline_layout);
-	for (DescriptorSetMemory& p_Mem : memory)
-	{
-		p_Mem.update_frame();  // TODO remove, update once for all not frame here
-		p_Mem.bind(shader.pipeline_layout);
-	}
+	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
 }
 
 /**
@@ -1443,6 +1445,7 @@ void Renderer::_update_sprites()
 #ifdef VKBUILD
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
+	_update_descriptor_memory(m_SpriteUBO);
 	_bind_descriptor_memory(m_SpritePipeline,m_SpriteUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
@@ -1462,6 +1465,7 @@ void Renderer::_update_text()
 #ifdef VKBUILD
 	m_TextPipeline.enable();
 	m_TextVertexArray.bind();
+	_update_descriptor_memory(m_TextUBO);
 	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
 #else
@@ -1491,6 +1495,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches,bool shadow)
 		{
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
+			if (shadow) _update_descriptor_memory(p_Batch.ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
 			p_Batch.data[i].model = p_Tuple.transform.model;
 			p_Batch.data[i].texel = p_Tuple.texel;
@@ -1512,6 +1517,7 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
+		_update_descriptor_memory(p_Batch.ubo);
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,

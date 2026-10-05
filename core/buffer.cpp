@@ -23,6 +23,10 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 				  "shader pipeline must be assembled before passing it to framebuffer setup");
 
 	// pipeline attribute store
+	m_Extent = {
+		.width = (u32)width,
+		.height = (u32)height,
+	};
 	m_RenderPass = sp.render_pass;
 	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
 
@@ -310,7 +314,7 @@ void Framebuffer::record()
 	__RPBeginInfo.renderPass = m_RenderPass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = g_Frame.swapchain.extent;
+	__RPBeginInfo.renderArea.extent = m_Extent;
 	__RPBeginInfo.clearValueCount = components.size();
 	__RPBeginInfo.pClearValues = &m_ClearValues[0];
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);

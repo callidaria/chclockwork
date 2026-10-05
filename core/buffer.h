@@ -28,6 +28,7 @@ private:
 	VkFramebuffer m_Framebuffer;
 	VkRenderPass m_RenderPass;
 	BitwiseWords m_ResultAttachmentMap;
+	VkExtent2D m_Extent;
 #else
 	u32 m_Buffer;
 #endif
