@@ -888,6 +888,7 @@ Renderer::Renderer()
 	g_UniformBuffer.define(0,12,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,40,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,41,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,42,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,70,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
@@ -933,19 +934,13 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
-	// upload camera
-	m_UBufferMem.otrafo.view = g_Camera.view;
-	m_UBufferMem.otrafo.proj = g_Camera.proj;
-	// TODO actually achieve control over which matrix pair comes first!
-	// TODO place this either in some list file or create a secluded setup script for this,
-	//		but in any case: move it out from here, it clutters the file & restricts setup for normal users
-	//		another idea: read all shaders, compare definitions and finally automatically setup
-	//		this can be supported by the existing shader crawler!
-	// TODO also log endpoint afterwards
+	// upload orthographic light projection
+	m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
+	m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
 
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
-	m_GlobalDescriptorSet.allocate(0,13);
+	m_GlobalDescriptorSet.allocate(0,14);
 	m_GlobalDescriptorSet.define_data_segment(0,m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
 											  sizeof(ObjectTransformation));
 	m_GlobalDescriptorSet.define_data_segment(1,m_GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
@@ -954,6 +949,8 @@ Renderer::Renderer()
 											  sizeof(CameraAttributes));
 	m_GlobalDescriptorSet.define_data_segment(41,m_GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
 											  sizeof(Lighting));
+	m_GlobalDescriptorSet.define_data_segment(42,m_GlobalSetOffset+offsetof(UniformBufferMemory,orth_shadow),
+											  sizeof(OrthographicShadow));
 	m_GlobalDescriptorSet.define_texture_segment(4,9);
 
 	// linking buffer results

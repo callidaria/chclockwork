@@ -55,12 +55,19 @@ struct Lighting
 	u32 pointlights_active = 0;
 } __attribute__((aligned(64)));
 
+struct OrthographicShadow
+{
+	mat4 view;
+	mat4 proj;
+};
+
 struct UniformBufferMemory
 {
 	SpriteTransformation strafo;
 	ObjectTransformation otrafo;
 	CameraAttributes camera;
 	Lighting lighting;
+	OrthographicShadow orth_shadow;
 } __attribute__((aligned(64)));
 // TODO it should be possible to save quite some memory here!
 //		though it is advisable to respect the alignment conformity, given by the shader data layout!
