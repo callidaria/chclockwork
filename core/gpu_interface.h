@@ -59,6 +59,7 @@ struct OrthographicShadow
 {
 	mat4 view;
 	mat4 proj;
+	vec3 source __attribute__((aligned(16))) = vec3(0);
 };
 
 struct UniformBufferMemory

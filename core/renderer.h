@@ -429,7 +429,7 @@ private:
 	size_t m_GlobalSetOffset;
 
 	// lighting
-	Camera3D m_ShadowProjection = Camera3D(vec3(0,0,.0001f),vec3(20,20,40),15,15,.01f,100.f);
+	Camera3D m_ShadowProjection = Camera3D(vec3(0,0,-.0001f),vec3(20,20,40),15,15,.01f,100.f);
 	// TODO this will be setup with lights in the future, just to test for now
 };
 

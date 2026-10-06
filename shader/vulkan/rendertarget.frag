@@ -53,6 +53,16 @@ layout(set = 0,binding = 41) uniform Lighting
 	uint pointlights_active;
 } lgt;
 
+// shadows
+layout(set = 0,binding = 42) uniform OrthographicShadow
+{
+	mat4 view;
+	mat4 proj;
+	vec3 source;
+} os;
+// TODO add intensity
+const float shadow_intensity = .9;
+
 
 // constants
 const float PI = 3.141592653;
@@ -109,10 +119,20 @@ void main()
 	for (int i=0;i<lgt.pointlights_active;i++)
 		lgt_component += lumen_point(position,colour,normal,metalness,roughness,lgt.pointlights[i]);
 
-	// TODO shadow processing
+	// process shadows with dynamic bias for sloped surfaces
+	vec3 shadow_dir = normalize(os.source);
+	vec4 rltp = os.proj*vec4(position,1.);
+	vec3 ltp = (rltp.xyz/rltp.w)*.5+.5;
+	float slut = texture(shadow_map,ltp.xy).r;
+	float obj_depth = ltp.z;
+	float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
+	float pshadow = float(slut<(obj_depth-bias));
+	float gshadow = min(1.-dot(normal,shadow_dir),1.);
+	float shadow = max(pshadow,gshadow);
+	//float shadow = mix(float(texture(shadow_map,ltp.xy).r<(obj_depth-bias)),.0,gshadow);
 
 	// combination
-	vec3 final = sdw_component+lgt_component;
+	vec3 final = sdw_component*(1.-shadow*shadow_intensity)+lgt_component;
 
 	// process sub-geometric occlusion & emission
 	final = final*occlusion;

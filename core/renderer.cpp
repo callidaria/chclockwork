@@ -888,7 +888,8 @@ Renderer::Renderer()
 	g_UniformBuffer.define(0,12,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,40,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(0,41,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,42,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(0,42,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+						   VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,70,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
@@ -937,6 +938,7 @@ Renderer::Renderer()
 	// upload orthographic light projection
 	m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
 	m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
+	m_UBufferMem.orth_shadow.source = vec3(20,20,40);  // TODO testing
 
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
@@ -1016,6 +1018,7 @@ void Renderer::update()
 	// transition results
 	Texture::transition_depth_texture(m_Framebuffer.attachment_images[1]);
 	Texture::transition_depth_texture(m_GBuffer.attachment_images[5]);
+	Texture::transition_depth_texture(m_ShadowMap.attachment_images[0]);
 
 	// START RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].record();

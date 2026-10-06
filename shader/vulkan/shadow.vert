@@ -10,6 +10,7 @@ layout(set = 0,binding = 42) uniform OrthographicShadow
 {
 	mat4 view;
 	mat4 proj;
+	vec3 source;
 } os;
 
 layout(set = 1,binding = 70) uniform ObjectInfo
