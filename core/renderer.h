@@ -341,8 +341,8 @@ public:
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,
-										   GPUBufferFormat* formats,u8 bfr_count,bool depth=false);
+	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
+										   bool depth=false,bool flipped=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch();
@@ -429,7 +429,7 @@ private:
 	size_t m_GlobalSetOffset;
 
 	// lighting
-	Camera3D m_ShadowProjection = Camera3D(vec3(0,0,-.0001f),vec3(20,20,40),15,15,.01f,100.f);
+	Camera3D m_ShadowProjection = Camera3D(vec3(0,0,.0001f),vec3(10,10,20),15,15,.01f,50.f);
 	// TODO this will be setup with lights in the future, just to test for now
 };
 

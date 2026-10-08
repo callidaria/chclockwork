@@ -917,9 +917,9 @@ Renderer::Renderer()
 		GPU_BUFFER_FORMAT_FLOAT
 	};
 	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-											   gformats,5,true);
+											   gformats,5,true,false);
 	m_ShadowPassPipeline = register_pipeline("./shader/vulkan/bin/shadow.vert",
-											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true);
+											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true,false);
 	// TODO this is just an alibi format, to allow draw to shadow map for now
 
 	// result target & geometry target
@@ -1315,13 +1315,13 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
  *	\returns pointer to registered shader pipeline
  *	TODO amend
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,
-												 GPUBufferFormat* formats,u8 bfr_count,bool depth)
+lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,GPUBufferFormat* formats,
+												 u8 bfr_count,bool depth,bool flipped)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
-	p_Pipeline->assemble(vs,fs,false);
+	p_Pipeline->assemble(vs,fs,flipped);
 	return p_Pipeline;
 }
 

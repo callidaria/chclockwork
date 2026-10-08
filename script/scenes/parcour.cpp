@@ -11,8 +11,8 @@ void ParcourParcs::init()
 	vector<Texture*> __Textures = {  };
 	Mesh __Cube = Mesh::cube();
 	Mesh __Sphere = Mesh::sphere();
-	u32 __CubeID = __EnviroBatch->add_geometry(__Cube,__Textures);
 	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere,__Textures);
+	u32 __CubeID = __EnviroBatch->add_geometry(__Cube,__Textures);
 	__EnviroBatch->load();
 
 	// transform objects
