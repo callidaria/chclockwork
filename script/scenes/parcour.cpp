@@ -9,14 +9,14 @@ void ParcourParcs::init()
 	// setup batch
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
 	vector<Texture*> __Textures = {  };
-	Mesh __Cube = Mesh::cube();
 	Mesh __Sphere = Mesh::sphere();
+	Mesh __Cube = Mesh::cube();
 	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere,__Textures);
 	u32 __CubeID = __EnviroBatch->add_geometry(__Cube,__Textures);
 	__EnviroBatch->load();
 
 	// transform objects
-	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,0,1.5f),vec3(1,1,1),vec3(.0f));
+	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,0,1.f),vec3(1,1,1),vec3(.0f));
 	__EnviroBatch->objects[__CubeID].texel = 20.f;
 	__EnviroBatch->objects[__CubeID].transform.scale(vec3(10,10,.2f));
 

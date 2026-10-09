@@ -1776,7 +1776,7 @@ void Renderer::update()
  *	\returns pointer to registered shader pipeline
  */
 /*
-lptr<ShaderPipeline> Renderer::register_piepeline(VertexShader& vs,FragmentShader& fs)
+lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline());
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());

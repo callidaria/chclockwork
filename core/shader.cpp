@@ -979,7 +979,7 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	__RasterInfo.rasterizerDiscardEnable = VK_FALSE;
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
-	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	__RasterInfo.cullMode = VK_CULL_MODE_NONE;
 	__RasterInfo.frontFace = (flipped) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
