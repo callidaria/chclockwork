@@ -911,8 +911,7 @@ Renderer::Renderer()
 	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
 	m_TextPipeline.assemble(fd_fullscreen,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
 	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TargetPipeline.assemble(fd_result,
-							  "./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
+	m_TargetPipeline.assemble(fd_result,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag");
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
@@ -927,8 +926,7 @@ Renderer::Renderer()
 											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
 											   gformats,5,true,false);
 	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,"./shader/vulkan/bin/shadow.vert",
-											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true,false);
-	// TODO this is just an alibi format, to allow draw to shadow map for now
+											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true,true);
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++) m_ResultBuffers[i].setup(fd_result,m_SpritePipeline,i);

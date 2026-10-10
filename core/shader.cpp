@@ -979,7 +979,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	__RasterInfo.rasterizerDiscardEnable = VK_FALSE;
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
-	__RasterInfo.cullMode = VK_CULL_MODE_NONE;
+	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 	__RasterInfo.frontFace = (flipped) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
@@ -1030,7 +1030,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	__DepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	__DepthStencilInfo.depthTestEnable = VK_TRUE;
 	__DepthStencilInfo.depthWriteEnable = VK_TRUE;
-	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
 

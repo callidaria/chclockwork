@@ -24,5 +24,4 @@ void main()
 {
 	vec4 world_position = trafo.model*vec4(position,1.);
 	gl_Position = os.proj*os.view*world_position;
-	gl_Position.z *= -1;
 }

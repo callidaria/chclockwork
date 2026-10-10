@@ -50,6 +50,9 @@
 #endif
 
 // math
+#ifdef VKBUILD
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
