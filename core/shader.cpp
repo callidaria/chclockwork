@@ -790,7 +790,7 @@ u8 ShaderPipeline::out_define_result_buffer()
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
+void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,bool flipped)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -966,9 +966,9 @@ void ShaderPipeline::assemble(const char* vs,const char* fs,bool flipped)
 	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
 	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	__ViewportInfo.viewportCount = 1;
-	__ViewportInfo.pViewports = &g_Frame.viewport;
+	__ViewportInfo.pViewports = &fd.viewport;
 	__ViewportInfo.scissorCount = 1;
-	__ViewportInfo.pScissors = &g_Frame.scissor;
+	__ViewportInfo.pScissors = &fd.scissor;
 	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
 	// TODO this should not always depend on standard frame viewport
 

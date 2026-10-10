@@ -8,13 +8,16 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
-/*
-struct ResultAttachmentTuple
+struct FrameDimensions
 {
-	VkImageView colour;
-	VkImageView depth;
+	// utility
+	void initialize(f32 width,f32 height);
+
+	// data
+	VkExtent2D extent;
+	VkViewport viewport;
+	VkRect2D scissor;
 };
-*/
 
 
 class Frame
@@ -75,8 +78,6 @@ private:
 #ifdef VKBUILD
 public:
 	SwapChain swapchain;
-	VkViewport viewport;
-	VkRect2D scissor;
 	VkClearValue clear_colour[2];
 
 	// image buffers

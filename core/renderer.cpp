@@ -874,6 +874,11 @@ Renderer::Renderer()
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
 	// SHADERS
+	// framebuffer write dimensions
+	fd_result.initialize(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
+	fd_fullscreen.initialize(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	fd_shadowproj.initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+
 	// setup shader endpoint
 	g_UniformBuffer.define(0,0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(0,1,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
@@ -901,11 +906,13 @@ Renderer::Renderer()
 
 	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble("./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
+	m_SpritePipeline.assemble(fd_fullscreen,
+							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
 	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TextPipeline.assemble("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
+	m_TextPipeline.assemble(fd_fullscreen,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
 	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TargetPipeline.assemble("./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
+	m_TargetPipeline.assemble(fd_result,
+							  "./shader/vulkan/bin/rendertarget.vert","./shader/vulkan/bin/rendertarget.frag");
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
@@ -916,20 +923,20 @@ Renderer::Renderer()
 		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
 		GPU_BUFFER_FORMAT_FLOAT
 	};
-	m_GeometryPassPipeline = register_pipeline("./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+	m_GeometryPassPipeline = register_pipeline(fd_fullscreen,
+											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
 											   gformats,5,true,false);
-	m_ShadowPassPipeline = register_pipeline("./shader/vulkan/bin/shadow.vert",
+	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,"./shader/vulkan/bin/shadow.vert",
 											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true,false);
 	// TODO this is just an alibi format, to allow draw to shadow map for now
 
 	// result target & geometry target
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height,
-								 m_SpritePipeline,i);
-	m_Framebuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,m_TargetPipeline);  // FIXME mismatch?
-	m_GBuffer.setup(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,*m_GeometryPassPipeline);
-	m_ShadowMap.setup(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION,*m_ShadowPassPipeline);
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++) m_ResultBuffers[i].setup(fd_result,m_SpritePipeline,i);
+	m_Framebuffer.setup(fd_fullscreen,m_TargetPipeline);  // FIXME mismatch?
+	m_GBuffer.setup(fd_fullscreen,*m_GeometryPassPipeline);
+	m_ShadowMap.setup(fd_shadowproj,*m_ShadowPassPipeline);
 	// TODO routinize
+	// TODO also check if framebuffer & related shader pipeline frame dimensions contain relevant matching values
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -1315,13 +1322,14 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
  *	\returns pointer to registered shader pipeline
  *	TODO amend
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,GPUBufferFormat* formats,
+lptr<ShaderPipeline> Renderer::register_pipeline(FrameDimensions& fd,
+												 const char* vs,const char* fs,GPUBufferFormat* formats,
 												 u8 bfr_count,bool depth,bool flipped)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
-	p_Pipeline->assemble(vs,fs,flipped);
+	p_Pipeline->assemble(fd,vs,fs,flipped);
 	return p_Pipeline;
 }
 

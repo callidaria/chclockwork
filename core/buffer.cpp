@@ -6,13 +6,11 @@
 
 /**
  *	setup output framebuffer and allocate to satisfy given shader pipeline
- *	\param width: default resolution width for framebuffer components
- *	\param height: default resolution height for framebuffer components
  *	\param sp: shader pipeline, holding framebuffer component information
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
  */
-void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffer)
+void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer)
 {
 	// allocate component handles
 	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
@@ -23,12 +21,10 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 				  "shader pipeline must be assembled before passing it to framebuffer setup");
 
 	// pipeline attribute store
-	m_Extent = {
-		.width = (u32)width,
-		.height = (u32)height,
-	};
 	m_RenderPass = sp.render_pass;
 	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
+	m_FrameDimensions = fd;
+	// FIXME this causes a lot of parameters & direct copy is also not very optimized... find a solution
 
 	// allocate handler memory
 	attachment_images.resize(__ComponentCount);
@@ -50,8 +46,8 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		VkImageCreateInfo __ImageInfo = {  };
 		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = width;
-		__ImageInfo.extent.height = height;
+		__ImageInfo.extent.width = fd.extent.width;
+		__ImageInfo.extent.height = fd.extent.height;
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
@@ -111,8 +107,8 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 		VkImageCreateInfo __ImageInfo = {  };
 		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = width;
-		__ImageInfo.extent.height = height;
+		__ImageInfo.extent.width = fd.extent.width;
+		__ImageInfo.extent.height = fd.extent.height;
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
@@ -173,8 +169,8 @@ void Framebuffer::setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffe
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	__FramebufferInfo.renderPass = sp.render_pass;
 	__FramebufferInfo.attachmentCount = components.size();
-	__FramebufferInfo.width = width;
-	__FramebufferInfo.height = height;
+	__FramebufferInfo.width = fd.extent.width;
+	__FramebufferInfo.height = fd.extent.height;
 	__FramebufferInfo.layers = 1;
 	__FramebufferInfo.pAttachments = &components[0];
 	VkResult __Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
@@ -314,14 +310,14 @@ void Framebuffer::record()
 	__RPBeginInfo.renderPass = m_RenderPass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = m_Extent;
+	__RPBeginInfo.renderArea.extent = m_FrameDimensions.extent;
 	__RPBeginInfo.clearValueCount = components.size();
 	__RPBeginInfo.pClearValues = &m_ClearValues[0];
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 
 	// viewport setup
-	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&g_Frame.viewport);
-	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&g_Frame.scissor);
+	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&m_FrameDimensions.viewport);
+	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&m_FrameDimensions.scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else

@@ -47,6 +47,35 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 
 
 // ----------------------------------------------------------------------------------------------------
+// Frame Dimensions
+
+void FrameDimensions::initialize(f32 width,f32 height)
+{
+	// extent setup
+	extent = {
+		.width = (u32)width,
+		.height = (u32)height,
+	};
+
+	// viewport setup
+	viewport = {
+		.x = .0f,
+		.y = .0f,
+		.width = width,
+		.height = height,
+		.minDepth = .0f,
+		.maxDepth = 1.f,
+	};
+
+	// scissor setup
+	scissor = {
+		.offset = { 0,0 },
+		.extent = extent,
+	};
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Graphical Frame
 
 /**
@@ -512,22 +541,6 @@ swap_chain_creation:
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
 	// TODO repeating code is fine here? just a small definition for result buffers?
-
-	// viewport setup
-	viewport = {
-		.x = .0f,
-		.y = .0f,
-		.width = (f32)swapchain.extent.width,
-		.height = (f32)swapchain.extent.height,
-		.minDepth = .0f,
-		.maxDepth = 1.f,  // TODO is this value range or actual distance, probably the former right?
-	};
-
-	// scissor setup
-	scissor = {
-		.offset = { 0,0 },
-		.extent = swapchain.extent,
-	};
 
 	// image semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };

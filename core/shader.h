@@ -211,7 +211,7 @@ public:
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 	// assembly
-	void assemble(const char* vs,const char* fs,bool flipped=false);
+	void assemble(FrameDimensions& fd,const char* vs,const char* fs,bool flipped=false);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif

@@ -427,6 +427,9 @@ void Camera3D::orthographics()
 	f32 hwidth = width>>1;
 	f32 hheight = height>>1;
 	proj = glm::ortho(-hwidth,hwidth,-hheight,hheight,near,far);
+#ifdef VKBUILD
+	proj[1][1] *= -1;
+#endif
 }
 
 /**

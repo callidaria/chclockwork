@@ -13,7 +13,7 @@ class Framebuffer
 {
 public:
 	Framebuffer() {  }
-	void setup(f32 width,f32 height,ShaderPipeline& sp,s16 result_buffer=-1);
+	void setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer=-1);
 	void vanish();
 
 	// usage
@@ -28,7 +28,7 @@ private:
 	VkFramebuffer m_Framebuffer;
 	VkRenderPass m_RenderPass;
 	BitwiseWords m_ResultAttachmentMap;
-	VkExtent2D m_Extent;
+	FrameDimensions m_FrameDimensions;
 #else
 	u32 m_Buffer;
 #endif

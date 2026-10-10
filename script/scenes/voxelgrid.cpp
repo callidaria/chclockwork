@@ -20,7 +20,7 @@ void RoomVoxels::init(Font* font)
 	// setup batch
 	GPUBufferFormat format = GPU_BUFFER_FORMAT_SRGB;
 	lptr<ShaderPipeline> __RoomShader = g_Renderer.register_pipeline(
-			"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",
+			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",
 			&format,1,true
 		);
 	lptr<ParticleBatch> __RoomBatch = g_Renderer.register_particle_batch(__RoomShader);

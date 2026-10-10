@@ -341,7 +341,8 @@ public:
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
+	lptr<ShaderPipeline> register_pipeline(FrameDimensions& fd,
+										   const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
 										   bool depth=false,bool flipped=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
@@ -367,6 +368,9 @@ private:
 	void _update_mesh(list<GeometryBatch>& batches,bool shadow=false);
 	void _update_particles(list<ParticleBatch>& batches);
 	void _gpu_upload();
+
+public:
+	FrameDimensions fd_result,fd_fullscreen,fd_shadowproj;
 
 private:
 
