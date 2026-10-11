@@ -1002,12 +1002,11 @@ void Renderer::update()
 	_update_mesh(m_DeferredGeometryBatches,true);
 	//_update_particles(m_DeferredParticleBatches);
 	m_ShadowMap.stop();
-	// TODO can be rendered less rich for the shadow pass
 
 	// RECORD SCENE DEFERRED
 	m_GBuffer.record();
 	_update_mesh(m_DeferredGeometryBatches);
-	//_update_particles(m_DeferredParticleBatches);
+	_update_particles(m_DeferredParticleBatches);
 	m_GBuffer.stop();
 
 	// RECORD SCENE FORWARD
