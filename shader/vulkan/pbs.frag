@@ -126,17 +126,18 @@ void main()
 
 	// process shadows with dynamic bias for sloped surfaces
 	vec3 shadow_dir = normalize(os.source);
-	vec4 rltp = os.proj*vec4(position,1.);
-	vec3 ltp = (rltp.xyz/rltp.w)*.5+.5;
-	float slut = texture(shadow_map,ltp.xy).r;
+	vec4 rltp = os.proj*os.view*vec4(position,1.);
+	vec3 ltp = (rltp.xyz/rltp.w);
+	vec2 smuv = ltp.xy*.5+.5;
+	float slut = texture(shadow_map,smuv).r;
 	float obj_depth = ltp.z;
-	float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
+	//float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
+	float bias = .0;
 	float pshadow = float(slut<(obj_depth-bias));
 	float gshadow = min(1.-dot(normal,shadow_dir),1.);
 	float shadow = max(pshadow,gshadow);
 	//float shadow = mix(float(texture(shadow_map,ltp.xy).r<(obj_depth-bias)),.0,gshadow);
-
-	//vec3 final = vec3(slut);
+	// TODO view & projection can be combined here after calculation on host, as was tested before
 
 	// combination
 	vec3 final = sdw_component*(1.-shadow*shadow_intensity)+lgt_component;

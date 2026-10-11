@@ -496,7 +496,7 @@ public:
 	f32 yaw;
 	f32 fov;
 	f32 near = .1f;
-	f32 far = 10000.f;
+	f32 far = 1000.f;
 	u32 width;
 	u32 height;
 
