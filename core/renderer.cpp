@@ -1095,6 +1095,7 @@ void Renderer::vanish()
 	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
 	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vanish();
 	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.vanish();
 
 	// clear registered textures
 	for (size_t i=0;i<m_MeshTextures.active_range;i++)
