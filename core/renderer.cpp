@@ -917,16 +917,17 @@ Renderer::Renderer()
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
 	// pipelines, setup for deferred scene processing
-	GPUBufferFormat gformats[5] = {
-		GPU_BUFFER_FORMAT_SRGB,
-		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
-		GPU_BUFFER_FORMAT_FLOAT
-	};
 	m_GeometryPassPipeline = register_pipeline(fd_fullscreen,
 											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+											   gformats,5,true);
+	/*
+	m_ParticlePassPipeline = register_pipeline(fd_fullscreen,
+											   "./shader/vulkan/bin/ipass.vert","./shader/vulkan/bin/ipass.frag"
 											   gformats,5,true,false);
-	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,"./shader/vulkan/bin/shadow.vert",
-											 "./shader/vulkan/bin/shadow.frag",nullptr,0,true,true);
+	*/
+	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,
+											 "./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
+											 nullptr,0,true,true);
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++) m_ResultBuffers[i].setup(fd_result,m_SpritePipeline,i);
@@ -1382,6 +1383,7 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
 	return std::prev(m_DeferredParticleBatches.end());
 }
 */
+// TODO reenable
 
 /**
  *	register phyiscal particle batch

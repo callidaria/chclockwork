@@ -8,8 +8,22 @@
 #include "shader.h"
 
 
+// ----------------------------------------------------------------------------------------------------
+// Constants
+
 constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1247.f;
 constexpr u8 RENDERER_ANIMATION_INFLUENCE_RANGE = 4;
+constexpr u8 RENDERER_GBUFFER_FORMAT_SIZE = 5;
+
+
+// ----------------------------------------------------------------------------------------------------
+// GBuffer Layout
+
+inline static GPUBufferFormat gformats[RENDERER_GBUFFER_FORMAT_SIZE] = {
+	GPU_BUFFER_FORMAT_SRGB,
+	GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
+	GPU_BUFFER_FORMAT_FLOAT
+};
 
 enum TextureChannelMap : u16
 {
@@ -29,7 +43,7 @@ enum TextureChannelMap : u16
 
 
 // ----------------------------------------------------------------------------------------------------
-// States
+// Text
 
 enum ScreenAlignment
 {
@@ -418,7 +432,7 @@ private:
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
 	lptr<ShaderPipeline> m_ShadowPassPipeline;
-	//lptr<ShaderPipeline> m_ParticlePassPipeline;
+	lptr<ShaderPipeline> m_ParticlePassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
 
 	// batches

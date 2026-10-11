@@ -6,8 +6,17 @@
  */
 void ParcourParcs::init()
 {
-	// setup batch
+	// pipelines
+	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
+			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
+			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
+		);
+
+	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
+	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
+
+	// setup batch
 	vector<Texture*> __Textures = {  };
 	Mesh __Sphere = Mesh::sphere();
 	Mesh __Cube = Mesh::cube();
