@@ -61,7 +61,7 @@ layout(set = 0,binding = 42) uniform OrthographicShadow
 	vec3 source;
 } os;
 // TODO add intensity
-const float shadow_intensity = .9;
+const float shadow_intensity = 1;
 
 
 // constants
@@ -131,8 +131,7 @@ void main()
 	vec2 smuv = ltp.xy*.5+.5;
 	float slut = texture(shadow_map,smuv).r;
 	float obj_depth = ltp.z;
-	//float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
-	float bias = .0;
+	float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
 	float pshadow = float(slut<(obj_depth-bias));
 	float gshadow = min(1.-dot(normal,shadow_dir),1.);
 	float shadow = max(pshadow,gshadow);

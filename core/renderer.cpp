@@ -940,11 +940,6 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
-	// upload orthographic light projection
-	m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
-	m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
-	m_UBufferMem.orth_shadow.source = vec3(20,20,40);  // TODO testing
-
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
 	m_GlobalDescriptorSet.allocate(0,14);
@@ -1402,15 +1397,26 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 /**
  *	TODO
  */
-SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity)
+SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity,bool shadow_source)
 {
 	m_UBufferMem.lighting.sunlights[m_UBufferMem.lighting.sunlights_active] = {
 		.position = position,
 		.colour = colour*intensity
 	};
+
+	// update orthographic light projection
+	if (shadow_source)
+	{
+		m_ShadowProjection = Camera3D(vec3(0),position,25,25,.1f,1000.f);
+		m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
+		m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
+		m_UBufferMem.orth_shadow.source = position;
+	}
+
 	return &m_UBufferMem.lighting.sunlights[m_UBufferMem.lighting.sunlights_active++];
 }
-// TODO shadowing assignment
+// TODO stacking multiple shadow sources to combine into mutidirectional map
+// TODO also shadow cascading and dynamic targeting information, attached to scene center or camera focus
 
 /**
  *	TODO

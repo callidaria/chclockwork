@@ -352,7 +352,7 @@ public:
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
 	// lighting
-	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity);
+	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity,bool shadow_source=false);
 	PointLight* add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,f32 linear,f32 quadratic);
 
 private:
@@ -433,7 +433,7 @@ private:
 	size_t m_GlobalSetOffset;
 
 	// lighting
-	Camera3D m_ShadowProjection = Camera3D(vec3(0),vec3(20,20,40),25,25,.1f,1000.f);
+	Camera3D m_ShadowProjection;
 	// TODO this will be setup with lights in the future, just to test for now
 };
 
