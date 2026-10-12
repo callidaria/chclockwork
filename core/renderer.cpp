@@ -999,8 +999,7 @@ void Renderer::update()
 
 	// SHADOW PASS
 	m_ShadowMap.record();
-	_update_mesh(m_DeferredGeometryBatches,true);
-	//_update_particles(m_DeferredParticleBatches);
+	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
 	m_ShadowMap.stop();
 
 	// RECORD SCENE DEFERRED
@@ -1356,7 +1355,7 @@ lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipel
 lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
 {
 	m_DeferredGeometryBatches.push_back({
-			.shader = m_GeometryPassPipeline,.shadow_shader = m_ShadowPassPipeline
+			.shader = m_GeometryPassPipeline
 		});
 	return std::prev(m_DeferredGeometryBatches.end());
 }
@@ -1394,6 +1393,79 @@ lptr<ParticleBatch> Renderer::register_deferred_particle_batch(lptr<ShaderPipeli
 {
 	m_DeferredParticleBatches.push_back({ .shader = pipeline });
 	return std::prev(m_DeferredParticleBatches.end());
+}
+
+/**
+ *	allow a geometry batch to cast shadows onto the scene
+ *	\param b: pointer to casting geometry batch
+ */
+void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
+{
+	// register geometry batch
+	m_ShadowGeometryBatches.push_back({
+			.batch = b,
+			.shader = m_ShadowPassPipeline,
+			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
+		});
+
+	// create uniform upload correlation
+	for (u32 i=0;i<b->objects.size();i++)
+	{
+		m_ShadowGeometryBatches.back().uniform[i].shader = m_ShadowPassPipeline;
+		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+	}
+}
+
+/**
+ *	allow a geometry batch to cast shadows onto the scene
+ *	\param b: pointer to casting geometry batch
+ *	\param pipeline: pointer to custom shadow pass shader pipeline
+ */
+void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline)
+{
+	// register geometry batch
+	m_ShadowGeometryBatches.push_back({
+			.batch = b,
+			.shader = pipeline,
+			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
+		});
+
+	// create uniform upload correlation
+	for (u32 i=0;i<b->objects.size();i++)
+	{
+		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
+		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+	}
+}
+
+/**
+ *	allow a particle batch to cast shadows onto the scene
+ *	\param b: pointer to casting particle batch
+ */
+/*
+void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
+{
+	m_ShadowParticleBatches.push_back({
+			.batch = b,
+			.shader = m_ParticleShadowPipeline,
+		});
+	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
+	// TODO expand the correlation when particle batch allows for uniform upload specification
+}
+*/
+
+/**
+ *	allow a particle batch to cast shadows onto the scene
+ *	\param b: pointer to casting particle batch
+ *	\param pipeline: pointer to custom shadow pass shader pipeline
+ */
+void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline)
+{
+	m_ShadowParticleBatches.push_back({
+			.batch = b,
+			.shader = pipeline,
+		});
+	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
 }
 
 /**
@@ -1497,19 +1569,17 @@ void Renderer::_update_text()
 /**
  *	update draw of all registered batches
  */
-void Renderer::_update_mesh(list<GeometryBatch>& batches,bool shadow)
+void Renderer::_update_mesh(list<GeometryBatch>& batches)
 {
 	for (GeometryBatch& p_Batch : batches)
 	{
-		if (!shadow) p_Batch.shader->enable();
-		else p_Batch.shadow_shader->enable();
+		p_Batch.shader->enable();
 		p_Batch.vao.bind();
 		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
-			if (shadow) _update_descriptor_memory(p_Batch.ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
 			p_Batch.data[i].model = p_Tuple.transform.model;
 			p_Batch.data[i].texel = p_Tuple.texel;
@@ -1537,6 +1607,38 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
 	}
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb)
+{
+	// iterate static geometry
+	for (ShadowGeometryBatch& p_Batch : gb)
+	{
+		p_Batch.shader->enable();
+		p_Batch.batch->vao.bind();
+		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
+		{
+			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
+			_update_descriptor_memory(p_Batch.batch->ubo[i]);
+			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
+			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
+			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+		}
+	}
+
+	// iterate particle geometry
+	/*
+	for (ShadowParticleBatch& p_Batch : pb)
+	{
+		p_Batch.shader->enable();
+		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
+		p_Batch.batch->vao.bind();
+		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
+	}
+	*/
 }
 
 /**

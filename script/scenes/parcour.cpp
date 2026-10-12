@@ -36,7 +36,7 @@ void ParcourParcs::init()
 	GPUPixelBuffer* __FabricNormalTexture = g_Renderer.register_texture("./res/test/fabric_normal.png");
 	GPUPixelBuffer* __FabricMaterialTexture = g_Renderer.register_texture("./res/test/fabric_material.png");
 	GPUPixelBuffer* __FloorColourTexture = g_Renderer.register_texture("./res/test/floor_colour.png",
-																		TEXTURE_FORMAT_SRGB);
+																	   TEXTURE_FORMAT_SRGB);
 	GPUPixelBuffer* __FloorNormalTexture = g_Renderer.register_texture("./res/test/floor_normal.png");
 	GPUPixelBuffer* __FloorMaterialTexture = g_Renderer.register_texture("./res/test/floor_material.png");
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
@@ -69,6 +69,10 @@ void ParcourParcs::init()
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],1,__FabricNormalTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],2,__FabricMaterialTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],3,__NeutralEmissionTexture);
+
+	// shadows
+	g_Renderer.register_shadow_batch(__EnviroBatch);
+	//g_Renderer.register_shadow_batch(__BulbBatch);
 
 	g_Wheel.call(this);
 }

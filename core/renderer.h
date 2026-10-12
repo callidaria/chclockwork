@@ -278,7 +278,6 @@ struct GeometryBatch
 	VertexArray vao;
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
-	lptr<ShaderPipeline> shadow_shader;
 	vector<GeometryTuple> objects;
 	vector<ObjectInfo> data;
 	vector<AnimatedMesh*> anim_meshes;
@@ -316,6 +315,7 @@ struct ShadowGeometryBatch
 	lptr<GeometryBatch> batch;
 	lptr<ShaderPipeline> shader;
 	vector<ShaderUniformUpload> uniform;
+	// FIXME strange approach to use uniform like this. maybe find an equivalent to work with both versions
 };
 
 struct ShadowParticleBatch
@@ -365,6 +365,12 @@ public:
 	//lptr<ParticleBatch> register_deferred_particle_batch();
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
+	// shadow projection
+	void register_shadow_batch(lptr<GeometryBatch> b);
+	void register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline);
+	void register_shadow_batch(lptr<ParticleBatch> b);
+	void register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline);
+
 	// lighting
 	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity,bool shadow_source=false);
 	PointLight* add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,f32 linear,f32 quadratic);
@@ -379,8 +385,9 @@ private:
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();
-	void _update_mesh(list<GeometryBatch>& batches,bool shadow=false);
+	void _update_mesh(list<GeometryBatch>& batches);
 	void _update_particles(list<ParticleBatch>& batches);
+	void _update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb);
 	void _gpu_upload();
 
 public:
@@ -431,8 +438,8 @@ private:
 	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
-	lptr<ShaderPipeline> m_ShadowPassPipeline;
 	lptr<ShaderPipeline> m_ParticlePassPipeline;
+	lptr<ShaderPipeline> m_ShadowPassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
 
 	// batches
@@ -448,6 +455,8 @@ private:
 
 	// lighting
 	Camera3D m_ShadowProjection;
+	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
+	list<ShadowParticleBatch> m_ShadowParticleBatches;
 	// TODO this will be setup with lights in the future, just to test for now
 };
 
