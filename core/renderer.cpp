@@ -1441,22 +1441,6 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> 
 /**
  *	allow a particle batch to cast shadows onto the scene
  *	\param b: pointer to casting particle batch
- */
-/*
-void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
-{
-	m_ShadowParticleBatches.push_back({
-			.batch = b,
-			.shader = m_ParticleShadowPipeline,
-		});
-	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
-	// TODO expand the correlation when particle batch allows for uniform upload specification
-}
-*/
-
-/**
- *	allow a particle batch to cast shadows onto the scene
- *	\param b: pointer to casting particle batch
  *	\param pipeline: pointer to custom shadow pass shader pipeline
  */
 void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline)
@@ -1465,7 +1449,6 @@ void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> 
 			.batch = b,
 			.shader = pipeline,
 		});
-	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
 }
 
 /**
@@ -1481,7 +1464,7 @@ SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity,bool sh
 	// update orthographic light projection
 	if (shadow_source)
 	{
-		m_ShadowProjection = Camera3D(vec3(0),position,25,25,.1f,1000.f);
+		m_ShadowProjection = Camera3D(vec3(0),position,30,30,.1f,1000.f);
 		m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
 		m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
 		m_UBufferMem.orth_shadow.source = position;
@@ -1601,7 +1584,6 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
-		_update_descriptor_memory(p_Batch.ubo);
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
@@ -1630,15 +1612,16 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	}
 
 	// iterate particle geometry
-	/*
 	for (ShadowParticleBatch& p_Batch : pb)
 	{
 		p_Batch.shader->enable();
-		p_Batch.shader->upload_camera(m_Lighting.shadow_projection);
 		p_Batch.batch->vao.bind();
-		glDrawArraysInstanced(GL_TRIANGLES,0,p_Batch.batch->vertex_count,p_Batch.batch->active_particles);
+		_update_descriptor_memory(p_Batch.batch->ubo);
+		_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo);
+		p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
+				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
 	}
-	*/
 }
 
 /**

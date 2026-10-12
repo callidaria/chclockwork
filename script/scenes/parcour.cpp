@@ -11,6 +11,11 @@ void ParcourParcs::init()
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
 			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
 		);
+	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
+			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
+			nullptr,0,true,true
+		);
+	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
@@ -72,7 +77,7 @@ void ParcourParcs::init()
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
-	//g_Renderer.register_shadow_batch(__BulbBatch);
+	g_Renderer.register_shadow_batch(__BulbBatch,__BulbShadowPipeline);
 
 	g_Wheel.call(this);
 }

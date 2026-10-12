@@ -368,7 +368,6 @@ public:
 	// shadow projection
 	void register_shadow_batch(lptr<GeometryBatch> b);
 	void register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline);
-	void register_shadow_batch(lptr<ParticleBatch> b);
 	void register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline);
 
 	// lighting
