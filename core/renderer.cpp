@@ -898,6 +898,7 @@ Renderer::Renderer()
 	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,70,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(1,128,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(2,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(2,1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(2,2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -920,11 +921,6 @@ Renderer::Renderer()
 	m_GeometryPassPipeline = register_pipeline(fd_fullscreen,
 											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
 											   gformats,5,true);
-	/*
-	m_ParticlePassPipeline = register_pipeline(fd_fullscreen,
-											   "./shader/vulkan/bin/ipass.vert","./shader/vulkan/bin/ipass.frag"
-											   gformats,5,true,false);
-	*/
 	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,
 											 "./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
 											 nullptr,0,true,true);
@@ -978,6 +974,24 @@ Renderer::Renderer()
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
 				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+}
+
+/**
+ *	precalculating setup (before wheel system setup)
+ */
+void Renderer::precalculate()
+{
+	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
+	for (GeometryBatch& p_Batch : m_GeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
+	{
+		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
+			p_Mesh->update();
+	}
 }
 
 /**
@@ -1491,6 +1505,15 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
 	return &m_UBufferMem.lighting.pointlights[m_UBufferMem.lighting.pointlights_active++];
 }
 
+/**
+ *	register animated mesh for automatic animation
+ *	\param mesh: address of mesh to automatically animate
+ */
+void Renderer::animate(AnimatedMesh* mesh)
+{
+	m_AnimatingMeshes.push_back(mesh);
+}
+
 void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
 {
 	for (DescriptorSetMemory& p_Mem : memory)
@@ -1623,6 +1646,8 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
 	}
 }
+// FIXME all batches, that are not casting shadows are now not updating their ubos. this was a quick & dirty
+//		fix to quickly show capability, but this cannot be kept the way it is. fix this before merge!
 
 /**
  *	handle pending gpu uploads for all forwarded data
@@ -1816,24 +1841,6 @@ Renderer::Renderer()
 	COMM_SCC("render system ready.");
 }
 // TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
-
-/**
- *	precalculating setup (before wheel system setup)
- */
-void Renderer::precalculate()
-{
-	for (AnimatedMesh* p_Mesh : m_AnimatingMeshes) p_Mesh->animate();
-	for (GeometryBatch& p_Batch : m_GeometryBatches)
-	{
-		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
-			p_Mesh->update();
-	}
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches)
-	{
-		for (AnimatedMesh* p_Mesh : p_Batch.anim_meshes)
-			p_Mesh->update();
-	}
-}
 
 /**
  *	render visual result
@@ -2052,15 +2059,6 @@ void Renderer::reset_lighting()
 	m_Lighting.sunlights_active = 0;
 	m_Lighting.pointlights_active = 0;
 	upload_lighting();
-}
-
-/**
- *	register animated mesh for automatic animation
- *	\param mesh: address of mesh to automatically animate
- */
-void Renderer::animate(AnimatedMesh* mesh)
-{
-	m_AnimatingMeshes.push_back(mesh);
 }
 
 /**

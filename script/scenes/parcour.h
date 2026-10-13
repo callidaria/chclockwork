@@ -28,6 +28,9 @@ public:
 	void vanish();
 
 private:
+	lptr<GeometryBatch> m_AnimBatch;
+	AnimatedMesh m_Dude = AnimatedMesh("./res/test/me.dae");  // FIXME this should not be constructor
+	u32 m_DudeID;
 };
 
 

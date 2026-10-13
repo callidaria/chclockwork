@@ -24,6 +24,7 @@ s32 main(s32 argc,char** argv)
 	while (running)
 	{
 		g_Input.update(running);
+		g_Renderer.precalculate();
 		g_Wheel.update();
 		g_Camera.update();
 		g_Frame.clear();

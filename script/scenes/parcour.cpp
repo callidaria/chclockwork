@@ -11,23 +11,42 @@ void ParcourParcs::init()
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
 			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
 		);
+	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
+			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
+			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
+		);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			nullptr,0,true,true
 		);
+	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
+			g_Renderer.fd_fullscreen,
+			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
+			nullptr,0,true,true
+		);
 	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
+	// TODO namespace gformats by adding the constant inside the renderer class
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
+	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline);
 
-	// setup batch
+	// setup geometry batch
 	vector<Texture*> __Textures = {  };
 	Mesh __Sphere = Mesh::sphere();
 	Mesh __Cube = Mesh::cube();
 	u32 __CubeID = __EnviroBatch->add_geometry(__Cube,__Textures);
 	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere,__Textures);
 	__EnviroBatch->load();
+	// FIXME remove textures as they are passed right now
+
+	// setup animated character batch
+	m_DudeID = m_AnimBatch->add_geometry(m_Dude,__Textures);
+	m_AnimBatch->load();
+	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
+	m_Dude.set_default_animation(3,.4f);
+	g_Renderer.animate(&m_Dude);
 
 	// transform objects
 	__EnviroBatch->objects[__CubeID].transform.scale(vec3(10,10,.1f));
@@ -44,6 +63,9 @@ void ParcourParcs::init()
 																	   TEXTURE_FORMAT_SRGB);
 	GPUPixelBuffer* __FloorNormalTexture = g_Renderer.register_texture("./res/test/floor_normal.png");
 	GPUPixelBuffer* __FloorMaterialTexture = g_Renderer.register_texture("./res/test/floor_material.png");
+	GPUPixelBuffer* __DudeTexture = g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB);
+	GPUPixelBuffer* __NeutralNormalMap = g_Renderer.register_texture("./res/standard/normal.png");
+	GPUPixelBuffer* __NeutralMaterialMap = g_Renderer.register_texture("./res/standard/material.png");
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 
 	// lightbulbs
@@ -78,6 +100,7 @@ void ParcourParcs::init()
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
 	g_Renderer.register_shadow_batch(__BulbBatch,__BulbShadowPipeline);
+	g_Renderer.register_shadow_batch(m_AnimBatch,__AnimationShadowPipeline);
 
 	g_Wheel.call(this);
 }

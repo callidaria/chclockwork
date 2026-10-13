@@ -334,6 +334,7 @@ class Renderer
 {
 public:
 	Renderer();
+	void precalculate();
 	void update();
 	void vanish();
 
@@ -373,6 +374,9 @@ public:
 	// lighting
 	SunLight* add_sunlight(vec3 position,vec3 colour,f32 intensity,bool shadow_source=false);
 	PointLight* add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,f32 linear,f32 quadratic);
+
+	// animation
+	void animate(AnimatedMesh* mesh);
 
 private:
 
@@ -432,12 +436,14 @@ private:
 	size_t m_CharCount = 0;
 	// FIXME font memory is too strict and i don't think this is a nice approach in this case
 
+	// animation
+	vector<AnimatedMesh*> m_AnimatingMeshes;
+
 	// pipelines
 	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
 	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
-	lptr<ShaderPipeline> m_ParticlePassPipeline;
 	lptr<ShaderPipeline> m_ShadowPassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
 
@@ -584,9 +590,6 @@ private:
 	// mesh
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
-
-	// animation
-	vector<AnimatedMesh*> m_AnimatingMeshes;
 	// FIXME figure out what happens to deleted animated meshes that are linked here and in geometry batch
 
 	// lighting
