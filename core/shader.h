@@ -59,14 +59,6 @@ struct ShaderAttribute
 	UniformDimension dim;
 };
 
-struct ShaderUniformValue
-{
-	string name;
-	u32 uloc;
-	UniformDimension udim;
-	f32* data;
-};
-
 struct UBOMemoryRange
 {
 	size_t offset = 0;
@@ -200,6 +192,22 @@ public:
 #endif
 
 
+struct ShaderUniformValue
+{
+#ifdef VKBUILD
+	DescriptorSetMemory* ubo;
+	u16 loc;
+	void* data;
+	size_t size;
+#else
+	string name;
+	u32 uloc;
+	UniformDimension udim;
+	f32* data;
+#endif
+};
+
+
 class ShaderPipeline
 {
 public:
@@ -221,7 +229,6 @@ public:
 	// usage
 	void enable();
 	static void disable();
-	u32 get_uniform_location(const char* uname);
 
 	// ubo & pcm
 	void generate_ubo(vector<DescriptorSetMemory>& sets);
@@ -229,6 +236,8 @@ public:
 	void upload_pcm(void* pcm,u32 ofs=0);
 
 	// upload
+#ifdef GLBUILD
+	u32 get_uniform_location(const char* uname);
 	void upload(const char* varname,s32 value);
 	void upload(const char* varname,f32 value);
 	void upload(const char* varname,vec2 value);
@@ -240,6 +249,7 @@ public:
 	void upload_coordinate_system();
 	void upload_camera();
 	void upload_camera(Camera3D& c);
+#endif
 
 private:
 #ifdef VKBUILD
@@ -280,6 +290,22 @@ private:
 };
 
 
+#ifdef VKBUILD
+
+struct ShaderUniformUpload
+{
+	// utility
+	void attach_memory_segment(DescriptorSetMemory* set,u16 loc,void* mem);
+	void upload();
+
+	// data
+	lptr<ShaderPipeline> shader;
+	vector<ShaderUniformValue> uploads;
+};
+
+
+#else
+
 struct ShaderUniformUpload
 {
 	void correlate(ShaderUniformUpload& uniform);
@@ -302,6 +328,8 @@ public:
 	vector<ShaderUniformValue> uploads;
 };
 // TODO deprecated this is not the way to go anymore since vk port
+
+#endif
 
 
 #endif

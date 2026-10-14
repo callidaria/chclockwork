@@ -1245,6 +1245,9 @@ void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
 // FIXME i'd rather not check every time
 // TODO research if it is supported by transfer queue
 
+
+#ifdef GLBUILD
+
 /**
  *	extract uniform location from shader program
  *	\param uname: literal uniform variable name in shader program
@@ -1252,13 +1255,7 @@ void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
  */
 u32 ShaderPipeline::get_uniform_location(const char* uname)
 {
-#ifdef VKBUILD
-	// TODO
-	return 0;
-
-#else
 	return glGetUniformLocation(m_ShaderProgram,uname);
-#endif
 }
 
 // uniform variable upload function correlation map
@@ -1291,12 +1288,7 @@ uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
  */
 void ShaderPipeline::upload(const char* varname,s32 value)
 {
-#ifdef VKBUILD
-	// TODO
-
-#else
 	glUniform1i(get_uniform_location(varname),value);
-#endif
 }
 
 /**
@@ -1363,6 +1355,8 @@ void ShaderPipeline::upload_camera(Camera3D& c)
 	upload("view",SHADER_UNIFORM_MAT44,glm::value_ptr(c.view));
 	upload("proj",SHADER_UNIFORM_MAT44,glm::value_ptr(c.proj));
 }
+
+#endif
 
 
 #ifdef VKBUILD
@@ -1441,6 +1435,32 @@ s32 ShaderPipeline::_handle_attribute_location_by_name(const char* varname)
 
 #endif
 
+
+#ifdef VKBUILD
+
+/**
+ *	TODO
+ */
+void ShaderUniformUpload::attach_memory_segment(DescriptorSetMemory* set,u16 loc,void* mem)
+{
+	uploads.push_back({
+			.ubo = set,
+			.loc = loc,
+			.data = mem,
+		});
+}
+
+/**
+ *	TODO
+ */
+void ShaderUniformUpload::upload()
+{
+	for (ShaderUniformValue& p_Val : uploads)
+		p_Val.ubo->write(p_Val.loc,&p_Val.data);
+}
+
+
+#else
 
 /**
  *	upload all attached uniform variables
@@ -1526,3 +1546,5 @@ ShaderUniformValue& ShaderUniformUpload::_attach_variable(const char* name)
 		});
 	return uploads.back();
 }
+
+#endif

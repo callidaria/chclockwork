@@ -182,7 +182,11 @@ struct MeshJoint
 
 	// data mapping
 	string id;
+#ifdef VKBUILD
+	u32 uniform_location;
+#else
 	string uniform_location;
+#endif
 
 	// transform data manipulation
 	f32 prog_position = .0f;
@@ -201,7 +205,6 @@ struct MeshJoint
 	// final transform
 	mat4 offset;
 	mat4 transform = mat4(1.f);
-	mat4 recursive_transform = mat4(1.f);
 
 	// tree structure
 	vector<u16> children;
@@ -225,6 +228,7 @@ private:
 public:
 	vector<AnimationVertex> vertices;
 	vector<MeshJoint> joints;
+	vector<mat4> recursive_transforms;
 	vector<Animation> animations;
 	u16 current_animation = 0;
 
@@ -261,7 +265,6 @@ struct GeometryTuple
 	Transform3D transform;
 	vector<Texture*> textures;
 	ShaderUniformUpload uniform;
-	f32 texel = 1.f;
 };
 
 struct GeometryBatch
@@ -290,6 +293,8 @@ struct GeometryBatch
 	u32 offset_cursor = 0;
 };
 // TODO utilize an element buffer later, careful when restructuring! anim geometry is straightforward though
+// TODO cross-loading animations & static meshes into one geometry batch is nonsensical, due to the missing
+//		overlap in shader pipeline setup & demands. this can be ripped apart into two difference batch types
 
 struct ParticleBatch
 {

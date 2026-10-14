@@ -320,7 +320,11 @@ void _rc_assemble_joint_hierarchy(vector<MeshJoint>& joints,aiNode* root)
 	u16 __MemoryID = joints.size();
 	joints.push_back({
 			.id = root->mName.C_Str(),
+#ifdef VKBUILD
+			.uniform_location = __MemoryID,
+#else
 			.uniform_location = "joint_transform["+std::to_string(__MemoryID)+"]",
+#endif
 			.transform = to_mat4(root->mTransformation),
 			.children = vector<u16>(root->mNumChildren)
 		});
@@ -370,6 +374,7 @@ AnimatedMesh::AnimatedMesh(const char* path)
 	// extract joints
 	u16 __JointCount = _rc_get_joint_count(__File->mRootNode);
 	joints.reserve(__JointCount);
+	recursive_transforms.resize(__JointCount);
 	_rc_assemble_joint_hierarchy(joints,__File->mRootNode);
 
 	// load mesh
@@ -651,7 +656,7 @@ void AnimatedMesh::update()
 void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
 {
 	mat4 __LocalTransform = parent_transform*joint.transform;
-	joint.recursive_transform = __LocalTransform*joint.offset;
+	recursive_transforms[joint.uniform_location] = __LocalTransform*joint.offset;
 	for (u16 child : joint.children) _rc_transform_interpolation(joints[child],__LocalTransform);
 }
 
@@ -680,8 +685,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	for (MeshJoint& p_Joint : mesh.joints)
-		objects[id].uniform.attach_uniform(p_Joint.uniform_location.c_str(),&p_Joint.recursive_transform);
+	objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
 	return id;
 }
@@ -712,6 +716,7 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 	data.push_back({  });
 	ubo.push_back(vector<DescriptorSetMemory>());
 	shader->generate_ubo(ubo.back());
+	objects.back().uniform.attach_memory_segment(&ubo[data.size()-1][0],70,&data[data.size()-1]);
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
 	return objects.size()-1;
@@ -1426,7 +1431,7 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 	for (u32 i=0;i<b->objects.size();i++)
 	{
 		m_ShadowGeometryBatches.back().uniform[i].shader = m_ShadowPassPipeline;
-		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
 	}
 }
 
@@ -1448,7 +1453,7 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> 
 	for (u32 i=0;i<b->objects.size();i++)
 	{
 		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
-		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
+		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
 	}
 }
 
@@ -1525,7 +1530,7 @@ void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
  */
 void Renderer::_bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
-	m_GlobalDescriptorSet.bind(shader.pipeline_layout);
+	m_GlobalDescriptorSet.bind(shader.pipeline_layout);  // TODO once at registration?
 	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
 }
 
@@ -1588,8 +1593,6 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
 			p_Batch.data[i].model = p_Tuple.transform.model;
-			p_Batch.data[i].texel = p_Tuple.texel;
-			p_Batch.ubo[i][0].write(70,&p_Batch.data[i]);
 			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
@@ -1627,6 +1630,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
+			p_Tuple.uniform.upload();
 			_update_descriptor_memory(p_Batch.batch->ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
 			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);

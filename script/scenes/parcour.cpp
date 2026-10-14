@@ -51,7 +51,7 @@ void ParcourParcs::init()
 	// transform objects
 	__EnviroBatch->objects[__CubeID].transform.scale(vec3(10,10,.1f));
 	__EnviroBatch->objects[__CubeID].transform.translate(vec3(0,0,-.1f));
-	__EnviroBatch->objects[__CubeID].texel = 10.f;
+	__EnviroBatch->data[__CubeID].texel = 10.f;
 	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
 
 	// load textures
