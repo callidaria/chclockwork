@@ -30,6 +30,8 @@ public:
 private:
 	lptr<GeometryBatch> m_AnimBatch;
 	AnimatedMesh m_Dude = AnimatedMesh("./res/test/me.dae");  // FIXME this should not be constructor
+	mat4* m_SpineJointTransform;
+	vec3 m_PlayerPosition = vec3(0,0,.8f);
 	u32 m_DudeID;
 };
 

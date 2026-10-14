@@ -46,6 +46,7 @@ void ParcourParcs::init()
 	m_AnimBatch->load();
 	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
 	m_Dude.set_default_animation(3,.4f);
+	m_SpineJointTransform = &m_Dude.find_joint("metarig_spine")->transform;
 	g_Renderer.animate(&m_Dude);
 
 	// transform objects
@@ -83,7 +84,7 @@ void ParcourParcs::init()
 	__BulbBatch->ibo.upload(__BulbIndices,sizeof(__BulbIndices));
 
 	// setup lighting
-	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);
+	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.2f,true);
 	for (u8 i=0;i<TEST_LIGHTBULB_COUNT;i++)
 		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,7.5f,1.f,.8f,.24f);
 
@@ -96,6 +97,10 @@ void ParcourParcs::init()
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],1,__FabricNormalTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],2,__FabricMaterialTexture);
 	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],3,__NeutralEmissionTexture);
+	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],0,__DudeTexture);
+	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],1,__NeutralNormalMap);
+	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],2,__NeutralMaterialMap);
+	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],3,__NeutralEmissionTexture);
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
@@ -110,7 +115,15 @@ void ParcourParcs::init()
  */
 void ParcourParcs::update()
 {
-	// TODO
+	vec3 __CenteredPosition = vec3((*m_SpineJointTransform)[3]);
+
+	// camera
+	g_Camera.target = m_PlayerPosition;
+
+	// player transformation
+	m_AnimBatch->objects[m_DudeID].transform.reset();
+	m_AnimBatch->objects[m_DudeID].transform.rotate_x(90.f);
+	m_AnimBatch->objects[m_DudeID].transform.translate(-__CenteredPosition+m_PlayerPosition);
 }
 
 /**
