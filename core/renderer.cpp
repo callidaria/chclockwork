@@ -685,7 +685,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	//objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
+	objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
 	return id;
 }
@@ -1635,7 +1635,6 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
-			COMM_LOG("texel: %f",p_Batch.batch->data[i].texel);
 			p_Tuple.uniform.upload();
 			_update_descriptor_memory(p_Batch.batch->ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);

@@ -1458,13 +1458,8 @@ void ShaderUniformUpload::attach_memory_segment(DescriptorSetMemory* set,u16 loc
  */
 void ShaderUniformUpload::upload()
 {
-	COMM_LOG("%lu",uploads.size());
 	for (ShaderUniformValue& p_Val : uploads)
-	{
-		p_Val.ubo->write(p_Val.loc,&p_Val.data);
-		COMM_LOG("%f",((ObjectInfo*)p_Val.data)->texel);
-	}
-	COMM_LOG(" ");
+		p_Val.ubo->write(p_Val.loc,p_Val.data);
 }
 
 
