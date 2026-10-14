@@ -30,7 +30,7 @@ layout(set = 1,binding = 128) uniform JointTransform
 void main()
 {
 	mat4 anim_transform = mat4(.0);
-	//for (int i=0;i<4;i++) anim_transform += joint.transform[int(bone_index[i])]*bone_weight[i];
+	for (int i=0;i<4;i++) anim_transform += joint.transform[int(bone_index[i])]*bone_weight[i];
 	vec4 world_position = trafo.model*anim_transform*vec4(position,1.);
 	gl_Position = os.proj*os.view*world_position;
 }
