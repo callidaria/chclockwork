@@ -685,7 +685,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
+	//objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
 	return id;
 }
@@ -716,7 +716,6 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 	data.push_back({  });
 	ubo.push_back(vector<DescriptorSetMemory>());
 	shader->generate_ubo(ubo.back());
-	objects.back().uniform.attach_memory_segment(&ubo[data.size()-1][0],70,&data[data.size()-1]);
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
 	return objects.size()-1;
@@ -732,6 +731,12 @@ void GeometryBatch::load()
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
 	vbo.update();
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+
+	// link object data uploads
+	COMM_ERR_COND((ubo.size()!=data.size())&&(data.size()!=objects.size()),
+				  "length of ubo, object tuple & data storage does not correlate");
+	for (size_t i=0;i<ubo.size();i++) objects[i].uniform.attach_memory_segment(&ubo[i][0],70,&data[i]);
+	// TODO do not hardcode as "70", read from a constant ffs. is this amateur hour?
 
 	// vertex array
 	vao.allocate(1);
@@ -1630,6 +1635,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
+			COMM_LOG("texel: %f",p_Batch.batch->data[i].texel);
 			p_Tuple.uniform.upload();
 			_update_descriptor_memory(p_Batch.batch->ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
