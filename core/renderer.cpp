@@ -1615,6 +1615,7 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
+		_update_descriptor_memory(p_Batch.ubo);
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
@@ -1648,7 +1649,6 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	{
 		p_Batch.shader->enable();
 		p_Batch.batch->vao.bind();
-		_update_descriptor_memory(p_Batch.batch->ubo);
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo);
 		p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,

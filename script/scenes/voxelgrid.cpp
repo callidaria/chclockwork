@@ -33,10 +33,6 @@ void RoomVoxels::init(Font* font)
 	// attach textures
 	g_Renderer.attach_texture(&__RoomBatch->ubo[0],0,__RoomTexture);
 
-	// select texture
-	/*
-	m_TextureData.texture = __RoomTexture->memID;
-	*/
 	//__RoomBatch->pcm = &m_TextureData;
 	// FIXME this is outdated, not solved with index anymore, now it is solved through binding
 	// TODO remove this memID concept completely
