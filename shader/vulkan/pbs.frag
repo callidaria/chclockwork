@@ -145,15 +145,15 @@ void main()
 	final = final*occlusion;
 	final = max(final,emission);
 
-	// TODO light processing (for now until upgrade)
-
 	// colour corrections
 	final = vec3(1.)-exp(-final*cam.exposure);
-	final = pow(final,vec3(cam.gamma));
+	//final = pow(final,vec3(cam.gamma));
+	// FIXME this does not produce the exact colours as the target version, that applies the above manual
+	// 	 gamma correction in shader. in vulkan this is done by the swapchain srgb format definition.
+	//	 very suspicious & needs investigating, altough the vk colours do look beautiful.
 
 	// combination with forward component
 	final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
-
 	pixelColour = vec4(final,1.);
 }
 

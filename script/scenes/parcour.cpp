@@ -103,7 +103,7 @@ void ParcourParcs::init()
 	__BulbBatch->ibo.upload(__BulbIndices,sizeof(__BulbIndices));
 
 	// setup lighting
-	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.2f,true);
+	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);
 	for (u8 i=0;i<TEST_LIGHTBULB_COUNT;i++)
 		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,7.5f,1.f,.8f,.24f);
 
