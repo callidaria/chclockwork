@@ -47,10 +47,10 @@ void ParcourParcs::init()
 	m_DudeID = m_AnimBatch->add_geometry(m_Dude,__Textures);
 	m_AnimBatch->load();
 	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
-	m_Dude.set_default_animation(3,.4f);
-	m_SpineJointTransform = &m_Dude.find_joint("metarig_spine")->transform;
-	m_PlayerMomentum .target = m_PlayerPosition;
+	m_Dude.set_default_animation(3,.0f);
+	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Renderer.animate(&m_Dude);
+	m_SpineJointTransform = &m_Dude.recursive_transforms[m_Dude.find_joint("metarig_spine")->transform];
 
 	// transform objects
 	__EnviroBatch->objects[__FloorID].transform.scale(vec3(10,10,.1f));
@@ -224,8 +224,7 @@ void ParcourParcs::update()
 	m_AnimBatch->objects[m_DudeID].transform.reset();
 	m_AnimBatch->objects[m_DudeID].transform.rotate_x(90.f);
 	m_AnimBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
-	COMM_LOG("%i %i %f %f %f",
-			 g_Input.keyboard.keys[SDL_SCANCODE_D],__CenteredPosition.x,__CenteredPosition.y,__CenteredPosition.z);
+	COMM_LOG("%lu %f %f %f",g_Frame.fid,__CenteredPosition.x,__CenteredPosition.y,__CenteredPosition.z);
 	/*
 	m_AnimBatch->objects[m_DudeID].transform.model
 			= glm::translate(mat4(1.f),m_PlayerPosition)

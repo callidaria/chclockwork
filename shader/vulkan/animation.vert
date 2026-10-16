@@ -12,6 +12,7 @@ layout(location = 0) out vec3 Position;
 layout(location = 1) out vec2 UV;
 layout(location = 2) out mat3 TBN;
 
+
 layout(set = 0,binding = 0) uniform ObjectTransformation
 {
 	mat4 view;

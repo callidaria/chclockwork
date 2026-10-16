@@ -37,6 +37,7 @@ s32 main(s32 argc,char** argv)
 		//		in the render system right now, where initial uploads are executed at construction before loop
 		//		this will naturally solve itself, once a real streaming system is setup, due to upload scheduling
 		// FIXME also the condition is a workaround for the same reasons
+		g_Frame.fid++;
 	}
 
 #else

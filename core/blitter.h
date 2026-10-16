@@ -79,6 +79,7 @@ private:
 public:
 	SwapChain swapchain;
 	VkClearValue clear_colour[2];
+	size_t fid = 0;
 
 	// image buffers
 	vector<VkImage> result_images;
