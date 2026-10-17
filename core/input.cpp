@@ -76,6 +76,15 @@ void Input::update(bool& running)
 }
 
 /**
+ *	TODO
+ */
+void Input::vanish()
+{
+	keyboard.keys.vanish();
+	keyboard.triggered_keys.vanish();
+}
+
+/**
  *	enable text input mode
  *	\param buffer: buffer memory pointer to write text input to
  */
