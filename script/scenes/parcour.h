@@ -75,6 +75,7 @@ private:
 
 	// positional correction
 	mat4* m_SpineJointTransform;
+	mat4* m_SpineTrafo;
 };
 
 

@@ -47,10 +47,13 @@ void ParcourParcs::init()
 	m_DudeID = m_AnimBatch->add_geometry(m_Dude,__Textures);
 	m_AnimBatch->load();
 	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
-	m_Dude.set_default_animation(3,.0f);
+	m_Dude.set_default_animation(3,.4f);
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Renderer.animate(&m_Dude);
-	m_SpineJointTransform = &m_Dude.recursive_transforms[m_Dude.find_joint("metarig_spine")->transform];
+	m_SpineJointTransform = &m_Dude.find_joint("metarig_spine")->transform;
+	//m_SpineJointTransform = &m_Dude.recursive_transforms[m_Dude.find_joint("metarig_spine")->uniform_location];
+	//m_SpineJointTransform = &m_Dude.recursive_transforms[0];
+	m_SpineTrafo = &m_Dude.find_joint("metarig_spine")->local_transform;
 
 	// transform objects
 	__EnviroBatch->objects[__FloorID].transform.scale(vec3(10,10,.1f));
@@ -142,12 +145,13 @@ void ParcourParcs::init()
  */
 void ParcourParcs::update()
 {
-	vec3 __CenteredPosition = vec3((*m_SpineJointTransform)[3]);
+	//vec3 __CenteredPosition = vec3((*m_SpineJointTransform)[3]);
+	vec3 __CenteredPosition = vec3((*m_SpineTrafo)[3]);
 	vec3 __Attitude = glm::normalize(vec3(g_Camera.target.x-g_Camera.position.x,
 										  g_Camera.target.y-g_Camera.position.y,
 										  0));
 	vec3 __OrthoAttitude = vec3(-__Attitude.y,__Attitude.x,0);
-
+ 
 	// player state
 	switch (m_MoveState)
 	{
@@ -217,20 +221,15 @@ void ParcourParcs::update()
 										   TEST_FIELD_DIMENSION.y-TEST_CHAR_DIMENSION.y);
 	m_PlayerMomentum.update(m_PlayerPosition,g_Frame.delta_time);
 
-	// camera
-	g_Camera.target = m_PlayerPosition;
-
 	// player transformation
 	m_AnimBatch->objects[m_DudeID].transform.reset();
+	m_AnimBatch->objects[m_DudeID].transform.translate(m_PlayerPosition);
+	//m_AnimBatch->objects[m_DudeID].rotate_z(m_PlayerRotation);
 	m_AnimBatch->objects[m_DudeID].transform.rotate_x(90.f);
 	m_AnimBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
-	COMM_LOG("%lu %f %f %f",g_Frame.fid,__CenteredPosition.x,__CenteredPosition.y,__CenteredPosition.z);
-	/*
-	m_AnimBatch->objects[m_DudeID].transform.model
-			= glm::translate(mat4(1.f),m_PlayerPosition)
-			* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
-			* m_AnimBatch->objects[m_DudeID].transform.model;
-	*/
+
+	// camera
+	g_Camera.target = m_PlayerPosition;
 }
 
 /**

@@ -528,7 +528,6 @@ void AnimatedMesh::set_default_animation(u8 id,f32 tt)
 {
 	m_StandardAnimation = id;
 	m_StandardTransitionTime = tt;
-	current_animation = id;
 }
 
 /**
@@ -647,6 +646,8 @@ void AnimatedMesh::update()
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
 }
+// TODO make it possible for animations to transform themselves around a selected joint
+// FIXME for some reason there is a single frame incorrect transform correction with root transform from joints
 
 /**
  *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
@@ -655,9 +656,9 @@ void AnimatedMesh::update()
  */
 void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_transform)
 {
-	mat4 __LocalTransform = parent_transform*joint.transform;
-	recursive_transforms[joint.uniform_location] = __LocalTransform*joint.offset;
-	for (u16 child : joint.children) _rc_transform_interpolation(joints[child],__LocalTransform);
+	joint.local_transform = parent_transform*joint.transform;
+	recursive_transforms[joint.uniform_location] = joint.local_transform*joint.offset;
+	for (u16 child : joint.children) _rc_transform_interpolation(joints[child],joint.local_transform);
 }
 
 

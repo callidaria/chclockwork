@@ -205,6 +205,7 @@ struct MeshJoint
 	// final transform
 	mat4 offset;
 	mat4 transform = mat4(1.f);
+	mat4 local_transform = mat4(1.f);
 
 	// tree structure
 	vector<u16> children;

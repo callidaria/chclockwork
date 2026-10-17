@@ -200,9 +200,7 @@ void Transform3D::transform(vec3 p,vec3 s,vec3 r,vec3 a)
  */
 void Transform3D::translate(vec3 p)
 {
-	model[3][0] = p.x;
-	model[3][1] = p.y;
-	model[3][2] = p.z;
+	model = glm::translate(model,p);
 }
 
 /**
