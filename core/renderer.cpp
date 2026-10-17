@@ -646,8 +646,8 @@ void AnimatedMesh::update()
 	mat4 __Parent = mat4(1.f);
 	_rc_transform_interpolation(joints[0],__Parent);
 }
-// TODO make it possible for animations to transform themselves around a selected joint
-// FIXME for some reason there is a single frame incorrect transform correction with root transform from joints
+// TODO make it possible for animations to transform themselves around a selected joint or a root transform
+// FIXME the transitions somehow are way to fast
 
 /**
  *	recursively transform joint tree based on each parent (funamentals of forward kinematics)
