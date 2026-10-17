@@ -54,7 +54,7 @@ void ParcourParcs::init()
 
 	// transform objects
 	__EnviroBatch->objects[__FloorID].transform.scale(vec3(10,10,.1f));
-	__EnviroBatch->objects[__FloorID].transform.translate(vec3(0,0,-.1f));
+	__EnviroBatch->objects[__FloorID].transform.translate(vec3(0,0,-1));
 	__EnviroBatch->data[__FloorID].texel = 10.f;
 	__EnviroBatch->objects[__BoxID].transform.transform(vec3(4,4,.75f),vec3(.75f),vec3(.0f));
 	__EnviroBatch->objects[__BoxID0].transform.transform(vec3(-4,4,1),vec3(.5f),vec3(.0f));
