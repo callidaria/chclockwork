@@ -24,10 +24,10 @@ s32 main(s32 argc,char** argv)
 	while (running)
 	{
 		g_Input.update(running);
+		g_Camera.update();
 		g_Renderer.precalculate();
 		g_Frame.clear();
 		g_Wheel.update();
-		g_Camera.update();
 		g_UI.update();
 		g_Renderer.update();
 		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);

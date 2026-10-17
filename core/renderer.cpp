@@ -1598,7 +1598,6 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
 			// TODO map<u32,void*> can also describe memory uploads pretty independently
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
-			p_Batch.data[i].model = p_Tuple.transform.model;
 			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
@@ -1637,6 +1636,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
+			p_Batch.batch->data[i].model = p_Tuple.transform.model;
 			p_Tuple.uniform.upload();
 			_update_descriptor_memory(p_Batch.batch->ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
