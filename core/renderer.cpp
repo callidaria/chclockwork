@@ -1527,6 +1527,7 @@ void Renderer::animate(AnimatedMesh* mesh)
 	m_AnimatingMeshes.push_back(mesh);
 }
 
+// serving _update_uniforms() & _update_batch_uniforms(*)
 inline void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
 {
 	for (DescriptorSetMemory& p_Mem : memory)
@@ -1535,6 +1536,7 @@ inline void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
 // TODO implement distiction between constantly updating descriptor set & sparsely updating descriptor set
 //		former will use update_frame(), latter should use update()
 
+// serving _update_uniforms()
 inline void _update_batch_uniforms(GeometryBatch& batch)
 {
 	for (size_t i=0;i<batch.ubo.size();i++)
@@ -1544,6 +1546,7 @@ inline void _update_batch_uniforms(GeometryBatch& batch)
 	}
 }
 
+// serving _update_uniforms()
 inline void _update_batch_uniforms(ParticleBatch& batch)
 {
 	//batch.uniform.upload();
@@ -1569,8 +1572,8 @@ void Renderer::_update_uniforms()
 	m_GlobalDescriptorSet.update_frame();
 
 	// update ui uniforms
-	_update_descriptor_memory(m_TextUBO);
 	_update_descriptor_memory(m_SpriteUBO);
+	_update_descriptor_memory(m_TextUBO);
 
 	// iterate registered geometry batches for uniform updates
 	for (GeometryBatch& p_Batch : m_GeometryBatches) _update_batch_uniforms(p_Batch);
