@@ -197,7 +197,7 @@ void VertexArray::allocate(u8 size)
 /**
  *	TODO
  */
-inline void VertexArray::register_buffer(const VertexBuffer& vb)
+void VertexArray::register_buffer(const VertexBuffer& vb)
 {
 	COMM_ERR_COND(m_Buffers.size()>=m_Buffers.capacity(),"insufficient vertex array allocation");
 	m_Buffers.push_back(vb.vbo);

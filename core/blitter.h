@@ -67,13 +67,13 @@ private:
 	// time
 	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
 
-#ifdef DEBUG
+//#ifdef DEBUG
 public:
 	u32 fps;
 private:
 	std::chrono::steady_clock::time_point m_LastFrameUpdate = std::chrono::steady_clock::now();
 	u32 m_LFps;
-#endif
+//#endif
 
 #ifdef VKBUILD
 public:

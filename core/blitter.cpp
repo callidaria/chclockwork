@@ -288,7 +288,7 @@ void Frame::update()
 	delta_time_real = calculate_delta_time_s(m_LastFrameTime);
 	delta_time = delta_time_real*time_factor;
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	f64 __LFrameUpdate = calculate_delta_time_ms(m_LastFrameUpdate);
 	if (__LFrameUpdate>1000)
 	{
@@ -297,7 +297,7 @@ void Frame::update()
 		m_LastFrameUpdate = std::chrono::steady_clock::now();
 	}
 	else m_LFps++;
-#endif
+//#endif
 }
 
 /**

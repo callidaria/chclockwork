@@ -1,5 +1,4 @@
 #include "clockwork.h"
-#ifdef DEBUG
 
 
 /**
@@ -44,6 +43,3 @@ void Clockwork::update()
  *	clockwork interface is always enabled in debug, there will be no destruction
  */
 void Clockwork::vanish() {  }
-
-
-#endif
