@@ -447,7 +447,7 @@ struct Transform3D
 	// data
 	vec3 position = vec3(.0f);
 	vec3 rotation = vec3(.0f);
-	mat4 model = mat4(1.f);
+	mat4* model;
 };
 
 

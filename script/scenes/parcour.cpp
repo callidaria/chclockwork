@@ -221,10 +221,10 @@ void ParcourParcs::update()
 	m_AnimBatch->objects[m_DudeID].transform.reset();
 	m_AnimBatch->objects[m_DudeID].transform.rotate_x(90.f);
 	m_AnimBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
-	m_AnimBatch->objects[m_DudeID].transform.model =
+	m_AnimBatch->data[m_DudeID].model =
 			glm::translate(mat4(1.f),m_PlayerPosition)
 			* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
-			* m_AnimBatch->objects[m_DudeID].transform.model;
+			* m_AnimBatch->data[m_DudeID].model;
 
 	// camera
 	g_Camera.target = m_PlayerPosition;

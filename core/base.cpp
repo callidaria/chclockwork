@@ -175,7 +175,7 @@ void Transform3D::transform(vec3 p,vec3 s,vec3 r)
  */
 void Transform3D::transform(vec3 p,f32 s,vec3 r,vec3 a)
 {
-	model = mat4(1.f);
+	*model = mat4(1.f);
 	translate(a-position);
 	transform(position+p-a,s,r);
 }
@@ -189,7 +189,7 @@ void Transform3D::transform(vec3 p,f32 s,vec3 r,vec3 a)
  */
 void Transform3D::transform(vec3 p,vec3 s,vec3 r,vec3 a)
 {
-	model = mat4(1.f);
+	*model = mat4(1.f);
 	translate(a-position);
 	transform(position+p-a,s,r);
 }
@@ -200,7 +200,7 @@ void Transform3D::transform(vec3 p,vec3 s,vec3 r,vec3 a)
  */
 void Transform3D::translate(vec3 p)
 {
-	model = glm::translate(model,p);
+	*model = glm::translate(*model,p);
 }
 
 /**
@@ -209,9 +209,9 @@ void Transform3D::translate(vec3 p)
  */
 void Transform3D::scale(f32 s)
 {
-	model[0][0] = s;
-	model[1][1] = s;
-	model[2][2] = s;
+	(*model)[0][0] = s;
+	(*model)[1][1] = s;
+	(*model)[2][2] = s;
 }
 
 /**
@@ -220,9 +220,9 @@ void Transform3D::scale(f32 s)
  */
 void Transform3D::scale(vec3 s)
 {
-	model[0][0] = s.x;
-	model[1][1] = s.y;
-	model[2][2] = s.z;
+	(*model)[0][0] = s.x;
+	(*model)[1][1] = s.y;
+	(*model)[2][2] = s.z;
 }
 
 /**
@@ -232,7 +232,7 @@ void Transform3D::scale(vec3 s)
  */
 void Transform3D::scale(f32 s,vec3 a)
 {
-	model = glm::mat4(1.f);
+	*model = glm::mat4(1.f);
 	translate(a-position);
 	transform(position-a,s,rotation);
 }
@@ -244,7 +244,7 @@ void Transform3D::scale(f32 s,vec3 a)
  */
 void Transform3D::scale(vec3 s,vec3 a)
 {
-	model = glm::mat4(1.f);
+	*model = glm::mat4(1.f);
 	translate(a-position);
 	transform(position-a,s,rotation);
 }
@@ -255,7 +255,7 @@ void Transform3D::scale(vec3 s,vec3 a)
  */
 void Transform3D::rotate_x(f32 x)
 {
-	model = glm::rotate(model,glm::radians(x),vec3(1,0,0));
+	*model = glm::rotate(*model,glm::radians(x),vec3(1,0,0));
 	rotation.x = (abs(x)>360.f) ? fmodf(x,360.f) : x;
 }
 
@@ -265,7 +265,7 @@ void Transform3D::rotate_x(f32 x)
  */
 void Transform3D::rotate_y(f32 y)
 {
-	model = glm::rotate(model,glm::radians(y),vec3(0,1,0));
+	*model = glm::rotate(*model,glm::radians(y),vec3(0,1,0));
 	rotation.y = (abs(y)>360.f) ? fmodf(y,360.f) : y;
 }
 
@@ -275,7 +275,7 @@ void Transform3D::rotate_y(f32 y)
  */
 void Transform3D::rotate_z(f32 z)
 {
-	model = glm::rotate(model,glm::radians(z),vec3(0,0,1));
+	*model = glm::rotate(*model,glm::radians(z),vec3(0,0,1));
 	rotation.z = (abs(z)>360.f) ? fmodf(z,360.f) : z;
 }
 
@@ -297,8 +297,8 @@ void Transform3D::rotate(vec3 r)
  */
 void Transform3D::rotate(vec3 r,vec3 a)
 {
-	f32 __ScaleFactor = model[0][0];  // FIXME !!this is only true for simple transformation
-	model = mat4(1.f);
+	f32 __ScaleFactor = (*model)[0][0];  // FIXME !!this is only true for simple transformation
+	*model = mat4(1.f);
 	translate(a-position);
 	rotate(r);
 	transform(position-a,__ScaleFactor,r);
@@ -312,7 +312,7 @@ void Transform3D::reset()
 {
 	position = vec3(.0f);
 	rotation = vec3(.0f);
-	model = mat4(1.f);
+	*model = mat4(1.f);
 }
 
 

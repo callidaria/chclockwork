@@ -736,8 +736,12 @@ void GeometryBatch::load()
 	// link object data uploads
 	COMM_ERR_COND((ubo.size()!=data.size())&&(data.size()!=objects.size()),
 				  "length of ubo, object tuple & data storage does not correlate");
-	for (size_t i=0;i<ubo.size();i++) objects[i].uniform.attach_memory_segment(&ubo[i][0],70,&data[i]);
-	// TODO do not hardcode as "70", read from a constant ffs. is this amateur hour?
+	for (size_t i=0;i<ubo.size();i++)
+	{
+		objects[i].uniform.attach_memory_segment(&ubo[i][0],70,&data[i]);
+		objects[i].transform.model = &data[i].model;
+	}
+	// TODO do not hardcode as "70", read from a constant ffs. is this amateur hour?)
 
 	// vertex array
 	vao.allocate(1);
@@ -1018,9 +1022,7 @@ void Renderer::update()
 	//		right now this happens for both matrices individually, which is not appropriate
 	// TODO dont copy over like this
 
-	// data update
-	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
-	m_GlobalDescriptorSet.update_frame();
+	_update_uniforms();
 
 	// SHADOW PASS
 	m_ShadowMap.record();
@@ -1525,10 +1527,27 @@ void Renderer::animate(AnimatedMesh* mesh)
 	m_AnimatingMeshes.push_back(mesh);
 }
 
-void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
+inline void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
 {
 	for (DescriptorSetMemory& p_Mem : memory)
-		p_Mem.update_frame();  // TODO remove, update once for all not frame here
+		p_Mem.update_frame();
+}
+// TODO implement distiction between constantly updating descriptor set & sparsely updating descriptor set
+//		former will use update_frame(), latter should use update()
+
+inline void _update_batch_uniforms(GeometryBatch& batch)
+{
+	for (size_t i=0;i<batch.ubo.size();i++)
+	{
+		batch.objects[i].uniform.upload();
+		_update_descriptor_memory(batch.ubo[i]);
+	}
+}
+
+inline void _update_batch_uniforms(ParticleBatch& batch)
+{
+	//batch.uniform.upload();
+	_update_descriptor_memory(batch.ubo);
 }
 
 /**
@@ -1536,8 +1555,30 @@ void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
  */
 void Renderer::_bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
 {
-	m_GlobalDescriptorSet.bind(shader.pipeline_layout);  // TODO once at registration?
+	m_GlobalDescriptorSet.bind(shader.pipeline_layout);
 	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_update_uniforms()
+{
+	// update global set
+	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
+	m_GlobalDescriptorSet.update_frame();
+
+	// update ui uniforms
+	_update_descriptor_memory(m_TextUBO);
+	_update_descriptor_memory(m_SpriteUBO);
+
+	// iterate registered geometry batches for uniform updates
+	for (GeometryBatch& p_Batch : m_GeometryBatches) _update_batch_uniforms(p_Batch);
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) _update_batch_uniforms(p_Batch);
+
+	// iterate registered geometry batches for uniform updates
+	for (ParticleBatch& p_Batch : m_ParticleBatches) _update_batch_uniforms(p_Batch);
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) _update_batch_uniforms(p_Batch);
 }
 
 /**
@@ -1548,7 +1589,6 @@ void Renderer::_update_sprites()
 #ifdef VKBUILD
 	m_SpritePipeline.enable();
 	m_SpriteVertexArray.bind();
-	_update_descriptor_memory(m_SpriteUBO);
 	_bind_descriptor_memory(m_SpritePipeline,m_SpriteUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
@@ -1568,7 +1608,6 @@ void Renderer::_update_text()
 #ifdef VKBUILD
 	m_TextPipeline.enable();
 	m_TextVertexArray.bind();
-	_update_descriptor_memory(m_TextUBO);
 	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
 #else
@@ -1615,7 +1654,6 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.shader->enable();
 		p_Batch.vao.bind();
-		_update_descriptor_memory(p_Batch.ubo);
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
@@ -1636,9 +1674,6 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
-			p_Batch.batch->data[i].model = p_Tuple.transform.model;
-			p_Tuple.uniform.upload();
-			_update_descriptor_memory(p_Batch.batch->ubo[i]);
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
 			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
