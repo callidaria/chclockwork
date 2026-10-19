@@ -37,6 +37,13 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_FORMAT_COUNT
 };
 
+enum ShaderPipelineFeatures
+{
+	SPF_DEFAULT = 0,
+	SPF_FLIPPED = 1<<0,
+	SPF_BLENDING = 1<<1,
+};
+
 struct DescriptorInfo
 {
 	DescriptorType type;
@@ -219,7 +226,7 @@ public:
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 	// assembly
-	void assemble(FrameDimensions& fd,const char* vs,const char* fs,bool flipped=false);
+	void assemble(FrameDimensions& fd,const char* vs,const char* fs,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif

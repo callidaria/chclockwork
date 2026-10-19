@@ -790,7 +790,7 @@ u8 ShaderPipeline::out_define_result_buffer()
  *	TODO
  *	TODO remove sl after moving uniform buffer definition
  */
-void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,bool flipped)
+void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,u32 feat)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -980,7 +980,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	__RasterInfo.lineWidth = 1.f;
 	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	__RasterInfo.frontFace = (flipped) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	__RasterInfo.frontFace = (feat&SPF_FLIPPED) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
 	__RasterInfo.depthBiasClamp = .0f;
@@ -994,7 +994,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 		__CBlendAttachment[i] = {  };
 		__CBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
 				|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT;
-		__CBlendAttachment[i].blendEnable = VK_FALSE;
+		__CBlendAttachment[i].blendEnable = (bool)(feat&SPF_BLENDING);
 		__CBlendAttachment[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 		__CBlendAttachment[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		__CBlendAttachment[i].colorBlendOp = VK_BLEND_OP_ADD;

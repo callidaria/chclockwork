@@ -9,20 +9,20 @@ void ParcourParcs::init()
 	// pipelines
 	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
-			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
+			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
-			gformats,RENDERER_GBUFFER_FORMAT_SIZE,true
+			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
 			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			nullptr,0,true,true
+			nullptr,0,SPF_FLIPPED,true
 		);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
 			g_Renderer.fd_fullscreen,
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			nullptr,0,true,true
+			nullptr,0,SPF_FLIPPED,true
 		);
 	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
 	// TODO namespace gformats by adding the constant inside the renderer class

@@ -923,11 +923,15 @@ Renderer::Renderer()
 	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
 	m_SpritePipeline.assemble(fd_fullscreen,
-							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",true);
+							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
+							  SPF_FLIPPED|SPF_BLENDING);
 	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TextPipeline.assemble(fd_fullscreen,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",true);
+	m_TextPipeline.assemble(fd_fullscreen,
+							"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
+							SPF_FLIPPED|SPF_BLENDING);
 	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TargetPipeline.assemble(fd_result,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag");
+	m_TargetPipeline.assemble(fd_result,
+							  "./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",SPF_DEFAULT);
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
@@ -935,10 +939,10 @@ Renderer::Renderer()
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(fd_fullscreen,
 											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-											   gformats,5,true);
+											   gformats,5,SPF_DEFAULT,true);
 	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,
 											 "./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-											 nullptr,0,true,true);
+											 nullptr,0,SPF_FLIPPED,true);
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++) m_ResultBuffers[i].setup(fd_result,m_SpritePipeline,i);
@@ -1344,12 +1348,12 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
  */
 lptr<ShaderPipeline> Renderer::register_pipeline(FrameDimensions& fd,
 												 const char* vs,const char* fs,GPUBufferFormat* formats,
-												 u8 bfr_count,bool depth,bool flipped)
+												 u8 bfr_count,u32 feat,bool depth)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
-	p_Pipeline->assemble(fd,vs,fs,flipped);
+	p_Pipeline->assemble(fd,vs,fs,feat);
 	return p_Pipeline;
 }
 
