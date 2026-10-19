@@ -311,7 +311,7 @@ struct ParticleBatch
 	lptr<ShaderPipeline> shader;
 	vector<f32> geometry;
 	vector<DescriptorSetMemory> ubo;
-	//ShaderUniformUpload uniform;
+	ShaderUniformUpload uniform;
 	void* pcm;
 	u32 vertex_count;
 	u32 active_particles = 0;

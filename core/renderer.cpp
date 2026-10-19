@@ -807,6 +807,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	// generate push constant memory
 	shader->generate_ubo(ubo);
 	shader->generate_pcm(pcm);
+	uniform.shader = shader;
 
 	// store geometry information
 	vertex_count = vsize;
@@ -1553,7 +1554,7 @@ inline void _update_batch_uniforms(GeometryBatch& batch)
 // serving _update_uniforms()
 inline void _update_batch_uniforms(ParticleBatch& batch)
 {
-	//batch.uniform.upload();
+	batch.uniform.upload();
 	_update_descriptor_memory(batch.ubo);
 }
 
