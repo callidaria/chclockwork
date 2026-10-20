@@ -1339,6 +1339,16 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
 }
 
 /**
+ *	TODO
+ */
+void Renderer::attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>& material)
+{
+	for (u32 i=0;i<material.size();i++)
+		attach_texture(ubo,i,material[i]);
+}
+// TODO this is not it unfortunately
+
+/**
  *	register shader pipeline
  *	\param vs: path to vertex shader
  *	\param fs: path to fragment shader

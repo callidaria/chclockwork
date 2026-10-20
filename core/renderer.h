@@ -361,6 +361,7 @@ public:
 	// textures
 	GPUPixelBuffer* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
+	void attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>& material);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(FrameDimensions& fd,

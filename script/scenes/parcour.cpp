@@ -62,31 +62,40 @@ void ParcourParcs::init()
 	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
 
 	// textures
-	// fabric
-	GPUPixelBuffer* __FabricColourTexture = g_Renderer.register_texture("./res/test/fabric_colour.png",
-																		TEXTURE_FORMAT_SRGB);
-	GPUPixelBuffer* __FabricNormalTexture = g_Renderer.register_texture("./res/test/fabric_normal.png");
-	GPUPixelBuffer* __FabricMaterialTexture = g_Renderer.register_texture("./res/test/fabric_material.png");
-
-	// floor
-	GPUPixelBuffer* __FloorColourTexture = g_Renderer.register_texture("./res/test/floor_colour.png",
-																	   TEXTURE_FORMAT_SRGB);
-	GPUPixelBuffer* __FloorNormalTexture = g_Renderer.register_texture("./res/test/floor_normal.png");
-	GPUPixelBuffer* __FloorMaterialTexture = g_Renderer.register_texture("./res/test/floor_material.png");
-
-	// gold
-	GPUPixelBuffer* __GoldColourTexture = g_Renderer.register_texture("./res/test/gold_colour.png",
-																	  TEXTURE_FORMAT_SRGB);
-	GPUPixelBuffer* __GoldNormalTexture = g_Renderer.register_texture("./res/test/gold_normal.png");
-	GPUPixelBuffer* __GoldMaterialTexture = g_Renderer.register_texture("./res/test/gold_material.png");
-
-	// player
-	GPUPixelBuffer* __DudeTexture = g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB);
-
 	// standards
 	GPUPixelBuffer* __NeutralNormalMap = g_Renderer.register_texture("./res/standard/normal.png");
 	GPUPixelBuffer* __NeutralMaterialMap = g_Renderer.register_texture("./res/standard/material.png");
 	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
+	// TODO automatic fallback to neutral textures for unwiritten slots, based on their nature
+	//		meaning, that the normal texture falls back to a different neutral, than material or emission etc.
+	// TODO dont read defaults from texture, generate single pixel buffer instead
+
+	// materials
+	vector<GPUPixelBuffer*> __FabricMaterial = {
+		g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/fabric_normal.png"),
+		g_Renderer.register_texture("./res/test/fabric_material.png"),
+		__NeutralEmissionTexture,
+	};
+	vector<GPUPixelBuffer*> __FloorMaterial = {
+		g_Renderer.register_texture("./res/test/floor_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/floor_normal.png"),
+		g_Renderer.register_texture("./res/test/floor_material.png"),
+		__NeutralEmissionTexture,
+	};
+	vector<GPUPixelBuffer*> __GoldMaterial = {
+		g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
+		g_Renderer.register_texture("./res/test/gold_normal.png"),
+		g_Renderer.register_texture("./res/test/gold_material.png"),
+		__NeutralEmissionTexture,
+	};
+	vector<GPUPixelBuffer*> __DudeMaterial = {
+		g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB),
+		__NeutralNormalMap,
+		__NeutralMaterialMap,
+		__NeutralEmissionTexture,
+	};
+	// FIXME those dont need to be all GPUPixelBuffers, this is gold in the resource wasting olypics
 
 	// lightbulbs
 	BallIndex __BulbIndices[TEST_LIGHTBULB_COUNT] = {
@@ -108,26 +117,11 @@ void ParcourParcs::init()
 		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,7.5f,1.f,.8f,.24f);
 
 	// register textures
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__FloorID][1],0,__FloorColourTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__FloorID][1],1,__FloorNormalTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__FloorID][1],2,__FloorMaterialTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__FloorID][1],3,__NeutralEmissionTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID][1],0,__FloorColourTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID][1],1,__FloorNormalTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID][1],2,__FloorMaterialTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID][1],3,__NeutralEmissionTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID0][1],0,__GoldColourTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID0][1],1,__GoldNormalTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID0][1],2,__GoldMaterialTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__BoxID0][1],3,__NeutralEmissionTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],0,__FabricColourTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],1,__FabricNormalTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],2,__FabricMaterialTexture);
-	g_Renderer.attach_texture(&__EnviroBatch->ubo[__SphereID][1],3,__NeutralEmissionTexture);
-	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],0,__DudeTexture);
-	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],1,__NeutralNormalMap);
-	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],2,__NeutralMaterialMap);
-	g_Renderer.attach_texture(&m_AnimBatch->ubo[m_DudeID][1],3,__NeutralEmissionTexture);
+	g_Renderer.attach_material(&__EnviroBatch->ubo[__FloorID][1],__FloorMaterial);
+	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID][1],__FloorMaterial);
+	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID0][1],__GoldMaterial);
+	g_Renderer.attach_material(&__EnviroBatch->ubo[__SphereID][1],__FabricMaterial);
+	g_Renderer.attach_material(&__EnviroBatch->ubo[m_DudeID][1],__DudeMaterial);
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
