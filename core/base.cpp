@@ -8,7 +8,7 @@
  *	check if a file can be found at given location
  *	\param path: path to check
  *	\returns true if file could be accessed
- *	NOTE for use in debug cases only, in release checking for data that is guaranteed is not good practice
+ *	\note for use in debug cases only, in release checking for data that is guaranteed is not good practice
  */
 bool check_file_exists(const char* path)
 {
@@ -17,8 +17,10 @@ bool check_file_exists(const char* path)
 }
 
 /**
- *	TODO
- *	NOTE returned memory has to be freed after using
+ *	read a binary file & return contents
+ *	\param path: path to binary file
+ *	\param buffer_size: variable to write size of the binary file contents to
+ *	\note returned memory has to be freed after using
  */
 u8* read_file_binary(const char* path,u32& buffer_size)
 {
@@ -122,7 +124,9 @@ bool Rect::intersects(vec2 point)
 }
 
 /**
- *	TODO
+ *	intersection test of this rect with the passed rect
+ *	\param r: potentially intersecting rect
+ *	\returns true of the two rects intersect
  */
 bool Rect::intersects(const Rect& r)
 {
@@ -131,7 +135,9 @@ bool Rect::intersects(const Rect& r)
 }
 
 /**
- *	TODO
+ *	determines if the given rect is contained in this rect
+ *	\param r: potentially contained rect
+ *	\returns true if the passed rect is contained in this rect
  */
 bool Rect::contains(const Rect& r)
 {
@@ -424,7 +430,7 @@ void Camera3D::orthographics()
 {
 	f32 hwidth = width>>1;
 	f32 hheight = height>>1;
-	proj = glm::orthoRH_ZO(-hwidth,hwidth,-hheight,hheight,near,far);
+	proj = glm::ortho(-hwidth,hwidth,-hheight,hheight,near,far);
 #ifdef VKBUILD
 	proj[1][1] *= -1;
 #endif
@@ -445,8 +451,8 @@ void Camera3D::roll(f32 r)
 
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
- *	\param t: amount of time in seconds the momentum takes to snap to target position
  *	WARNING: this is not intended for usage with character movement! you can, but the user will loose precision.
+ *	\param t: amount of time in seconds the momentum takes to snap to target position
  */
 TargetMomentumSnap::TargetMomentumSnap(f32 t)
 	: m_Omega(2.f/t) {  }

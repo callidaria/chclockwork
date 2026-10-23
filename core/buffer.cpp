@@ -257,8 +257,7 @@ void Framebuffer::define_depth_component()
 
 /**
  *	combine previously defined framebuffer attachments
- *	NOTE: this has to happen after definitions of all components
- *	TODO update
+ *	\note: this has to happen after definitions of all components
  */
 /*
 void Framebuffer::finalize()

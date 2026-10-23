@@ -332,8 +332,8 @@ void TextureData::load(const char* path)
 
 /**
  *	upload data to gpu
- *	NOTE has to be uploaded in main thread
- *	NOTE target texture has to be bound before uploading
+ *	\note has to be uploaded in main thread
+ *	\note target texture has to be bound before uploading
  */
 void TextureData::gpu_upload(
 #ifdef VKBUILD
@@ -352,8 +352,8 @@ void TextureData::gpu_upload(
 
 /**
  *	upload data as subtexture to atlas on gpu based on saved x & y axis offset
- *	NOTE has to be uploaded in main thread
- *	NOTE target texture has to be bound and allocated before uploading
+ *	\note has to be uploaded in main thread
+ *	\note target texture has to be bound and allocated before uploading
  */
 void TextureData::gpu_upload_subtexture(
 #ifdef VKBUILD
@@ -486,8 +486,8 @@ void Texture::unbind()
 
 /**
  *	define trilinear texture filter for mipmap generation
- *	NOTE texture should be bound
- *	NOTE this allows generate_mipmap() to be executed if no manual approach is chosen
+ *	\note texture should be bound
+ *	\note this allows generate_mipmap() to be executed if no manual approach is chosen
  */
 void Texture::set_texture_parameter_linear_mipmap()
 {
@@ -502,8 +502,8 @@ void Texture::set_texture_parameter_linear_mipmap()
 
 /**
  *	define bilinear texture filter for mipmap generation
- *	NOTE texture should be bound
- *	NOTE this allows generate_mipmap() to be executed if no manual approach is chosen
+ *	\note texture should be bound
+ *	\note this allows generate_mipmap() to be executed if no manual approach is chosen
  */
 void Texture::set_texture_parameter_nearest_mipmap()
 {
@@ -518,7 +518,7 @@ void Texture::set_texture_parameter_nearest_mipmap()
 
 /**
  *	define linear filter without mipmapping
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_linear_unfiltered()
 {
@@ -533,7 +533,7 @@ void Texture::set_texture_parameter_linear_unfiltered()
 
 /**
  *	define filterless pixelraster
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_nearest_unfiltered()
 {
@@ -548,7 +548,7 @@ void Texture::set_texture_parameter_nearest_unfiltered()
 
 /**
  *	define extension behaviour to stretch to maximum size
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_clamp_to_edge()
 {
@@ -563,7 +563,7 @@ void Texture::set_texture_parameter_clamp_to_edge()
 
 /**
  *	define extension behaviour to be scaled towards custom borders, avoiding ratio manipulation
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_clamp_to_border()
 {
@@ -578,7 +578,7 @@ void Texture::set_texture_parameter_clamp_to_border()
 
 /**
  *	repeat texture over vertices without scaling
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_repeat()
 {
@@ -594,7 +594,7 @@ void Texture::set_texture_parameter_repeat()
 /**
  *	define level of detail through filter bias (will additively shift the perceived lod value)
  *	\param bias: (default .0f) filter bias, addition bias means that .0f is no bias
- *	NOTE texture should be bound
+ *	\note texture should be bound
  */
 void Texture::set_texture_parameter_filter_bias(float bias)
 {
@@ -609,8 +609,8 @@ void Texture::set_texture_parameter_filter_bias(float bias)
 /**
  *	define border colour for texture when set_texture_parameter_clamp_to_border() is defined
  *	\param colour: RGBA border colour as vector
- *	NOTE texture should be bound
- *	NOTE pointer trick not field tested, should border colour fail to work this is the most likely culprit
+ *	\note texture should be bound
+ *	\note pointer trick not field tested, should border colour fail to work this is the most likely culprit
  */
 void Texture::set_texture_parameter_border_colour(vec4 colour)
 {
@@ -644,7 +644,7 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param height: buffer height
  *	\param format: colourspace format of pixels
  *	\param padding: (default 0) pixel space padding in between allocated subtextures
- *	NOTE cannot be executed in subthread, uses context bound to main thread
+ *	\note cannot be executed in subthread, uses context bound to main thread
  */
 void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padding)
 {
@@ -821,7 +821,7 @@ void GPUPixelBuffer::vanish()
  *	\param gpb: target pixel buffer
  *	\param pbc: pointer to atlas component information, this will be overwritten
  *	\param path: path to texture file
- *	NOTE this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
  */
 void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path)
 {
@@ -837,7 +837,7 @@ void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path
  *	\param font: pointer to target font memory
  *	\param path: path to font file
  *	\param size: target rasterization size of vector font
- *	NOTE this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
  */
 void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size)
 {
@@ -913,7 +913,7 @@ void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
  *	\param gpb: target pixel buffer
  *	\param pbc: pointer to atlas component information, this will be overwritten
  *	\param data: texture data
- *	NOTE this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
  */
 void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 {
@@ -1060,7 +1060,7 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 /**
  *	automatically uploads the loaded subtextures to the gpu
  *	\param channel: texture channel (this has to be defined in ogl version, can be ignored in vk)
- *	NOTE this has to be run in main thread due to the gpu upload being context sensitive
+ *	\note this has to be run in main thread due to the gpu upload being context sensitive
  */
 void GPUPixelBuffer::gpu_upload(u8 channel)
 {

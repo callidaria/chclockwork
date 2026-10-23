@@ -1126,7 +1126,7 @@ void ShaderPipeline::assemble(VertexShader vs,FragmentShader fs)
  *	\param channel: starting texture channel
  *	\param vbo: vertex buffer object
  *	\param ibo: (default nullptr) index buffer object
- *	NOTE vertex buffer needs to be active
+ *	\note vertex buffer needs to be active
  */
 /*
 void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
@@ -1284,7 +1284,7 @@ uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
  *	upload signed integer to shader
  *	\param varname: variable name as defined as "uniform" in shader (must be part of the pipeline)
  *	\param value: signed integer value to upload to variable
- *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ *	\note shader pipeline needs to be active to upload values to uniform variables
  */
 void ShaderPipeline::upload(const char* varname,s32 value)
 {
@@ -1295,7 +1295,7 @@ void ShaderPipeline::upload(const char* varname,s32 value)
  *	upload uniform variable to shader
  *	\param varname: variable name as defined as "uniform" in shader (must be part of the pipeline)
  *	\param value: value to upload to specified variable
- *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ *	\note shader pipeline needs to be active to upload values to uniform variables
  */
 void ShaderPipeline::upload(const char* varname,f32 value) { upload(varname,SHADER_UNIFORM_FLOAT,&value); }
 void ShaderPipeline::upload(const char* varname,vec2 value) { upload(varname,SHADER_UNIFORM_VEC2,&value.x); }
@@ -1309,7 +1309,7 @@ void ShaderPipeline::upload(const char* varname,mat4 value)
  *	\param varname: uniform variable name
  *	\param dim: uniform dimension
  *	\param data: pointer to data, that will be uploaded to uniform variable
- *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ *	\note shader pipeline needs to be active to upload values to uniform variables
  */
 void ShaderPipeline::upload(const char* varname,UniformDimension dim,f32* data)
 {
@@ -1319,7 +1319,7 @@ void ShaderPipeline::upload(const char* varname,UniformDimension dim,f32* data)
 /**
  *	upload float uniform variable to shader
  *	\param uniform: uniform value reference, location & dimension
- *	NOTE shader pipeline needs to be active to upload values to uniform variables
+ *	\note shader pipeline needs to be active to upload values to uniform variables
  */
 void ShaderPipeline::upload(ShaderUniformValue& uniform)
 {
@@ -1392,7 +1392,7 @@ void ShaderPipeline::_define_colour_component(u8 index,VkFormat format,bool resu
 /**
  *	point to attribute in vertex buffer raster
  *	\param attrib: shader attribute structure, holding attribute name and dimension
- *	NOTE shader pipeline, vertex array & vertex buffer need to be active to point to attribute
+ *	\note shader pipeline, vertex array & vertex buffer need to be active to point to attribute
  */
 void ShaderPipeline::_define_attribute(ShaderAttribute attrib)
 {
@@ -1408,7 +1408,7 @@ void ShaderPipeline::_define_attribute(ShaderAttribute attrib)
 /**
  *	point to attribute in index buffer raster
  *	\param attrib: shader attribute structure, holding attribute name and dimension
- *	NOTE shader pipeline, vertex array & index buffer need to be active to point to attribute
+ *	\note shader pipeline, vertex array & index buffer need to be active to point to attribute
  */
 void ShaderPipeline::_define_index_attribute(ShaderAttribute attrib)
 {
