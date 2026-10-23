@@ -2,9 +2,6 @@
 #define CORE_BASE_HEADER
 
 
-#include "config.h"
-
-
 // system definition
 #if INTPTR_MAX == INT64_MAX
 #define __SYSTEM_64BIT
@@ -131,8 +128,6 @@ typedef u32 __fbuffer_component;
 
 // constants
 // basic math
-constexpr f32 FRAME_RESOLUTION_X_INV = 1.f/FRAME_RESOLUTION_X;
-constexpr f32 FRAME_RESOLUTION_Y_INV = 1.f/FRAME_RESOLUTION_Y;
 constexpr f32 MATH_CARTESIAN_XRANGE = 1280.f;
 constexpr f32 MATH_CARTESIAN_YRANGE = 720.f;
 constexpr f32 MATH_CARTESIAN_XRANGE_INV = 1.f/MATH_CARTESIAN_XRANGE;
@@ -158,7 +153,10 @@ constexpr u8 MEM_WIDTH = sizeof(__system_word)*8;
 constexpr __system_word MEM_MASK = MEM_WIDTH-1;
 
 // gpu constants
-constexpr size_t GPU_GUARANTEED_PCU_MEMSIZE = 128;
+constexpr u8 GPU_GUARANTEED_PCU_MEMSIZE = 128;
+constexpr u8 GPU_GUARANTEED_SET_COUNT = 4;
+constexpr u8 GPU_GUARANTEED_UNIFORM_COUNT = 90;
+constexpr u16 GPU_GUARANTEED_SAMPLER_COUNT = 256;
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -504,8 +502,6 @@ private:
 
 	f32 m_Ratio;
 };
-
-inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
 
 
 // ----------------------------------------------------------------------------------------------------

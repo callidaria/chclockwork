@@ -111,7 +111,7 @@ public:
 
 public:
 	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout layouts[SHADER_MAXIMUM_DESCRIPTOR_SETS];
+	VkDescriptorSetLayout layouts[GPU_GUARANTEED_SET_COUNT];
 	VkBuffer ubo[GPU_BUFFER_COUNT];
 
 	// standards
@@ -119,7 +119,7 @@ public:
 	VkSampler default_sampler;
 
 private:
-	vector<VkDescriptorSetLayoutBinding> m_Bindings[SHADER_MAXIMUM_DESCRIPTOR_SETS];
+	vector<VkDescriptorSetLayoutBinding> m_Bindings[GPU_GUARANTEED_SET_COUNT];
 
 	// uniform buffer memory
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];

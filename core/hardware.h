@@ -1,7 +1,7 @@
 #ifndef CORE_HARDWARE_HEADER
 #define CORE_HARDWARE_HEADER
 
-#include "base.h"
+#include "config.h"
 
 
 #ifdef VKBUILD

@@ -2,7 +2,7 @@
 #define CORE_INPUT_HEADER
 
 
-#include "base.h"
+#include "config.h"
 
 
 constexpr u16 KEYBOARD_INPUT_RANGE = 512;

@@ -2,6 +2,9 @@
 #define CORE_CONFIG_HEADER
 
 
+#include "base.h"
+
+
 // behaviour
 #define LOG_STRICTNESS_CONSERVATIVE 1
 
@@ -34,15 +37,17 @@
 #define RENDERER_SHADOW_RANGE 25
 
 // shader
-#define SHADER_MAXIMUM_SET_ALLOCATION 16
-#define SHADER_MAXIMUM_DESCRIPTOR_SETS 4		// support guaranteed
-#define SHADER_DESCRIPTOR_UNIFORM_COUNT 90		// support guaranteed
-#define SHADER_DESCRIPTOR_SAMPLER_COUNT 256		// support guaranteed
 #define SHADER_UNIFORM_BUFFER_MEMSIZE 65536
+#define SHADER_MAXIMUM_SET_ALLOCATION 16
 
 // atlas
 #define ATLAS_SPRITES_PADDING 4
 #define ATLAS_FONT_PADDING 4
+
+// camera & view
+constexpr f32 FRAME_RESOLUTION_X_INV = 1.f/FRAME_RESOLUTION_X;
+constexpr f32 FRAME_RESOLUTION_Y_INV = 1.f/FRAME_RESOLUTION_Y;
+inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
 
 // TODO define in extern config file and store constants at runtime
 

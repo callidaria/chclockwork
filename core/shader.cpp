@@ -299,9 +299,9 @@ UniformBuffer::UniformBuffer()
 	VkDescriptorPoolSize __DescriptorPoolSize[2];
 	__DescriptorPoolSize[0] = {  };
 	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_UNIFORM_COUNT;
+	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*GPU_GUARANTEED_UNIFORM_COUNT;
 	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*SHADER_DESCRIPTOR_SAMPLER_COUNT;
+	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*GPU_GUARANTEED_SAMPLER_COUNT;
 
 	// configurably generous descriptor pool allocation
 	VkDescriptorPoolCreateInfo __DPoolInfo = {  };
@@ -360,7 +360,7 @@ void UniformBuffer::vanish()
  */
 void UniformBuffer::define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFlags stage)
 {
-	COMM_ERR_COND(set>=SHADER_MAXIMUM_DESCRIPTOR_SETS,
+	COMM_ERR_COND(set>=GPU_GUARANTEED_SET_COUNT,
 				  "requested definition is not allowed for set %u. support for this set is not guaranteed",set);
 
 	VkDescriptorSetLayoutBinding __Binding = {  };
@@ -379,7 +379,7 @@ void UniformBuffer::generate_layouts()
 {
 	VkDescriptorSetLayoutCreateInfo __DescriptorLayoutInfo = {  };
 	__DescriptorLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	for (u8 i=0;i<SHADER_MAXIMUM_DESCRIPTOR_SETS;i++)
+	for (u8 i=0;i<GPU_GUARANTEED_SET_COUNT;i++)
 	{
 		vector<VkDescriptorSetLayoutBinding>& p_Set = m_Bindings[i];
 		__DescriptorLayoutInfo.bindingCount = p_Set.size();
@@ -1054,7 +1054,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	// assemble pipeline
 	VkPipelineLayoutCreateInfo __LayoutInfo = {  };
 	__LayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	__LayoutInfo.setLayoutCount = SHADER_MAXIMUM_DESCRIPTOR_SETS;
+	__LayoutInfo.setLayoutCount = GPU_GUARANTEED_SET_COUNT;
 	__LayoutInfo.pSetLayouts = g_UniformBuffer.layouts;
 	__LayoutInfo.pushConstantRangeCount = !!m_Interface.pc_count;
 	__LayoutInfo.pPushConstantRanges = p_PushConstantRange;
