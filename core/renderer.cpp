@@ -1506,7 +1506,7 @@ SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity,bool sh
 	// update orthographic light projection
 	if (shadow_source)
 	{
-		m_ShadowProjection = Camera3D(vec3(0),position,30,30,.1f,1000.f);
+		m_ShadowProjection = Camera3D(vec3(0),position,30,30,1000.f);
 		m_UBufferMem.orth_shadow.view = m_ShadowProjection.view;
 		m_UBufferMem.orth_shadow.proj = m_ShadowProjection.proj;
 		m_UBufferMem.orth_shadow.source = position;

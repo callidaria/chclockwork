@@ -352,10 +352,11 @@ CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
  *	\param y: camera rotation yaw
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
+ *	\param f: far plane view distance
  *	\param ifov: field of view in degrees
  */
-Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov)
-	: target(tgt),distance(dist),pitch(p),yaw(y),fov(ifov),m_Ratio(w/h)
+Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov,f32 f)
+	: target(tgt),distance(dist),pitch(p),yaw(y),fov(ifov),far(f),m_Ratio(w/h)
 {
 	update();
 	project();
@@ -369,11 +370,10 @@ Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov)
  *	\param y: camera rotation yaw
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
- *	\param n: near plane distance
- *	\param f: far plane distance
+ *	\param f: far plane view distance
  */
-Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f)
-	: target(tgt),distance(dist),pitch(p),yaw(y),width(w),height(h),near(n),far(f)
+Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 f)
+	: target(tgt),distance(dist),pitch(p),yaw(y),width(w),height(h),far(f)
 {
 	update();
 	orthographics();
@@ -385,11 +385,10 @@ Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f)
  *	\param p: camera position
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
- *	\param n: near plane distance
- *	\param f: far plane distance
+ *	\param f: far plane view distance
  */
-Camera3D::Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 n,f32 f)
-	: target(tgt),position(p),width(w),height(h),near(n),far(f)
+Camera3D::Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 f)
+	: target(tgt),position(p),width(w),height(h),far(f)
 {
 	force_position();
 	orthographics();

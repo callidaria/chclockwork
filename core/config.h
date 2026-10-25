@@ -47,7 +47,9 @@
 // camera & view
 constexpr f32 FRAME_RESOLUTION_X_INV = 1.f/FRAME_RESOLUTION_X;
 constexpr f32 FRAME_RESOLUTION_Y_INV = 1.f/FRAME_RESOLUTION_Y;
-inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
+constexpr f32 CAMERA_VIEW_DISTANCE = 10000.f;
+inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,
+									FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60,CAMERA_VIEW_DISTANCE);
 
 // TODO define in extern config file and store constants at runtime
 

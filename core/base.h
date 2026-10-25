@@ -141,6 +141,9 @@ constexpr f64 MATH_FRAMERATE_60Hz = 1/60.;
 constexpr f64 MATH_FRAMERATE_30Hz = 1/30.;
 constexpr f64 MATH_FRAMERATE_15Hz = 1/15.;
 
+// spacial definition
+constexpr vec3 COORDINATE_SYSTEM_ORIENTATION = vec3(0,0,1);
+
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
 typedef u64 __system_word;
@@ -360,7 +363,6 @@ public:
 	{
 		if (overwrites.size())
 		{
-			std::cout << "overwritten\n";
 			T* out = &mem[overwrites.front()];
 			overwrites.pop();
 			return out;
@@ -462,15 +464,13 @@ public:
 inline CoordinateSystem2D g_CoordinateSystem = CoordinateSystem2D(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE);
 
 
-constexpr vec3 COORDINATE_SYSTEM_ORIENTATION = vec3(0,0,1);
-
 class Camera3D
 {
 public:
 	Camera3D() {  }
-	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov);
-	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f);
-	Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 n,f32 f);
+	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov,f32 f);
+	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 f);
+	Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 f);
 	void update();
 	void force_position();
 	void project();
@@ -494,7 +494,7 @@ public:
 	f32 yaw;
 	f32 fov;
 	f32 near = .1f;
-	f32 far = 1000.f;
+	f32 far;
 	u32 width;
 	u32 height;
 
