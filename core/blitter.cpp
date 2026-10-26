@@ -6,6 +6,14 @@
 
 #ifdef DEBUG
 #ifdef VKBUILD
+
+/**
+ *	vulkan gpu error callback function for validation layers, serving the predefined function signature
+ *	\param sev: validation layer message severity
+ *	\param type: validation layer message type
+ *	\param cb: validation layer callback data, holding the message
+ *	\param udata: unused, but relevant to conform to callback signature
+ */
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
 												   const VkDebugUtilsMessengerCallbackDataEXT* cb,
@@ -27,6 +35,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFl
 
 #else
 
+/**
+ *	ogl gpu error callback function for validation, serving the predefined function signature
+ *	TODO
+ */
 void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,GLsizei len,
 									const GLchar* msg,const void* usrParam)
 {
@@ -47,6 +59,9 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 // ----------------------------------------------------------------------------------------------------
 // Frame Dimensions
 
+/**
+ *	TODO
+ */
 void FrameDimensions::initialize(f32 width,f32 height)
 {
 	// extent setup
@@ -104,9 +119,9 @@ Frame::Frame()
 	VkApplicationInfo __ApplicationInfo = {  };
 	__ApplicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	__ApplicationInfo.pApplicationName = FRAME_PROGRAM_TITLE;
-	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(0,0,1);
-	__ApplicationInfo.pEngineName = "C. Hanson's Counter-Clockwork";
-	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(0,0,2);
+	__ApplicationInfo.applicationVersion = VK_MAKE_VERSION(PROGRAM_MAJOR_V,PROGRAM_MINOR_V,PROGRAM_PATCH_V);
+	__ApplicationInfo.pEngineName = ENGINE_TITLE;
+	__ApplicationInfo.engineVersion = VK_MAKE_VERSION(ENGINE_MAJOR_V,ENGINE_MINOR_V,ENGINE_PATCH_V);
 
 	// api version selection with fallback to 1.0 if necessary
 	if (vkEnumerateInstanceVersion) vkEnumerateInstanceVersion(&__ApplicationInfo.apiVersion);

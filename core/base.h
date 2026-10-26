@@ -127,6 +127,12 @@ typedef u32 __fbuffer_component;
 
 
 // constants
+// engine version
+#define ENGINE_TITLE "C. Hanson's Counter-Clockwork"
+constexpr u16 ENGINE_MAJOR_V = 0;
+constexpr u16 ENGINE_MINOR_V = 0;
+constexpr u16 ENGINE_PATCH_V = 2;
+
 // basic math
 constexpr f32 MATH_CARTESIAN_XRANGE = 1280.f;
 constexpr f32 MATH_CARTESIAN_YRANGE = 720.f;
@@ -530,9 +536,6 @@ private:
 // required extensions
 inline vector<const char*> g_GPUExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-#ifdef DEBUG
-	VK_EXT_DEVICE_ADDRESS_BINDING_REPORT_EXTENSION_NAME,
-#endif
 };
 
 // validation layers on debug build

@@ -11,8 +11,13 @@
 // gpu
 #define GPU_BUFFER_COUNT 2
 
-// blitter
+// program
 #define FRAME_PROGRAM_TITLE "C. Hanson's Counter-Clockwork"
+constexpr u16 PROGRAM_MAJOR_V = 0;
+constexpr u16 PROGRAM_MINOR_V = 0;
+constexpr u16 PROGRAM_PATCH_V = 1;
+
+// blitter
 #define FRAME_BLITTER_VSYNC false
 #define FRAME_RESOLUTION_X 1600
 #define FRAME_RESOLUTION_Y 900
