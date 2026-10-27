@@ -4,6 +4,7 @@
 
 - porting render features to vulkan
 - architectural improvements
+- FIXED: texture atlas segmentation
 
 
 ### v0.0.1 (WIN)

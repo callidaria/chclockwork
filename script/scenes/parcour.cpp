@@ -121,7 +121,7 @@ void ParcourParcs::init()
 	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID][1],__FloorMaterial);
 	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID0][1],__GoldMaterial);
 	g_Renderer.attach_material(&__EnviroBatch->ubo[__SphereID][1],__FabricMaterial);
-	g_Renderer.attach_material(&__EnviroBatch->ubo[m_DudeID][1],__DudeMaterial);
+	g_Renderer.attach_material(&m_AnimBatch->ubo[m_DudeID][1],__DudeMaterial);
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
