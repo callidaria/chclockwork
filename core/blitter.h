@@ -36,17 +36,13 @@ public:
 	void set_clear_colour(vec3 colour);
 	void set_clear_depth(f32 depth);
 	void set_viewport(u32 width,u32 height);
-
-	// framerate
-	void gpu_vsync_on();
-	void gpu_vsync_off();
+	void gpu_vsync(bool vsync);
 
 #ifdef VKBUILD
 	void rebuild_swapchain();
 #endif
 
 private:
-
 #ifdef VKBUILD
 	void _assemble_swapchain();
 	//void _finalize_swapchain();
@@ -54,31 +50,15 @@ private:
 #endif
 
 public:
-
-	// time
+	// time & fps
 	std::chrono::steady_clock::time_point fstart = std::chrono::steady_clock::now();
 	f32 delta_time_real = .0f;
 	f32 delta_time = .0f;
 	f32 time_factor = 1.f;
-
-private:
-
-	// hardware
-	SDL_Window* m_Frame;
-
-	// time
-	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
-
-//#ifdef DEBUG
-public:
 	u32 fps;
-private:
-	std::chrono::steady_clock::time_point m_LastFrameUpdate = std::chrono::steady_clock::now();
-	u32 m_LFps;
-//#endif
 
 #ifdef VKBUILD
-public:
+	// swapchain
 	SwapChain swapchain;
 	VkClearValue clear_colour[2];
 	size_t fid = 0;
@@ -88,8 +68,18 @@ public:
 	vector<VkImageView> result_image_views;
 	vector<VkSemaphore> render_done;
 	u32 frame_id = 0;
+#endif
 
 private:
+	// hardware
+	SDL_Window* m_Frame;
+
+	// time & fps
+	std::chrono::steady_clock::time_point m_LastFrameTime = std::chrono::steady_clock::now();
+	std::chrono::steady_clock::time_point m_LastFrameUpdate = std::chrono::steady_clock::now();
+	u32 m_LFps;
+
+#ifdef VKBUILD
 	Hardware m_Hardware;
 	VkInstance m_Instance;
 	VkSurfaceKHR m_Surface;
@@ -97,7 +87,6 @@ private:
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT debug_messenger;
 #endif
-
 #else
 	SDL_GLContext m_Context;
 #endif

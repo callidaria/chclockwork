@@ -253,7 +253,6 @@ Frame::Frame()
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-	glViewport(0,0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	// TODO all of this will be capsd as gpu settings features. those initials should be called in each version
 
 	// gpu error log
@@ -266,12 +265,11 @@ Frame::Frame()
 	// TODO this can also be it's own feature. those setup steps don't have to have a strict macro border
 #endif
 
-	// vsync
-	if (FRAME_BLITTER_VSYNC) gpu_vsync_on();
-	else gpu_vsync_off();
-
 	// standard settings
+	set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	set_clear_colour(BLITTER_CLEAR_COLOUR);
+	set_clear_depth(1.f);
+	gpu_vsync(FRAME_BLITTER_VSYNC);
 
 	COMM_SCC("blitter ready.");
 }
@@ -282,7 +280,6 @@ Frame::Frame()
 void Frame::clear()
 {
 #ifdef VKBUILD
-	// get next swapchain image
 	VkResult __Result = vkAcquireNextImageKHR(
 			g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,g_GPU.acquire_graphical_command_buffer()->ready,
 			VK_NULL_HANDLE,&g_Frame.frame_id
@@ -314,7 +311,7 @@ void Frame::update()
 	delta_time_real = calculate_delta_time_s(m_LastFrameTime);
 	delta_time = delta_time_real*time_factor;
 
-//#ifdef DEBUG
+	// fps counter
 	f64 __LFrameUpdate = calculate_delta_time_ms(m_LastFrameUpdate);
 	if (__LFrameUpdate>1000)
 	{
@@ -323,7 +320,6 @@ void Frame::update()
 		m_LastFrameUpdate = std::chrono::steady_clock::now();
 	}
 	else m_LFps++;
-//#endif
 }
 
 /**
@@ -369,14 +365,12 @@ void Frame::set_clear_colour(vec3 colour)
 
 /**
  *	define depth clear value
- *	\param depth: depth value (less is closer in common definition)
+ *	\param depth: depth value (less is closer in most common definitions, so default clear is white)
  */
 void Frame::set_clear_depth(f32 depth)
 {
 #ifdef VKBUILD
-	// TODO implement vulkan equivalent after depth buffering feature exists
-	//		also this maybe not a necessary feature. i think this issue has been solved alternatively (sdwbounds)
-
+	clear_colour[1] = { depth,.0f };
 #else
 	glClearDepth(depth);
 #endif
@@ -391,42 +385,31 @@ void Frame::set_viewport(u32 width,u32 height)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glViewport(0,0,width,height);
 #endif
 }
 
 /**
- *	enable gpu based vsync, adaptive if possible: fallback regular vsync
+ *	set gpu based vsync, adaptive if possible: fallback regular vsync
+ *	\param vsync: true if vsync should be enabled
  */
-void Frame::gpu_vsync_on()
+void Frame::gpu_vsync(bool vsync)
 {
 	COMM_AWT("setting gpu vsync");
 #ifdef VKBUILD
 	// TODO vsync switch happens when selecting the gpu in the vulkan version. make it switchable
-
+	//		in vulkan, this requires swapchain recreation. so postpone this until recreation is available
+	//		also implementing this after config reader probably is helpful, to minimize recreation
+	// TODO join on and off into a single function to enable/disable by parameter
 #else
-	if (SDL_GL_SetSwapInterval(-1)==-1)
+	if (SDL_GL_SetSwapInterval(vsync*-1)==-1)
 	{
-		COMM_ERR("adaptive vsync is not supported");
-		SDL_GL_SetSwapInterval(1);
+		COMM_ERR("adaptive vsync is not supported, falling back to regular vsync");
+		SDL_GL_SetSwapInterval(vsync);
 	}
 #endif
 	COMM_CNF();
-}
-
-/**
- *	disable gpu based vsync
- */
-void Frame::gpu_vsync_off()
-{
-#ifdef VKBUILD
-	// TODO see gpu_vsync_on todo comment to find out why there is nothing here!
-
-#else
-	SDL_GL_SetSwapInterval(0);
-#endif
 }
 
 
@@ -512,12 +495,13 @@ swap_chain_creation:
 	__SwapchainInfo.imageColorSpace = swapchain.format.colorSpace;
 	__SwapchainInfo.imageExtent = swapchain.extent;
 	__SwapchainInfo.imageArrayLayers = 1;
-	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;  // TODO change to TRANSFER_DST_BIT later
+	__SwapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	__SwapchainInfo.preTransform = g_GPU.device_info->swapchain_info.capabilities.currentTransform;
-	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;  // TODO very, very interesting...
+	__SwapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	// TODO very, very interesting... you can make a window transparent with this?
 	__SwapchainInfo.presentMode = __Mode;
 	__SwapchainInfo.clipped = VK_TRUE;
-	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO geez this looks like a ton of work in the future
+	__SwapchainInfo.oldSwapchain = VK_NULL_HANDLE;  // TODO use this in swapchain recreation?
 
 	// in case of split graphics & presentation queue
 	vector<u32> __Queues = vector<u32>(g_GPU.device_info->queues.begin(),g_GPU.device_info->queues.end());
@@ -542,7 +526,6 @@ swap_chain_creation:
 	COMM_ERR_COND(!__SCICount,"no swapchain images to reference");
 	result_images.resize(__SCICount);
 	vkGetSwapchainImagesKHR(g_GPU.gpu,swapchain.swapchain,&__SCICount,&result_images[0]);
-	// TODO investigate against buffer count & discrepancy details...
 
 	// image view memory & creation info setup
 	VkImageViewCreateInfo __IVInfo = {  };
@@ -583,7 +566,6 @@ swap_chain_creation:
 	}
 }
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
-// TODO make all those features selectable by the user
 
 /**
  *	swapchain destruction
