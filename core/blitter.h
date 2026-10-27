@@ -8,6 +8,7 @@
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
 
 
+#ifdef VKBUILD
 struct FrameDimensions
 {
 	// utility
@@ -18,6 +19,7 @@ struct FrameDimensions
 	VkViewport viewport;
 	VkRect2D scissor;
 };
+#endif
 
 
 class Frame

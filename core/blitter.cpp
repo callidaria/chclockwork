@@ -13,6 +13,7 @@
  *	\param type: validation layer message type
  *	\param cb: validation layer callback data, holding the message
  *	\param udata: unused, but relevant to conform to callback signature
+ *	\note this is passed as callback function & should not be called directly at any point
  */
 VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFlagBitsEXT sev,
 												   VkDebugUtilsMessageTypeFlagsEXT type,
@@ -37,7 +38,14 @@ VKAPI_ATTR VkBool32 VKAPI_CALL _gpu_error_callback(VkDebugUtilsMessageSeverityFl
 
 /**
  *	ogl gpu error callback function for validation, serving the predefined function signature
- *	TODO
+ *	\param src: unused, origin of the validation message
+ *	\param type: message type, sorting into error, performance & irrelevance
+ *	\param id: unused, message id
+ *	\param sev: unused, message severity
+ *	\param len: unused, message strlen
+ *	\param msg: validation message cstring
+ *	\param usrParam: custom data supply, defined while callback was registered
+ *	\note this is passed as callback function & should not be called directly at any point
  */
 void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,GLsizei len,
 									const GLchar* msg,const void* usrParam)
@@ -59,8 +67,12 @@ void GLAPIENTRY _gpu_error_callback(GLenum src,GLenum type,GLenum id,GLenum sev,
 // ----------------------------------------------------------------------------------------------------
 // Frame Dimensions
 
+#ifdef VKBUILD
+
 /**
- *	TODO
+ *	initialize frame dimensions for vulkan targets
+ *	\param width: width of the frame
+ *	\param height: height of the frame
  */
 void FrameDimensions::initialize(f32 width,f32 height)
 {
@@ -86,6 +98,8 @@ void FrameDimensions::initialize(f32 width,f32 height)
 		.extent = extent,
 	};
 }
+
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -340,7 +354,8 @@ void Frame::close()
 }
 
 /**
- *	TODO
+ *	define clear colour
+ *	\param colour: clear colour vector
  */
 void Frame::set_clear_colour(vec3 colour)
 {
@@ -353,7 +368,8 @@ void Frame::set_clear_colour(vec3 colour)
 }
 
 /**
- *	TODO
+ *	define depth clear value
+ *	\param depth: depth value (less is closer in common definition)
  */
 void Frame::set_clear_depth(f32 depth)
 {
@@ -367,7 +383,9 @@ void Frame::set_clear_depth(f32 depth)
 }
 
 /**
- * TODO
+ *	default viewport definition
+ *	\param width: viewport width
+ *	\param height: viewport height
  */
 void Frame::set_viewport(u32 width,u32 height)
 {
@@ -415,7 +433,7 @@ void Frame::gpu_vsync_off()
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	swapchain recreation, this expects an existing swapchain
  */
 void Frame::rebuild_swapchain()
 {
@@ -427,7 +445,7 @@ void Frame::rebuild_swapchain()
 }
 
 /**
- *	TODO
+ *	swapchain assembly
  */
 void Frame::_assemble_swapchain()
 {
@@ -568,7 +586,7 @@ swap_chain_creation:
 // TODO make all those features selectable by the user
 
 /**
- *	TODO
+ *	swapchain destruction
  */
 void Frame::_destroy_swapchain()
 {

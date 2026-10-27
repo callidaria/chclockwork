@@ -2,5 +2,4 @@
 
 ### Document
 
-[changelog](doc/changelog.md) \
-[laws](doc/laws.md)
+[changelog](doc/changelog.md)
