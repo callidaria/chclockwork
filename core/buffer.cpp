@@ -6,6 +6,7 @@
 
 /**
  *	setup output framebuffer and allocate to satisfy given shader pipeline
+ *	\param fd: target frame dimensions
  *	\param sp: shader pipeline, holding framebuffer component information
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
@@ -332,8 +333,6 @@ void Framebuffer::stop()
 {
 #ifdef VKBUILD
 	vkCmdEndRenderPass(g_GPU.acquire_graphical_command_buffer()->buffer);
-	// TODO again, using all framebuffers like final render targets does not hold up
-	// TODO outsource appropriately to pipeline probably
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,0);
 #endif

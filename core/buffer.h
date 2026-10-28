@@ -35,7 +35,7 @@ private:
 
 public:
 	vector<VkImage> attachment_images;
-	vector<__fbuffer_component> components;  // FIXME only when not target? how to?
+	vector<__fbuffer_component> components;
 	vector<VkClearValue> m_ClearValues;
 };
 

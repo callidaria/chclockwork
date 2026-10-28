@@ -50,11 +50,10 @@ void GPUDevice::select()
 	VkResult __Result = vkCreateDevice(gpu,&__DeviceInfo,nullptr,&g_GPU.gpu);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create logical interface for gpu %s",properties.deviceName);
 
-	// initialize queues
+	// aquire queues
 	vkGetDeviceQueue(g_GPU.gpu,transfer_queue,0,&g_GPU.transfer_queue);
 	vkGetDeviceQueue(g_GPU.gpu,graphical_queue,0,&g_GPU.graphical_queue);
 	vkGetDeviceQueue(g_GPU.gpu,presentation_queue,0,&g_GPU.presentation_queue);
-	// TODO pack this setup into gpu maybe?
 
 	// command buffers
 	g_GPU.setup_command_buffers();
@@ -76,7 +75,6 @@ void GPUDevice::select()
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
 			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
-	// FIXME maybe this is just swapchain format acquired from frame, no fb result conversions
 }
 
 /**
@@ -367,25 +365,6 @@ void GPU::setup_command_buffers()
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
 	}
 }
-// FIXME a lot of code repetition
-
-/**
- *	TODO
- */
-CommandBufferGFX* GPU::acquire_graphical_command_buffer()
-{
-	return &cmd_buffers_gfx[active_buffer];
-}
-
-/**
- *	TODO
- */
-CommandBufferTRF* GPU::acquire_transfer_command_buffer()
-{
-	// tick command buffer
-	return &cmd_buffers_trf[active_buffer];
-}
-// FIXME a lot of code repetition again and again
 
 /**
  *	TODO
@@ -404,7 +383,6 @@ static inline void _swap_buffer(VkDevice& gpu,VkCommandBuffer& buffer,VkFence* p
 	__CMDInfo.pInheritanceInfo = nullptr;
 	VkResult __Result = vkBeginCommandBuffer(buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
-	// TODO the creation info can be pre-cached instead and then just used based on registration type later?
 }
 // TODO so sort graphical submissions in two different categories and maybe submit twice?
 //		that would allow static geometry draw while transfer for dynamic objects still takes place

@@ -19,6 +19,13 @@ struct FrameDimensions
 	VkViewport viewport;
 	VkRect2D scissor;
 };
+
+struct SwapChain
+{
+	VkSwapchainKHR swapchain;
+	VkExtent2D extent;
+	VkSurfaceFormatKHR format;
+};
 #endif
 
 

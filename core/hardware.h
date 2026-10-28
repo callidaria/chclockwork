@@ -21,14 +21,6 @@ struct SwapChainInfo
 	vector<VkPresentModeKHR> modes;
 };
 
-struct SwapChain
-{
-	VkSwapchainKHR swapchain;
-	VkExtent2D extent;
-	VkSurfaceFormatKHR format;
-};
-// FIXME only used in blitter!
-
 enum GPUBufferFormat : u8
 {
 	GPU_BUFFER_FORMAT_SRGB,
@@ -107,8 +99,8 @@ struct GPU
 
 	// command buffers
 	void setup_command_buffers();
-	CommandBufferGFX* acquire_graphical_command_buffer();
-	CommandBufferTRF* acquire_transfer_command_buffer();
+	inline CommandBufferGFX* acquire_graphical_command_buffer() { return &cmd_buffers_gfx[active_buffer]; }
+	inline CommandBufferTRF* acquire_transfer_command_buffer() { return &cmd_buffers_trf[active_buffer]; }
 
 	// update
 	void swap();
