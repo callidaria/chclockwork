@@ -5,7 +5,7 @@
 #include "hardware.h"
 
 
-constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f,.0f,.0f);
+constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f);
 
 
 #ifdef VKBUILD
