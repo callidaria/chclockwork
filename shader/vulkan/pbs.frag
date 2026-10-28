@@ -60,12 +60,11 @@ layout(set = 0,binding = 42) uniform OrthographicShadow
 	mat4 proj;
 	vec3 source;
 } os;
-// TODO add intensity
-const float shadow_intensity = 1;
 
 
 // constants
 const float PI = 3.141592653;
+const float shadow_intensity = 1.;
 
 
 // utility

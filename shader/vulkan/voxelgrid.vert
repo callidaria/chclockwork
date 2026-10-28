@@ -17,17 +17,14 @@ layout(set = 0,binding = 0) uniform ObjectTransformation
 	mat4 proj;
 } ot;
 
-/*
-#layout(push_constant) uniform PushConstants
-#{
-#	mat4 model;
-#	uint texIndex;
-#} pc;
-*/
+layout(set = 1,binding = 71) uniform VoxelInfo
+{
+	mat4 model;
+} vi;
 
 
 void main()
 {
-	gl_Position = ot.proj*ot.view*/*pc.model**/vec4(position+offset,1.);
+	gl_Position = ot.proj*ot.view*vi.model*vec4(position+offset,1.);
 	UV = uv;
 }

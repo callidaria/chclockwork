@@ -30,12 +30,10 @@ void RoomVoxels::init(Font* font)
 	GPUPixelBuffer* __RoomTexture = g_Renderer.register_texture("./res/private/test.png",TEXTURE_FORMAT_SRGB);
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
-	// attach textures
+	// attach transform & textures
+	__RoomBatch->uniform.attach_memory_segment(&__RoomBatch->ubo[0],71,&m_VoxelData);
 	g_Renderer.attach_texture(&__RoomBatch->ubo[0],0,__RoomTexture);
-
-	//__RoomBatch->pcm = &m_TextureData;
-	// FIXME this is outdated, not solved with index anymore, now it is solved through binding
-	// TODO remove this memID concept completely
+	// TODO improve texture attachment
 
 	// grid instances
 	u32 i = 0;
@@ -62,10 +60,8 @@ void RoomVoxels::init(Font* font)
 void RoomVoxels::update()
 {
 	// update grid rotation
-	/*
-	m_TextureData.model = glm::rotate(mat4(1.f),glm::radians(m_Rotation),vec3(0,0,1));
+	m_VoxelData.model = glm::rotate(mat4(1.f),glm::radians(m_Rotation),vec3(0,0,1));
 	m_Rotation = fmod(m_Rotation-4.f*g_Frame.delta_time,360.f);
-	*/
 }
 
 /**

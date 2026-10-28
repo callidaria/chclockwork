@@ -7,13 +7,10 @@
 #include "../../core/wheel.h"
 
 
-/*
 struct UploadData
 {
 	mat4 model = mat4(1.f);
-	u32 texture;
 };
-*/
 
 
 class RoomVoxels
@@ -24,7 +21,7 @@ public:
 	void vanish();
 
 private:
-	//UploadData m_TextureData;
+	UploadData m_VoxelData;
 	f32 m_Rotation = -100.f;
 };
 

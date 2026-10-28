@@ -144,7 +144,7 @@ cw_profile()
 
 cw_help()
 {
-	printf "C. Hansen's Counter-Clockwork Environment Helpdesk:\n\n"
+	printf "C. Hanson's Counter-Clockwork Environment Helpdesk:\n\n"
 	printf "%-15s - %s\n" "cw_help" "i didn't need to tell you that for recursive reasons"
 	printf "%-15s - %s\n" "cw_setup" "project setup for build & development purposes"
 	printf "%-15s - %s\n" "cw_memfix" "run the engine with memory checking enabled for console output"
