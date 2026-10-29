@@ -118,7 +118,6 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// TODO element upload (find out if a size of 0 will be guarded and is well defined) (?on condition?)
 #endif
 }
-// TODO rename to upload and make vertex/element non-specific. ?this should just work without user decision?
 // TODO consider a ring buffer system for multi-frame processing
 
 #ifdef VKBUILD
@@ -284,7 +283,6 @@ void VertexArray::bind_indexed()
 	vkCmdBindVertexBuffers(__CMDBuffer,0,m_Buffers.size(),&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(__CMDBuffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
-// TODO upload sync by semaphore
 
 #endif
 
@@ -689,20 +687,20 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param padding: (default 0) pixel space padding in between allocated subtextures
  *	\note cannot be executed in subthread, uses context bound to main thread
  */
-void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padding)
+void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 {
 	// store info
 	m_Format = format;
-	dimensions_inv = vec2(1.f/width,1.f/height);
+	dimensions_inv = vec2(1.f/wdt,1.f/hgt);
 	subtex_padding = padding;
 
 	// mark initial, untouched allocated memory segment
-	memory_segments.push_back({ .extent = vec2(width+padding,height+padding) });
+	memory_segments.push_back({ .extent = vec2(wdt+padding,hgt+padding) });
 
 #ifdef VKBUILD
-	m_Width = width;
-	m_Height = height;
-	m_Mipcount = std::floor(std::log2(std::max(width,height)))+1;
+	width = wdt;
+	height = hgt;
+	mipcount = std::floor(std::log2(std::max(width,height)))+1;
 
 	// generate staging buffer
 	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,
@@ -718,7 +716,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	__ImageInfo.extent.width = width;
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
-	__ImageInfo.mipLevels = m_Mipcount;
+	__ImageInfo.mipLevels = mipcount;
 	__ImageInfo.arrayLayers = 1;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -730,21 +728,6 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	// TODO as a possible late-stage optimization look into image unionization for multiple image destinations
 	//		utilizing the same memory by setting an initialLayout and an alias
 	//		this will probably just be useful for rendertarget results that do not overlap in timing
-	// FIXME image size relies on a 4-channel format, which is not always the case (rgb, greyscale)
-
-	/**
-	 *	TODO so basically to port the new streaming system:
-	 *		the vulkan system will also stream to a dynamic texture atlas, to ensure backwards compatibility
-	 *		then areas are batched together by theme and streamed into memory on demand like in the ogl version
-	 *		-> making all this run on very low-end systems, while being fast on modern systems
-	 *		data streaming throttle cannot be decided by upload time and skipped on the fly like in ogl
-	 *		-> the command buffer submission is uploaded once and unchangeable and will work independetly
-	 *		-> this is very nice but makes it impossible to skip based on live frame data
-	 *		-> gpu uploads will be throttled by data size instead.
-	 *		-> initial load will measure base data throughput values to decide streaming capabilities
-	 *		-> then when streaming data the value will be updated and modified to dynamically throttle
-	 *	FIXME this also poses the question how to optimize dynamic atlasses for low-vram systems (case T450)
-	 */
 
 	// memory
 	VkMemoryRequirements __MemoryRequirements;
@@ -772,7 +755,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 #endif
 
 	// setup memory barrier to create image view
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,m_Mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -789,7 +772,7 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 	__ImageViewInfo.format = _texture_formats[m_Format].format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-	__ImageViewInfo.subresourceRange.levelCount = m_Mipcount;
+	__ImageViewInfo.subresourceRange.levelCount = mipcount;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
 	__ImageViewInfo.subresourceRange.layerCount = 1;
 	__ImageViewInfo.components = {
@@ -859,70 +842,6 @@ void GPUPixelBuffer::vanish()
 }
 
 /**
- *	load texture from path and finally upload to gpu memory
- *	\param gpb: target pixel buffer
- *	\param pbc: pointer to atlas component information, this will be overwritten
- *	\param path: path to texture file
- *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
- */
-void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path)
-{
-	TextureData __TextureData;
-	__TextureData.load(path);
-	gpb->signal.proceed();
-	_load(gpb,pbc,&__TextureData);
-}
-
-/**
- *	load font data and finally upload to gpu memory
- *	\param gpb: target pixel buffer
- *	\param font: pointer to target font memory
- *	\param path: path to font file
- *	\param size: target rasterization size of vector font
- *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
- */
-void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size)
-{
-	font->size = size;
-
-	// load ttf file
-	FT_Face __Face;
-	FT_Error _failed = FT_New_Face(g_FreetypeLibrary,path,0,&__Face);
-	COMM_ERR_COND(_failed,"font loading unsuccessful. failed with code %d",_failed);
-	FT_Set_Pixel_Sizes(__Face,0,size);
-
-	// iterate font glyphs
-	for (u8 i=0;i<96;i++)
-	{
-		// rasterize glyph
-		_failed = FT_Load_Char(__Face,i+32,FT_LOAD_RENDER);
-		COMM_ERR_COND(_failed,"rasterization of character %c failed. code %d",(char)i+32,_failed);
-
-		// subtexture attributes
-		TextureData __TextureData = TextureData(TEXTURE_FORMAT_MONOCHROME);
-		__TextureData.width = __Face->glyph->bitmap.width;
-		__TextureData.height = __Face->glyph->bitmap.rows;
-
-		// glyph attributes
-		font->glyphs[i] = {
-			.scale = vec2(__Face->glyph->bitmap.width,__Face->glyph->bitmap.rows),
-			.bearing = vec2(__Face->glyph->bitmap_left,__Face->glyph->bitmap_top),
-			.advance = (__Face->glyph->advance.x>>6)
-		};
-
-		// upload glyph as texture buffer
-		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
-		__TextureData.data = (u8*)malloc(__Mem);
-		memcpy(__TextureData.data,__Face->glyph->bitmap.buffer,__Mem);
-		_load(gpb,&font->tex[i],&__TextureData);
-	}
-	gpb->signal.proceed();
-
-	// store & clear
-	FT_Done_Face(__Face);
-}
-
-/**
  *	static helper to allow a subtexture segment of an atlas to merge when obsolete
  *	\param ums: quantity of memory segments in atlas
  *	\param seg: segment to check coverage for in both directions (contained or containing)
@@ -960,7 +879,7 @@ inline void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
  *	\param data: texture data
  *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
  */
-void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
+inline void _load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 {
 	gpb->mutex_memory_segments.lock();
 
@@ -1103,6 +1022,70 @@ void GPUPixelBuffer::_load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data)
 // TODO allow to merge freed memory segments with atlas segment vector
 
 /**
+ *	load texture from path and finally upload to gpu memory
+ *	\param gpb: target pixel buffer
+ *	\param pbc: pointer to atlas component information, this will be overwritten
+ *	\param path: path to texture file
+ *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ */
+void GPUPixelBuffer::load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path)
+{
+	TextureData __TextureData;
+	__TextureData.load(path);
+	gpb->signal.proceed();
+	_load(gpb,pbc,&__TextureData);
+}
+
+/**
+ *	load font data and finally upload to gpu memory
+ *	\param gpb: target pixel buffer
+ *	\param font: pointer to target font memory
+ *	\param path: path to font file
+ *	\param size: target rasterization size of vector font
+ *	\note this is supposed to run as a subthread, hence the mutex and load request queue pointer
+ */
+void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size)
+{
+	font->size = size;
+
+	// load ttf file
+	FT_Face __Face;
+	FT_Error _failed = FT_New_Face(g_FreetypeLibrary,path,0,&__Face);
+	COMM_ERR_COND(_failed,"font loading unsuccessful. failed with code %d",_failed);
+	FT_Set_Pixel_Sizes(__Face,0,size);
+
+	// iterate font glyphs
+	for (u8 i=0;i<96;i++)
+	{
+		// rasterize glyph
+		_failed = FT_Load_Char(__Face,i+32,FT_LOAD_RENDER);
+		COMM_ERR_COND(_failed,"rasterization of character %c failed. code %d",(char)i+32,_failed);
+
+		// subtexture attributes
+		TextureData __TextureData = TextureData(TEXTURE_FORMAT_MONOCHROME);
+		__TextureData.width = __Face->glyph->bitmap.width;
+		__TextureData.height = __Face->glyph->bitmap.rows;
+
+		// glyph attributes
+		font->glyphs[i] = {
+			.scale = vec2(__Face->glyph->bitmap.width,__Face->glyph->bitmap.rows),
+			.bearing = vec2(__Face->glyph->bitmap_left,__Face->glyph->bitmap_top),
+			.advance = (__Face->glyph->advance.x>>6)
+		};
+
+		// upload glyph as texture buffer
+		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
+		__TextureData.data = (u8*)malloc(__Mem);
+		memcpy(__TextureData.data,__Face->glyph->bitmap.buffer,__Mem);
+		_load(gpb,&font->tex[i],&__TextureData);
+	}
+	gpb->signal.proceed();
+
+	// store & clear
+	FT_Done_Face(__Face);
+}
+
+/**
  *	automatically uploads the loaded subtextures to the gpu
  *	\param channel: texture channel (this has to be defined in ogl version, can be ignored in vk)
  *	\note this has to be run in main thread due to the gpu upload being context sensitive
@@ -1117,7 +1100,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 
 	// setup memory barrier
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,m_Mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -1144,7 +1127,6 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
-	// TODO transition this naive, unstalled implementation to an actually good implementation
 
 	// controversial pixel buffer lod creation
 	mutex_texture_requests.unlock();
@@ -1166,9 +1148,9 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// generate mipmaps
-	s32 __MMWidth = m_Width;
-	s32 __MMHeight = m_Height;
-	for (u16 i=1;i<m_Mipcount;i++)
+	s32 __MMWidth = width;
+	s32 __MMHeight = height;
+	for (u16 i=1;i<mipcount;i++)
 	{
 		// memory barrier blit
 		__MMBarrier.subresourceRange.baseMipLevel = i-1;
@@ -1199,7 +1181,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	}
 
 	// seal final blit
-	__MMBarrier.subresourceRange.baseMipLevel = m_Mipcount-1;
+	__MMBarrier.subresourceRange.baseMipLevel = mipcount-1;
 	__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;

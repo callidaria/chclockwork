@@ -163,47 +163,57 @@ struct Font
 	u16 size;
 };
 
-struct GPUPixelBuffer
+class GPUPixelBuffer
 {
+public:
 	// setup
-	void allocate(u32 width,u32 height,TextureFormat format,u32 padding=0);
+	void allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding=0);
 	void vanish();
 
 	// utilty
 	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
 	static void load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u16 size);
-	static void _load(GPUPixelBuffer* gpb,Rect* pbc,TextureData* data);
 	void gpu_upload(u8 channel=0);
 	// TODO allocate & write for statically written texture atlas
 	// TODO when allocating, rotation boolean can be stored in alpha by signing the float
 	// TODO allow to merge deleted rects when using a dynamic texture atlas
-	// FIXME format can be assigned when allocating but load instructions are format dependent
 
-	// data
+public:
+	// texture handle
+#ifdef VKBUILD
+	VkImageView image_view;
+	VkSampler sampler;
+#else
+	Texture atlas;
+#endif
+
+	// properties
+	u16 mipcount;
+	u32 width,height;
+	bool allocated = false;
+
+	// subtexture segmentation
+	vector<Rect> memory_segments;  // FIXME rects are rational, this shouldn't be more than natural
+	InPlaceArray<Rect> textures = InPlaceArray<Rect>(BUFFER_MAXIMUM_TEXTURE_COUNT);
+	queue<TextureData> load_requests;
+	std::mutex mutex_memory_segments;
+	std::mutex mutex_texture_requests;
+	ThreadSignal signal;
+
+	// precalculation
+	u32 subtex_padding = 0;
+	vec2 dimensions_inv;
+
+private:
+	// texture memory
 #ifdef VKBUILD
 	VkImage m_Texture;
 	VkBuffer m_StagingBuffer;
 	VkDeviceMemory m_TextureMemory,m_StagingMemory;
-	VkImageView image_view;
-	VkSampler sampler;
-	u16 m_Mipcount;
-	u32 m_Width,m_Height;
 #endif
-	// FIXME wait just a second GPUPixelBuffer is a struct and i act as if it's a class. obey the coding laws!
 
-	Texture atlas;
-	vec2 dimensions_inv;
-	vector<Rect> memory_segments;  // FIXME rects are rational, this shouldn't be more than natural
-	std::mutex mutex_memory_segments;
-	InPlaceArray<Rect> textures = InPlaceArray<Rect>(BUFFER_MAXIMUM_TEXTURE_COUNT);
-	std::mutex mutex_texture_requests;
-	queue<TextureData> load_requests;
-	ThreadSignal signal;
-	u32 subtex_padding = 0;
-	size_t memID;
-
+	// info
 	TextureFormat m_Format;
-	bool allocated = false;  // FIXME no!
 };
 
 
