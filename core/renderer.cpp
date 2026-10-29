@@ -728,9 +728,9 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vbo.allocate(geometry.size()*sizeof(f32),false);
+	vbo.allocate(geometry.size()*sizeof(f32));
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
-	vbo.update();
+	vbo.gpu_upload();
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 
 	// link object data uploads
@@ -795,8 +795,8 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vbo.allocate(geometry.size()*sizeof(f32));
 	ibo.allocate(particles*isize);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	ibo.update();
-	vbo.update();
+	ibo.gpu_upload();
+	vbo.gpu_upload();
 	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// vertex array
@@ -855,7 +855,7 @@ Renderer::Renderer()
 	// sprite vertex data
 	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
-	m_SpriteVertexBuffer.update();
+	m_SpriteVertexBuffer.gpu_upload();
 	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT);
 
 	// sprite vertex array
@@ -876,7 +876,7 @@ Renderer::Renderer()
 	// framebuffer vertex data
 	m_TargetVertexBuffer.allocate(sizeof(__FBVertices));
 	m_TargetVertexBuffer.upload(__FBVertices,sizeof(__FBVertices));
-	m_TargetVertexBuffer.update();
+	m_TargetVertexBuffer.gpu_upload();
 
 	// framebuffer vertex array
 	m_TargetVertexArray.allocate(1);
@@ -1720,7 +1720,7 @@ void Renderer::_gpu_upload()
 {
 	// sprites
 	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
-	m_SpriteInstanceBuffer.update();
+	m_SpriteInstanceBuffer.gpu_upload();
 	m_GPUSpriteTextures.gpu_upload();
 
 	// text
@@ -1731,7 +1731,7 @@ void Renderer::_gpu_upload()
 									m_CharCount*sizeof(TextCharacter));
 		m_CharCount += p_Text.buffer.size();
 	}
-	m_TextInstanceBuffer.update();
+	m_TextInstanceBuffer.gpu_upload();
 	m_GPUFontTextures.gpu_upload();
 
 	// mesh textures

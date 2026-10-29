@@ -16,7 +16,7 @@ public:
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
 
 #ifdef VKBUILD
-	void update();
+	void gpu_upload();
 	void free();
 	void vanish();
 #else

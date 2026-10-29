@@ -5,7 +5,8 @@
 // Memory Barriers
 
 /**
- *	TODO
+ *	generate memory barrier for data buffer
+ *	\returns assembled barrier info
  */
 inline static VkBufferMemoryBarrier _generate_memory_barrier_bfr()
 {
@@ -21,7 +22,10 @@ inline static VkBufferMemoryBarrier _generate_memory_barrier_bfr()
 }
 
 /**
- *	TODO
+ *	generate memory barrier for texture, image or other pixel buffer
+ *	\param tex: target image
+ *	\param mip: count of generated mipmap levels
+ *	\returns assembled barrier info
  */
 inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 mip)
 {
@@ -43,16 +47,16 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 // Vertex Buffer
 
 /**
- *	TODO
+ *	vertex buffer allocation
+ *	\param size: buffer size in bytes
+ *	\param indexed: (default false) true if buffer holds additional ibo index information alongside vertices
  */
 void VertexBuffer::allocate(size_t size,bool indexed)
 {
 #ifdef VKBUILD
-
 	// generate buffers for host & device memory
-	GPU::generate_buffer(vbo,m_Memory,size,
-						 VK_BUFFER_USAGE_TRANSFER_DST_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-						 |VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
+	GPU::generate_buffer(vbo,m_Memory,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+						 |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
 						 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	GPU::generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -70,7 +74,10 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 }
 
 /**
- *	TODO
+ *	vertex buffer upload, vertices only
+ *	\param vertices: pointer to vertex memory
+ *	\param vsize: size of vertex memory copy range in bytes
+ *	\param ofs: (default 0) offset in vertex memory to start the copy from
  */
 void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
@@ -88,7 +95,11 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 //		update instance information on the fly. there are a lot of interesting use-cases for this.
 
 /**
- *	TODO
+ *	vertex buffer upload, vertices alongside indices
+ *	\param vertices: pointer to vertex memory
+ *	\param vsize: size of vertex memory copy range in bytes
+ *	\param indices: pointer to index memory
+ *	\param isize: size of index memory copy range in bytes
  */
 void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize)
 {
@@ -113,9 +124,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	upload vbo/ibo data to gpu
  */
-void VertexBuffer::update()
+void VertexBuffer::gpu_upload()
 {
 	m_CMDBuffer = g_GPU.acquire_transfer_command_buffer();
 
@@ -150,7 +161,7 @@ void VertexBuffer::update()
 //		parallelism and even multi-passes are not organized through separate submits and command buffers
 
 /**
- *	TODO
+ *	free vbo memory
  */
 void VertexBuffer::free()
 {
@@ -161,7 +172,7 @@ void VertexBuffer::free()
 }
 
 /**
- *	TODO
+ *	destruct vertex buffer
  */
 void VertexBuffer::vanish()
 {
@@ -172,7 +183,7 @@ void VertexBuffer::vanish()
 #else
 
 /**
- *	TODO
+ *	bind vertex array?
  */
 void VertexBuffer::bind()
 {
@@ -185,7 +196,8 @@ void VertexBuffer::bind()
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	allocate vertex array
+ *	\param size: count of vbo attachments, e.g. 2 if vertex data will be complemented by instance data
  */
 void VertexArray::allocate(u8 size)
 {
@@ -195,7 +207,8 @@ void VertexArray::allocate(u8 size)
 }
 
 /**
- *	TODO
+ *	add vertex buffer to array
+ *	\param vb: vertex/instance buffer to register
  */
 void VertexArray::register_buffer(const VertexBuffer& vb)
 {
@@ -204,7 +217,8 @@ void VertexArray::register_buffer(const VertexBuffer& vb)
 }
 
 /**
- *	TODO
+ *	add dynamic vertex buffer, for constantly changing data. e.g. for an instance buffer, holding positions
+ *	\param vb: vertex/instance buffer to register
  */
 void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 {
@@ -217,7 +231,9 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 }
 
 /**
- *	TODO
+ *	add indexed vertex buffer to array. this vertex buffer must have been created with indexed=true
+ *	\param vb: vertex/instance buffer to register
+ *	\note such a buffer can only be added once per vertex array
  */
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
@@ -228,7 +244,7 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 }
 
 /**
- *	TODO
+ *	transfer vertex array ownership for dynamic buffers to read (for display)
  */
 void VertexArray::transfer_ownership_read()
 {
@@ -240,7 +256,7 @@ void VertexArray::transfer_ownership_read()
 //		maybe only request a barrier when uploading, it will loose out this combined barrier command though
 
 /**
- *	TODO
+ *	transfer vertex array ownership for dynamic buffers to write (for update)
  */
 void VertexArray::transfer_ownership_write()
 {
@@ -250,7 +266,7 @@ void VertexArray::transfer_ownership_write()
 }
 
 /**
- *	TODO
+ *	bind vertex array
  */
 void VertexArray::bind()
 {
@@ -259,7 +275,7 @@ void VertexArray::bind()
 }
 
 /**
- *	TODO
+ *	bind indexed vertex array
  */
 void VertexArray::bind_indexed()
 {
@@ -332,6 +348,7 @@ void TextureData::load(const char* path)
 
 /**
  *	upload data to gpu
+ *	TODO amend
  *	\note has to be uploaded in main thread
  *	\note target texture has to be bound before uploading
  */
@@ -349,9 +366,12 @@ void TextureData::gpu_upload(
 #endif
 	_free();
 }
+// TODO this works drastically different for both versions. vk uses this as a static helper,
+//		but ogl uses this as the upload function for the structures texture data itself. this is bad architecture
 
 /**
  *	upload data as subtexture to atlas on gpu based on saved x & y axis offset
+ *	TODO amend
  *	\note has to be uploaded in main thread
  *	\note target texture has to be bound and allocated before uploading
  */
@@ -369,10 +389,14 @@ void TextureData::gpu_upload_subtexture(
 	_free();
 }
 
-/**
- *	TODO
- */
 #ifdef VKBUILD
+/**
+ *	helper to copy image buffer to gpu memory
+ *	\param image: target image, receiving image data
+ *	\param buf: target image buffer
+ *	\param mem: target image memory
+ *	\param ofs: image buffer offset is used for subtexture uploads on atlases. it describes subtexture position
+ */
 void TextureData::_copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs)
 {
 	if (!width||!height)
@@ -423,7 +447,6 @@ Texture::Texture()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glGenTextures(1,&m_Memory);
 #endif
@@ -431,6 +454,10 @@ Texture::Texture()
 
 #ifdef VKBUILD
 
+/**
+ *	transition depth texture from framebuffer, so that it can be used as input texture in following shading steps
+ *	\param buffer: depth buffer result, sourced from framebuffer component image
+ */
 void Texture::transition_depth_texture(VkImage buffer)
 {
 	VkImageMemoryBarrier __MemoryBarrier = {  };
@@ -493,7 +520,6 @@ void Texture::set_texture_parameter_linear_mipmap()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
@@ -509,7 +535,6 @@ void Texture::set_texture_parameter_nearest_mipmap()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
@@ -524,7 +549,6 @@ void Texture::set_texture_parameter_linear_unfiltered()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
@@ -539,7 +563,6 @@ void Texture::set_texture_parameter_nearest_unfiltered()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
@@ -554,7 +577,6 @@ void Texture::set_texture_parameter_clamp_to_edge()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
@@ -569,7 +591,6 @@ void Texture::set_texture_parameter_clamp_to_border()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_BORDER);
@@ -584,7 +605,6 @@ void Texture::set_texture_parameter_repeat()
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
@@ -600,7 +620,6 @@ void Texture::set_texture_parameter_filter_bias(float bias)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_LOD_BIAS,bias);
 #endif
@@ -616,7 +635,6 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glTexParameterfv(GL_TEXTURE_2D,GL_TEXTURE_BORDER_COLOR,&colour.r);
 #endif
@@ -821,12 +839,11 @@ void GPUPixelBuffer::allocate(u32 width,u32 height,TextureFormat format,u32 padd
 // TODO use mip definition in allocation for ogl version as well
 
 /**
- *	TODO
+ *	free atlas pixel buffer
  */
 void GPUPixelBuffer::vanish()
 {
 #ifdef VKBUILD
-
 	// staging
 	g_GPU.free(m_StagingMemory);
 	g_GPU.free(m_StagingBuffer);
@@ -906,9 +923,12 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 }
 
 /**
- *	TODO
+ *	static helper to allow a subtexture segment of an atlas to merge when obsolete
+ *	\param ums: quantity of memory segments in atlas
+ *	\param seg: segment to check coverage for in both directions (contained or containing)
+ *	\param len: amount of relevant rects in ums to check
  */
-void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
+inline void _merge_segment(vector<Rect>& ums,Rect& seg,u32& len)
 {
 	u32 i = 0;
 	while (i<len)
