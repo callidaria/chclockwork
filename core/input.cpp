@@ -76,7 +76,8 @@ void Input::update(bool& running)
 }
 
 /**
- *	TODO
+ *	free input processing memory
+ *	\note this should only be called by main & nowhere else. vanish() will prevent further input processing
  */
 void Input::vanish()
 {

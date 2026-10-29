@@ -33,6 +33,6 @@ void main()
 	gl_Position.y *= -1;
 
 	// pass
-	EdgeCoordinates = atlas_position+atlas_dimension*edge_coordinates;
+	EdgeCoordinates = atlas_position+atlas_dimension*(1-edge_coordinates);
 	Alpha = alpha;
 }

@@ -2,7 +2,7 @@
 
 
 /**
- *	TODO
+ *	setup parcour test scene
  */
 void ParcourParcs::init()
 {
@@ -132,7 +132,7 @@ void ParcourParcs::init()
 }
 
 /**
- *	TODO
+ *	process movement state controller & focus camera on character
  */
 void ParcourParcs::update()
 {
@@ -225,7 +225,7 @@ void ParcourParcs::update()
 }
 
 /**
- *	TODO
+ *	unload parcour test scene
  */
 void ParcourParcs::vanish()
 {
