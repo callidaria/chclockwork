@@ -1,7 +1,6 @@
 #ifndef CORE_RENDERER_HEADER
 #define CORE_RENDERER_HEADER
 
-
 #include <numeric>
 #include "gpu_interface.h"
 #include "buffer.h"
@@ -11,9 +10,34 @@
 // ----------------------------------------------------------------------------------------------------
 // Constants
 
-constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1247.f;
+// range & code
+constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1237.f;
 constexpr u8 RENDERER_ANIMATION_INFLUENCE_RANGE = 4;
 constexpr u8 RENDERER_GBUFFER_FORMAT_SIZE = 5;
+
+// location endpoint
+enum GlobalShaderEndpoint : u16
+{
+	GSE_CAMERA_TRANSFORM_LOCATION = 0,
+	GSE_CSYSTEM_TRANSFORM_LOCATION,
+	GSE_SPRITE_ATLAS_LOCATION,
+	GSE_FONT_ATLAS_LOCATION,
+	GSE_FORWARD_COLOUR_LOCATION,
+	GSE_FORWARD_DEPTH_LOCATION,
+	GSE_GBUFFER_COLOUR_LOCATION,
+	GSE_GBUFFER_POSITION_LOCATION,
+	GSE_GBUFFER_NORMAL_LOCATION,
+	GSE_GBUFFER_MATERIAL_LOCATION,
+	GSE_GBUFFER_EMISSION_LOCATION,
+	GSE_GBUFFER_DEPTH_LOCATION,
+	GSE_SHADOW_MAP_LOCATION,
+	GSE_CAMERA_ATTRIBUTES_LOCATION = 40,
+	GSE_LIGHTING_LOCATION,
+	GSE_SHADOW_LOCATION,
+};
+constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
+constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
+// TODO check dynamic endpoint setup against possible constant violations
 
 
 // ----------------------------------------------------------------------------------------------------

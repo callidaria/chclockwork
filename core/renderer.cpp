@@ -675,7 +675,7 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 {
 	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
 }
-// FIXME make this vector a Texture* with lenth pass default = 1 instead, this makes is way more usable
+// FIXME make this vector a Texture* with length pass default = 1 instead, this makes it way more usable
 
 /**
  *	add animated mesh geometry to batch
@@ -686,7 +686,8 @@ u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
 u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
 {
 	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	objects[id].uniform.attach_memory_segment(&ubo[id][0],128,&mesh.recursive_transforms[0]);
+	objects[id].uniform.attach_memory_segment(&ubo[id][0],RENDERER_JOINT_ANIMATION_LOCATION,
+											  &mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
 	return id;
 }
@@ -738,10 +739,9 @@ void GeometryBatch::load()
 				  "length of ubo, object tuple & data storage does not correlate");
 	for (size_t i=0;i<ubo.size();i++)
 	{
-		objects[i].uniform.attach_memory_segment(&ubo[i][0],70,&data[i]);
+		objects[i].uniform.attach_memory_segment(&ubo[i][0],RENDERER_GEOMETRY_INFO_LOCATION,&data[i]);
 		objects[i].transform.model = &data[i].model;
 	}
-	// TODO do not hardcode as "70", read from a constant ffs. is this amateur hour?)
 
 	// vertex array
 	vao.allocate(1);
@@ -896,31 +896,29 @@ Renderer::Renderer()
 	fd_shadowproj.initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 
 	// setup shader endpoint
-	g_UniformBuffer.define(0,0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(0,1,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(0,4,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,5,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,6,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,7,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,8,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,9,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,10,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,11,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,12,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,40,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,41,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(0,42,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+	g_UniformBuffer.define(0,GSE_CAMERA_TRANSFORM_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(0,GSE_CSYSTEM_TRANSFORM_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	for (u16 i=GSE_SPRITE_ATLAS_LOCATION;i<GSE_SHADOW_MAP_LOCATION+1;i++)
+		g_UniformBuffer.define(0,i,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,GSE_CAMERA_ATTRIBUTES_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,GSE_LIGHTING_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(0,GSE_SHADOW_LOCATION,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 						   VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(1,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(1,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(1,70,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(1,128,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(1,RENDERER_GEOMETRY_INFO_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(1,RENDERER_JOINT_ANIMATION_LOCATION,
+						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(2,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(2,1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(2,2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(2,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.generate_layouts();
+	// TODO define this in an extern file & routinize
 
 	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
@@ -960,37 +958,37 @@ Renderer::Renderer()
 
 	// setup global ubo data for slot 0
 	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
-	m_GlobalDescriptorSet.allocate(0,14);
-	m_GlobalDescriptorSet.define_data_segment(0,m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
+	m_GlobalDescriptorSet.allocate(0,16);
+	m_GlobalDescriptorSet.define_data_segment(GSE_CAMERA_TRANSFORM_LOCATION,
+											  m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),
 											  sizeof(ObjectTransformation));
-	m_GlobalDescriptorSet.define_data_segment(1,m_GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
+	m_GlobalDescriptorSet.define_data_segment(GSE_CSYSTEM_TRANSFORM_LOCATION,
+											  m_GlobalSetOffset+offsetof(UniformBufferMemory,strafo),
 											  sizeof(SpriteTransformation));
-	m_GlobalDescriptorSet.define_data_segment(40,m_GlobalSetOffset+offsetof(UniformBufferMemory,camera),
+	m_GlobalDescriptorSet.define_data_segment(GSE_CAMERA_ATTRIBUTES_LOCATION,
+											  m_GlobalSetOffset+offsetof(UniformBufferMemory,camera),
 											  sizeof(CameraAttributes));
-	m_GlobalDescriptorSet.define_data_segment(41,m_GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
+	m_GlobalDescriptorSet.define_data_segment(GSE_LIGHTING_LOCATION,
+											  m_GlobalSetOffset+offsetof(UniformBufferMemory,lighting),
 											  sizeof(Lighting));
-	m_GlobalDescriptorSet.define_data_segment(42,m_GlobalSetOffset+offsetof(UniformBufferMemory,orth_shadow),
+	m_GlobalDescriptorSet.define_data_segment(GSE_SHADOW_LOCATION,
+											  m_GlobalSetOffset+offsetof(UniformBufferMemory,orth_shadow),
 											  sizeof(OrthographicShadow));
-	m_GlobalDescriptorSet.define_texture_segment(4,9);
+	m_GlobalDescriptorSet.define_texture_segment(GSE_SPRITE_ATLAS_LOCATION,
+												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1);
 
 	// linking buffer results
-	m_GlobalDescriptorSet.link_result(4,m_Framebuffer.components[0]);
-	m_GlobalDescriptorSet.link_result(5,m_Framebuffer.components[1]);
-	m_GlobalDescriptorSet.link_result(6,m_GBuffer.components[0]);
-	m_GlobalDescriptorSet.link_result(7,m_GBuffer.components[1]);
-	m_GlobalDescriptorSet.link_result(8,m_GBuffer.components[2]);
-	m_GlobalDescriptorSet.link_result(9,m_GBuffer.components[3]);
-	m_GlobalDescriptorSet.link_result(10,m_GBuffer.components[4]);
-	m_GlobalDescriptorSet.link_result(11,m_GBuffer.components[5]);
-	m_GlobalDescriptorSet.link_result(12,m_ShadowMap.components[0]);
+	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures);
+	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures);
+	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,m_Framebuffer.components[0]);
+	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,m_Framebuffer.components[1]);
+	for (u16 i=0;i<6;i++)
+		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,m_GBuffer.components[i]);
+	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,m_ShadowMap.components[0]);
 
 	// load ubo
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
 	m_TextPipeline.generate_ubo(m_TextUBO);
-
-	// link forward buffer & gbuffer results
-	m_SpriteUBO[0].link_result(0,&m_GPUSpriteTextures);
-	m_TextUBO[0].link_result(3,&m_GPUFontTextures);
 
 	// load default texture
 	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
