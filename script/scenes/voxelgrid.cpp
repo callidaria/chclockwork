@@ -32,7 +32,7 @@ void RoomVoxels::init(Font* font)
 
 	// attach transform & textures
 	__RoomBatch->uniform.attach_memory_segment(&__RoomBatch->ubo[0],71,&m_VoxelData);
-	g_Renderer.attach_texture(&__RoomBatch->ubo[0],0,__RoomTexture);
+	g_Renderer.attach_texture(&__RoomBatch->ubo[1],0,__RoomTexture);
 	// TODO improve texture attachment
 
 	// grid instances

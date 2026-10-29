@@ -1084,7 +1084,6 @@ void Renderer::update()
 	*/
 }
 // TODO find out when to call the ownership transfers / when those memory barriers are needed
-// TODO why refinalize uniform buffer? should this not only be to allow for anti-nullhandle definition problems
 // TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 /**
@@ -1650,16 +1649,14 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
-			// TODO make transform take a matrix pointer, so it can be calculated in-place without extra copy
-			// TODO map<u32,void*> can also describe memory uploads pretty independently
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
 			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
+		// TODO map<u32,void*> can also describe memory uploads pretty independently
 	}
 }
-// TODO combine draws for all geometry tuples to a single draw call, or allow different pcs
 
 /**
  *	update draw of all particle batches
@@ -1707,8 +1704,6 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
 	}
 }
-// FIXME all batches, that are not casting shadows are now not updating their ubos. this was a quick & dirty
-//		fix to quickly show capability, but this cannot be kept the way it is. fix this before merge!
 
 /**
  *	handle pending gpu uploads for all forwarded data
@@ -1733,7 +1728,7 @@ void Renderer::_gpu_upload()
 
 	// mesh textures
 	bool __MeshTextureUpdated = false;
-	while (m_MeshTextureUploadQueue.size())  // TODO check for upload proceedings, to not drop frames
+	while (m_MeshTextureUploadQueue.size())
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.data.format);

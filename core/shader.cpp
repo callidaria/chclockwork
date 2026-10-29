@@ -54,7 +54,10 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 // Tools
 
 /**
- *	TODO
+ *	extract info from uniform data block definitions in shader
+ *	\param file: shader source file
+ *	\param varcount: variable to store accumulated data block variable count in
+ *	\param blocksize: variable to store accumulated data block memory size in
  */
 static inline void _process_data_block_text(std::ifstream& file,size_t& varcount,size_t& blocksize)
 {
@@ -103,7 +106,10 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
 //		& fragment interface on the fly
 
 /**
- *	TODO
+ *	automatically assemble shader interface from shader source file
+ *	\param path: shader source file
+ *	\param interface: target interface data, receiving information
+ *	\param stage: source file shader stage
  */
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
@@ -267,7 +273,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	uniform buffer data manager setup
+ *	\note do not construct manually, this should be unique & all engine requests go through the unique global
  */
 UniformBuffer::UniformBuffer()
 {
@@ -334,7 +341,8 @@ UniformBuffer::UniformBuffer()
 }
 
 /**
- *	TODO
+ *	destruct uniform data manager
+ *	\note do not call this. the engine will destruct after window is closed. program breaks if closed prematurely
  */
 void UniformBuffer::vanish()
 {
@@ -353,10 +361,15 @@ void UniformBuffer::vanish()
 	for (VkDescriptorSetLayout& p_Layout : layouts) g_GPU.free(p_Layout);
 	g_GPU.free(descriptor_pool);
 }
-// TODO maybe this buffer needs to be moved to shader.h instead, being closely related to it's features
 
 /**
- *	TODO
+ *	define location for shader endpoint
+ *	\param set: descriptor set
+ *	\param loc: descriptor location
+ *	\param type: type of the descriptor, combinable through bitwise or
+ *			(e.g. VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+ *	\param stage: active stages for the location, combinable through bitwise or
+ *			(e.g. VK_SHADER_STAGE_VERTEX_BIT,VK_SHADER_STAGE_FRAGMENT_BIT)
  */
 void UniformBuffer::define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFlags stage)
 {
@@ -373,7 +386,8 @@ void UniformBuffer::define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFla
 }
 
 /**
- *	TODO
+ *	generate descriptor set layouts for all guaranteed sets
+ *	\note run this after finishing all definitions through define()
  */
 void UniformBuffer::generate_layouts()
 {
@@ -390,7 +404,9 @@ void UniformBuffer::generate_layouts()
 }
 
 /**
- *	TODO
+ *	request segment of uniform buffer memory, works as gpu malloc
+ *	\param size: required memory size
+ *	\returns offset to beginning of aquired memory segment
  */
 size_t UniformBuffer::acquire_memory_segment(size_t size)
 {
@@ -426,7 +442,10 @@ size_t UniformBuffer::acquire_memory_segment(size_t size)
 }
 
 /**
- *	TODO
+ *	write data to uniform buffer memory
+ *	\param data: pointer to uniform data
+ *	\param size: size of uniform data in bytes
+ *	\param offset: (default 0) start of the target memory segment, e.g. return value of acquire_memory_segment()
  */
 void UniformBuffer::write(void* data,size_t size,size_t offset)
 {
