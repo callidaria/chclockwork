@@ -384,15 +384,6 @@ static inline void _swap_buffer(VkDevice& gpu,VkCommandBuffer& buffer,VkFence* p
 	VkResult __Result = vkBeginCommandBuffer(buffer,&__CMDInfo);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"issue while starting a command buffer");
 }
-// TODO so sort graphical submissions in two different categories and maybe submit twice?
-//		that would allow static geometry draw while transfer for dynamic objects still takes place
-//		in addition to transfer taking place, while graphics is working on the previous frame...
-//		then instanced draws (which is most of it) takes over, using a second submit
-//		unfortunately heavy shading will probably have to wait for all geometry to finish, but that is ok due to
-//		the fact that transfer for the next frame happens during those operations.
-//		(1f buffer stall ipl should not be a problem, when this engine targets a very high frequency anyways)
-// TODO a mode to reduce gpu parallelism for buffer upload while frame processing in exchange for zero
-//		input lag rates. but the user is not recommended to actually use it!! for danmaku nerds only!!
 
 /**
  *	TODO
@@ -464,8 +455,6 @@ u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
 	COMM_ERR("failed to select memory by type. this is a fatal issue!");
 	return 0;
 }
-// TODO well this just has to be completely reworked before fully including this
-// TODO optimize, do not rely on coherent bit and flush explicitly later
 
 /**
  *	TODO

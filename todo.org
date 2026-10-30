@@ -1,0 +1,33 @@
+BLITTER
+- colour load store
+- blitter image view create info cleanup, code repetition
+
+MAIN
+- main routine is messy, due to inaccurate vulkan implementations
+
+BUFFER
+- combine framebuffer abstractions & document
+- eliminate framebuffer info copies
+- buffer image view create info (et cetera) repetitions
+- clear colour memory enumeration
+- remove direct feature definition
+rel BLITTER - implement viewport command setting alongside gl
+
+HARDWARE
+- switch cw/ccw front/back setting
+- implement feature setting setup correlation to ogl
+- document hardware
+- single allocation of device memory & allocate just like for uniform buffers
+
+CORE
+- coordinate system declaration & fixes
+
+MEMORY
+- split GPUPixelBuffer & singular textures
+
+
+OGL hotfix
+- abstract gpu settings & run them as active settings in sequence, find eq for vk
+- remove frame macro border completely
+- implemenent or remove set_viewport in vk. but most likely implement viewport per pipeline
+- finalize step by step

@@ -61,6 +61,7 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 	GPU::generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&m_Data);
+	// TODO optimize, do not rely on coherent bit and flush explicitly later
 
 	// assemble buffer copy info
 	m_BufferCopy.srcOffset = 0;
@@ -706,6 +707,7 @@ void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,
 						 width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	// TODO optimize, do not rely on coherent bit and flush explicitly later
 
 	// image buffer
 	VkImageCreateInfo __ImageInfo = {  };

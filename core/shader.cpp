@@ -329,6 +329,7 @@ UniformBuffer::UniformBuffer()
 							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,SHADER_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
 		// TODO stage this too or leave it?
+		// TODO optimize, do not rely on coherent bit and flush explicitly later
 	}
 
 	// register unsegmented splice
@@ -1072,6 +1073,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = (bool)(feat&SPF_STENCIL);
+	// TODO test performance benefits of depth bounds test activation
 
 	// push constants
 	COMM_MSG_COND(m_Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,

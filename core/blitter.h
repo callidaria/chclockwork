@@ -52,7 +52,6 @@ public:
 private:
 #ifdef VKBUILD
 	void _assemble_swapchain();
-	//void _finalize_swapchain();
 	void _destroy_swapchain();
 #endif
 

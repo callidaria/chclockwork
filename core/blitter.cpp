@@ -424,7 +424,6 @@ void Frame::rebuild_swapchain()
 	_destroy_swapchain();
 	_assemble_swapchain();
 	// TODO recreate render pass as well?
-	//_finalize_swapchain();  // TODO recreate result buffer somehow?
 }
 
 /**

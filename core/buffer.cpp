@@ -74,8 +74,7 @@ void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for colour buffer %d for some reason",i);
 		vkBindImageMemory(g_GPU.gpu,attachment_images[i],m_AttachmentMemory[i],0);
 		// FIXME repeat code chunk for vram allocation here (identical to depth buffer allocation)
-		// TODO check for allocation success (also for depth buffer)
-
+		// TODO check for allocation success (also for depth buffer
 		// colour buffer image view handle
 		VkImageViewCreateInfo __ImageViewInfo = {  };
 		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -158,8 +157,6 @@ void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
 		// TODO this is much more abstractable, but also not really?
-		// TODO allow for independent depth buffer allocation (?in blitter) and bind just result colour buffer
-
 #else
 #endif
 	}
@@ -210,7 +207,6 @@ inline void Framebuffer::define_colour_component(u8 index,f32 width,f32 height,b
 #endif
 }
 */
-// TODO maybe define index inside the framebuffer struct as a cursor counter variable
 
 /**
  *	TODO
