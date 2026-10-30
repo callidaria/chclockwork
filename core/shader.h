@@ -42,6 +42,7 @@ enum ShaderPipelineFeatures
 	SPF_DEFAULT = 0,
 	SPF_FLIPPED = 1<<0,
 	SPF_BLENDING = 1<<1,
+	SPF_STENCIL = 1<<2,
 };
 
 struct DescriptorInfo

@@ -536,7 +536,6 @@ void DescriptorSetMemory::update_frame()
 	}
 	vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 }
-// TODO the writes should not be duplicated per result buffer right? they are bound, then updated?
 // TODO remove the typecheck for buffer! the ubo has to be transferred ONCE, then the copy will suffice
 
 /**
@@ -940,18 +939,18 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 							  m_Interface,VK_SHADER_STAGE_VERTEX_BIT);
 	_shader_interface_automap((__FragmentSource.parent_path().parent_path()/__FragmentSource.filename()).c_str(),
 							  m_Interface,VK_SHADER_STAGE_FRAGMENT_BIT);
-	// TODO split definitions into two different for each shader, to allow for some independence
-	// FIXME also LIES! only vertex interface relevant for upload size will break soon
 
 	// vertex binding setup
 	VkVertexInputBindingDescription __InputBindings[] = { {},{} };
 	__InputBindings[0].binding = 0;
 	__InputBindings[0].stride = m_Interface.vbo_width;
 	__InputBindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	__InputBindings[1].binding = 1;
-	__InputBindings[1].stride = m_Interface.ibo_width;
-	__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-	// TODO find out if this has performance implications
+	if (!!m_Interface.ibo_width)
+	{
+		__InputBindings[1].binding = 1;
+		__InputBindings[1].stride = m_Interface.ibo_width;
+		__InputBindings[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+	}
 
 	// vertex attribute setup
 	u32 __Location = 0;
@@ -982,11 +981,10 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	// fixed function vertex input state
 	VkPipelineVertexInputStateCreateInfo __InputInfo = {  };
 	__InputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	__InputInfo.vertexBindingDescriptionCount = 2;
+	__InputInfo.vertexBindingDescriptionCount = 1+(!!m_Interface.ibo_width);
 	__InputInfo.pVertexBindingDescriptions = __InputBindings;
 	__InputInfo.vertexAttributeDescriptionCount = __AttributeCount;
 	__InputInfo.pVertexAttributeDescriptions = &__AttributeDesc[0];
-	// TODO implement instancing switch here later!
 
 	// fixed function input assembly
 	VkPipelineInputAssemblyStateCreateInfo __AssemblyInfo = {  };
@@ -1011,8 +1009,7 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	__ViewportInfo.pViewports = &fd.viewport;
 	__ViewportInfo.scissorCount = 1;
 	__ViewportInfo.pScissors = &fd.scissor;
-	// TODO investigate why this setting even exists? what is this multiple viewport setup for?
-	// TODO this should not always depend on standard frame viewport
+	// TODO implement to allow for multiple output viewports
 
 	// fixed function rasterization
 	VkPipelineRasterizationStateCreateInfo __RasterInfo = {  };
@@ -1070,11 +1067,11 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	// depth stencil
 	VkPipelineDepthStencilStateCreateInfo __DepthStencilInfo = {  };
 	__DepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	__DepthStencilInfo.depthTestEnable = VK_TRUE;
-	__DepthStencilInfo.depthWriteEnable = VK_TRUE;
+	__DepthStencilInfo.depthTestEnable = has_depth;
+	__DepthStencilInfo.depthWriteEnable = has_depth;
 	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
-	__DepthStencilInfo.stencilTestEnable = VK_FALSE;  // TODO enable this later
+	__DepthStencilInfo.stencilTestEnable = (bool)(feat&SPF_STENCIL);
 
 	// push constants
 	COMM_MSG_COND(m_Interface.pc_memsize>GPU_GUARANTEED_PCU_MEMSIZE,LOG_YELLOW,
@@ -1221,10 +1218,6 @@ void ShaderPipeline::enable()
 #ifdef VKBUILD
 	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
 	vkCmdBindPipeline(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline);
-	/*
-	vkCmdBindDescriptorSets(__CMDBuffer->buffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline_layout,0,1,
-							(VkDescriptorSet*)&g_UniformBuffer.m_DSets[g_GPU.active_buffer],0,nullptr);
-	*/
 #else
 	glUseProgram(m_ShaderProgram);
 #endif
@@ -1254,7 +1247,6 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		map<u32,UBOAttribute>& p_Set = m_Interface.ubo_attribs[i];
 		DescriptorSetMemory& p_DSetMemory = sets[i-1];
 		p_DSetMemory.allocate(i,p_Set.size());
-		// FIXME the set layout + size at call does not make sense in the slightest
 		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
 		{
 			if (p_Binding->second.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
@@ -1263,11 +1255,6 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		}
 	}
 }
-// TODO generate set specifical. this should then allow a global set at slot 0 for basic data & buffers that
-//		change exactly once each frame, then switch at will for sets 1-3 (<4 is guaranteed)
-// TODO only allocate new descriptor set memory, when the pattern is not already setup.
-//		this will prevent e.g. the allocation for one-time update global states like
-//		3D camera and 2D coordinate system.
 
 /**
  *	generate push constant memory, based on extracted interface from stage sources
@@ -1295,7 +1282,6 @@ void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
 					   m_Interface.pc_memsize,pcm);
 }
 // FIXME i'd rather not check every time
-// TODO research if it is supported by transfer queue
 
 
 #ifdef GLBUILD
