@@ -19,15 +19,29 @@ HARDWARE
 - document hardware
 - single allocation of device memory & allocate just like for uniform buffers
 
-CORE
-- coordinate system declaration & fixes
-
 MEMORY
 - split GPUPixelBuffer & singular textures
+- fix the static vs member upload conflict for both versions
+- investigation of memcpy obsoletion through vbo buffer data acquision to write into
+- vbo setup code repetition
+- join subtexture uploads after split
+- cleanup
 
+RENDERER
+- improve texture attachments
+- upload instance buffer data before draw & take care of particle ibos
+- cleanup
+- document
+- cleanup draw update functions
+- check _gpu_upload for optimal processing
+rel SHADER - find a solution for push constant uploads
+rel BUFFER - remove the explicit colour buffer definitions for each out, also in register pipeline
+rel BLITTER - also routinize the result buffer setup loop for result image views
 
-OGL hotfix
-- abstract gpu settings & run them as active settings in sequence, find eq for vk
-- remove frame macro border completely
-- implemenent or remove set_viewport in vk. but most likely implement viewport per pipeline
-- finalize step by step
+SHADER
+- fix push constant reads
+- buffer typecheck remove
+
+BASE
+- coordinate system declaration & fixes
+- target pointer for camera view & projection transformations. in-place trafo prevents copy

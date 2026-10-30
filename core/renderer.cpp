@@ -1022,8 +1022,6 @@ void Renderer::update()
 	m_UBufferMem.otrafo.view = g_Camera.view;
 	m_UBufferMem.otrafo.proj = g_Camera.proj;
 	m_UBufferMem.camera.position = g_Camera.position;
-	// TODO also create the ability the link a camera to the uniform
-	//		right now this happens for both matrices individually, which is not appropriate
 	// TODO dont copy over like this
 
 	_update_uniforms();
@@ -1409,19 +1407,6 @@ lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeli
 	m_DeferredGeometryBatches.push_back({ .shader = pipeline });
 	return std::prev(m_DeferredGeometryBatches.end());
 }
-
-/**
- *	register phyiscal particle batch
- *	\returns pointer to created physical particle batch
- */
-/*
-lptr<ParticleBatch> Renderer::register_deferred_particle_batch()
-{
-	m_DeferredParticleBatches.push_back({ .shader = m_ParticlePassPipeline });
-	return std::prev(m_DeferredParticleBatches.end());
-}
-*/
-// TODO reenable
 
 /**
  *	register phyiscal particle batch

@@ -25,7 +25,6 @@ void ParcourParcs::init()
 			nullptr,0,SPF_FLIPPED,true
 		);
 	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
-	// TODO namespace gformats by adding the constant inside the renderer class
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
