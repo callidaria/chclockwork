@@ -465,7 +465,9 @@ void UniformBuffer::write(void* data,size_t size,size_t offset)
 // Uniform Set
 
 /**
- *	TODO
+ *	prepare independent descriptor memory for a set
+ *	\param set: descriptor set number (uncorrected, first non-global is 1 not 0)
+ *	\param size: count of different possible segment definitions
  *	\note this must be called before anything else
  */
 void DescriptorSetMemory::allocate(u8 set,size_t size)
@@ -492,7 +494,8 @@ void DescriptorSetMemory::allocate(u8 set,size_t size)
 }
 
 /**
- *	TODO
+ *	bind memory, to use set data for draw call
+ *	\param layout: shader pipeline layout
  */
 void DescriptorSetMemory::bind(VkPipelineLayout& layout)
 {
@@ -502,7 +505,7 @@ void DescriptorSetMemory::bind(VkPipelineLayout& layout)
 }
 
 /**
- *	TODO
+ *	update descriptor set memory
  *	\note it is advisable to use update(), when set is updated rarely or on condition
  */
 void DescriptorSetMemory::update()
@@ -520,7 +523,7 @@ void DescriptorSetMemory::update()
 }
 
 /**
- *	TODO
+ *	update descriptor set memory
  *	\note it is advisable to use update_frame(), when set is updated every frame, regardless of change
  */
 void DescriptorSetMemory::update_frame()
@@ -537,7 +540,9 @@ void DescriptorSetMemory::update_frame()
 // TODO remove the typecheck for buffer! the ubo has to be transferred ONCE, then the copy will suffice
 
 /**
- *	TODO
+ *	define segment for values by size, through automatic segment acquisition
+ *	\param location: uniform location
+ *	\param range: segment size in bytes
  */
 void DescriptorSetMemory::define_data_segment(u16 location,size_t range)
 {
@@ -546,7 +551,10 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t range)
 }
 
 /**
- *	TODO
+ *	define segment for values over a defined memory range
+ *	\param location: uniform location
+ *	\param offset: start of memory segment in bytes
+ *	\param range: size of memory segment in bytes
  */
 void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t range)
 {
@@ -567,7 +575,8 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
 }
 
 /**
- *	TODO
+ *	define pseudo-segment in set, that references a uploaded texture
+ *	\param location: uniform location
  */
 void DescriptorSetMemory::define_texture_segment(u16 location)
 {
@@ -590,7 +599,9 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 }
 
 /**
- *	TODO
+ *	define multiple pseudo-segments in set, that reference uploaded textures
+ *	\param location: first uniform location
+ *	\param range: count of consecutive texture pseudo-segments
  */
 void DescriptorSetMemory::define_texture_segment(u16 location,u16 range)
 {
@@ -599,7 +610,9 @@ void DescriptorSetMemory::define_texture_segment(u16 location,u16 range)
 }
 
 /**
- *	TODO
+ *	write values to descriptor memory
+ *	\param location: uniform location
+ *	\param data: pointer to source memory
  */
 void DescriptorSetMemory::write(u16 location,void* data)
 {
@@ -610,7 +623,9 @@ void DescriptorSetMemory::write(u16 location,void* data)
 }
 
 /**
- *	TODO
+ *	link pixel buffer to a pseudo-segment
+ *	\param location: uniform location
+ *	\param texture: pointer to pixel buffer
  */
 void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
 {
@@ -620,7 +635,9 @@ void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
 }
 
 /**
- *	TODO
+ *	link raw image view to pseudo-segment. this can be used to link framebuffer results
+ *	\param location: uniform location
+ *	\param buffer: raw image view handle
  */
 void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 {
@@ -632,7 +649,10 @@ void DescriptorSetMemory::link_result(size_t location,VkImageView buffer)
 //		probably in renderer somewhere, alongside other possible features like placeholder textures & shapes
 
 /**
- *	TODO
+ *	helper to run general definitions for segment definition
+ *	\param location: uniform location
+ *	\param type: descriptor type, passed down from segment definition call type
+ *	\returns pointer to generated descriptor write
  */
 VkWriteDescriptorSet* DescriptorSetMemory::_define_general(u16 location,VkDescriptorType type)
 {
@@ -780,8 +800,8 @@ ShaderPipeline::ShaderPipeline(u8 bfr_count,bool depth)
 
 /**
  *	define a colour component
+ *	\param format: buffer format
  *	\returns index of defined component
- *	TODO adjust
  */
 u8 ShaderPipeline::out_define_colour_buffer(GPUBufferFormat format)
 {
@@ -806,8 +826,11 @@ u8 ShaderPipeline::out_define_result_buffer()
 }
 
 /**
- *	TODO
- *	TODO remove sl after moving uniform buffer definition
+ *	assemble shader pipeline from stage sources
+ *	\param fd: frame dimensions of result
+ *	\param vs: vertex shader source
+ *	\param fs: fragment shader source
+ *	\param feat: bitwise combination of ShaderPipelineFeatures
  */
 void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,u32 feat)
 {
@@ -1175,6 +1198,9 @@ void ShaderPipeline::map(u16 channel,VertexBuffer* vbo,VertexBuffer* ibo)
 */
 // TODO i don't think this is necessary in the vulkan version. remove this if possible to avoid overmapping.
 
+/**
+ *	destruct shader pipeline
+ */
 void ShaderPipeline::vanish()
 {
 #ifdef VKBUILD
@@ -1217,7 +1243,8 @@ void ShaderPipeline::disable()
 }
 
 /**
- *	TODO
+ *	generate ubo, based on extracted interface from stage sources
+ *	\param sets: target vector for resulting new descriptor set memories, based on extracted interface
  */
 void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 {
@@ -1243,7 +1270,10 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 //		3D camera and 2D coordinate system.
 
 /**
- *	TODO
+ *	generate push constant memory, based on extracted interface from stage sources
+ *	\param pcm: pointer to push constant memory, ideally with correlating data structure
+ *	\param repeat: (default 1) allow to repeat upload size, for multiple memory-consecutive pcms
+ *	\note of course it is possible to generate pcm manually, but this ensures memory size fits interface
  */
 void ShaderPipeline::generate_pcm(void* pcm,u32 repeat)
 {
@@ -1252,7 +1282,10 @@ void ShaderPipeline::generate_pcm(void* pcm,u32 repeat)
 }
 
 /**
- *	TODO
+ *	upload push constant memory
+ *	\param pcm: pointer to previously generated push constant memory, can also have been generated manually
+ *	\param ofs: (default 0) index of pcms in consecutive pc memory.
+ *			only when memory was allocated as array, or with repeat>1
  */
 void ShaderPipeline::upload_pcm(void* pcm,u32 ofs)
 {
@@ -1461,7 +1494,10 @@ s32 ShaderPipeline::_handle_attribute_location_by_name(const char* varname)
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	add memory pointer for automatic uniform update
+ *	\param set: pointer to target descriptor set memory
+ *	\param loc: uniform location
+ *	\param mem: pointer to source memory
  */
 void ShaderUniformUpload::attach_memory_segment(DescriptorSetMemory* set,u16 loc,void* mem)
 {
@@ -1473,7 +1509,7 @@ void ShaderUniformUpload::attach_memory_segment(DescriptorSetMemory* set,u16 loc
 }
 
 /**
- *	TODO
+ *	upload all registered memory pointers to their related uniform locations
  */
 void ShaderUniformUpload::upload()
 {
