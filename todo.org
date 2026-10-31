@@ -1,0 +1,47 @@
+BLITTER
+- colour load store
+- blitter image view create info cleanup, code repetition
+
+MAIN
+- main routine is messy, due to inaccurate vulkan implementations
+
+BUFFER
+- combine framebuffer abstractions & document
+- eliminate framebuffer info copies
+- buffer image view create info (et cetera) repetitions
+- clear colour memory enumeration
+- remove direct feature definition
+rel BLITTER - implement viewport command setting alongside gl
+
+HARDWARE
+- switch cw/ccw front/back setting
+- implement feature setting setup correlation to ogl
+- document hardware
+- single allocation of device memory & allocate just like for uniform buffers
+
+MEMORY
+- split GPUPixelBuffer & singular textures
+- fix the static vs member upload conflict for both versions
+- investigation of memcpy obsoletion through vbo buffer data acquision to write into
+- vbo setup code repetition
+- join subtexture uploads after split
+- cleanup
+
+RENDERER
+- improve texture attachments
+- upload instance buffer data before draw & take care of particle ibos
+- cleanup
+- document
+- cleanup draw update functions
+- check _gpu_upload for optimal processing
+rel SHADER - find a solution for push constant uploads
+rel BUFFER - remove the explicit colour buffer definitions for each out, also in register pipeline
+rel BLITTER - also routinize the result buffer setup loop for result image views
+
+SHADER
+- fix push constant reads
+- buffer typecheck remove
+
+BASE
+- coordinate system declaration & fixes
+- target pointer for camera view & projection transformations. in-place trafo prevents copy

@@ -2,9 +2,6 @@
 #define CORE_BASE_HEADER
 
 
-#include "config.h"
-
-
 // system definition
 #if INTPTR_MAX == INT64_MAX
 #define __SYSTEM_64BIT
@@ -22,22 +19,37 @@
 #include <vector>
 #include <list>
 #include <queue>
+#include <set>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <filesystem>
 
-// ogl
+// graphics
+#ifdef VKBUILD
+#include <vulkan/vulkan.h>
+#else
 #include <GL/glew.h>
+#endif
+
+// handler
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL_main.h>
 #endif
 #include <SDL2/SDL.h>
+#ifdef VKBUILD
+#include <SDL2/SDL_vulkan.h>
+#else
 #include <SDL2/SDL_opengl.h>
+#endif
 
 // math
+#ifdef VKBUILD
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -99,14 +111,29 @@ typedef std::thread thread;
 template<typename T> using vector = std::vector<T>;
 template<typename T> using list = std::list<T>;
 template<typename T> using queue = std::queue<T>;
+template<typename T> using set = std::set<T>;
 template<typename T,typename U> using map = std::unordered_map<T,U>;
 template<typename T> using lptr = typename std::list<T>::iterator;
 
 
+// typeswitches
+#ifdef VKBUILD
+typedef VkFormat __texture_format;
+typedef VkImageView __fbuffer_component;
+#else
+typedef s32 __texture_format;
+typedef u32 __fbuffer_component;
+#endif
+
+
 // constants
+// engine version
+#define ENGINE_TITLE "C. Hanson's Counter-Clockwork"
+constexpr u16 ENGINE_MAJOR_V = 0;
+constexpr u16 ENGINE_MINOR_V = 0;
+constexpr u16 ENGINE_PATCH_V = 2;
+
 // basic math
-constexpr f32 FRAME_RESOLUTION_X_INV = 1.f/FRAME_RESOLUTION_X;
-constexpr f32 FRAME_RESOLUTION_Y_INV = 1.f/FRAME_RESOLUTION_Y;
 constexpr f32 MATH_CARTESIAN_XRANGE = 1280.f;
 constexpr f32 MATH_CARTESIAN_YRANGE = 720.f;
 constexpr f32 MATH_CARTESIAN_XRANGE_INV = 1.f/MATH_CARTESIAN_XRANGE;
@@ -120,6 +147,9 @@ constexpr f64 MATH_FRAMERATE_60Hz = 1/60.;
 constexpr f64 MATH_FRAMERATE_30Hz = 1/30.;
 constexpr f64 MATH_FRAMERATE_15Hz = 1/15.;
 
+// spacial definition
+constexpr vec3 COORDINATE_SYSTEM_ORIENTATION = vec3(0,0,1);
+
 // memory layout based on build target
 #ifdef __SYSTEM_64BIT
 typedef u64 __system_word;
@@ -130,6 +160,12 @@ constexpr u8 MEM_SHIFT = 5;
 #endif
 constexpr u8 MEM_WIDTH = sizeof(__system_word)*8;
 constexpr __system_word MEM_MASK = MEM_WIDTH-1;
+
+// gpu constants
+constexpr u8 GPU_GUARANTEED_PCU_MEMSIZE = 128;
+constexpr u8 GPU_GUARANTEED_SET_COUNT = 4;
+constexpr u8 GPU_GUARANTEED_UNIFORM_COUNT = 90;
+constexpr u16 GPU_GUARANTEED_SAMPLER_COUNT = 256;
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -253,6 +289,14 @@ static inline f64 profiler_average(RuntimeProfilerData* data)
 
 
 // ----------------------------------------------------------------------------------------------------
+// Utility
+
+bool check_file_exists(const char* path);
+u8* read_file_binary(const char* path,u32& buffer_size);
+void split_words(vector<string>& words,string& line);
+
+
+// ----------------------------------------------------------------------------------------------------
 // Math
 
 // math
@@ -262,7 +306,7 @@ static inline f32 fast_exp3(f32 x) { return 1.f/(1.f+x+.48f*x*x+.235f*x*x*x); }
 static inline f32 angular_relationship(vec2 a,vec2 b) { return atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y); }
 static inline vec3 halfway(vec3 a,vec3 b) { return (a+b)*.5f; }
 
-// matrixmath
+// matrix math
 static inline void decompose(const mat4& m,vec3& p,vec3& s,quat& r)
 {
 	p = m[3];
@@ -285,18 +329,23 @@ static inline mat4 to_mat4(aiMatrix4x4& m) { return glm::transpose(glm::make_mat
 class BitwiseWords
 {
 public:
-	BitwiseWords(size_t size);
-	~BitwiseWords();
+	BitwiseWords() {  }
+	BitwiseWords(size_t s);
+	BitwiseWords(const BitwiseWords& o);
 
 	inline bool operator[](size_t i) { return (*(m_Data+(i>>MEM_SHIFT))>>(i&MEM_MASK))&(__system_word)1; }
 	inline void set(size_t i) { *(m_Data+(i>>MEM_SHIFT))|=(__system_word)1<<(i&MEM_MASK); }
 	inline void unset(size_t i) { *(m_Data+(i>>MEM_SHIFT))&=~((__system_word)1<<(i&MEM_MASK)); }
 	inline void reset() { memset(m_Data,0,m_Size*sizeof(__system_word)); }
+	inline void vanish() { free(m_Data); };
+
+public:
 
 private:
-	__system_word* m_Data;
 	size_t m_Size;
+	__system_word* m_Data;
 };
+// FIXME especially with the copy, this might lead to many minor allocations, which is bad for performance
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -330,12 +379,13 @@ public:
 	}
 
 public:
-	u16 active_range = 0;
 	T* mem;
+	u16 active_range = 0;
 	queue<u16> overwrites;
 
+private:
 #ifdef DEBUG
-private: u16 m_Size;
+	u16 m_Size;
 #endif
 };
 
@@ -368,11 +418,13 @@ struct ThreadSignal
 struct Rect
 {
 	// utility
-	bool intersect(vec2 point);
+	bool intersects(vec2 point);
+	bool intersects(const Rect& r);
+	bool contains(const Rect& r);
 
 	// data
-	vec2 position;
-	vec2 extent;
+	vec2 position = vec2(0);
+	vec2 extent = vec2(0);
 };
 
 
@@ -401,7 +453,7 @@ struct Transform3D
 	// data
 	vec3 position = vec3(.0f);
 	vec3 rotation = vec3(.0f);
-	mat4 model = mat4(1.f);
+	mat4* model;
 };
 
 
@@ -418,15 +470,13 @@ public:
 inline CoordinateSystem2D g_CoordinateSystem = CoordinateSystem2D(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE);
 
 
-constexpr vec3 COORDINATE_SYSTEM_ORIENTATION = vec3(0,0,1);
-
 class Camera3D
 {
 public:
 	Camera3D() {  }
-	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov);
-	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f);
-	Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 n,f32 f);
+	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov,f32 f);
+	Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 f);
+	Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 f);
 	void update();
 	void force_position();
 	void project();
@@ -450,7 +500,7 @@ public:
 	f32 yaw;
 	f32 fov;
 	f32 near = .1f;
-	f32 far = 10000.f;
+	f32 far;
 	u32 width;
 	u32 height;
 
@@ -458,8 +508,6 @@ private:
 
 	f32 m_Ratio;
 };
-
-inline Camera3D g_Camera = Camera3D(vec3(0),10,glm::radians(25.f),0,FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y,60);
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -481,7 +529,23 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
-// Additional Globals
+// Vulkan Requirement Globals
+
+#ifdef VKBUILD
+
+// required extensions
+inline vector<const char*> g_GPUExtensions = {
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+};
+
+// validation layers on debug build
+#ifdef DEBUG
+inline vector<const char*> g_ValidationLayers = {
+	"VK_LAYER_KHRONOS_validation",
+};
+#endif
+
+#endif
 
 inline FT_Library g_FreetypeLibrary;
 

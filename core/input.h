@@ -2,7 +2,7 @@
 #define CORE_INPUT_HEADER
 
 
-#include "base.h"
+#include "config.h"
 
 
 constexpr u16 KEYBOARD_INPUT_RANGE = 512;
@@ -33,6 +33,7 @@ class Input
 public:
 	Input();
 	void update(bool& running);
+	void vanish();
 
 	// text input
 	void set_input_mode(string* buffer);

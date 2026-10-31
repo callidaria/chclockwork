@@ -11,3 +11,7 @@ lib/script/*
 
 # resource
 res/private/*
+
+# results
+shader/vulkan/bin/*
+chcw

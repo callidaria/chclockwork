@@ -76,6 +76,16 @@ void Input::update(bool& running)
 }
 
 /**
+ *	free input processing memory
+ *	\note this should only be called by main & nowhere else. vanish() will prevent further input processing
+ */
+void Input::vanish()
+{
+	keyboard.keys.vanish();
+	keyboard.triggered_keys.vanish();
+}
+
+/**
  *	enable text input mode
  *	\param buffer: buffer memory pointer to write text input to
  */

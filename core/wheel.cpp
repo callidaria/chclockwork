@@ -14,3 +14,13 @@ void Wheel::update()
 		p_Routine = p_Next;
 	}
 }
+
+/**
+ *	stop & deregister previously registered routines
+ *	\param routine: routine, that will be stopped and deregistered
+ */
+void Wheel::stop(lptr<UpdateRoutine> routine)
+{
+	routine->end(routine->memory);
+	routines.erase(routine);
+}
