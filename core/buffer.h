@@ -23,6 +23,11 @@ public:
 	void bind_depth_component(u8 channel);
 
 private:
+	void _define_colour_component(u8 i,FrameDimensions& fd,VkAttachmentDescription& desc);
+	void _define_depth_component();
+	void _finalize();
+
+private:
 #ifdef VKBUILD
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
