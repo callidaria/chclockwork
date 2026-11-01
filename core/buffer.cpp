@@ -38,8 +38,8 @@ void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer
 	_finalize();
 
 	// populate clear values
-	m_ClearValues = vector<VkClearValue>(components.size(),g_Frame.clear_colour[0]);
-	if (sp.has_depth) m_ClearValues.back() = g_Frame.clear_colour[1];
+	m_ClearValues = vector<VkClearValue>(components.size(),g_Frame.clear_colour[CLEAR_COLOUR_FRAME]);
+	if (sp.has_depth) m_ClearValues.back() = g_Frame.clear_colour[CLEAR_COLOUR_DEPTH];
 };
 
 /**

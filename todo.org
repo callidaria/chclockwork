@@ -6,10 +6,8 @@ MAIN
 - main routine is messy, due to inaccurate vulkan implementations
 
 BUFFER
-- combine framebuffer abstractions & document
 - eliminate framebuffer info copies
 - buffer image view create info (et cetera) repetitions
-- clear colour memory enumeration
 - remove direct feature definition
 rel BLITTER - implement viewport command setting alongside gl
 
@@ -39,7 +37,7 @@ rel BUFFER - remove the explicit colour buffer definitions for each out, also in
 rel BLITTER - also routinize the result buffer setup loop for result image views
 
 SHADER
-- fix push constant reads
+- fix push constant reads & check
 - buffer typecheck remove
 
 BASE

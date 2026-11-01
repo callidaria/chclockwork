@@ -356,8 +356,7 @@ void Frame::close()
 void Frame::set_clear_colour(vec3 colour)
 {
 #ifdef VKBUILD
-	clear_colour[0] = {{ colour.r,colour.g,colour.b,1.f }};
-	clear_colour[1] = { 1.f,.0f };
+	clear_colour[CLEAR_COLOUR_FRAME] = {{ colour.r,colour.g,colour.b,1.f }};
 #else
 	glClearColor(colour.r,colour.g,colour.b,0);
 #endif
@@ -370,7 +369,7 @@ void Frame::set_clear_colour(vec3 colour)
 void Frame::set_clear_depth(f32 depth)
 {
 #ifdef VKBUILD
-	clear_colour[1] = { depth,.0f };
+	clear_colour[CLEAR_COLOUR_DEPTH] = { depth,.0f };
 #else
 	glClearDepth(depth);
 #endif

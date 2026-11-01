@@ -7,6 +7,13 @@
 
 constexpr vec3 BLITTER_CLEAR_COLOUR = vec3(.0f);
 
+enum ClearColour
+{
+	CLEAR_COLOUR_FRAME,
+	CLEAR_COLOUR_DEPTH,
+	CLEAR_COLOUR_COUNT,
+};
+
 
 #ifdef VKBUILD
 struct FrameDimensions
@@ -66,7 +73,7 @@ public:
 #ifdef VKBUILD
 	// swapchain
 	SwapChain swapchain;
-	VkClearValue clear_colour[2];
+	VkClearValue clear_colour[CLEAR_COLOUR_COUNT];
 	size_t fid = 0;
 
 	// image buffers
