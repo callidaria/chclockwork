@@ -1,13 +1,12 @@
 #ifndef CORE_BUFFER_HEADER
 #define CORE_BUFFER_HEADER
 
-
 #include "blitter.h"
 #include "shader.h"
 
 
 // ----------------------------------------------------------------------------------------------------
-// Rendertarget Colour Buffers
+// Rendertarget
 
 class Framebuffer
 {
@@ -23,9 +22,14 @@ public:
 	void bind_depth_component(u8 channel);
 
 private:
-	void _define_colour_component(u8 i,FrameDimensions& fd,VkAttachmentDescription& desc);
-	void _define_depth_component();
+	void _define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb);
+	void _define_depth_component(u8 depth_channel);
 	void _finalize();
+
+public:
+	vector<VkImage> attachment_images;
+	vector<__fbuffer_component> components;
+	vector<VkClearValue> m_ClearValues;
 
 private:
 #ifdef VKBUILD
@@ -37,11 +41,6 @@ private:
 #else
 	u32 m_Buffer;
 #endif
-
-public:
-	vector<VkImage> attachment_images;
-	vector<__fbuffer_component> components;
-	vector<VkClearValue> m_ClearValues;
 };
 
 
