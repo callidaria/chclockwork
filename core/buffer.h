@@ -36,7 +36,7 @@ private:
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	VkFramebuffer m_Framebuffer;
 	VkRenderPass m_RenderPass;
-	BitwiseWords* pm_ResultAttachmentMap;
+	BitwiseWords m_ResultAttachmentMap;
 	FrameDimensions* pm_FrameDimension;
 #else
 	u32 m_Buffer;

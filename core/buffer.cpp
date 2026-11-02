@@ -23,7 +23,7 @@ void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffe
 
 	// pipeline attribute store
 	m_RenderPass = sp.render_pass;
-	pm_ResultAttachmentMap = &sp.result_attachment;
+	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
 	pm_FrameDimension = &g_Frame.fdims[res];
 
 	// allocate handler memory
@@ -50,7 +50,7 @@ void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffe
 inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb)
 {
 #ifdef VKBUILD
-	if ((*pm_ResultAttachmentMap)[i])
+	if (m_ResultAttachmentMap[i])
 	{
 		COMM_ERR_COND(rb<0,"result attachment defined but no buffer id given");
 		attachment_images[i] = g_Frame.result_images[rb];
@@ -195,7 +195,7 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 
 /**
  *	combine previously defined framebuffer attachments
- *	\note: this has to happen after definitions of all components
+ *	\note this has to happen after definitions of all components
  */
 inline void Framebuffer::_finalize()
 {
@@ -225,6 +225,7 @@ inline void Framebuffer::_finalize()
 
 /**
  *	destroys framebuffer and frees all allocated resources
+ *	\note needs to be called, after shader pipeline was deleted
  */
 void Framebuffer::vanish()
 {
@@ -235,12 +236,13 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		if ((*pm_ResultAttachmentMap)[i]) continue;
+		if (m_ResultAttachmentMap[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(attachment_images[i]);
 	}
 
 	// kill framebuffer and render pass information
+	m_ResultAttachmentMap.vanish();
 	g_GPU.free(m_Framebuffer);
 #endif
 }
