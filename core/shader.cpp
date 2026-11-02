@@ -827,12 +827,12 @@ u8 ShaderPipeline::out_define_result_buffer()
 
 /**
  *	assemble shader pipeline from stage sources
- *	\param fd: frame dimensions of result
+ *	\param res: target resolution dimension type of result
  *	\param vs: vertex shader source
  *	\param fs: fragment shader source
  *	\param feat: bitwise combination of ShaderPipelineFeatures
  */
-void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,u32 feat)
+void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,u32 feat)
 {
 #ifdef VKBUILD
 	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
@@ -1007,9 +1007,9 @@ void ShaderPipeline::assemble(FrameDimensions& fd,const char* vs,const char* fs,
 	VkPipelineViewportStateCreateInfo __ViewportInfo = {  };
 	__ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	__ViewportInfo.viewportCount = 1;
-	__ViewportInfo.pViewports = &fd.viewport;
+	__ViewportInfo.pViewports = &g_Frame.fdims[res].viewport;
 	__ViewportInfo.scissorCount = 1;
-	__ViewportInfo.pScissors = &fd.scissor;
+	__ViewportInfo.pScissors = &g_Frame.fdims[res].scissor;
 	// TODO implement to allow for multiple output viewports
 
 	// fixed function rasterization

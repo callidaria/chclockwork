@@ -890,11 +890,6 @@ Renderer::Renderer()
 							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
 
 	// SHADERS
-	// framebuffer write dimensions
-	fd_result.initialize(g_Frame.swapchain.extent.width,g_Frame.swapchain.extent.height);
-	fd_fullscreen.initialize(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
-	fd_shadowproj.initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
-
 	// setup shader endpoint
 	g_UniformBuffer.define(0,GSE_CAMERA_TRANSFORM_LOCATION,
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
@@ -922,33 +917,34 @@ Renderer::Renderer()
 
 	// manual setup for UI pipelines
 	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble(fd_fullscreen,
+	m_SpritePipeline.assemble(TARGET_RESOLUTION_FULLSCREEN,
 							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
 							  SPF_FLIPPED|SPF_BLENDING);
 	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TextPipeline.assemble(fd_fullscreen,
+	m_TextPipeline.assemble(TARGET_RESOLUTION_FULLSCREEN,
 							"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
 							SPF_FLIPPED|SPF_BLENDING);
 	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TargetPipeline.assemble(fd_result,
+	m_TargetPipeline.assemble(TARGET_RESOLUTION_RESULT,
 							  "./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",SPF_DEFAULT);
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 
 	// pipelines, setup for deferred scene processing
-	m_GeometryPassPipeline = register_pipeline(fd_fullscreen,
+	m_GeometryPassPipeline = register_pipeline(TARGET_RESOLUTION_FULLSCREEN,
 											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
 											   gformats,5,SPF_DEFAULT,true);
-	m_ShadowPassPipeline = register_pipeline(fd_shadowproj,
+	m_ShadowPassPipeline = register_pipeline(TARGET_RESOLUTION_SHADOWPROJ,
 											 "./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
 											 nullptr,0,SPF_FLIPPED,true);
 
 	// result target & geometry target
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++) m_ResultBuffers[i].setup(fd_result,m_SpritePipeline,i);
-	m_Framebuffer.setup(fd_fullscreen,m_TargetPipeline);  // FIXME mismatch?
-	m_GBuffer.setup(fd_fullscreen,*m_GeometryPassPipeline);
-	m_ShadowMap.setup(fd_shadowproj,*m_ShadowPassPipeline);
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
+		m_ResultBuffers[i].setup(TARGET_RESOLUTION_RESULT,m_SpritePipeline,i);
+	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,m_TargetPipeline);  // FIXME mismatch?
+	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_GeometryPassPipeline);
+	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,*m_ShadowPassPipeline);
 	// TODO routinize
 	// TODO also check if framebuffer & related shader pipeline frame dimensions contain relevant matching values
 
@@ -1352,14 +1348,14 @@ void Renderer::attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>&
  *	\returns pointer to registered shader pipeline
  *	TODO amend
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(FrameDimensions& fd,
+lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
 												 const char* vs,const char* fs,GPUBufferFormat* formats,
 												 u8 bfr_count,u32 feat,bool depth)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
-	p_Pipeline->assemble(fd,vs,fs,feat);
+	p_Pipeline->assemble(tr,vs,fs,feat);
 	return p_Pipeline;
 }
 

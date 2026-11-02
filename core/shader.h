@@ -227,7 +227,7 @@ public:
 	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 	// assembly
-	void assemble(FrameDimensions& fd,const char* vs,const char* fs,u32 feat);
+	void assemble(TargetResolution res,const char* vs,const char* fs,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif

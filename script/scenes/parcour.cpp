@@ -8,19 +8,19 @@ void ParcourParcs::init()
 {
 	// pipelines
 	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
-			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
 			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
-			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
 			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
-			g_Renderer.fd_fullscreen,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			nullptr,0,SPF_FLIPPED,true
 		);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
-			g_Renderer.fd_fullscreen,
+			TARGET_RESOLUTION_FULLSCREEN,
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			nullptr,0,SPF_FLIPPED,true
 		);

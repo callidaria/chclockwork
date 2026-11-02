@@ -6,12 +6,12 @@
 
 /**
  *	setup output framebuffer and allocate to satisfy given shader pipeline
- *	\param fd: target frame dimensions
+ *	\param res: target frame resolution dimension type
  *	\param sp: shader pipeline, holding framebuffer component information
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
  */
-void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer)
+void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffer)
 {
 	// allocate component handles
 	u8 __ComponentCount = sp.depth_channel+sp.has_depth;
@@ -23,9 +23,8 @@ void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer
 
 	// pipeline attribute store
 	m_RenderPass = sp.render_pass;
-	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
-	m_FrameDimensions = fd;
-	// FIXME this causes a lot of parameters & direct copy is also not very optimized... find a solution
+	pm_ResultAttachmentMap = &sp.result_attachment;
+	pm_FrameDimension = &g_Frame.fdims[res];
 
 	// allocate handler memory
 	attachment_images.resize(__ComponentCount);
@@ -51,7 +50,7 @@ void Framebuffer::setup(FrameDimensions& fd,ShaderPipeline& sp,s16 result_buffer
 inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb)
 {
 #ifdef VKBUILD
-	if (m_ResultAttachmentMap[i])
+	if ((*pm_ResultAttachmentMap)[i])
 	{
 		COMM_ERR_COND(rb<0,"result attachment defined but no buffer id given");
 		attachment_images[i] = g_Frame.result_images[rb];
@@ -63,8 +62,8 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = m_FrameDimensions.extent.width;
-	__ImageInfo.extent.height = m_FrameDimensions.extent.height;
+	__ImageInfo.extent.width = pm_FrameDimension->extent.width;
+	__ImageInfo.extent.height = pm_FrameDimension->extent.height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = 1;
 	__ImageInfo.arrayLayers = 1;
@@ -114,7 +113,7 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 #else
 	glBindTexture(GL_TEXTURE_2D,components[i]);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA+0x6f12*fbuffer,
-				 m_FrameDimensions.width,m_FrameDimensions.height,0,GL_RGBA,GL_UNSIGNED_INT+spfbuffer,NULL);
+				 pm_FrameDimension->width,pm_FrameDimension->height,0,GL_RGBA,GL_UNSIGNED_INT+spfbuffer,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+i,GL_TEXTURE_2D,components[i],0);
 	// TODO abstract sp info for gl version & then typeswitch for each build
@@ -133,8 +132,8 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 		VkImageCreateInfo __ImageInfo = {  };
 		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = m_FrameDimensions.extent.width;
-		__ImageInfo.extent.height = m_FrameDimensions.extent.height;
+		__ImageInfo.extent.width = pm_FrameDimension->extent.width;
+		__ImageInfo.extent.height = pm_FrameDimension->extent.height;
 		__ImageInfo.extent.depth = 1;
 		__ImageInfo.mipLevels = 1;
 		__ImageInfo.arrayLayers = 1;
@@ -188,7 +187,7 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 	glGenTextures(1,&m_DepthComponent);
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,
-				 m_FrameDimensions.width,m_FrameDimensions.height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
+				 pm_FrameDimension->width,pm_FrameDimension->height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,NULL);
 	Texture::set_texture_parameter_nearest_unfiltered();
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,m_DepthComponent,0);
 #endif
@@ -205,8 +204,8 @@ inline void Framebuffer::_finalize()
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	__FramebufferInfo.renderPass = m_RenderPass;
 	__FramebufferInfo.attachmentCount = components.size();
-	__FramebufferInfo.width = m_FrameDimensions.extent.width;
-	__FramebufferInfo.height = m_FrameDimensions.extent.height;
+	__FramebufferInfo.width = pm_FrameDimension->extent.width;
+	__FramebufferInfo.height = pm_FrameDimension->extent.height;
 	__FramebufferInfo.layers = 1;
 	__FramebufferInfo.pAttachments = &components[0];
 	VkResult __Result = vkCreateFramebuffer(g_GPU.gpu,&__FramebufferInfo,nullptr,&m_Framebuffer);
@@ -236,11 +235,10 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		if (m_ResultAttachmentMap[i]) continue;
+		if ((*pm_ResultAttachmentMap)[i]) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(attachment_images[i]);
 	}
-	m_ResultAttachmentMap.vanish();
 
 	// kill framebuffer and render pass information
 	g_GPU.free(m_Framebuffer);
@@ -261,14 +259,14 @@ void Framebuffer::record()
 	__RPBeginInfo.renderPass = m_RenderPass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = m_FrameDimensions.extent;
+	__RPBeginInfo.renderArea.extent = pm_FrameDimension->extent;
 	__RPBeginInfo.clearValueCount = components.size();
 	__RPBeginInfo.pClearValues = &m_ClearValues[0];
 	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 
 	// viewport setup
-	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&m_FrameDimensions.viewport);
-	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&m_FrameDimensions.scissor);
+	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&pm_FrameDimension->viewport);
+	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&pm_FrameDimension->scissor);
 	// FIXME investigate this, it seems like this could be solved with a little more elegance
 
 #else

@@ -271,6 +271,11 @@ Frame::Frame()
 	set_clear_depth(1.f);
 	gpu_vsync(FRAME_BLITTER_VSYNC);
 
+	// setup target dimensions
+	fdims[TARGET_RESOLUTION_RESULT].initialize(swapchain.extent.width,swapchain.extent.height);
+	fdims[TARGET_RESOLUTION_FULLSCREEN].initialize(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
+	fdims[TARGET_RESOLUTION_SHADOWPROJ].initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
+
 	COMM_SCC("blitter ready.");
 }
 

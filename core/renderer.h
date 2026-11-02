@@ -388,7 +388,7 @@ public:
 	void attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>& material);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(FrameDimensions& fd,
+	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
 										   const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
 										   u32 feat,bool depth=false);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
@@ -410,7 +410,6 @@ public:
 	void animate(AnimatedMesh* mesh);
 
 private:
-
 	// threaded actions
 	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
@@ -425,11 +424,7 @@ private:
 	void _update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb);
 	void _gpu_upload();
 
-public:
-	FrameDimensions fd_result,fd_fullscreen,fd_shadowproj;
-
 private:
-
 	// buffers
 	VertexBuffer m_SpriteVertexBuffer;
 	VertexBuffer m_SpriteInstanceBuffer;

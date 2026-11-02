@@ -14,6 +14,14 @@ enum ClearColour
 	CLEAR_COLOUR_COUNT,
 };
 
+enum TargetResolution
+{
+	TARGET_RESOLUTION_RESULT,
+	TARGET_RESOLUTION_FULLSCREEN,
+	TARGET_RESOLUTION_SHADOWPROJ,
+	TARGET_RESOLUTION_COUNT
+};
+
 
 #ifdef VKBUILD
 struct FrameDimensions
@@ -69,6 +77,9 @@ public:
 	f32 delta_time = .0f;
 	f32 time_factor = 1.f;
 	u32 fps;
+
+	// resolutions
+	FrameDimensions fdims[TARGET_RESOLUTION_COUNT];
 
 #ifdef VKBUILD
 	// swapchain
