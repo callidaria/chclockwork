@@ -248,7 +248,6 @@ void GPU::cull_backfaces(bool backfaces)
 {
 #ifdef VKBUILD
 	// TODO
-
 #else
 	glCullFace(GL_FRONT+backfaces);
 #endif

@@ -75,7 +75,7 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
-// Colour Buffers
+// Texture
 
 enum TextureFormat : u8
 {
@@ -87,43 +87,31 @@ enum TextureFormat : u8
 
 struct TextureData
 {
-public:
-	TextureData(TextureFormat f=TEXTURE_FORMAT_RGBA);
-
+	// utility
 	void load(const char* path);
-	void gpu_upload(
-#ifdef VKBUILD
-			VkImage image,VkBuffer buf,VkDeviceMemory mem
-#endif
-		);
-	void gpu_upload_subtexture(
-#ifdef VKBUILD
-			VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs
-#endif
-		);
+	void vanish();
 
-private:
-#ifdef VKBUILD
-	void _copy_buffer(VkImage image,VkBuffer buf,VkDeviceMemory mem,size_t ofs);
-#endif
-	void _free();
-
-public:
-	TextureFormat format = TEXTURE_FORMAT_RGBA;
+	// data
+	u8* data;
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
-	u8* data;
-
-private:
-	bool m_TextureFlag = false;
+	bool texture_flag = false;
 };
 
 class Texture
 {
 public:
-	Texture();
+	// data
+	void allocate(u32 wdt,u32 hgt,TextureFormat format);
+	void gpu_upload(TextureData& data);
+	void gpu_upload_subtexture(TextureData& data,u32& ofs);
+
+	// utility
+	void generate_mipmap();
 
 #ifdef VKBUILD
+	void vanish();
+	void transition_texture_transfer();
 	static void transition_depth_texture(VkImage buffer);
 #else
 	static void set_channel(u8 i);
@@ -142,8 +130,35 @@ public:
 	static void set_texture_parameter_border_colour(vec4 colour);
 
 private:
+#ifdef VKBUILD
+	void _copy_buffer(TextureData& data,size_t ofs);
+#endif
+
+public:
+	// handlers
+	VkImageView image_view;
+	VkSampler sampler;
+	// TODO turn private
+
+	// properties
+	u32 width,height;
+	u16 mipcount;
+	bool allocated = false;
+
+private:
+#ifdef VKBUILD
+	VkImage m_Texture;
+	VkBuffer m_StagingBuffer;
+	VkDeviceMemory m_TextureMemory,m_StagingMemory;
+	TextureFormat m_Format;
+#else
 	u32 m_Memory;
+#endif
 };
+
+
+// ----------------------------------------------------------------------------------------------------
+// Font
 
 struct Glyph
 {
@@ -163,12 +178,14 @@ struct Font
 	u16 size;
 };
 
-class GPUPixelBuffer
+
+// ----------------------------------------------------------------------------------------------------
+// Dynamic Texture Atlas
+
+struct GPUPixelBuffer
 {
-public:
 	// setup
 	void allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding=0);
-	void vanish();
 
 	// utilty
 	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
@@ -178,19 +195,9 @@ public:
 	// TODO when allocating, rotation boolean can be stored in alpha by signing the float
 	// TODO allow to merge deleted rects when using a dynamic texture atlas
 
-public:
-	// texture handle
-#ifdef VKBUILD
-	VkImageView image_view;
-	VkSampler sampler;
-#else
+	// texture
 	Texture atlas;
-#endif
-
-	// properties
-	u16 mipcount;
-	u32 width,height;
-	bool allocated = false;
+	// TODO turn private?
 
 	// subtexture segmentation
 	vector<Rect> memory_segments;  // FIXME rects are rational, this shouldn't be more than natural
@@ -203,17 +210,6 @@ public:
 	// precalculation
 	u32 subtex_padding = 0;
 	vec2 dimensions_inv;
-
-private:
-	// texture memory
-#ifdef VKBUILD
-	VkImage m_Texture;
-	VkBuffer m_StagingBuffer;
-	VkDeviceMemory m_TextureMemory,m_StagingMemory;
-#endif
-
-	// info
-	TextureFormat m_Format;
 };
 
 

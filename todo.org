@@ -20,6 +20,7 @@ MEMORY
 - investigation of memcpy obsoletion through vbo buffer data acquision to write into
 - vbo setup code repetition
 - join subtexture uploads after split
+- coherent again in texture buffer allocation
 - cleanup
 
 RENDERER
