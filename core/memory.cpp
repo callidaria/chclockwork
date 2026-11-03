@@ -55,11 +55,11 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 {
 #ifdef VKBUILD
 	// generate buffers for host & device memory
-	GPU::generate_buffer(vbo,m_Memory,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT
-						 |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
-						 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	GPU::generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	g_GPU.generate_buffer(vbo,m_Memory,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
+						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	g_GPU.generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&m_Data);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
 
@@ -704,9 +704,9 @@ void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 	mipcount = std::floor(std::log2(std::max(width,height)))+1;
 
 	// generate staging buffer
-	GPU::generate_buffer(m_StagingBuffer,m_StagingMemory,
-						 width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,
+						  width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
 
 	// image buffer
@@ -732,15 +732,7 @@ void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 	//		this will probably just be useful for rendertarget results that do not overlap in timing
 
 	// memory
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,m_Texture,&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-														   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_TextureMemory);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for texture for some reason");
+	g_GPU.allocate_vram(m_TextureMemory,m_Texture);
 	vkBindImageMemory(g_GPU.gpu,m_Texture,m_TextureMemory,0);
 
 	// test for blitting support based on image format

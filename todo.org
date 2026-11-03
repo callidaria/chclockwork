@@ -6,7 +6,6 @@ MAIN
 - main routine is messy, due to inaccurate vulkan implementations
 
 BUFFER
-- buffer image view create info (et cetera) repetitions
 rel BLITTER - implement viewport command setting alongside gl
 
 HARDWARE

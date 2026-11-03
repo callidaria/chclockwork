@@ -324,9 +324,9 @@ UniformBuffer::UniformBuffer()
 	COMM_AWT("allocating uniform buffer memory");
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		GPU::generate_buffer(ubo[i],m_UBOMemory[i],
-							 SHADER_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-							 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		g_GPU.generate_buffer(ubo[i],m_UBOMemory[i],
+							  SHADER_UNIFORM_BUFFER_MEMSIZE,VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+							  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 		vkMapMemory(g_GPU.gpu,m_UBOMemory[i],0,SHADER_UNIFORM_BUFFER_MEMSIZE,0,&m_UBOMapped[i]);
 		// TODO stage this too or leave it?
 		// TODO optimize, do not rely on coherent bit and flush explicitly later

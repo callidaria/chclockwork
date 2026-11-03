@@ -459,6 +459,43 @@ u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
 /**
  *	TODO
  */
+void GPU::allocate_vram(VkDeviceMemory& mem,VkBuffer buf,VkMemoryPropertyFlags pflags)
+{
+	// acquire memory requirements
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetBufferMemoryRequirements(gpu,buf,&__MemoryRequirements);
+
+	// allocation
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
+	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(pflags,__MemoryRequirements.memoryTypeBits);
+	VkResult __Result = vkAllocateMemory(gpu,&__MemoryInfo,nullptr,&mem);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry");
+}
+
+/**
+ *	TODO
+ */
+void GPU::allocate_vram(VkDeviceMemory& mem,VkImage img)
+{
+	// acquire memory requirements
+	VkMemoryRequirements __MemoryRequirements;
+	vkGetImageMemoryRequirements(gpu,img,&__MemoryRequirements);
+
+	// allocation
+	VkMemoryAllocateInfo __MemoryInfo = {  };
+	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	__MemoryInfo.allocationSize = __MemoryRequirements.size;
+	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+														   __MemoryRequirements.memoryTypeBits);
+	VkResult __Result = vkAllocateMemory(gpu,&__MemoryInfo,nullptr,&mem);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for colour buffer");
+}
+
+/**
+ *	TODO
+ */
 void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 						  VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
 {
@@ -472,22 +509,10 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create vertex buffer");
 
 	// analyze memory type
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetBufferMemoryRequirements(g_GPU.gpu,vbo,&__MemoryRequirements);
-	u32 __MemoryIndex = GPU::choose_memory_type(fproperty,__MemoryRequirements.memoryTypeBits);
+	allocate_vram(mem,vbo,fproperty);
+	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
 	// TODO iterate memory
 	// TODO optimize this away maybe. this should always be a repeat call?
-
-	// buffer memory allocation
-	VkMemoryAllocateInfo __MallocInfo = {  };
-	__MallocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MallocInfo.allocationSize = __MemoryRequirements.size;
-	__MallocInfo.memoryTypeIndex = __MemoryIndex;
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MallocInfo,nullptr,&mem);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for geometry for some reason");
-
-	// bind memory to vbo
-	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
 	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
 // FIXME performance, single allocation of device memory then all buffers use that memory

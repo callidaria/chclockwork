@@ -108,8 +108,10 @@ struct GPU
 
 	// utility
 	static u32 choose_memory_type(VkMemoryPropertyFlags props,u32 type);
-	static void generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
-								VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty);
+	void allocate_vram(VkDeviceMemory& mem,VkBuffer buf,VkMemoryPropertyFlags pflags);
+	void allocate_vram(VkDeviceMemory& mem,VkImage img);
+	void generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
+						 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty);
 
 	// resources
 	void free(VkBuffer res);

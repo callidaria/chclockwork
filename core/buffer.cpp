@@ -78,18 +78,11 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create colour attachment %d for some reason",i);
 
 	// allocate vram
-	VkMemoryRequirements __MemoryRequirements;
-	vkGetImageMemoryRequirements(g_GPU.gpu,attachment_images[i],&__MemoryRequirements);
-	VkMemoryAllocateInfo __MemoryInfo = {  };
-	__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	__MemoryInfo.allocationSize = __MemoryRequirements.size;
-	__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-														   __MemoryRequirements.memoryTypeBits);
-	__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[i]);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for colour buffer %d for some reason",i);
+	g_GPU.allocate_vram(m_AttachmentMemory[i],attachment_images[i]);
 	vkBindImageMemory(g_GPU.gpu,attachment_images[i],m_AttachmentMemory[i],0);
 	// FIXME repeat code chunk for vram allocation here (identical to depth buffer allocation)
 	// TODO check for allocation success (also for depth buffer
+
 	// colour buffer image view handle
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -119,7 +112,6 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 	// TODO abstract sp info for gl version & then typeswitch for each build
 #endif
 }
-// FIXME repeated code again, with no concept of sensible abstraction
 
 /**
  *	helper for depth component definition, only a single one per framebuffer allowed for obvious reasons
@@ -146,20 +138,10 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 		__ImageInfo.flags = 0;
 		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&attachment_images[depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
-		// TODO explicitly define different creation functions for depth and pixel buffer. then diversify
 
 		// allocate vram
-		VkMemoryRequirements __MemoryRequirements;
-		vkGetImageMemoryRequirements(g_GPU.gpu,attachment_images[depth_channel],&__MemoryRequirements);
-		VkMemoryAllocateInfo __MemoryInfo = {  };
-		__MemoryInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		__MemoryInfo.allocationSize = __MemoryRequirements.size;
-		__MemoryInfo.memoryTypeIndex = GPU::choose_memory_type(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-															   __MemoryRequirements.memoryTypeBits);
-		__Result = vkAllocateMemory(g_GPU.gpu,&__MemoryInfo,nullptr,&m_AttachmentMemory[depth_channel]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate VRAM for depth buffer for some reason");
+		g_GPU.allocate_vram(m_AttachmentMemory[depth_channel],attachment_images[depth_channel]);
 		vkBindImageMemory(g_GPU.gpu,attachment_images[depth_channel],m_AttachmentMemory[depth_channel],0);
-		// FIXME a lot of code repitition, but abstracting this will loose too much functionality?
 
 		// depth buffer image view handle
 		VkImageViewCreateInfo __ImageViewInfo = {  };
@@ -181,7 +163,6 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[depth_channel]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
 		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
-		// TODO this is much more abstractable, but also not really?
 
 #else
 	glGenTextures(1,&m_DepthComponent);
