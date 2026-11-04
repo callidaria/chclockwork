@@ -321,6 +321,23 @@ s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
 
 
 /**
+ *	generate data for single colour texture
+ *	\param colour: colour vector
+ */
+void TextureData::load_colour(vec3 colour)
+{
+	width = 1;
+	height = 1;
+
+	// write colour data
+	data = (u8*)malloc(sizeof(u32));
+	data[0] = colour.x*255;
+	data[1] = colour.y*255;
+	data[2] = colour.z*255;
+	data[3] = 255;
+}
+
+/**
  *	make the cpu load the texture data & dimensions from file
  *	\param path: path to texture
  */

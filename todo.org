@@ -11,17 +11,15 @@ rel BLITTER - implement viewport command setting alongside gl
 HARDWARE
 - switch cw/ccw front/back setting
 - implement feature setting setup correlation to ogl
-- document hardware
 - single allocation of device memory & allocate just like for uniform buffers
+- document hardware
 
 MEMORY
-- split GPUPixelBuffer & singular textures
-- fix the static vs member upload conflict for both versions
 - investigation of memcpy obsoletion through vbo buffer data acquision to write into
 - vbo setup code repetition
 - join subtexture uploads after split
 - coherent again in texture buffer allocation
-- cleanup
+- cleanup & document
 
 RENDERER
 - improve texture attachments

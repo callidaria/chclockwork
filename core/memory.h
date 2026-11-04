@@ -88,6 +88,7 @@ enum TextureFormat : u8
 struct TextureData
 {
 	// utility
+	void load_colour(vec3 colour);
 	void load(const char* path);
 	void vanish();
 
