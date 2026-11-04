@@ -384,6 +384,7 @@ public:
 	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
 
 	// textures
+	Texture* register_texture(vec3 colour,TextureFormat format=TEXTURE_FORMAT_RGBA);
 	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture);
 	void attach_material(DescriptorSetMemory* ubo,vector<Texture*>& material);
@@ -412,8 +413,11 @@ public:
 
 private:
 	// threaded actions
+	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
+							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+	// FIXME reorder these appropriately in source. above texture registration right now
 	void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory);
 
 	// pipeline steps

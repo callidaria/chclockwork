@@ -986,9 +986,10 @@ Renderer::Renderer()
 	m_SpritePipeline.generate_ubo(m_SpriteUBO);
 	m_TextPipeline.generate_ubo(m_TextUBO);
 
-	// load default texture
-	_load_texture(&g_UniformBuffer.default_texture,"./res/standard/weight.png",TEXTURE_FORMAT_SRGB,
-				  &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	// load default textures
+	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
+				 &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	// TODO pbs fallback textures
 }
 
 /**
@@ -1279,6 +1280,19 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 }
 
 /**
+ *	TODO
+ */
+void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
+							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+{
+	TextureData __Data;
+	__Data.load_colour(colour);
+	queue_mutex->lock();
+	data_queue->push(TextureDataTuple{ __Data,texture,format });
+	queue_mutex->unlock();
+}
+
+/**
  *	load texture into ram in background and register for vram upload when ready
  *	\param texture: pointer to texture in memory
  *	\param path: path to texture
@@ -1294,6 +1308,22 @@ void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat for
 	queue_mutex->lock();
 	data_queue->push(TextureDataTuple{ __Data,texture,format });
 	queue_mutex->unlock();
+}
+
+/**
+ *	TODO
+ */
+Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
+{
+	COMM_LOG("mesh texture register colour v(%f,%f,%f)",colour.x,colour.y,colour.z);
+	COMM_ERR_COND(format==TEXTURE_FORMAT_MONOCHROME,
+				  "monochrome format should not be set for textures, defined by a colour vector");
+	Texture* p_Texture = m_MeshTextures.next_free();
+	new(p_Texture) Texture();
+	thread __LoadThread(_load_colour,p_Texture,colour,format,
+						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	__LoadThread.detach();
+	return p_Texture;
 }
 
 /**

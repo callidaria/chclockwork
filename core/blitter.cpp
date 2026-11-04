@@ -556,7 +556,6 @@ swap_chain_creation:
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"faled to create image view for swapchain image %i",i);
 	}
 	// TODO when having an idea of the bigger *picture* outsource this to buffer as texture gen AND rndtarget
-	// TODO repeating code is fine here? just a small definition for result buffers?
 
 	// image semaphore creation
 	VkSemaphoreCreateInfo __SemaphoreInfo = {  };

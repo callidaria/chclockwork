@@ -127,7 +127,7 @@ typedef u32 __fbuffer_component;
 
 
 // constants
-// engine version
+// engine info
 #define ENGINE_TITLE "C. Hanson's Counter-Clockwork"
 constexpr u16 ENGINE_MAJOR_V = 0;
 constexpr u16 ENGINE_MINOR_V = 0;
@@ -166,6 +166,14 @@ constexpr u8 GPU_GUARANTEED_PCU_MEMSIZE = 128;
 constexpr u8 GPU_GUARANTEED_SET_COUNT = 4;
 constexpr u8 GPU_GUARANTEED_UNIFORM_COUNT = 90;
 constexpr u16 GPU_GUARANTEED_SAMPLER_COUNT = 256;
+
+// default texture colour
+constexpr vec3 TEXTURE_DEFAULT_COLOUR =
+#ifdef DEBUG
+vec3(0,0,1);
+#else
+vec3(0);
+#endif
 
 
 // ----------------------------------------------------------------------------------------------------
