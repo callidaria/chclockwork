@@ -480,9 +480,10 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 void Texture::gpu_upload(TextureData& data)
 {
 #ifdef VKBUILD
-	_copy_buffer(data,0);
+	size_t __ImageSize = 0;
+	_copy_buffer(data,__ImageSize);
 #else
-	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],width,height,0,
+	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],data.width,data.height,0,
 				 _texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
 #endif
 	data.vanish();
@@ -494,13 +495,12 @@ void Texture::gpu_upload(TextureData& data)
  *	\note OGL: has to be uploaded in main thread
  *	\note OGL: target texture has to be bound and allocated before uploading
  */
-void Texture::gpu_upload_subtexture(TextureData& data,u32& ofs)
+void Texture::gpu_upload_subtexture(TextureData& data,size_t& ofs)
 {
 #ifdef VKBUILD
 	_copy_buffer(data,ofs);
-	ofs += data.width*data.height*_texture_formats[m_Format].size;
 #else
-	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,width,height,
+	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,data.width,data.height,
 					_texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
 #endif
 	data.vanish();
@@ -572,6 +572,9 @@ void Texture::generate_mipmap()
 	glGenerateMipmap(GL_TEXTURE_2D);
 #endif
 }
+// TODO in vk when this step is skipped there needs to be a barrier, that achieves the same state
+//		as if after the mipmap generation
+// FIXME also skipping mipmap is forbidden, when miplevels get calculated automatically by dimensions at alloc
 
 #ifdef VKBUILD
 
@@ -801,14 +804,14 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
  *	\param ofs: image buffer offset is used for subtexture uploads on atlases. it describes simultaneously
  *			requested memory upload data positions, to align them alongside each other
  */
-inline void Texture::_copy_buffer(TextureData& data,size_t ofs)
+inline void Texture::_copy_buffer(TextureData& data,size_t& ofs)
 {
-	if (!width||!height)
+	if (!data.width||!data.height)
 	{
 		COMM_ERR("texture data without width or height has been submitted");
 		return;
 	}
-	size_t __ImageSize = width*height*_texture_formats[m_Format].size;
+	size_t __ImageSize = data.width*data.height*_texture_formats[m_Format].size;
 
 	// stage memory
 	void* __Data;
@@ -825,12 +828,15 @@ inline void Texture::_copy_buffer(TextureData& data,size_t ofs)
 	__BufferCopy.imageSubresource.baseArrayLayer = 0;
 	__BufferCopy.imageSubresource.layerCount = 1;
 	__BufferCopy.imageOffset = { (s32)data.x,(s32)data.y,0 };
-	__BufferCopy.imageExtent = { (u32)width,(u32)height,1 };
+	__BufferCopy.imageExtent = { (u32)data.width,(u32)data.height,1 };
 
 	// upload image
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
 						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
 	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+
+	// increase memory offset
+	ofs += __ImageSize;
 }
 #endif
 
@@ -1149,7 +1155,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 {
 	if (!load_requests.size()) return;
 	mutex_texture_requests.lock();
-	u32 __MemoryOffset = 0;
+	size_t __MemoryOffset = 0;
 
 	// iterate waiting requests
 #ifdef VKBUILD
@@ -1164,6 +1170,7 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 		atlas.gpu_upload_subtexture(p_Data,__MemoryOffset);
 		load_requests.pop();
 		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
+		//		this of course only works in the vulkan version, __MemoryOffset doesn't do anything in ogl
 	}
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
 

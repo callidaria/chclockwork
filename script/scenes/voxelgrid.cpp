@@ -28,7 +28,7 @@ void RoomVoxels::init(Font* font)
 
 	// load room
 	Mesh __RoomMesh = Mesh("./res/private/test.obj");
-	GPUPixelBuffer* __RoomTexture = g_Renderer.register_texture("./res/private/test.png",TEXTURE_FORMAT_SRGB);
+	Texture* __RoomTexture = g_Renderer.register_texture("./res/private/test.png",TEXTURE_FORMAT_SRGB);
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
 	// attach transform & textures

@@ -974,8 +974,8 @@ Renderer::Renderer()
 												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1);
 
 	// linking buffer results
-	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures);
-	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures);
+	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
+	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,m_Framebuffer.components[0]);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,m_Framebuffer.components[1]);
 	for (u16 i=0;i<6;i++)
@@ -1099,8 +1099,8 @@ void Renderer::vanish()
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
 
 	// clear pixel buffers
-	m_GPUSpriteTextures.vanish();
-	m_GPUFontTextures.vanish();
+	m_GPUSpriteTextures.atlas.vanish();
+	m_GPUFontTextures.atlas.vanish();
 
 	// free vertex buffers
 	m_SpriteVertexBuffer.free();
@@ -1286,13 +1286,13 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
  *	\param data_queue: queue for texture vram upload
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
-void Renderer::_load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
+void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
-	TextureData __Data = TextureData(format);
+	TextureData __Data;
 	__Data.load(path);
 	queue_mutex->lock();
-	data_queue->push(TextureDataTuple{ __Data,texture });
+	data_queue->push(TextureDataTuple{ __Data,texture,format });
 	queue_mutex->unlock();
 }
 
@@ -1302,12 +1302,11 @@ void Renderer::_load_texture(GPUPixelBuffer* texture,const char* path,TextureFor
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
  *	\returns pointer to texture in ram, referencing texture in vram
  */
-constexpr f64 PIXEL_BUFFER_SIZE_INV = 1./sizeof(GPUPixelBuffer);
-GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format)
+Texture* Renderer::register_texture(const char* path,TextureFormat format)
 {
 	COMM_LOG("mesh texture register of %s",path);
-	GPUPixelBuffer* p_Texture = m_MeshTextures.next_free();
-	new(p_Texture) GPUPixelBuffer();
+	Texture* p_Texture = m_MeshTextures.next_free();
+	new(p_Texture) Texture();
 	thread __LoadThread(_load_texture,p_Texture,path,format,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();
@@ -1319,7 +1318,7 @@ GPUPixelBuffer* Renderer::register_texture(const char* path,TextureFormat format
 /**
  *	TODO
  */
-void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture)
+void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture)
 {
 	TextureAttachment __Attachment = {
 		.ubo = ubo,
@@ -1332,7 +1331,7 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuff
 /**
  *	TODO
  */
-void Renderer::attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>& material)
+void Renderer::attach_material(DescriptorSetMemory* ubo,vector<Texture*>& material)
 {
 	for (u32 i=0;i<material.size();i++)
 		attach_texture(ubo,i,material[i]);
@@ -1712,9 +1711,10 @@ void Renderer::_gpu_upload()
 	while (m_MeshTextureUploadQueue.size())
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
-		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.data.format);
-		p_Tuple.texture->load_requests.push(p_Tuple.data);
-		p_Tuple.texture->gpu_upload();
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format);
+		p_Tuple.texture->transition_texture_transfer();
+		p_Tuple.texture->gpu_upload(p_Tuple.data);
+		p_Tuple.texture->generate_mipmap();
 		m_MeshTextureUploadQueue.pop();
 		__MeshTextureUpdated = true;
 	}

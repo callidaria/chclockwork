@@ -62,39 +62,38 @@ void ParcourParcs::init()
 
 	// textures
 	// standards
-	GPUPixelBuffer* __NeutralNormalMap = g_Renderer.register_texture("./res/standard/normal.png");
-	GPUPixelBuffer* __NeutralMaterialMap = g_Renderer.register_texture("./res/standard/material.png");
-	GPUPixelBuffer* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
+	Texture* __NeutralNormalMap = g_Renderer.register_texture("./res/standard/normal.png");
+	Texture* __NeutralMaterialMap = g_Renderer.register_texture("./res/standard/material.png");
+	Texture* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
 	// TODO automatic fallback to neutral textures for unwiritten slots, based on their nature
 	//		meaning, that the normal texture falls back to a different neutral, than material or emission etc.
 	// TODO dont read defaults from texture, generate single pixel buffer instead
 
 	// materials
-	vector<GPUPixelBuffer*> __FabricMaterial = {
+	vector<Texture*> __FabricMaterial = {
 		g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
 		g_Renderer.register_texture("./res/test/fabric_normal.png"),
 		g_Renderer.register_texture("./res/test/fabric_material.png"),
 		__NeutralEmissionTexture,
 	};
-	vector<GPUPixelBuffer*> __FloorMaterial = {
+	vector<Texture*> __FloorMaterial = {
 		g_Renderer.register_texture("./res/test/floor_colour.png",TEXTURE_FORMAT_SRGB),
 		g_Renderer.register_texture("./res/test/floor_normal.png"),
 		g_Renderer.register_texture("./res/test/floor_material.png"),
 		__NeutralEmissionTexture,
 	};
-	vector<GPUPixelBuffer*> __GoldMaterial = {
+	vector<Texture*> __GoldMaterial = {
 		g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
 		g_Renderer.register_texture("./res/test/gold_normal.png"),
 		g_Renderer.register_texture("./res/test/gold_material.png"),
 		__NeutralEmissionTexture,
 	};
-	vector<GPUPixelBuffer*> __DudeMaterial = {
+	vector<Texture*> __DudeMaterial = {
 		g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB),
 		__NeutralNormalMap,
 		__NeutralMaterialMap,
 		__NeutralEmissionTexture,
 	};
-	// FIXME those dont need to be all GPUPixelBuffers, this is gold in the resource wasting olypics
 
 	// lightbulbs
 	BallIndex __BulbIndices[TEST_LIGHTBULB_COUNT] = {

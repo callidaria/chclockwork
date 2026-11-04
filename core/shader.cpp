@@ -627,7 +627,7 @@ void DescriptorSetMemory::write(u16 location,void* data)
  *	\param location: uniform location
  *	\param texture: pointer to pixel buffer
  */
-void DescriptorSetMemory::link_result(size_t location,GPUPixelBuffer* texture)
+void DescriptorSetMemory::link_result(size_t location,Texture* texture)
 {
 	size_t i = m_LocationIndexLUT[location];
 	m_DescriptorInfos[i].info.image.imageView = texture->image_view;

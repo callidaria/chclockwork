@@ -273,13 +273,14 @@ private:
 struct TextureDataTuple
 {
 	TextureData data;
-	GPUPixelBuffer* texture;
+	Texture* texture;
+	TextureFormat format;
 };
 
 struct TextureAttachment
 {
 	DescriptorSetMemory* ubo;
-	GPUPixelBuffer* texture;
+	Texture* texture;
 	u16 location;
 };
 
@@ -383,9 +384,9 @@ public:
 	inline void delete_text(lptr<Text> text) { m_Texts.erase(text); }
 
 	// textures
-	GPUPixelBuffer* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
-	void attach_texture(DescriptorSetMemory* ubo,u16 location,GPUPixelBuffer* texture);
-	void attach_material(DescriptorSetMemory* ubo,vector<GPUPixelBuffer*>& material);
+	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	void attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture);
+	void attach_material(DescriptorSetMemory* ubo,vector<Texture*>& material);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
@@ -411,7 +412,7 @@ public:
 
 private:
 	// threaded actions
-	static void _load_texture(GPUPixelBuffer* texture,const char* path,TextureFormat format,
+	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 	void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory);
 
@@ -447,7 +448,7 @@ private:
 	GPUPixelBuffer m_GPUFontTextures;
 
 	// mesh textures
-	InPlaceArray<GPUPixelBuffer> m_MeshTextures = InPlaceArray<GPUPixelBuffer>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
 	list<TextureAttachment> m_TextureAttachments;
 	std::mutex m_MutexMeshTextureUpload;

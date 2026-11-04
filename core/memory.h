@@ -104,7 +104,7 @@ public:
 	// data
 	void allocate(u32 wdt,u32 hgt,TextureFormat format);
 	void gpu_upload(TextureData& data);
-	void gpu_upload_subtexture(TextureData& data,u32& ofs);
+	void gpu_upload_subtexture(TextureData& data,size_t& ofs);
 
 	// utility
 	void generate_mipmap();
@@ -131,14 +131,14 @@ public:
 
 private:
 #ifdef VKBUILD
-	void _copy_buffer(TextureData& data,size_t ofs);
+	void _copy_buffer(TextureData& data,size_t& ofs);
 #endif
 
 public:
 	// handlers
 	VkImageView image_view;
 	VkSampler sampler;
-	// TODO turn private
+	// TODO turn private or make a struct?
 
 	// properties
 	u32 width,height;

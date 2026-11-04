@@ -116,7 +116,7 @@ public:
 	VkBuffer ubo[GPU_BUFFER_COUNT];
 
 	// standards
-	GPUPixelBuffer default_texture;
+	Texture default_texture;
 	VkSampler default_sampler;
 
 private:
@@ -148,7 +148,7 @@ struct DescriptorSetMemory
 	void define_texture_segment(u16 location);
 	void define_texture_segment(u16 location,u16 range);
 	void write(u16 location,void* data);
-	void link_result(size_t location,GPUPixelBuffer* texture);
+	void link_result(size_t location,Texture* texture);
 	void link_result(size_t location,VkImageView buffer);
 
 private:
