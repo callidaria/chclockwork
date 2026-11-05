@@ -285,6 +285,7 @@ Frame::Frame()
 void Frame::clear()
 {
 #ifdef VKBUILD
+	g_GPU.swap();
 	VkResult __Result = vkAcquireNextImageKHR(
 			g_GPU.gpu,g_Frame.swapchain.swapchain,UINT64_MAX,g_GPU.acquire_graphical_command_buffer()->ready,
 			VK_NULL_HANDLE,&g_Frame.frame_id
@@ -294,7 +295,7 @@ void Frame::clear()
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 #endif
 }
-// TODO rename this and move the clear from swap. 
+// TODO rename this and move the clear from swap.
 
 /**
  *	flip buffer
@@ -302,6 +303,9 @@ void Frame::clear()
 void Frame::update()
 {
 #ifdef VKBUILD
+	g_GPU.submit_transfer();
+	g_GPU.submit_graphics(&render_done[g_Frame.frame_id]);
+	g_GPU.update();
 	m_PresentInfo.pWaitSemaphores = &render_done[frame_id];
 	m_PresentInfo.pImageIndices = &frame_id;
 	VkResult __Result = vkQueuePresentKHR(g_GPU.presentation_queue,&m_PresentInfo);

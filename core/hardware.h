@@ -104,7 +104,9 @@ struct GPU
 
 	// update
 	void swap();
-	void update(VkSemaphore* blit_ready);
+	void submit_transfer();
+	void submit_graphics(VkSemaphore* blit_ready);
+	void update();
 
 	// utility
 	static u32 choose_memory_type(VkMemoryPropertyFlags props,u32 type);

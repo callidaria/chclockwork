@@ -14,13 +14,16 @@
 s32 main(s32 argc,char** argv)
 {
 	// SETUP
-	Font* __EngineFont = g_Renderer.register_font("./res/font/garamond.ttf",50);	
+	Font* __EngineFont = g_Renderer.register_font("./res/font/garamond.ttf",50);
 #ifdef DEBUG
 	Clockwork __Clockwork = Clockwork(__EngineFont);
 #endif
 	SceneListing __Test = SceneListing(__EngineFont);
 
 	// RUN
+	// FIXME frame_id is never increased?
+	g_GPU.submit_transfer();
+	g_GPU.submit_graphics(&g_Frame.render_done[g_Frame.frame_id]);
 	bool running = true;
 	while (running)
 	{
@@ -31,18 +34,7 @@ s32 main(s32 argc,char** argv)
 		g_Wheel.update();
 		g_UI.update();
 		g_Renderer.update();
-#ifdef VKBUILD
-		g_GPU.update(&g_Frame.render_done[g_Frame.frame_id]);
-#endif
 		g_Frame.update();
-#ifdef VKBUILD
-		if (running) g_GPU.swap();
-		// TODO this is not quite efficient to do it right after frame update, but it's circumventing a flaw
-		//		in the render system right now, where initial uploads are executed at construction before loop
-		//		this will naturally solve itself, once a real streaming system is setup, due to upload scheduling
-		// FIXME also the condition is a workaround for the same reasons
-		g_Frame.fid++;
-#endif
 	}
 
 	// CLOSE

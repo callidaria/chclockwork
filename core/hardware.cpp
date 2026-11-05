@@ -75,6 +75,8 @@ void GPUDevice::select()
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
 			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
+
+	g_GPU.swap();
 }
 
 /**
@@ -396,32 +398,41 @@ void GPU::swap()
 /**
  *	TODO
  */
-void GPU::update(VkSemaphore* blit_ready)
+void GPU::submit_transfer()
 {
 	// end recording
 	VkResult __Result = vkEndCommandBuffer(cmd_buffers_trf[active_buffer].buffer);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully finalize transfer command buffer");
-	__Result = vkEndCommandBuffer(cmd_buffers_gfx[active_buffer].buffer);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully finalize graphical command buffer");
 
 	// submit to transfer queue
-	VkPipelineStageFlags __TransferStageFlags[] = { VK_PIPELINE_STAGE_VERTEX_SHADER_BIT };
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 0;
-	__SubmitInfo.pWaitDstStageMask = __TransferStageFlags;
+	__SubmitInfo.pWaitDstStageMask = nullptr;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_trf[active_buffer].buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = &cmd_buffers_gfx[active_buffer].transferred;
 	__Result = vkQueueSubmit(transfer_queue,1,&__SubmitInfo,cmd_buffers_trf[active_buffer].processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+}
+
+/**
+ *	TODO
+ */
+void GPU::submit_graphics(VkSemaphore* blit_ready)
+{
+	// end recording
+	VkResult __Result = vkEndCommandBuffer(cmd_buffers_gfx[active_buffer].buffer);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to successfully finalize graphical command buffer");
 
 	// submit to graphical queue
 	VkPipelineStageFlags __GraphicalStageFlags[] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
 	};
+	VkSubmitInfo __SubmitInfo = {  };
+	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 2;
 	__SubmitInfo.pWaitSemaphores = &cmd_buffers_gfx[active_buffer].ready;
 	__SubmitInfo.pWaitDstStageMask = __GraphicalStageFlags;
@@ -429,8 +440,13 @@ void GPU::update(VkSemaphore* blit_ready)
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = blit_ready;
 	__Result = vkQueueSubmit(graphical_queue,1,&__SubmitInfo,cmd_buffers_gfx[active_buffer].processing);
+}
 
-	// swap buffer memory index
+/**
+ *	TODO
+ */
+void GPU::update()
+{
 	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
 }
 
