@@ -107,6 +107,7 @@ struct GPU
 	void submit_transfer();
 	void submit_graphics(VkSemaphore* blit_ready);
 	void update();
+	void blank_graphics();
 
 	// utility
 	static u32 choose_memory_type(VkMemoryPropertyFlags props,u32 type);

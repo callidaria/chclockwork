@@ -839,7 +839,6 @@ Renderer::Renderer()
 	COMM_LOG("starting font rasterizer");
 	bool _failed = FT_Init_FreeType(&g_FreetypeLibrary);
 	COMM_ERR_COND(_failed,"text rasterizer not available");
-	g_GPU.swap();
 
 	// primitive sprite & canvas data
 	f32 __QuadVertices[] = {

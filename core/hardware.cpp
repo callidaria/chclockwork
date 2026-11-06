@@ -75,8 +75,6 @@ void GPUDevice::select()
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
 			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
-
-	g_GPU.swap();
 }
 
 /**
@@ -365,6 +363,10 @@ void GPU::setup_command_buffers()
 		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_trf[i].processing);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
 	}
+
+	// execute setup swap for startup cmd buffer availability
+	g_GPU.swap();
+	g_GPU.blank_graphics();
 }
 
 /**
@@ -448,6 +450,18 @@ void GPU::submit_graphics(VkSemaphore* blit_ready)
 void GPU::update()
 {
 	active_buffer = (active_buffer+1)%GPU_BUFFER_COUNT;
+}
+
+/**
+ *	TODO
+ */
+void GPU::blank_graphics()
+{
+	VkSubmitInfo __SigInfo = {  };
+	__SigInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	__SigInfo.signalSemaphoreCount = 1;
+	__SigInfo.pSignalSemaphores = &cmd_buffers_gfx[active_buffer].ready;
+	vkQueueSubmit(graphical_queue,1,&__SigInfo,VK_NULL_HANDLE);
 }
 
 

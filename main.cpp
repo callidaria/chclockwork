@@ -22,8 +22,10 @@ s32 main(s32 argc,char** argv)
 
 	// RUN
 	// FIXME frame_id is never increased?
+	//g_Frame.clear();  // TODO implement a way to allow graphics operation without image acquisition
 	g_GPU.submit_transfer();
 	g_GPU.submit_graphics(&g_Frame.render_done[g_Frame.frame_id]);
+	//g_GPU.update();
 	bool running = true;
 	while (running)
 	{
