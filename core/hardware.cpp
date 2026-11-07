@@ -75,6 +75,10 @@ void GPUDevice::select()
 			{ VK_FORMAT_D32_SFLOAT_S8_UINT,VK_FORMAT_D24_UNORM_S8_UINT, },
 			VK_IMAGE_TILING_OPTIMAL,VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
+
+	// execute setup swap for startup cmd buffer availability
+	g_GPU.swap();
+	g_GPU.blank_graphics();
 }
 
 /**
@@ -363,10 +367,6 @@ void GPU::setup_command_buffers()
 		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_trf[i].processing);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
 	}
-
-	// execute setup swap for startup cmd buffer availability
-	g_GPU.swap();
-	g_GPU.blank_graphics();
 }
 
 /**

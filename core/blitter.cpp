@@ -570,6 +570,7 @@ swap_chain_creation:
 		VkResult __Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&render_done[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup image semaphore %u",i);
 	}
+	__Result = vkCreateSemaphore(g_GPU.gpu,&__SemaphoreInfo,nullptr,&setup_done);
 }
 // TODO shortcut some features when recreating the swapchain, some selections not always necessary
 

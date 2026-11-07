@@ -90,6 +90,7 @@ public:
 	vector<VkImage> result_images;
 	vector<VkImageView> result_image_views;
 	vector<VkSemaphore> render_done;
+	VkSemaphore setup_done;
 	u32 frame_id = 0;
 #endif
 
