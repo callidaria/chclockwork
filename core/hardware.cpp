@@ -77,8 +77,8 @@ void GPUDevice::select()
 		);
 
 	// execute setup swap for startup cmd buffer availability
-	g_GPU.swap();
-	g_GPU.blank_graphics();
+	//g_GPU.swap();
+	//g_GPU.blank_graphics();
 }
 
 /**
@@ -416,7 +416,7 @@ void GPU::submit_transfer()
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = &cmd_buffers_gfx[active_buffer].transferred;
 	__Result = vkQueueSubmit(transfer_queue,1,&__SubmitInfo,cmd_buffers_trf[active_buffer].processing);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit command buffer");
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit transfer command buffer");
 }
 
 /**
@@ -442,6 +442,7 @@ void GPU::submit_graphics(VkSemaphore* blit_ready)
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = blit_ready;
 	__Result = vkQueueSubmit(graphical_queue,1,&__SubmitInfo,cmd_buffers_gfx[active_buffer].processing);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit graphical command buffer");
 }
 
 /**

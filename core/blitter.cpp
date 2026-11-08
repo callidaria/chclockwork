@@ -276,6 +276,9 @@ Frame::Frame()
 	fdims[TARGET_RESOLUTION_FULLSCREEN].initialize(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	fdims[TARGET_RESOLUTION_SHADOWPROJ].initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 
+	// start setup swap
+	clear();
+
 	COMM_SCC("blitter ready.");
 }
 
