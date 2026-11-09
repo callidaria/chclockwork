@@ -344,27 +344,16 @@ void GPU::setup_command_buffers()
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to allocate transfer command buffers");
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++) cmd_buffers_trf[i].buffer = __TransferBuffers[i];
 
-	// setup buffer threading constraints info
-	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
-	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	VkFenceCreateInfo __FenceInfo = {  };
-	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
 	// iterate buffer semaphore creations for graphics
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
 	{
-		// create command buffer semaphore
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].ready);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for graphics",i);
-		__Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,&cmd_buffers_gfx[i].transferred);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup buffer semaphore %u for transfer",i);
+		// create graphical command buffer semaphores
+		generate_semaphore_binary(&cmd_buffers_gfx[i].ready);
+		generate_semaphore_binary(&cmd_buffers_gfx[i].transferred);
 
-		// create command buffer fence
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_gfx[i].processing);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for graphics",i);
-		__Result = vkCreateFence(gpu,&__FenceInfo,nullptr,&cmd_buffers_trf[i].processing);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence %u for transfer",i);
+		// create command buffer fences
+		generate_fence(&cmd_buffers_gfx[i].processing);
+		generate_fence(&cmd_buffers_trf[i].processing);
 	}
 }
 
@@ -420,7 +409,7 @@ void GPU::submit_transfer()
 /**
  *	TODO
  */
-void GPU::submit_graphics(VkSemaphore* blit_ready)
+void GPU::submit_graphics(VkSemaphore* ready)
 {
 	// end recording
 	VkResult __Result = vkEndCommandBuffer(cmd_buffers_gfx[active_buffer].buffer);
@@ -439,9 +428,18 @@ void GPU::submit_graphics(VkSemaphore* blit_ready)
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_gfx[active_buffer].buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
-	__SubmitInfo.pSignalSemaphores = blit_ready;
+	__SubmitInfo.pSignalSemaphores = ready;
 	__Result = vkQueueSubmit(graphical_queue,1,&__SubmitInfo,cmd_buffers_gfx[active_buffer].processing);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to submit graphical command buffer");
+}
+
+/**
+ *	TODO
+ */
+void GPU::submit(VkSemaphore* ready)
+{
+	submit_transfer();
+	submit_graphics(ready);
 }
 
 /**
@@ -545,6 +543,29 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
 // FIXME performance, single allocation of device memory then all buffers use that memory
+
+/**
+ *	TODO
+ */
+void GPU::generate_semaphore_binary(VkSemaphore* sem)
+{
+	VkSemaphoreCreateInfo __SemaphoreInfo = {  };
+	__SemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	VkResult __Result = vkCreateSemaphore(gpu,&__SemaphoreInfo,nullptr,sem);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup binary semaphore");
+}
+
+/**
+ *	TODO
+ */
+void GPU::generate_fence(VkFence* fen)
+{
+	VkFenceCreateInfo __FenceInfo = {  };
+	__FenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	__FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	VkResult __Result = vkCreateFence(gpu,&__FenceInfo,nullptr,fen);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to setup host fence");
+}
 
 
 // ----------------------------------------------------------------------------------------------------

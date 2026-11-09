@@ -105,7 +105,8 @@ struct GPU
 	// update
 	void swap();
 	void submit_transfer();
-	void submit_graphics(VkSemaphore* blit_ready);
+	void submit_graphics(VkSemaphore* ready);
+	void submit(VkSemaphore* ready);
 	void update();
 	void blank_graphics();
 
@@ -115,6 +116,8 @@ struct GPU
 	void allocate_vram(VkDeviceMemory& mem,VkImage img);
 	void generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 						 VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty);
+	void generate_semaphore_binary(VkSemaphore* sem);
+	void generate_fence(VkFence* fen);
 
 	// resources
 	void free(VkBuffer res);

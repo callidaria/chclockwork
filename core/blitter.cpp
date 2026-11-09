@@ -298,13 +298,22 @@ void Frame::clear()
 // TODO rename this and move the clear from swap.
 
 /**
+ *	finalize startup procedure
+ */
+void Frame::finalize()
+{
+	g_GPU.blank_graphics();
+	g_GPU.submit(&setup_done);
+	g_GPU.update();
+}
+
+/**
  *	flip buffer
  */
 void Frame::update()
 {
 #ifdef VKBUILD
-	g_GPU.submit_transfer();
-	g_GPU.submit_graphics(&render_done[g_Frame.frame_id]);
+	g_GPU.submit(&render_done[frame_id]);
 	m_PresentInfo.pWaitSemaphores = &render_done[frame_id];
 	m_PresentInfo.pImageIndices = &frame_id;
 	VkResult __Result = vkQueuePresentKHR(g_GPU.presentation_queue,&m_PresentInfo);

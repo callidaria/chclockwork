@@ -48,6 +48,7 @@ class Frame
 {
 public:
 	Frame();
+	void finalize();
 
 	// utilty
 	static void clear();

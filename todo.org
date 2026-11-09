@@ -1,6 +1,3 @@
-MAIN
-- main routine is messy, due to inaccurate vulkan implementations
-
 BUFFER
 rel BLITTER - implement viewport command setting alongside gl
 
