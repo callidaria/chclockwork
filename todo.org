@@ -1,6 +1,5 @@
 HARDWARE
-- switch cw/ccw front/back setting
-- implement feature setting setup correlation to ogl
+- implement feature setting setup correlation to ogl  SIGNAL IN ISSUE
 - single allocation of device memory & allocate just like for uniform buffers
 - document hardware
 

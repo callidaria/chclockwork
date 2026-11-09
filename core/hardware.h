@@ -69,15 +69,6 @@ struct Hardware
 	vector<GPUDevice> gpus;
 };
 
-#endif
-
-
-enum GPUFeature : u8
-{
-	GPU_FEATURE_DEPTH_TEST,
-	GPU_FEATURE_COUNT
-};
-
 enum TextureType
 {
 	TEXTURE_TYPE_COLOUR_BUFFER,
@@ -87,13 +78,6 @@ enum TextureType
 
 struct GPU
 {
-	// utility
-	// settings
-	void cull_backfaces(bool backfaces);
-	void enable_feature(GPUFeature feature);
-	void disable_feature(GPUFeature feature);
-
-#ifdef VKBUILD
 	// formats
 	VkFormat choose_texture_format(const vector<VkFormat>& fs,VkImageTiling tile,VkFormatFeatureFlags feat);
 
@@ -155,7 +139,6 @@ struct GPU
 	CommandBufferGFX cmd_buffers_gfx[GPU_BUFFER_COUNT];
 	CommandBufferTRF cmd_buffers_trf[GPU_BUFFER_COUNT];
 	u8 active_buffer = 0;
-#endif
 };
 
 inline GPU g_GPU;
