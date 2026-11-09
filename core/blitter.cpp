@@ -276,9 +276,6 @@ Frame::Frame()
 	fdims[TARGET_RESOLUTION_FULLSCREEN].initialize(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	fdims[TARGET_RESOLUTION_SHADOWPROJ].initialize(RENDERER_SHADOW_RESOLUTION,RENDERER_SHADOW_RESOLUTION);
 
-	// start setup swap
-	clear();
-
 	COMM_SCC("blitter ready.");
 }
 
@@ -308,10 +305,10 @@ void Frame::update()
 #ifdef VKBUILD
 	g_GPU.submit_transfer();
 	g_GPU.submit_graphics(&render_done[g_Frame.frame_id]);
-	g_GPU.update();
 	m_PresentInfo.pWaitSemaphores = &render_done[frame_id];
 	m_PresentInfo.pImageIndices = &frame_id;
 	VkResult __Result = vkQueuePresentKHR(g_GPU.presentation_queue,&m_PresentInfo);
+	g_GPU.update();
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"there has been an issue with frame presentation");
 #else
 	SDL_GL_SwapWindow(m_Frame);
@@ -342,6 +339,7 @@ void Frame::close()
 	COMM_MSG(LOG_CYAN,"closing window");
 
 #ifdef VKBUILD
+	g_GPU.free(setup_done);
 	for (u8 i=0;i<result_images.size();i++) g_GPU.free(render_done[i]);
 	_destroy_swapchain();
 	g_GPU.stop();

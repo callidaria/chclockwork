@@ -25,12 +25,11 @@ s32 main(s32 argc,char** argv)
 	// TODO also wait on setup done
 	// TODO abstract fence & semaphore creation?
 	//g_Frame.clear();  // TODO implement a way to allow graphics operation without image acquisition
-	/*
+	g_GPU.blank_graphics();
 	g_GPU.submit_transfer();
 	g_GPU.submit_graphics(&g_Frame.setup_done);
-	*/
-	g_Frame.update();
-	//g_GPU.update();
+	//g_Frame.update();
+	g_GPU.update();
 	bool running = true;
 	while (running)
 	{

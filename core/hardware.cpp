@@ -77,8 +77,7 @@ void GPUDevice::select()
 		);
 
 	// execute setup swap for startup cmd buffer availability
-	//g_GPU.swap();
-	//g_GPU.blank_graphics();
+	g_GPU.swap();
 }
 
 /**
@@ -410,7 +409,6 @@ void GPU::submit_transfer()
 	VkSubmitInfo __SubmitInfo = {  };
 	__SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	__SubmitInfo.waitSemaphoreCount = 0;
-	__SubmitInfo.pWaitDstStageMask = nullptr;
 	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_trf[active_buffer].buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
@@ -438,6 +436,7 @@ void GPU::submit_graphics(VkSemaphore* blit_ready)
 	__SubmitInfo.waitSemaphoreCount = 2;
 	__SubmitInfo.pWaitSemaphores = &cmd_buffers_gfx[active_buffer].ready;
 	__SubmitInfo.pWaitDstStageMask = __GraphicalStageFlags;
+	__SubmitInfo.commandBufferCount = 1;
 	__SubmitInfo.pCommandBuffers = &cmd_buffers_gfx[active_buffer].buffer;
 	__SubmitInfo.signalSemaphoreCount = 1;
 	__SubmitInfo.pSignalSemaphores = blit_ready;
