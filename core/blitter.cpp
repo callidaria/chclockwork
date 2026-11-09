@@ -266,7 +266,6 @@ Frame::Frame()
 #endif
 
 	// standard settings
-	set_viewport(FRAME_RESOLUTION_X,FRAME_RESOLUTION_Y);
 	set_clear_colour(BLITTER_CLEAR_COLOUR);
 	set_clear_depth(1.f);
 	gpu_vsync(FRAME_BLITTER_VSYNC);
@@ -396,15 +395,16 @@ void Frame::set_clear_depth(f32 depth)
 
 /**
  *	default viewport definition
- *	\param width: viewport width
- *	\param height: viewport height
+ *	\param fd: pointer to viewport dimensions
  */
-void Frame::set_viewport(u32 width,u32 height)
+void Frame::set_viewport(FrameDimensions* fd)
 {
 #ifdef VKBUILD
-	// TODO
+	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
+	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&fd->viewport);
+	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&fd->scissor);
 #else
-	glViewport(0,0,width,height);
+	glViewport(0,0,fd.width,fd.height);
 #endif
 }
 

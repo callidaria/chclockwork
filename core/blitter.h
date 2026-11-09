@@ -58,7 +58,7 @@ public:
 	// settings
 	void set_clear_colour(vec3 colour);
 	void set_clear_depth(f32 depth);
-	void set_viewport(u32 width,u32 height);
+	static void set_viewport(FrameDimensions* fd);
 	void gpu_vsync(bool vsync);
 
 #ifdef VKBUILD

@@ -1,6 +1,3 @@
-BUFFER
-rel BLITTER - implement viewport command setting alongside gl
-
 HARDWARE
 - switch cw/ccw front/back setting
 - implement feature setting setup correlation to ogl

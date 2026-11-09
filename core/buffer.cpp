@@ -234,8 +234,6 @@ void Framebuffer::vanish()
 void Framebuffer::record()
 {
 #ifdef VKBUILD
-	CommandBufferGFX* __CMDBuffer = g_GPU.acquire_graphical_command_buffer();
-
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -245,12 +243,11 @@ void Framebuffer::record()
 	__RPBeginInfo.renderArea.extent = pm_FrameDimension->extent;
 	__RPBeginInfo.clearValueCount = components.size();
 	__RPBeginInfo.pClearValues = &m_ClearValues[0];
-	vkCmdBeginRenderPass(__CMDBuffer->buffer,&__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(g_GPU.acquire_graphical_command_buffer()->buffer,
+						 &__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 
 	// viewport setup
-	vkCmdSetViewport(__CMDBuffer->buffer,0,1,&pm_FrameDimension->viewport);
-	vkCmdSetScissor(__CMDBuffer->buffer,0,1,&pm_FrameDimension->scissor);
-	// FIXME investigate this, it seems like this could be solved with a little more elegance
+	Frame::set_viewport(pm_FrameDimension);
 
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
