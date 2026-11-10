@@ -143,5 +143,7 @@ struct GPU
 
 inline GPU g_GPU;
 
+#endif
+
 
 #endif

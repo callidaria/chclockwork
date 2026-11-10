@@ -82,7 +82,8 @@ void GPUDevice::select()
 
 /**
  *	hardware detection routine
- *	TODO
+ *	\param instance: vulkan instance
+ *	\param surface: target surface
  */
 void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 {
@@ -239,7 +240,10 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
 }
 
 /**
- *	TODO
+ *	choose most appropriate format from a priority list of formats, based on available device capabilities
+ *	\param fs: list of requested formats, earlier formats in vector are preferred & have higher priority
+ *	\param tile: image tiling, either texels laid out as optimal or linear
+ *	\param feat: specifies usage & state features, required from the image
  */
 VkFormat GPU::choose_texture_format(const vector<VkFormat>& fs,VkImageTiling tile,VkFormatFeatureFlags feat)
 {
@@ -255,7 +259,7 @@ VkFormat GPU::choose_texture_format(const vector<VkFormat>& fs,VkImageTiling til
 }
 
 /**
- *	TODO
+ *	create command buffers & their signals
  */
 void GPU::setup_command_buffers()
 {
@@ -307,7 +311,10 @@ void GPU::setup_command_buffers()
 }
 
 /**
- *	TODO
+ *	swap command buffer, wait for availability & begin
+ *	\param gpu: selected device
+ *	\param buffer: next command buffer
+ *	\param processing: host fence, blocking command buffer from starting over as long as it's still processing
  */
 static inline void _swap_buffer(VkDevice& gpu,VkCommandBuffer& buffer,VkFence* processing)
 {
@@ -326,7 +333,7 @@ static inline void _swap_buffer(VkDevice& gpu,VkCommandBuffer& buffer,VkFence* p
 }
 
 /**
- *	TODO
+ *	swap both command buffer groups, transfer & graphics.
  */
 void GPU::swap()
 {
@@ -335,7 +342,7 @@ void GPU::swap()
 }
 
 /**
- *	TODO
+ *	submit transfer queue
  */
 void GPU::submit_transfer()
 {
@@ -356,7 +363,8 @@ void GPU::submit_transfer()
 }
 
 /**
- *	TODO
+ *	submit graphics queue, depending on transfer execution readyness
+ *	\param ready: binary semaphore, signaling finalization of graphics queue processing
  */
 void GPU::submit_graphics(VkSemaphore* ready)
 {
@@ -383,7 +391,8 @@ void GPU::submit_graphics(VkSemaphore* ready)
 }
 
 /**
- *	TODO
+ *	submit both queues, graphics & transfer
+ *	\param ready: ready semaphore, used for graphics submission
  */
 void GPU::submit(VkSemaphore* ready)
 {
@@ -392,7 +401,7 @@ void GPU::submit(VkSemaphore* ready)
 }
 
 /**
- *	TODO
+ *	update, switch to next command buffer by index in ring
  */
 void GPU::update()
 {
@@ -400,7 +409,7 @@ void GPU::update()
 }
 
 /**
- *	TODO
+ *	signal target frame readyness, but for submission cycles, where no target image is acquired
  */
 void GPU::blank_graphics()
 {
@@ -416,7 +425,9 @@ void GPU::blank_graphics()
 // Utility
 
 /**
- *	TODO
+ *	acquire appropriate memory type, based on required properties
+ *	\param props: memory properties
+ *	\param type: type bits, from acquired memory requirements
  */
 u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
 {
@@ -433,7 +444,10 @@ u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
 }
 
 /**
- *	TODO
+ *	allocate gpu memory for geometry & values
+ *	\param mem: target memory handle
+ *	\param buf: buffer to allocate memory for
+ *	\param pflags: memory properties
  */
 void GPU::allocate_vram(VkDeviceMemory& mem,VkBuffer buf,VkMemoryPropertyFlags pflags)
 {
@@ -451,7 +465,9 @@ void GPU::allocate_vram(VkDeviceMemory& mem,VkBuffer buf,VkMemoryPropertyFlags p
 }
 
 /**
- *	TODO
+ *	allocate gpu memory for images & textures
+ *	\param mem: target memory handle
+ *	\param img: image or texture to allocate memory for
  */
 void GPU::allocate_vram(VkDeviceMemory& mem,VkImage img)
 {
@@ -470,7 +486,12 @@ void GPU::allocate_vram(VkDeviceMemory& mem,VkImage img)
 }
 
 /**
- *	TODO
+ *	generate buffer for values & geometry
+ *	\param vbo: target buffer handle
+ *	\param mem: target gpu memory handle
+ *	\param size: buffer size in bytes
+ *	\param fusage: buffer usage properties
+ *	\param fproperty: memory properties
  */
 void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 						  VkBufferUsageFlags fusage,VkMemoryPropertyFlags fproperty)
@@ -494,7 +515,8 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 // FIXME performance, single allocation of device memory then all buffers use that memory
 
 /**
- *	TODO
+ *	generate binary semaphore, signaling on queue execution progress on gpu only. no usage for cpu
+ *	\param sem: target semaphore handle
  */
 void GPU::generate_semaphore_binary(VkSemaphore* sem)
 {
@@ -505,7 +527,8 @@ void GPU::generate_semaphore_binary(VkSemaphore* sem)
 }
 
 /**
- *	TODO
+ *	generate host fence, signaling readyness for cpu execution stages
+ *	\param fen: target fence handle
  */
 void GPU::generate_fence(VkFence* fen)
 {
