@@ -67,12 +67,6 @@ struct ShaderAttribute
 	UniformDimension dim;
 };
 
-struct UBOMemoryRange
-{
-	size_t offset = 0;
-	size_t range = 0;
-};
-
 struct UBOAttribute
 {
 	VkDescriptorType type;
@@ -107,7 +101,6 @@ public:
 	void generate_layouts();
 
 	// memory management
-	size_t acquire_memory_segment(size_t size);
 	void write(void* data,size_t size,size_t offset=0);
 
 public:
@@ -125,7 +118,7 @@ private:
 	// uniform buffer memory
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	vector<UBOMemoryRange> m_MemorySegments;
+	MemoryChunkResource m_MCR = MemoryChunkResource(SHADER_UNIFORM_BUFFER_MEMSIZE);
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer();
 #endif

@@ -1,5 +1,4 @@
 HARDWARE
-- implement feature setting setup correlation to ogl  SIGNAL IN ISSUE
 - single allocation of device memory & allocate just like for uniform buffers
 
 MEMORY

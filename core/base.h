@@ -399,6 +399,26 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
+// Allocationless Malloc
+
+struct MemoryRange
+{
+	size_t offset = 0;
+	size_t range = 0;
+};
+
+class MemoryChunkResource
+{
+public:
+	MemoryChunkResource(size_t size);
+	size_t acquire_memory_segment(size_t size);
+
+private:
+	vector<MemoryRange> m_MemorySegments;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Common Thread Signaling Structure
 
 struct ThreadSignal

@@ -332,12 +332,6 @@ UniformBuffer::UniformBuffer()
 		// TODO optimize, do not rely on coherent bit and flush explicitly later
 	}
 
-	// register unsegmented splice
-	m_MemorySegments.push_back({
-			.offset = 0,
-			.range = SHADER_UNIFORM_BUFFER_MEMSIZE
-		});
-
 	COMM_CNF();
 }
 
@@ -402,44 +396,6 @@ void UniformBuffer::generate_layouts()
 		VkResult __Result = vkCreateDescriptorSetLayout(g_GPU.gpu,&__DescriptorLayoutInfo,nullptr,&layouts[i]);
 		COMM_ERR_COND(__Result!=VK_SUCCESS,"uniform layout definition failed");
 	}
-}
-
-/**
- *	request segment of uniform buffer memory, works as gpu malloc
- *	\param size: required memory size
- *	\returns offset to beginning of aquired memory segment
- */
-size_t UniformBuffer::acquire_memory_segment(size_t size)
-{
-	COMM_AWT("uniform buffer memory requested, splitting segments");
-	size_t __Delta = SHADER_UNIFORM_BUFFER_MEMSIZE;
-
-	// search for most fitting segment
-	size_t i,__Segment = m_MemorySegments.size();
-	for (i=0;i<m_MemorySegments.size();i++)
-	{
-		if (m_MemorySegments[i].range<size||(m_MemorySegments[i].range-size)>=__Delta) continue;
-		__Segment = i;
-		__Delta = m_MemorySegments[i].range-size;
-	}
-	COMM_ERR_COND(__Segment==m_MemorySegments.size(),
-				  "uniform buffer memory is fully allocated or segmented. size: %lu",size);
-
-	// split segment
-	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
-	size_t __SizeAligned = (size+63)&~(size_t)63;
-	if (__SizeAligned<__SelectedSegment.range)
-	{
-		m_MemorySegments.push_back({
-				.offset = __SelectedSegment.offset+__SizeAligned,
-				.range = __SelectedSegment.range-__SizeAligned
-			});
-	}
-	m_MemorySegments[__Segment] = m_MemorySegments.back();
-	m_MemorySegments.pop_back();
-
-	COMM_CNF();
-	return __SelectedSegment.offset;
 }
 
 /**

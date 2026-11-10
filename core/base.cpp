@@ -75,6 +75,58 @@ BitwiseWords::BitwiseWords(const BitwiseWords& o)
 
 
 // ----------------------------------------------------------------------------------------------------
+// Memory Resource Chunk
+
+/**
+ *	initialize chunk resource
+ *	\param size: size of entire unsegmented resource chunk in bytes
+ */
+MemoryResourceChunk::MemoryResourceChunk(size_t size)
+{
+	m_MemorySegments.push_back({
+			.offset = 0,
+			.range = size
+		});
+}
+
+/**
+ *	request segment of uniform buffer memory, works as gpu malloc
+ *	\param size: required memory size
+ *	\returns offset to beginning of aquired memory segment
+ */
+size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
+{
+	size_t __Delta = SHADER_UNIFORM_BUFFER_MEMSIZE;
+
+	// search for most fitting segment
+	size_t i,__Segment = m_MemorySegments.size();
+	for (i=0;i<m_MemorySegments.size();i++)
+	{
+		if (m_MemorySegments[i].range<size||(m_MemorySegments[i].range-size)>=__Delta) continue;
+		__Segment = i;
+		__Delta = m_MemorySegments[i].range-size;
+	}
+	COMM_ERR_COND(__Segment==m_MemorySegments.size(),
+				  "MRC: memory is fully allocated or segmented. size: %lu",size);
+
+	// split segment
+	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
+	size_t __SizeAligned = (size+63)&~(size_t)63;
+	if (__SizeAligned<__SelectedSegment.range)
+	{
+		m_MemorySegments.push_back({
+				.offset = __SelectedSegment.offset+__SizeAligned,
+				.range = __SelectedSegment.range-__SizeAligned
+			});
+	}
+	m_MemorySegments[__Segment] = m_MemorySegments.back();
+	m_MemorySegments.pop_back();
+
+	return __SelectedSegment.offset;
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Signals Between Threads
 
 /**
