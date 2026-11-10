@@ -412,9 +412,11 @@ class MemoryChunkResource
 public:
 	MemoryChunkResource(size_t size);
 	size_t acquire_memory_segment(size_t size);
+	size_t acquire_memory_segment_aligned(size_t size);
 
 private:
 	vector<MemoryRange> m_MemorySegments;
+	const size_t m_FullSize;
 };
 
 

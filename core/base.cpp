@@ -82,6 +82,7 @@ BitwiseWords::BitwiseWords(const BitwiseWords& o)
  *	\param size: size of entire unsegmented resource chunk in bytes
  */
 MemoryResourceChunk::MemoryResourceChunk(size_t size)
+	: m_FullSize(size)
 {
 	m_MemorySegments.push_back({
 			.offset = 0,
@@ -90,13 +91,13 @@ MemoryResourceChunk::MemoryResourceChunk(size_t size)
 }
 
 /**
- *	request segment of uniform buffer memory, works as gpu malloc
+ *	request segment of uniform buffer memory, works as gpu malloc for chaotic memory like vbos
  *	\param size: required memory size
- *	\returns offset to beginning of aquired memory segment
+ *	\returns offset to beginning of acquired memory segment
  */
 size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
 {
-	size_t __Delta = SHADER_UNIFORM_BUFFER_MEMSIZE;
+	size_t __Delta = m_FullSize;
 
 	// search for most fitting segment
 	size_t i,__Segment = m_MemorySegments.size();
@@ -111,18 +112,28 @@ size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
 
 	// split segment
 	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
-	size_t __SizeAligned = (size+63)&~(size_t)63;
-	if (__SizeAligned<__SelectedSegment.range)
+	if (size<__SelectedSegment.range)
 	{
 		m_MemorySegments.push_back({
-				.offset = __SelectedSegment.offset+__SizeAligned,
-				.range = __SelectedSegment.range-__SizeAligned
+				.offset = __SelectedSegment.offset+size,
+				.range = __SelectedSegment.range-size
 			});
 	}
 	m_MemorySegments[__Segment] = m_MemorySegments.back();
 	m_MemorySegments.pop_back();
 
 	return __SelectedSegment.offset;
+}
+
+/**
+ *	request segment of uniform buffer memory, works as gpu malloc for aligned memory like ubos
+ *	\param size: required memory size
+ *	\returns offset to beginning of acquired memory segment
+ */
+size_t MemoryResourceChunk::acquire_memory_segment_aligned(size_t size)
+{
+	size_t __SizeAligned = (size+63)&~(size_t)63;
+	return acquire_memory_segment(__SizeAligned);
 }
 
 
