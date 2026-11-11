@@ -952,7 +952,7 @@ Renderer::Renderer()
 	m_UBufferMem.strafo.proj = g_CoordinateSystem.proj;
 
 	// setup global ubo data for slot 0
-	m_GlobalSetOffset = g_UniformBuffer.acquire_memory_segment(sizeof(UniformBufferMemory));
+	m_GlobalSetOffset = g_UniformBuffer.mcr.acquire_memory_segment_aligned(sizeof(UniformBufferMemory));
 	m_GlobalDescriptorSet.allocate(0,16);
 	m_GlobalDescriptorSet.define_data_segment(GSE_CAMERA_TRANSFORM_LOCATION,
 											  m_GlobalSetOffset+offsetof(UniformBufferMemory,otrafo),

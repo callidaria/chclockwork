@@ -81,7 +81,7 @@ BitwiseWords::BitwiseWords(const BitwiseWords& o)
  *	initialize chunk resource
  *	\param size: size of entire unsegmented resource chunk in bytes
  */
-MemoryResourceChunk::MemoryResourceChunk(size_t size)
+MemoryChunkResource::MemoryChunkResource(size_t size)
 	: m_FullSize(size)
 {
 	m_MemorySegments.push_back({
@@ -95,7 +95,7 @@ MemoryResourceChunk::MemoryResourceChunk(size_t size)
  *	\param size: required memory size
  *	\returns offset to beginning of acquired memory segment
  */
-size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
+size_t MemoryChunkResource::acquire_memory_segment(size_t size)
 {
 	size_t __Delta = m_FullSize;
 
@@ -111,7 +111,7 @@ size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
 				  "MRC: memory is fully allocated or segmented. size: %lu",size);
 
 	// split segment
-	UBOMemoryRange __SelectedSegment = m_MemorySegments[__Segment];
+	MemoryRange __SelectedSegment = m_MemorySegments[__Segment];
 	if (size<__SelectedSegment.range)
 	{
 		m_MemorySegments.push_back({
@@ -130,7 +130,7 @@ size_t MemoryResourceChunk::acquire_memory_segment(size_t size)
  *	\param size: required memory size
  *	\returns offset to beginning of acquired memory segment
  */
-size_t MemoryResourceChunk::acquire_memory_segment_aligned(size_t size)
+size_t MemoryChunkResource::acquire_memory_segment_aligned(size_t size)
 {
 	size_t __SizeAligned = (size+63)&~(size_t)63;
 	return acquire_memory_segment(__SizeAligned);

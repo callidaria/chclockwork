@@ -502,7 +502,7 @@ void DescriptorSetMemory::update_frame()
  */
 void DescriptorSetMemory::define_data_segment(u16 location,size_t range)
 {
-	size_t __Offset = g_UniformBuffer.acquire_memory_segment(range);
+	size_t __Offset = g_UniformBuffer.mcr.acquire_memory_segment_aligned(range);
 	define_data_segment(location,__Offset,range);
 }
 

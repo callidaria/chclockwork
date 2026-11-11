@@ -107,6 +107,7 @@ public:
 	VkDescriptorPool descriptor_pool;
 	VkDescriptorSetLayout layouts[GPU_GUARANTEED_SET_COUNT];
 	VkBuffer ubo[GPU_BUFFER_COUNT];
+	MemoryChunkResource mcr = MemoryChunkResource(SHADER_UNIFORM_BUFFER_MEMSIZE);
 
 	// standards
 	Texture default_texture;
@@ -118,7 +119,6 @@ private:
 	// uniform buffer memory
 	VkDeviceMemory m_UBOMemory[GPU_BUFFER_COUNT];
 	void* m_UBOMapped[GPU_BUFFER_COUNT];
-	MemoryChunkResource m_MCR = MemoryChunkResource(SHADER_UNIFORM_BUFFER_MEMSIZE);
 };
 inline UniformBuffer g_UniformBuffer = UniformBuffer();
 #endif
