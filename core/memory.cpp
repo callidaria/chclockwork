@@ -52,7 +52,7 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 VertexBufferHeap::VertexBufferHeap()
 {
 	COMM_AWT("allocating vram heap for vertex buffers");
-	g_GPU.generate_buffer(m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+	g_GPU.generate_buffer(buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
 						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,MEMORY_VBO_HEAP_MEMSIZE,
@@ -92,14 +92,14 @@ void VertexBufferHeap::gpu_upload()
 	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MemoryBarrier.buffer = m_Buffer;
+	__MemoryBarrier.buffer = buffer;
 	__MemoryBarrier.offset = 0;
 	__MemoryBarrier.size = VK_WHOLE_SIZE;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
 						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
 
 	// copy buffer
-	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,m_Buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
+	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
 
 	// memory barrier to access from graphics queue
 	__MemoryBarrier.dstAccessMask = 0;
@@ -123,7 +123,7 @@ void VertexBufferHeap::vanish()
 	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
-	g_GPU.free(m_Buffer);
+	g_GPU.free(buffer);
 	g_GPU.free(m_Memory);
 }
 
@@ -138,9 +138,11 @@ void VertexBufferHeap::vanish()
 void VertexBuffer::allocate(size_t size)
 {
 #ifdef VKBUILD
-	m_Size = size;
-	m_SegmentOffset = g_VertexBufferHeap.mcr.acquire_memory_segment(size);
-	m_Data = (u8*)g_VertexBufferHeap.mem+m_SegmentOffset;
+	segment = {
+		.offset = g_VertexBufferHeap.mcr.acquire_memory_segment(size),
+		.range = size
+	};
+	m_Data = (u8*)g_VertexBufferHeap.mem+segment.offset;
 #else
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
@@ -157,7 +159,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
 	memcpy((void*)m_Data,vertices,vsize);
-	g_VertexBufferHeap.upload(m_SegmentOffset,m_Size);
+	g_VertexBufferHeap.upload(segment.offset,segment.range);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -184,7 +186,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// fill staging buffer with vertex information
 	memcpy((void*)m_Data,vertices,vsize);
 	memcpy((void*)(m_Data+vsize),indices,isize);
-	g_VertexBufferHeap.upload(m_SegmentOffset,m_Size);
+	g_VertexBufferHeap.upload(segment.offset,segment.range);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -220,9 +222,9 @@ void VertexBuffer::bind()
  */
 void VertexArray::allocate(u8 size)
 {
-	m_Buffers.reserve(size);
-	m_Barriers.reserve(size);
-	m_Offsets = vector<size_t>(size,0);
+	m_Buffers = vector<VkBuffer>(size,g_VertexBufferHeap.buffer);
+	//m_Barriers.reserve(size);
+	m_Offsets.reserve(size);
 }
 
 /**
@@ -232,7 +234,8 @@ void VertexArray::allocate(u8 size)
 void VertexArray::register_buffer(const VertexBuffer& vb)
 {
 	COMM_ERR_COND(m_Buffers.size()>=m_Buffers.capacity(),"insufficient vertex array allocation");
-	m_Buffers.push_back(vb.vbo);
+	//m_Buffers.push_back(vb.vbo);
+	m_Offsets.push_back(vb.segment.offset);
 }
 
 /**
@@ -244,9 +247,11 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 	register_buffer(vb);
 
 	// register memory barrier for dynamic upload. this will require to transfer ownership!
+	/*
 	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier_bfr();
 	__Barrier.buffer = vb.vbo;
 	m_Barriers.push_back(__Barrier);
+	*/
 }
 
 /**
@@ -265,31 +270,35 @@ void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 /**
  *	transfer vertex array ownership for dynamic buffers to read (for display)
  */
+/*
 void VertexArray::transfer_ownership_read()
 {
 	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
 						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 }
+*/
 // FIXME this will just do a barrier for all memory, even though most of it will be only uploaded ONCE
 //		maybe only request a barrier when uploading, it will loose out this combined barrier command though
 
 /**
  *	transfer vertex array ownership for dynamic buffers to write (for update)
  */
+/*
 void VertexArray::transfer_ownership_write()
 {
 	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
 	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,0,
 						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
 }
+*/
 
 /**
  *	bind vertex array
  */
 void VertexArray::bind()
 {
-	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,m_Buffers.size(),
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,m_Offsets.size(),
 						   &m_Buffers[0],&m_Offsets[0]);
 }
 

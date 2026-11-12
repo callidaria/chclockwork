@@ -17,12 +17,15 @@ public:
 	void vanish();
 
 public:
+	VkBuffer buffer;
 	MemoryChunkResource mcr = MemoryChunkResource(MEMORY_VBO_HEAP_MEMSIZE);
 	void* mem;
 
 private:
-	VkBuffer m_Buffer,m_StagingBuffer;
+	VkBuffer m_StagingBuffer;
 	VkDeviceMemory m_Memory,m_StagingMemory;
+	vector<VkBufferCopy> m_CopyRegions;
+	size_t m_CopyCursor = 0;
 };
 
 inline VertexBufferHeap g_VertexBufferHeap = VertexBufferHeap();
@@ -41,12 +44,12 @@ public:
 
 public:
 #ifdef VKBUILD
+	MemoryRange segment;
 	size_t index_offset;
 #endif
 
 private:
 #ifdef VKBUILD
-	size_t m_Size,m_SegmentOffset;
 	u8* m_Data;
 #else
 	u32 m_VAO,m_VBO;
@@ -66,14 +69,15 @@ public:
 	void register_buffer_indexed(const VertexBuffer& vb);
 
 	// update
+	/*
 	void transfer_ownership_read();
 	void transfer_ownership_write();
+	*/
 	void bind();
 	void bind_indexed();
 
 private:
 	vector<VkBuffer> m_Buffers;
-	vector<VkBufferMemoryBarrier> m_Barriers;
 	vector<size_t> m_Offsets;
 	size_t m_IndexOffset = 0;
 	s16 m_IndexSource = -1;
