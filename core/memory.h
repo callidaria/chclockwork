@@ -8,37 +8,46 @@
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
+class VertexBufferHeap
+{
+public:
+	VertexBufferHeap();
+	void upload(size_t offset,size_t size);
+	void gpu_upload();
+	void vanish();
+
+public:
+	MemoryChunkResource mcr = MemoryChunkResource(MEMORY_VBO_HEAP_MEMSIZE);
+	void* mem;
+
+private:
+	VkBuffer m_Buffer,m_StagingBuffer;
+	VkDeviceMemory m_Memory,m_StagingMemory;
+};
+
+inline VertexBufferHeap g_VertexBufferHeap = VertexBufferHeap();
+
+
 class VertexBuffer
 {
 public:
-	void allocate(size_t size,bool indexed=false);
+	void allocate(size_t size);
 	void upload(void* vertices,size_t vsize,size_t ofs=0);
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
 
-#ifdef VKBUILD
-	void gpu_upload();
-	void free();
-	void vanish();
-#else
+#ifndef VKBUILD
 	void bind();
 #endif
 
 public:
-
 #ifdef VKBUILD
-	VkBuffer vbo;
 	size_t index_offset;
 #endif
 
 private:
-
 #ifdef VKBUILD
-	VkBuffer m_StagingVBO;
-	VkDeviceMemory m_Memory;
-	VkDeviceMemory m_StagingMemory;
-	void* m_Data;
-	VkBufferCopy m_BufferCopy = {  };
-	CommandBufferTRF* m_CMDBuffer;  // TODO evaluate if this is good and use it for both vb and fb
+	size_t m_Size,m_SegmentOffset;
+	u8* m_Data;
 #else
 	u32 m_VAO,m_VBO;
 #endif

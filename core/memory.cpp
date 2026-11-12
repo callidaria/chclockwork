@@ -44,30 +44,103 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 
 
 // ----------------------------------------------------------------------------------------------------
+// Vertex Buffer Heap
+
+/**
+ *	allocate vram heap for future vbo, ibo and instance data memory upload
+ */
+VertexBufferHeap::VertexBufferHeap()
+{
+	COMM_AWT("allocating vram heap for vertex buffers");
+	g_GPU.generate_buffer(m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,MEMORY_VBO_HEAP_MEMSIZE,
+						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+						  |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,MEMORY_VBO_HEAP_MEMSIZE,0,&mem);
+	COMM_CNF();
+}
+// TODO distiguish dynamic instance data buffers from static vertex data buffers by being HOST_VISIBLE
+//		vbos & ibo data should stay DEVICE_LOCAL
+// TODO optimize, do not rely on coherent bit and flush explicitly later
+
+/**
+ *	TODO
+ */
+void VertexBufferHeap::upload(size_t offset,size_t size)
+{
+	m_CopyRegions.push_back({
+			.srcOffset = m_CopyCursor,
+			.dstOffset = offset,
+			.size = size
+		});
+	m_CopyCursor += size;
+}
+
+/**
+ *	upload all registered buffer regions from staging buffer to vram
+ */
+void VertexBufferHeap::gpu_upload()
+{
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_transfer_command_buffer()->buffer;
+
+	// memory barrier access after last transfer
+	VkBufferMemoryBarrier __MemoryBarrier = {  };
+	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	__MemoryBarrier.buffer = m_Buffer;
+	__MemoryBarrier.offset = 0;
+	__MemoryBarrier.size = VK_WHOLE_SIZE;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
+						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
+
+	// copy buffer
+	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,m_Buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
+
+	// memory barrier to access from graphics queue
+	__MemoryBarrier.dstAccessMask = 0;
+	__MemoryBarrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
+	__MemoryBarrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
+						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
+
+	// reset
+	m_CopyRegions.clear();
+	m_CopyCursor = 0;
+}
+// TODO consider using inheritance info to work with secondary command buffers
+
+/**
+ *	free vbo memory heap & destruct buffers
+ */
+void VertexBufferHeap::vanish()
+{
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
+	g_GPU.free(m_StagingBuffer);
+	g_GPU.free(m_StagingMemory);
+	g_GPU.free(m_Buffer);
+	g_GPU.free(m_Memory);
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Vertex Buffer
 
 /**
  *	vertex buffer allocation
  *	\param size: buffer size in bytes
- *	\param indexed: (default false) true if buffer holds additional ibo index information alongside vertices
  */
-void VertexBuffer::allocate(size_t size,bool indexed)
+void VertexBuffer::allocate(size_t size)
 {
 #ifdef VKBUILD
-	// generate buffers for host & device memory
-	g_GPU.generate_buffer(vbo,m_Memory,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT
-						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT*indexed,
-						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	g_GPU.generate_buffer(m_StagingVBO,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&m_Data);
-	// TODO optimize, do not rely on coherent bit and flush explicitly later
-
-	// assemble buffer copy info
-	m_BufferCopy.srcOffset = 0;
-	m_BufferCopy.dstOffset = 0;
-	m_BufferCopy.size = size;
-
+	m_Size = size;
+	m_SegmentOffset = g_VertexBufferHeap.mcr.acquire_memory_segment(size);
+	m_Data = (u8*)g_VertexBufferHeap.mem+m_SegmentOffset;
 #else
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
@@ -83,7 +156,8 @@ void VertexBuffer::allocate(size_t size,bool indexed)
 void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
-	memcpy((void*)((char*)m_Data+ofs),vertices,vsize);
+	memcpy((void*)m_Data,vertices,vsize);
+	g_VertexBufferHeap.upload(m_SegmentOffset,m_Size);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -108,8 +182,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	index_offset = vsize;
 
 	// fill staging buffer with vertex information
-	memcpy(m_Data,vertices,vsize);
-	memcpy((u8*)m_Data+vsize,indices,isize);
+	memcpy((void*)m_Data,vertices,vsize);
+	memcpy((void*)(m_Data+vsize),indices,isize);
+	g_VertexBufferHeap.upload(m_SegmentOffset,m_Size);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -121,66 +196,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 }
 // TODO consider a ring buffer system for multi-frame processing
 
-#ifdef VKBUILD
-
-/**
- *	upload vbo/ibo data to gpu
- */
-void VertexBuffer::gpu_upload()
-{
-	m_CMDBuffer = g_GPU.acquire_transfer_command_buffer();
-
-	// memory barrier access after last transfer
-	VkBufferMemoryBarrier __MemoryBarrier = {  };
-	__MemoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	__MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MemoryBarrier.buffer = vbo;
-	__MemoryBarrier.offset = 0;
-	__MemoryBarrier.size = VK_WHOLE_SIZE;
-	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
-						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
-						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
-
-	// copy buffer
-	vkCmdCopyBuffer(m_CMDBuffer->buffer,m_StagingVBO,vbo,1,&m_BufferCopy);
-
-	// memory barrier to access from graphics queue
-	__MemoryBarrier.dstAccessMask = 0;
-	__MemoryBarrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
-	__MemoryBarrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
-	vkCmdPipelineBarrier(m_CMDBuffer->buffer,
-						 VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,0,
-						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
-}
-// TODO consider using inheritance info to work with secondary command buffers
-// FIXME code repetition & unfortunate recurring setup during loop
-// TODO in order to prevent gpu-side performance issues reduce the amount of per-frame submits to 1 for uploads
-//		parallelism and even multi-passes are not organized through separate submits and command buffers
-
-/**
- *	free vbo memory
- */
-void VertexBuffer::free()
-{
-	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
-	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
-	g_GPU.free(m_StagingVBO);
-	g_GPU.free(m_StagingMemory);
-}
-
-/**
- *	destruct vertex buffer
- */
-void VertexBuffer::vanish()
-{
-	g_GPU.free(vbo);
-	g_GPU.free(m_Memory);
-}
-
-#else
+#ifndef VKBUILD
 
 /**
  *	bind vertex array?
@@ -192,6 +208,9 @@ void VertexBuffer::bind()
 
 #endif
 
+
+// ----------------------------------------------------------------------------------------------------
+// Vertex Array
 
 #ifdef VKBUILD
 
