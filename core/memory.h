@@ -8,14 +8,21 @@
 // ----------------------------------------------------------------------------------------------------
 // Geometry Buffers
 
+enum VertexBufferType
+{
+	VERTEX_BUFFER_TYPE_STATIC,
+	VERTEX_BUFFER_TYPE_DYNAMIC,
+};
+
+
 class VertexBufferHeap
 {
 public:
-	VertexBufferHeap(VkBuffer* buffer);
+	VertexBufferHeap(VkBuffer* buffer,size_t size);
 	void upload(size_t offset,size_t size);
 	void gpu_upload();
 	void vanish();
-	static void bind();
+	static void bind(u8 bfrs,size_t vofs,size_t iofs=0);
 
 public:
 	MemoryChunkResource mcr = MemoryChunkResource(MEMORY_VBO_HEAP_MEMSIZE);
@@ -30,14 +37,16 @@ private:
 };
 
 inline VkBuffer g_VertexBuffers[2];
-inline VertexBufferHeap g_VertexBufferHeap = VertexBufferHeap(&g_VertexBuffers[0]);
-inline VertexBufferHeap g_InstanceBufferHeap = VertexBufferHeap(&g_VertexBuffers[1]);
+inline VertexBufferHeap g_VertexBufferHeap[2] = {
+	VertexBufferHeap(&g_VertexBuffers[0],MEMORY_VBO_HEAP_MEMSIZE),
+	VertexBufferHeap(&g_VertexBuffers[1],MEMORY_IBO_HEAP_MEMSIZE)
+};
 
 
 class VertexBuffer
 {
 public:
-	void allocate(size_t size);
+	void allocate(size_t size,VertexBufferType type);
 	void upload(void* vertices,size_t vsize,size_t ofs=0);
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
 	void free();
@@ -54,6 +63,7 @@ public:
 
 private:
 #ifdef VKBUILD
+	VertexBufferType m_Type;
 	u8* m_Data;
 #else
 	u32 m_VAO,m_VBO;
@@ -67,24 +77,21 @@ class VertexArray
 public:
 
 	// setup
-	void allocate(u8 size);
 	void register_buffer(const VertexBuffer& vb);
 	void register_buffer_dynamic(const VertexBuffer& vb);
 	void register_buffer_indexed(const VertexBuffer& vb);
 
 	// update
+	void bind();
 	/*
 	void transfer_ownership_read();
 	void transfer_ownership_write();
-	void bind();
 	void bind_indexed();
 	*/
 
-public:
-	vector<size_t> offsets;
-
 private:
-	//vector<VkBuffer> m_Buffers;
+	bool m_Instanced = false;
+	size_t m_VOfs = 0,m_IOfs = 0;
 	size_t m_IndexOffset = 0;
 	s16 m_IndexSource = -1;
 };

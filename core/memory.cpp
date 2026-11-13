@@ -49,17 +49,16 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 /**
  *	allocate vram heap for future vbo, ibo and instance data memory uploads
  */
-VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer)
+VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer,size_t size)
 	: m_Buffer(buffer)
 {
 	COMM_AWT("allocating vram heap for vertex buffers");
-	g_GPU.generate_buffer(*m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+	g_GPU.generate_buffer(*m_Buffer,m_Memory,size,VK_BUFFER_USAGE_TRANSFER_DST_BIT
 						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,MEMORY_VBO_HEAP_MEMSIZE,
-						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-						  |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,MEMORY_VBO_HEAP_MEMSIZE,0,&mem);
+	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&mem);
 	COMM_CNF();
 }
 // TODO distiguish dynamic instance data buffers from static vertex data buffers by being HOST_VISIBLE
@@ -132,14 +131,19 @@ void VertexBufferHeap::vanish()
 
 /**
  *	bind the vertex buffer heap
+ *	\param bfrs: buffer count. =1 if only vertex data is needed, =2 if binding for instance draw
+ *	\param vofs: vertex buffer segment offset in heap
+ *	\param iofs: (default 0) instance buffer segment offset in heap
  */
-void VertexBufferHeap::bind()
+void VertexBufferHeap::bind(u8 bfrs,size_t vofs,size_t iofs)
 {
-	VkDeviceSize __Offset[2] = { 0,0 };
-	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,2,
+	VkDeviceSize __Offset[2] = { vofs,iofs };
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,bfrs,
 						   g_VertexBuffers,__Offset);
 	// TODO find a solution for indices, maybe allocate from the back?
 }
+// TODO investigate vertex pulling for possible improvements, to reduce the amount of rebinds.
+//		although in my initial research i've found, that it is used to increase dynamics, not performance
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -149,14 +153,15 @@ void VertexBufferHeap::bind()
  *	vertex buffer allocation
  *	\param size: buffer size in bytes
  */
-void VertexBuffer::allocate(size_t size)
+void VertexBuffer::allocate(size_t size,VertexBufferType type)
 {
+	m_Type = type;
 #ifdef VKBUILD
 	segment = {
-		.offset = g_VertexBufferHeap.mcr.acquire_memory_segment(size),
+		.offset = g_VertexBufferHeap[type].mcr.acquire_memory_segment(size),
 		.range = size
 	};
-	m_Data = (u8*)g_VertexBufferHeap.mem+segment.offset;
+	m_Data = (u8*)g_VertexBufferHeap[type].mem+segment.offset;
 #else
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
@@ -173,7 +178,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
 	memcpy((void*)m_Data,vertices,vsize);
-	g_VertexBufferHeap.upload(segment.offset,segment.range);
+	g_VertexBufferHeap[m_Type].upload(segment.offset,segment.range);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -200,7 +205,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// fill staging buffer with vertex information
 	memcpy((void*)m_Data,vertices,vsize);
 	memcpy((void*)(m_Data+vsize),indices,isize);
-	g_VertexBufferHeap.upload(segment.offset,segment.range);
+	g_VertexBufferHeap[m_Type].upload(segment.offset,segment.range);
 
 #else
 	glBindVertexArray(m_VAO);
@@ -217,7 +222,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::free()
 {
-	g_VertexBufferHeap.mcr.free_memory_segment(segment);
+	g_VertexBufferHeap[m_Type].mcr.free_memory_segment(segment);
 }
 
 #ifndef VKBUILD
@@ -239,31 +244,22 @@ void VertexBuffer::bind()
 #ifdef VKBUILD
 
 /**
- *	allocate vertex array
- *	\param size: count of vbo attachments, e.g. 2 if vertex data will be complemented by instance data
- */
-void VertexArray::allocate(u8 size)
-{
-	offsets.reserve(size);
-}
-
-/**
  *	add vertex buffer to array
- *	\param vb: vertex/instance buffer to register
+ *	\param vb: vertex buffer to register
  */
 void VertexArray::register_buffer(const VertexBuffer& vb)
 {
-	COMM_ERR_COND(offsets.size()>=offsets.capacity(),"insufficient vertex array allocation");
-	offsets.push_back(vb.segment.offset);
+	m_VOfs = vb.segment.offset;
 }
 
 /**
  *	add dynamic vertex buffer, for constantly changing data. e.g. for an instance buffer, holding positions
- *	\param vb: vertex/instance buffer to register
+ *	\param vb: instance buffer to register
  */
 void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 {
-	register_buffer(vb);
+	m_IOfs = vb.segment.offset;
+	m_Instanced = true;
 
 	// register memory barrier for dynamic upload. this will require to transfer ownership!
 	/*
@@ -276,12 +272,10 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 /**
  *	add indexed vertex buffer to array. this vertex buffer must have been created with indexed=true
  *	\param vb: vertex/instance buffer to register
- *	\note such a buffer can only be added once per vertex array
  */
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
 	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index component");
-	m_IndexSource = offsets.size();
 	m_IndexOffset = vb.index_offset;
 	register_buffer(vb);
 }
@@ -315,13 +309,10 @@ void VertexArray::transfer_ownership_write()
 /**
  *	bind vertex array
  */
-/*
 void VertexArray::bind()
 {
-	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,m_Offsets.size(),
-						   &m_Buffers[0],&m_Offsets[0]);
+	VertexBufferHeap::bind(1+m_Instanced,m_VOfs,m_IOfs);
 }
-*/
 
 /**
  *	bind indexed vertex array

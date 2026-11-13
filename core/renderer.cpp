@@ -729,9 +729,8 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vbo.allocate(geometry.size()*sizeof(f32));
+	vbo.allocate(geometry.size()*sizeof(f32),VERTEX_BUFFER_TYPE_STATIC);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
-	offset = vbo.segment.offset;
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 
 	// link object data uploads
@@ -744,7 +743,6 @@ void GeometryBatch::load()
 	}
 
 	// vertex array
-	vao.allocate(1);
 	vao.register_buffer(vbo);
 
 	// generate push constant memory
@@ -791,15 +789,12 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	memcpy(&geometry[0],verts,size);
 
 	// auto-mapping particle shader pipeline
-	vbo.allocate(geometry.size()*sizeof(f32));
-	ibo.allocate(particles*isize);
+	vbo.allocate(geometry.size()*sizeof(f32),VERTEX_BUFFER_TYPE_STATIC);
+	ibo.allocate(particles*isize,VERTEX_BUFFER_TYPE_DYNAMIC);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	goffset = vbo.segment.offset;
-	ioffset = ibo.segment.offset;
 	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// vertex array
-	vao.allocate(2);
 	vao.register_buffer(vbo);
 	vao.register_buffer_dynamic(ibo);
 
@@ -850,31 +845,29 @@ Renderer::Renderer()
 
 	// SPRITES
 	// sprite vertex data
-	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
+	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices),VERTEX_BUFFER_TYPE_STATIC);
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
-	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT);
+	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT,VERTEX_BUFFER_TYPE_DYNAMIC);
 
 	// sprite vertex array
-	m_SpriteVertexArray.allocate(2);
 	m_SpriteVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_SpriteVertexArray.register_buffer_dynamic(m_SpriteInstanceBuffer);
 
 	// TEXT
 	// text vertex data
-	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter));
+	m_TextInstanceBuffer.allocate(RENDERER_MAXIMUM_CHARACTER_COUNT*sizeof(TextCharacter),
+								  VERTEX_BUFFER_TYPE_DYNAMIC);
 
 	// text vertex array
-	m_TextVertexArray.allocate(2);
 	m_TextVertexArray.register_buffer(m_SpriteVertexBuffer);
 	m_TextVertexArray.register_buffer_dynamic(m_TextInstanceBuffer);
 
 	// SCENE FRAMEBUFFER
 	// framebuffer vertex data
-	m_TargetVertexBuffer.allocate(sizeof(__FBVertices));
+	m_TargetVertexBuffer.allocate(sizeof(__FBVertices),VERTEX_BUFFER_TYPE_STATIC);
 	m_TargetVertexBuffer.upload(__FBVertices,sizeof(__FBVertices));
 
 	// framebuffer vertex array
-	m_TargetVertexArray.allocate(1);
 	m_TargetVertexArray.register_buffer(m_TargetVertexBuffer);
 
 	// RESOURCE SETUP
@@ -1017,7 +1010,6 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	_update_uniforms();
-	VertexBufferHeap::bind();
 
 	// SHADOW PASS
 	m_ShadowMap.record();
@@ -1045,6 +1037,7 @@ void Renderer::update()
 	m_ResultBuffers[g_Frame.frame_id].record();
 
 	// perspective section
+	m_TargetVertexArray.bind();
 	m_TargetPipeline.enable();
 	m_GlobalDescriptorSet.bind(m_TargetPipeline.pipeline_layout);
 	for (DescriptorSetMemory& p_Mem : m_TargetUBO)
@@ -1052,7 +1045,7 @@ void Renderer::update()
 		p_Mem.update_frame();
 		p_Mem.bind(m_TargetPipeline.pipeline_layout);
 	}
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,m_TargetVertexBuffer.segment.offset,0);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
 	_update_sprites();
@@ -1106,8 +1099,8 @@ void Renderer::vanish()
 	}
 
 	// clear vbo & ubo buffer memory
-	g_VertexBufferHeap.vanish();
-	g_InstanceBufferHeap.vanish();
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].vanish();
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].vanish();
 	g_UniformBuffer.vanish();
 #endif
 
@@ -1591,10 +1584,10 @@ void Renderer::_update_uniforms()
 void Renderer::_update_sprites()
 {
 #ifdef VKBUILD
+	m_SpriteVertexArray.bind();
 	m_SpritePipeline.enable();
 	_bind_descriptor_memory(m_SpritePipeline,m_SpriteUBO);
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,
-			  m_SpriteVertexBuffer.segment.offset,m_SpriteInstanceBuffer.segment.offset);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
 	m_SpriteVertexArray.bind();
 	m_SpriteInstanceBuffer.bind();
@@ -1610,10 +1603,10 @@ void Renderer::_update_sprites()
 void Renderer::_update_text()
 {
 #ifdef VKBUILD
+	m_TextVertexArray.bind();
 	m_TextPipeline.enable();
 	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,
-			  m_SpriteVertexBuffer.segment.offset,0);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_CharCount,0,0);
 #else
 	m_TextVertexArray.bind();
 	m_TextInstanceBuffer.bind();
@@ -1633,6 +1626,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 {
 	for (GeometryBatch& p_Batch : batches)
 	{
+		p_Batch.vao.bind();
 		p_Batch.shader->enable();
 		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
@@ -1640,8 +1634,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
 			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
-			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,
-					  p_Batch.offset+p_Tuple.offset,0);
+			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
 		// TODO map<u32,void*> can also describe memory uploads pretty independently
 	}
@@ -1654,13 +1647,15 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 {
 	for (ParticleBatch& p_Batch : batches)
 	{
+		p_Batch.vao.bind();
 		p_Batch.shader->enable();
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
-				  p_Batch.vertex_count,p_Batch.active_particles,p_Batch.goffset,p_Batch.ioffset);
+				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
 	}
 }
+// TODO pack those setup steps together in batch, where it belongs
 
 /**
  *	TODO
@@ -1670,26 +1665,26 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	// iterate static geometry
 	for (ShadowGeometryBatch& p_Batch : gb)
 	{
+		p_Batch.batch->vao.bind();
 		p_Batch.shader->enable();
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
 			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
 			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
-			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,
-					  p_Batch.batch->offset+p_Tuple.offset,0);
+			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
 	}
 
 	// iterate particle geometry
 	for (ShadowParticleBatch& p_Batch : pb)
 	{
+		p_Batch.batch->vao.bind();
 		p_Batch.shader->enable();
 		_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo);
 		p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
-				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,
-				  p_Batch.batch->goffset,p_Batch.batch->ioffset);
+				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
 	}
 }
 
@@ -1737,7 +1732,8 @@ void Renderer::_gpu_upload()
 		p_Attachment = m_TextureAttachments.erase(p_Attachment);
 	}
 
-	g_VertexBufferHeap.gpu_upload();
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
 }
 // TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
