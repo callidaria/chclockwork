@@ -37,6 +37,7 @@ public:
 	void allocate(size_t size);
 	void upload(void* vertices,size_t vsize,size_t ofs=0);
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
+	void free();
 
 #ifndef VKBUILD
 	void bind();

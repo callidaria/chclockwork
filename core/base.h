@@ -403,6 +403,7 @@ private:
 
 struct MemoryRange
 {
+	inline size_t end() { return offset+range; }
 	size_t offset = 0;
 	size_t range = 0;
 };
@@ -413,6 +414,7 @@ public:
 	MemoryChunkResource(size_t size);
 	size_t acquire_memory_segment(size_t size);
 	size_t acquire_memory_segment_aligned(size_t size);
+	void free_memory_segment(MemoryRange& seg);
 
 private:
 	vector<MemoryRange> m_MemorySegments;

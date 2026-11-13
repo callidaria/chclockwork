@@ -731,7 +731,6 @@ void GeometryBatch::load()
 	COMM_LOG("uploading geometry information to GPU");
 	vbo.allocate(geometry.size()*sizeof(f32));
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
-	vbo.gpu_upload();
 	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
 
 	// link object data uploads
@@ -758,7 +757,6 @@ void GeometryBatch::load()
 void GeometryBatch::vanish()
 {
 	vbo.free();
-	vbo.vanish();
 }
 
 
@@ -795,8 +793,6 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vbo.allocate(geometry.size()*sizeof(f32));
 	ibo.allocate(particles*isize);
 	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	ibo.gpu_upload();
-	vbo.gpu_upload();
 	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
 
 	// vertex array
@@ -816,13 +812,12 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 
 /**
  *	clean batch memory & destroy buffers
+ *	\note should not be called during final closing operations, calling free only adjusts vram heap segments
  */
 void ParticleBatch::vanish()
 {
 	vbo.free();
 	ibo.free();
-	vbo.vanish();
-	ibo.vanish();
 }
 
 
@@ -854,7 +849,6 @@ Renderer::Renderer()
 	// sprite vertex data
 	m_SpriteVertexBuffer.allocate(sizeof(__QuadVertices));
 	m_SpriteVertexBuffer.upload(__QuadVertices,sizeof(__QuadVertices));
-	m_SpriteVertexBuffer.gpu_upload();
 	m_SpriteInstanceBuffer.allocate(sizeof(Sprite)*RENDERER_MAXIMUM_SPRITE_COUNT);
 
 	// sprite vertex array
@@ -875,7 +869,6 @@ Renderer::Renderer()
 	// framebuffer vertex data
 	m_TargetVertexBuffer.allocate(sizeof(__FBVertices));
 	m_TargetVertexBuffer.upload(__FBVertices,sizeof(__FBVertices));
-	m_TargetVertexBuffer.gpu_upload();
 
 	// framebuffer vertex array
 	m_TargetVertexArray.allocate(1);
@@ -1101,24 +1094,6 @@ void Renderer::vanish()
 	// clear pixel buffers
 	m_GPUSpriteTextures.atlas.vanish();
 	m_GPUFontTextures.atlas.vanish();
-
-	// free vertex buffers
-	m_SpriteVertexBuffer.free();
-	m_SpriteInstanceBuffer.free();
-	m_TextInstanceBuffer.free();
-	m_TargetVertexBuffer.free();
-
-	// clear vertex buffers
-	m_SpriteVertexBuffer.vanish();
-	m_SpriteInstanceBuffer.vanish();
-	m_TextInstanceBuffer.vanish();
-	m_TargetVertexBuffer.vanish();
-
-	// clear active batchesn
-	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
-	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.vanish();
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
-	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.vanish();
 
 	// clear registered textures
 	for (size_t i=0;i<m_MeshTextures.active_range;i++)
@@ -1721,8 +1696,6 @@ void Renderer::_gpu_upload()
 {
 	// sprites
 	m_SpriteInstanceBuffer.upload(m_Sprites.mem,m_Sprites.active_range*sizeof(Sprite));
-	m_SpriteInstanceBuffer.gpu_upload();
-	m_GPUSpriteTextures.gpu_upload();
 
 	// text
 	m_CharCount = 0;
@@ -1732,8 +1705,6 @@ void Renderer::_gpu_upload()
 									m_CharCount*sizeof(TextCharacter));
 		m_CharCount += p_Text.buffer.size();
 	}
-	m_TextInstanceBuffer.gpu_upload();
-	m_GPUFontTextures.gpu_upload();
 
 	// mesh textures
 	bool __MeshTextureUpdated = false;
@@ -1761,6 +1732,8 @@ void Renderer::_gpu_upload()
 		p_Attachment->ubo->link_result(p_Attachment->location,p_Attachment->texture);
 		p_Attachment = m_TextureAttachments.erase(p_Attachment);
 	}
+
+	g_VertexBufferHeap.gpu_upload();
 }
 // TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots

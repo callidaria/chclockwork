@@ -198,6 +198,13 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 }
 // TODO consider a ring buffer system for multi-frame processing
 
+/**
+ *	free memory segment assigned to this vbo, should it not be needed anymore
+ */
+void VertexBuffer::free()
+{
+}
+
 #ifndef VKBUILD
 
 /**

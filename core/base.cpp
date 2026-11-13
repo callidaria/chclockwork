@@ -136,6 +136,50 @@ size_t MemoryChunkResource::acquire_memory_segment_aligned(size_t size)
 	return acquire_memory_segment(__SizeAligned);
 }
 
+/**
+ *	free memory segment
+ *	\param seg: segment guaranteed to be free
+ */
+void MemoryChunkResource::free_memory_segment(MemoryRange& seg)
+{
+	for (size_t i=0;i<m_MemorySegments.size();i++)
+	{
+		MemoryRange& p_MemorySegment = m_MemorySegments[i];
+
+		// check if freed segment directly preceeds or succeeds current segment & combine
+		if (seg.end()==p_MemorySegment.offset) p_MemorySegment.offset = seg.offset;
+		else if (seg.offset==p_MemorySegment.end()) p_MemorySegment.range += seg.range;
+	}
+
+	// merge iteration
+	bool __Merge = false;
+	for (size_t i=0;i<m_MemorySegments.size()-1;i++)
+	{
+		for (size_t j=i+1;j<m_MemorySegments.size();)
+		{
+			if (m_MemorySegments[i].end()>=m_MemorySegments[j].offset
+				||m_MemorySegments[i].offset<=m_MemorySegments[j].end())
+			{
+				// merge segments
+				size_t __FurthestEnd = std::max(m_MemorySegments[i].end(),m_MemorySegments[j].end());
+				m_MemorySegments[i].offset = std::min(m_MemorySegments[i].offset,m_MemorySegments[j].offset);
+				m_MemorySegments[i].range = __FurthestEnd-m_MemorySegments[i].offset;
+
+				// effectively remove comparing segments by overwriting with last segment info
+				m_MemorySegments[j] = m_MemorySegments[m_MemorySegments.size()-1];
+
+				// found merging segments, continue
+				__Merge = true;
+				break;
+			}
+			else j++;
+		}
+	}
+
+	// remove segment after merge
+	if (__Merge) m_MemorySegments.pop_back();
+}
+
 
 // ----------------------------------------------------------------------------------------------------
 // Signals Between Threads
