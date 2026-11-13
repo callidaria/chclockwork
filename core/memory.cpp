@@ -47,18 +47,27 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 // Vertex Buffer Heap
 
 /**
- *	allocate vram heap for future vbo, ibo and instance data memory upload
+ *	allocate vram heap for future vbo, ibo and instance data memory uploads
  */
 VertexBufferHeap::VertexBufferHeap()
 {
 	COMM_AWT("allocating vram heap for vertex buffers");
-	g_GPU.generate_buffer(buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+
+	// allocate
+	g_GPU.generate_buffer(m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
 						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,MEMORY_VBO_HEAP_MEMSIZE,
 						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
 						  |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	// map & bind
+	VkDeviceSize __Offset = 0;
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,MEMORY_VBO_HEAP_MEMSIZE,0,&mem);
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,1,
+						   &m_Buffer,&__Offset);
+	// TODO find a solution for indices, maybe allocate from the back?
+
 	COMM_CNF();
 }
 // TODO distiguish dynamic instance data buffers from static vertex data buffers by being HOST_VISIBLE
@@ -66,7 +75,9 @@ VertexBufferHeap::VertexBufferHeap()
 // TODO optimize, do not rely on coherent bit and flush explicitly later
 
 /**
- *	TODO
+ *	queue an upload for vertex buffer heap memory
+ *	\param offset: start of the memory segment
+ *	\param size: memsize of memory segment (also range in MemoryRange) in bytes
  */
 void VertexBufferHeap::upload(size_t offset,size_t size)
 {
@@ -92,14 +103,14 @@ void VertexBufferHeap::gpu_upload()
 	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MemoryBarrier.buffer = buffer;
+	__MemoryBarrier.buffer = m_Buffer;
 	__MemoryBarrier.offset = 0;
 	__MemoryBarrier.size = VK_WHOLE_SIZE;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
 						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
 
 	// copy buffer
-	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
+	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,m_Buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
 
 	// memory barrier to access from graphics queue
 	__MemoryBarrier.dstAccessMask = 0;
@@ -123,7 +134,7 @@ void VertexBufferHeap::vanish()
 	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
-	g_GPU.free(buffer);
+	g_GPU.free(m_Buffer);
 	g_GPU.free(m_Memory);
 }
 
@@ -203,6 +214,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
  */
 void VertexBuffer::free()
 {
+	g_VertexBufferHeap.mcr.free_memory_segment(segment);
 }
 
 #ifndef VKBUILD
@@ -229,9 +241,7 @@ void VertexBuffer::bind()
  */
 void VertexArray::allocate(u8 size)
 {
-	m_Buffers = vector<VkBuffer>(size,g_VertexBufferHeap.buffer);
-	//m_Barriers.reserve(size);
-	m_Offsets.reserve(size);
+	offsets.reserve(size);
 }
 
 /**
@@ -240,9 +250,8 @@ void VertexArray::allocate(u8 size)
  */
 void VertexArray::register_buffer(const VertexBuffer& vb)
 {
-	COMM_ERR_COND(m_Buffers.size()>=m_Buffers.capacity(),"insufficient vertex array allocation");
-	//m_Buffers.push_back(vb.vbo);
-	m_Offsets.push_back(vb.segment.offset);
+	COMM_ERR_COND(offsets.size()>=offsets.capacity(),"insufficient vertex array allocation");
+	offsets.push_back(vb.segment.offset);
 }
 
 /**
@@ -269,7 +278,7 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
 	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index component");
-	m_IndexSource = m_Buffers.size();
+	m_IndexSource = offsets.size();
 	m_IndexOffset = vb.index_offset;
 	register_buffer(vb);
 }
@@ -303,15 +312,18 @@ void VertexArray::transfer_ownership_write()
 /**
  *	bind vertex array
  */
+/*
 void VertexArray::bind()
 {
 	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,m_Offsets.size(),
 						   &m_Buffers[0],&m_Offsets[0]);
 }
+*/
 
 /**
  *	bind indexed vertex array
  */
+/*
 void VertexArray::bind_indexed()
 {
 	COMM_ERR_COND(m_IndexSource<0,"an indexed bind is requested, but no source was ever defined");
@@ -319,6 +331,7 @@ void VertexArray::bind_indexed()
 	vkCmdBindVertexBuffers(__CMDBuffer,0,m_Buffers.size(),&m_Buffers[0],&m_Offsets[0]);
 	vkCmdBindIndexBuffer(__CMDBuffer,m_Buffers[m_IndexSource],m_IndexOffset,VK_INDEX_TYPE_UINT32);
 }
+*/
 
 #endif
 

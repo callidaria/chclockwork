@@ -17,12 +17,11 @@ public:
 	void vanish();
 
 public:
-	VkBuffer buffer;
 	MemoryChunkResource mcr = MemoryChunkResource(MEMORY_VBO_HEAP_MEMSIZE);
 	void* mem;
 
 private:
-	VkBuffer m_StagingBuffer;
+	VkBuffer m_Buffer,m_StagingBuffer;
 	VkDeviceMemory m_Memory,m_StagingMemory;
 	vector<VkBufferCopy> m_CopyRegions;
 	size_t m_CopyCursor = 0;
@@ -73,13 +72,15 @@ public:
 	/*
 	void transfer_ownership_read();
 	void transfer_ownership_write();
-	*/
 	void bind();
 	void bind_indexed();
+	*/
+
+public:
+	vector<size_t> offsets;
 
 private:
-	vector<VkBuffer> m_Buffers;
-	vector<size_t> m_Offsets;
+	//vector<VkBuffer> m_Buffers;
 	size_t m_IndexOffset = 0;
 	s16 m_IndexSource = -1;
 };

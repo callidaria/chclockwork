@@ -313,6 +313,7 @@ struct GeometryBatch
 	vector<f32> geometry;
 	vector<vector<DescriptorSetMemory>> ubo;
 	void* pcm;
+	size_t offset;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
 	u32 element_cursor = 0;
@@ -338,6 +339,7 @@ struct ParticleBatch
 	vector<DescriptorSetMemory> ubo;
 	ShaderUniformUpload uniform;
 	void* pcm;
+	size_t goffset,ioffset;
 	u32 vertex_count;
 	u32 active_particles = 0;
 };
