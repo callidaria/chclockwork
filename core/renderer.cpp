@@ -1017,6 +1017,7 @@ void Renderer::update()
 	// TODO dont copy over like this
 
 	_update_uniforms();
+	VertexBufferHeap::bind();
 
 	// SHADOW PASS
 	m_ShadowMap.record();
@@ -1104,7 +1105,9 @@ void Renderer::vanish()
 		m_MeshTextures.mem[i].vanish();
 	}
 
-	// clear uniform upload memory
+	// clear vbo & ubo buffer memory
+	g_VertexBufferHeap.vanish();
+	g_InstanceBufferHeap.vanish();
 	g_UniformBuffer.vanish();
 #endif
 

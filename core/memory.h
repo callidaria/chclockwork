@@ -11,23 +11,27 @@
 class VertexBufferHeap
 {
 public:
-	VertexBufferHeap();
+	VertexBufferHeap(VkBuffer* buffer);
 	void upload(size_t offset,size_t size);
 	void gpu_upload();
 	void vanish();
+	static void bind();
 
 public:
 	MemoryChunkResource mcr = MemoryChunkResource(MEMORY_VBO_HEAP_MEMSIZE);
 	void* mem;
 
 private:
-	VkBuffer m_Buffer,m_StagingBuffer;
+	VkBuffer* m_Buffer;
+	VkBuffer m_StagingBuffer;
 	VkDeviceMemory m_Memory,m_StagingMemory;
 	vector<VkBufferCopy> m_CopyRegions;
 	size_t m_CopyCursor = 0;
 };
 
-inline VertexBufferHeap g_VertexBufferHeap = VertexBufferHeap();
+inline VkBuffer g_VertexBuffers[2];
+inline VertexBufferHeap g_VertexBufferHeap = VertexBufferHeap(&g_VertexBuffers[0]);
+inline VertexBufferHeap g_InstanceBufferHeap = VertexBufferHeap(&g_VertexBuffers[1]);
 
 
 class VertexBuffer

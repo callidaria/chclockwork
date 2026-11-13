@@ -49,25 +49,17 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 /**
  *	allocate vram heap for future vbo, ibo and instance data memory uploads
  */
-VertexBufferHeap::VertexBufferHeap()
+VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer)
+	: m_Buffer(buffer)
 {
 	COMM_AWT("allocating vram heap for vertex buffers");
-
-	// allocate
-	g_GPU.generate_buffer(m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
+	g_GPU.generate_buffer(*m_Buffer,m_Memory,MEMORY_VBO_HEAP_MEMSIZE,VK_BUFFER_USAGE_TRANSFER_DST_BIT
 						  |VK_BUFFER_USAGE_VERTEX_BUFFER_BIT|VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 						  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,MEMORY_VBO_HEAP_MEMSIZE,
 						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
 						  |VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	// map & bind
-	VkDeviceSize __Offset = 0;
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,MEMORY_VBO_HEAP_MEMSIZE,0,&mem);
-	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,1,
-						   &m_Buffer,&__Offset);
-	// TODO find a solution for indices, maybe allocate from the back?
-
 	COMM_CNF();
 }
 // TODO distiguish dynamic instance data buffers from static vertex data buffers by being HOST_VISIBLE
@@ -103,14 +95,14 @@ void VertexBufferHeap::gpu_upload()
 	__MemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	__MemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	__MemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	__MemoryBarrier.buffer = m_Buffer;
+	__MemoryBarrier.buffer = *m_Buffer;
 	__MemoryBarrier.offset = 0;
 	__MemoryBarrier.size = VK_WHOLE_SIZE;
 	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,0,
 						 0,nullptr,1,&__MemoryBarrier,0,nullptr);
 
 	// copy buffer
-	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,m_Buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
+	vkCmdCopyBuffer(__CMDBuffer,m_StagingBuffer,*m_Buffer,m_CopyRegions.size(),&m_CopyRegions[0]);
 
 	// memory barrier to access from graphics queue
 	__MemoryBarrier.dstAccessMask = 0;
@@ -134,8 +126,19 @@ void VertexBufferHeap::vanish()
 	vkWaitForFences(g_GPU.gpu,1,&g_GPU.acquire_transfer_command_buffer()->processing,VK_TRUE,UINT64_MAX);
 	g_GPU.free(m_StagingBuffer);
 	g_GPU.free(m_StagingMemory);
-	g_GPU.free(m_Buffer);
+	g_GPU.free(*m_Buffer);
 	g_GPU.free(m_Memory);
+}
+
+/**
+ *	bind the vertex buffer heap
+ */
+void VertexBufferHeap::bind()
+{
+	VkDeviceSize __Offset[2] = { 0,0 };
+	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,2,
+						   g_VertexBuffers,__Offset);
+	// TODO find a solution for indices, maybe allocate from the back?
 }
 
 
