@@ -1705,6 +1705,9 @@ void Renderer::_gpu_upload()
 		m_CharCount += p_Text.buffer.size();
 	}
 
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
+	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
+
 	// mesh textures
 	bool __MeshTextureUpdated = false;
 	while (m_MeshTextureUploadQueue.size())
@@ -1731,9 +1734,6 @@ void Renderer::_gpu_upload()
 		p_Attachment->ubo->link_result(p_Attachment->location,p_Attachment->texture);
 		p_Attachment = m_TextureAttachments.erase(p_Attachment);
 	}
-
-	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
-	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
 }
 // TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots

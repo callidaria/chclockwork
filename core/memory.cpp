@@ -85,6 +85,7 @@ void VertexBufferHeap::upload(size_t offset,size_t size)
  */
 void VertexBufferHeap::gpu_upload()
 {
+	if (!m_CopyRegions.size()) return;
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_transfer_command_buffer()->buffer;
 
 	// memory barrier access after last transfer
