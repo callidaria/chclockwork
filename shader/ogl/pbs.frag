@@ -47,10 +47,10 @@ uniform int pointlights_active = 0;
 // shadows
 uniform vec3 shadow_source;
 uniform mat4 shadow_projection;
-uniform float shadow_intensity = .9;
 
 // constants
 const float PI = 3.141592653;
+const float shadow_intensity = 1.;
 
 
 // utility

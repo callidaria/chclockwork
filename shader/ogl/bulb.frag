@@ -18,6 +18,6 @@ void main()
 	gbuffer_colour = vec4(0,0,0,1);
 	gbuffer_position = vec4(Position,1);
 	gbuffer_normals = vec4(Normal,1);
-	gbuffer_materials = vec4(0,.4,1,1);
+	gbuffer_materials = vec4(Material,1,1);
 	gbuffer_emission = vec4(Colour,1);
 }

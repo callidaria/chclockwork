@@ -8,12 +8,31 @@
  *	check if a file can be found at given location
  *	\param path: path to check
  *	\returns true if file could be accessed
- *	NOTE for use in debug cases only, in release checking for data that is guaranteed is not good practice
+ *	\note for use in debug cases only, in release checking for data that is guaranteed is not good practice
  */
 bool check_file_exists(const char* path)
 {
 	struct stat tf;
 	return stat(path,&tf)==0;
+}
+
+/**
+ *	read a binary file & return contents
+ *	\param path: path to binary file
+ *	\param buffer_size: variable to write size of the binary file contents to
+ *	\note returned memory has to be freed after using
+ */
+u8* read_file_binary(const char* path,u32& buffer_size)
+{
+	FILE* __File = fopen(path,"rb");
+	COMM_ERR_COND(!__File,"could not open file in order to read it's binary information");
+	fseek(__File,0,SEEK_END);
+	buffer_size = ftell(__File);
+	rewind(__File);
+	u8* __Buffer = (u8*)malloc(buffer_size);
+	fread(__Buffer,1,buffer_size,__File);
+	fclose(__File);
+	return __Buffer;
 }
 
 /**
@@ -44,11 +63,121 @@ BitwiseWords::BitwiseWords(size_t size)
 }
 
 /**
- *	automatically release the allocated data bits on destruction
+ *	copy constructor implementation
+ *	\param o: source bitwise data to be copied
  */
-BitwiseWords::~BitwiseWords()
+BitwiseWords::BitwiseWords(const BitwiseWords& o)
 {
-	free(m_Data);
+	m_Size = o.m_Size;
+	m_Data = (__system_word*)malloc(m_Size*sizeof(__system_word));
+	memcpy(m_Data,o.m_Data,m_Size*sizeof(__system_word));
+}
+
+
+// ----------------------------------------------------------------------------------------------------
+// Memory Resource Chunk
+
+/**
+ *	initialize chunk resource
+ *	\param size: size of entire unsegmented resource chunk in bytes
+ */
+MemoryChunkResource::MemoryChunkResource(size_t size)
+	: m_FullSize(size)
+{
+	m_MemorySegments.push_back({
+			.offset = 0,
+			.range = size
+		});
+}
+
+/**
+ *	request segment of uniform buffer memory, works as gpu malloc for chaotic memory like vbos
+ *	\param size: required memory size
+ *	\returns offset to beginning of acquired memory segment
+ */
+size_t MemoryChunkResource::acquire_memory_segment(size_t size)
+{
+	size_t __Delta = m_FullSize;
+
+	// search for most fitting segment
+	size_t i,__Segment = m_MemorySegments.size();
+	for (i=0;i<m_MemorySegments.size();i++)
+	{
+		if (m_MemorySegments[i].range<size||(m_MemorySegments[i].range-size)>=__Delta) continue;
+		__Segment = i;
+		__Delta = m_MemorySegments[i].range-size;
+	}
+	COMM_ERR_COND(__Segment==m_MemorySegments.size(),
+				  "MRC: memory is fully allocated or segmented. size: %lu",size);
+
+	// split segment
+	MemoryRange __SelectedSegment = m_MemorySegments[__Segment];
+	if (size<__SelectedSegment.range)
+	{
+		m_MemorySegments.push_back({
+				.offset = __SelectedSegment.offset+size,
+				.range = __SelectedSegment.range-size
+			});
+	}
+	m_MemorySegments[__Segment] = m_MemorySegments.back();
+	m_MemorySegments.pop_back();
+
+	return __SelectedSegment.offset;
+}
+
+/**
+ *	request segment of uniform buffer memory, works as gpu malloc for aligned memory like ubos
+ *	\param size: required memory size
+ *	\returns offset to beginning of acquired memory segment
+ */
+size_t MemoryChunkResource::acquire_memory_segment_aligned(size_t size)
+{
+	size_t __SizeAligned = (size+63)&~(size_t)63;
+	return acquire_memory_segment(__SizeAligned);
+}
+
+/**
+ *	free memory segment
+ *	\param seg: segment guaranteed to be free
+ */
+void MemoryChunkResource::free_memory_segment(MemoryRange& seg)
+{
+	for (size_t i=0;i<m_MemorySegments.size();i++)
+	{
+		MemoryRange& p_MemorySegment = m_MemorySegments[i];
+
+		// check if freed segment directly preceeds or succeeds current segment & combine
+		if (seg.end()==p_MemorySegment.offset) p_MemorySegment.offset = seg.offset;
+		else if (seg.offset==p_MemorySegment.end()) p_MemorySegment.range += seg.range;
+	}
+
+	// merge iteration
+	bool __Merge = false;
+	for (size_t i=0;i<m_MemorySegments.size()-1;i++)
+	{
+		for (size_t j=i+1;j<m_MemorySegments.size();)
+		{
+			if (m_MemorySegments[i].end()>=m_MemorySegments[j].offset
+				||m_MemorySegments[i].offset<=m_MemorySegments[j].end())
+			{
+				// merge segments
+				size_t __FurthestEnd = std::max(m_MemorySegments[i].end(),m_MemorySegments[j].end());
+				m_MemorySegments[i].offset = std::min(m_MemorySegments[i].offset,m_MemorySegments[j].offset);
+				m_MemorySegments[i].range = __FurthestEnd-m_MemorySegments[i].offset;
+
+				// effectively remove comparing segments by overwriting with last segment info
+				m_MemorySegments[j] = m_MemorySegments[m_MemorySegments.size()-1];
+
+				// found merging segments, continue
+				__Merge = true;
+				break;
+			}
+			else j++;
+		}
+	}
+
+	// remove segment after merge
+	if (__Merge) m_MemorySegments.pop_back();
 }
 
 
@@ -96,9 +225,31 @@ void ThreadSignal::exit()
  *	\param point: point in 2D space to check relationship with rect
  *	\returns true if point is inside rect bounds
  */
-bool Rect::intersect(vec2 point)
+bool Rect::intersects(vec2 point)
 {
 	return (point.x<extent.x&&point.x>position.x)&&(point.y<extent.y&&point.y>position.y);
+}
+
+/**
+ *	intersection test of this rect with the passed rect
+ *	\param r: potentially intersecting rect
+ *	\returns true of the two rects intersect
+ */
+bool Rect::intersects(const Rect& r)
+{
+	return !(position.x>=(r.position.x+r.extent.x)||(position.x+extent.x)<=r.position.x
+			 ||position.y>=(r.position.y+r.extent.y)||(position.y+extent.y)<=r.position.y);
+}
+
+/**
+ *	determines if the given rect is contained in this rect
+ *	\param r: potentially contained rect
+ *	\returns true if the passed rect is contained in this rect
+ */
+bool Rect::contains(const Rect& r)
+{
+	return r.position.x>=position.x&&r.position.y>=position.y
+		&&(r.position.x+r.extent.x)<=(position.x+extent.x)&&(r.position.y+r.extent.y)<=(position.y+extent.y);
 }
 
 
@@ -137,7 +288,7 @@ void Transform3D::transform(vec3 p,vec3 s,vec3 r)
  */
 void Transform3D::transform(vec3 p,f32 s,vec3 r,vec3 a)
 {
-	model = mat4(1.f);
+	*model = mat4(1.f);
 	translate(a-position);
 	transform(position+p-a,s,r);
 }
@@ -151,7 +302,7 @@ void Transform3D::transform(vec3 p,f32 s,vec3 r,vec3 a)
  */
 void Transform3D::transform(vec3 p,vec3 s,vec3 r,vec3 a)
 {
-	model = mat4(1.f);
+	*model = mat4(1.f);
 	translate(a-position);
 	transform(position+p-a,s,r);
 }
@@ -162,9 +313,7 @@ void Transform3D::transform(vec3 p,vec3 s,vec3 r,vec3 a)
  */
 void Transform3D::translate(vec3 p)
 {
-	model[3][0] = p.x;
-	model[3][1] = p.y;
-	model[3][2] = p.z;
+	*model = glm::translate(*model,p);
 }
 
 /**
@@ -173,9 +322,9 @@ void Transform3D::translate(vec3 p)
  */
 void Transform3D::scale(f32 s)
 {
-	model[0][0] = s;
-	model[1][1] = s;
-	model[2][2] = s;
+	(*model)[0][0] = s;
+	(*model)[1][1] = s;
+	(*model)[2][2] = s;
 }
 
 /**
@@ -184,9 +333,9 @@ void Transform3D::scale(f32 s)
  */
 void Transform3D::scale(vec3 s)
 {
-	model[0][0] = s.x;
-	model[1][1] = s.y;
-	model[2][2] = s.z;
+	(*model)[0][0] = s.x;
+	(*model)[1][1] = s.y;
+	(*model)[2][2] = s.z;
 }
 
 /**
@@ -196,7 +345,7 @@ void Transform3D::scale(vec3 s)
  */
 void Transform3D::scale(f32 s,vec3 a)
 {
-	model = glm::mat4(1.f);
+	*model = glm::mat4(1.f);
 	translate(a-position);
 	transform(position-a,s,rotation);
 }
@@ -208,7 +357,7 @@ void Transform3D::scale(f32 s,vec3 a)
  */
 void Transform3D::scale(vec3 s,vec3 a)
 {
-	model = glm::mat4(1.f);
+	*model = glm::mat4(1.f);
 	translate(a-position);
 	transform(position-a,s,rotation);
 }
@@ -219,7 +368,7 @@ void Transform3D::scale(vec3 s,vec3 a)
  */
 void Transform3D::rotate_x(f32 x)
 {
-	model = glm::rotate(model,glm::radians(x),vec3(1,0,0));
+	*model = glm::rotate(*model,glm::radians(x),vec3(1,0,0));
 	rotation.x = (abs(x)>360.f) ? fmodf(x,360.f) : x;
 }
 
@@ -229,7 +378,7 @@ void Transform3D::rotate_x(f32 x)
  */
 void Transform3D::rotate_y(f32 y)
 {
-	model = glm::rotate(model,glm::radians(y),vec3(0,1,0));
+	*model = glm::rotate(*model,glm::radians(y),vec3(0,1,0));
 	rotation.y = (abs(y)>360.f) ? fmodf(y,360.f) : y;
 }
 
@@ -239,7 +388,7 @@ void Transform3D::rotate_y(f32 y)
  */
 void Transform3D::rotate_z(f32 z)
 {
-	model = glm::rotate(model,glm::radians(z),vec3(0,0,1));
+	*model = glm::rotate(*model,glm::radians(z),vec3(0,0,1));
 	rotation.z = (abs(z)>360.f) ? fmodf(z,360.f) : z;
 }
 
@@ -261,8 +410,8 @@ void Transform3D::rotate(vec3 r)
  */
 void Transform3D::rotate(vec3 r,vec3 a)
 {
-	f32 __ScaleFactor = model[0][0];  // FIXME !!this is only true for simple transformation
-	model = mat4(1.f);
+	f32 __ScaleFactor = (*model)[0][0];  // FIXME !!this is only true for simple transformation
+	*model = mat4(1.f);
 	translate(a-position);
 	rotate(r);
 	transform(position-a,__ScaleFactor,r);
@@ -276,7 +425,7 @@ void Transform3D::reset()
 {
 	position = vec3(.0f);
 	rotation = vec3(.0f);
-	model = mat4(1.f);
+	*model = mat4(1.f);
 }
 
 
@@ -291,7 +440,12 @@ void Transform3D::reset()
 CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 {
 	view = glm::lookAt(vec3(0,-.0001f,1),vec3(.0f),vec3(0,0,1));
+#ifdef VKBUILD
+	proj = glm::orthoLH(.0f,xaxis,.0f,yaxis,.1f,10.f);
+	//proj[1][1] *= -1;
+#else
 	proj = glm::ortho(.0f,xaxis,.0f,yaxis,.1f,10.f);
+#endif
 }
 
 
@@ -306,10 +460,11 @@ CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
  *	\param y: camera rotation yaw
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
+ *	\param f: far plane view distance
  *	\param ifov: field of view in degrees
  */
-Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov)
-	: target(tgt),distance(dist),pitch(p),yaw(y),fov(ifov),m_Ratio(w/h)
+Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov,f32 f)
+	: target(tgt),distance(dist),pitch(p),yaw(y),fov(ifov),far(f),m_Ratio(w/h)
 {
 	update();
 	project();
@@ -323,11 +478,10 @@ Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,f32 w,f32 h,f32 ifov)
  *	\param y: camera rotation yaw
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
- *	\param n: near plane distance
- *	\param f: far plane distance
+ *	\param f: far plane view distance
  */
-Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f)
-	: target(tgt),distance(dist),pitch(p),yaw(y),width(w),height(h),near(n),far(f)
+Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 f)
+	: target(tgt),distance(dist),pitch(p),yaw(y),width(w),height(h),far(f)
 {
 	update();
 	orthographics();
@@ -339,11 +493,10 @@ Camera3D::Camera3D(vec3 tgt,f32 dist,f32 p,f32 y,u32 w,u32 h,f32 n,f32 f)
  *	\param p: camera position
  *	\param w: screen resolution width, can also be downscaled to ratio
  *	\param h: screen resolution height, can also be downscaled to ratio
- *	\param n: near plane distance
- *	\param f: far plane distance
+ *	\param f: far plane view distance
  */
-Camera3D::Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 n,f32 f)
-	: target(tgt),position(p),width(w),height(h),near(n),far(f)
+Camera3D::Camera3D(vec3 tgt,vec3 p,u32 w,u32 h,f32 f)
+	: target(tgt),position(p),width(w),height(h),far(f)
 {
 	force_position();
 	orthographics();
@@ -372,6 +525,9 @@ void Camera3D::force_position()
 void Camera3D::project()
 {
 	proj = glm::perspective(glm::radians(fov),m_Ratio,near,far);
+#ifdef VKBUILD
+	proj[1][1] *= -1;
+#endif
 }
 
 /**
@@ -382,6 +538,9 @@ void Camera3D::orthographics()
 	f32 hwidth = width>>1;
 	f32 hheight = height>>1;
 	proj = glm::ortho(-hwidth,hwidth,-hheight,hheight,near,far);
+#ifdef VKBUILD
+	proj[1][1] *= -1;
+#endif
 }
 
 /**
@@ -399,6 +558,7 @@ void Camera3D::roll(f32 r)
 
 /**
  *	create intertia effected target position that updates a linear applied vectorial position
+ *	WARNING: this is not intended for usage with character movement! you can, but the user will loose precision.
  *	\param t: amount of time in seconds the momentum takes to snap to target position
  */
 TargetMomentumSnap::TargetMomentumSnap(f32 t)
