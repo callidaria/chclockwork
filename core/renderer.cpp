@@ -1706,8 +1706,14 @@ void Renderer::_gpu_upload()
 	}
 	// FIXME this creates multiple different tiny upload regions, which is not necessary here. combine
 
+	// upload geometric information
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
+	// TODO later only regularely update dynamic component & static component only when requested
+
+	// upload textures
+	m_GPUSpriteTextures.gpu_upload();
+	m_GPUFontTextures.gpu_upload();
 
 	// mesh textures
 	bool __MeshTextureUpdated = false;
