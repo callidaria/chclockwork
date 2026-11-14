@@ -33,7 +33,6 @@ private:
 	VkBuffer m_StagingBuffer;
 	VkDeviceMemory m_Memory,m_StagingMemory;
 	vector<VkBufferCopy> m_CopyRegions;
-	size_t m_CopyCursor = 0;
 };
 
 inline VkBuffer g_VertexBuffers[2];

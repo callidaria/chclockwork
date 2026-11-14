@@ -73,11 +73,10 @@ VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer,size_t size)
 void VertexBufferHeap::upload(size_t offset,size_t size)
 {
 	m_CopyRegions.push_back({
-			.srcOffset = m_CopyCursor,
+			.srcOffset = offset,
 			.dstOffset = offset,
 			.size = size
 		});
-	m_CopyCursor += size;
 }
 
 /**
@@ -113,7 +112,6 @@ void VertexBufferHeap::gpu_upload()
 
 	// reset
 	m_CopyRegions.clear();
-	m_CopyCursor = 0;
 }
 // TODO consider using inheritance info to work with secondary command buffers
 
@@ -179,7 +177,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
 	memcpy((void*)m_Data,vertices,vsize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset,segment.range);
+	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,vsize/*segment.range*/);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -206,7 +204,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	// fill staging buffer with vertex information
 	memcpy((void*)m_Data,vertices,vsize);
 	memcpy((void*)(m_Data+vsize),indices,isize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset,segment.range);
+	g_VertexBufferHeap[m_Type].upload(segment.offset,vsize+isize/*segment.range*/);
 
 #else
 	glBindVertexArray(m_VAO);

@@ -1704,6 +1704,7 @@ void Renderer::_gpu_upload()
 									m_CharCount*sizeof(TextCharacter));
 		m_CharCount += p_Text.buffer.size();
 	}
+	// FIXME this creates multiple different tiny upload regions, which is not necessary here. combine
 
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
