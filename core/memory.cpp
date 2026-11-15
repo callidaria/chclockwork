@@ -136,13 +136,13 @@ void VertexBufferHeap::vanish()
  */
 void VertexBufferHeap::bind(u8 bfrs,size_t vofs,size_t iofs)
 {
-	VkDeviceSize __Offset[2] = { vofs,iofs };
+	VkDeviceSize __Offsets[2] = { vofs,iofs };
 	vkCmdBindVertexBuffers(g_GPU.acquire_graphical_command_buffer()->buffer,0,bfrs,
-						   g_VertexBuffers,__Offset);
+						   g_VertexBuffers,__Offsets);
 	// TODO find a solution for indices, maybe allocate from the back?
 }
 // TODO investigate vertex pulling for possible improvements, to reduce the amount of rebinds.
-//		although in my initial research i've found, that it is used to increase dynamics, not performance
+//		although in my initial research i've found, that it is used to increase dev dynamics, not performance
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -171,13 +171,13 @@ void VertexBuffer::allocate(size_t size,VertexBufferType type)
  *	vertex buffer upload, vertices only
  *	\param vertices: pointer to vertex memory
  *	\param vsize: size of vertex memory copy range in bytes
- *	\param ofs: (default 0) offset in vertex memory to start the copy from
+ *	\param ofs: (default 0) offset in vertex memory to start the copy from in bytes
  */
 void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
 #ifdef VKBUILD
-	memcpy((void*)m_Data,vertices,vsize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,vsize/*segment.range*/);
+	memcpy((void*)(m_Data+ofs),vertices,vsize);
+	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,vsize);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -188,6 +188,8 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 // TODO then also store the threshold for written vertex information, when uploading again it can be amended
 // TODO also directly write to certain segments in memory, maybe to overwrite a section of geometry or to
 //		update instance information on the fly. there are a lot of interesting use-cases for this.
+// TODO m_Data pointer can act as malloc'd data for vertex structure
+// TODO cleanup
 
 /**
  *	vertex buffer upload, vertices alongside indices
@@ -202,9 +204,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	index_offset = vsize;
 
 	// fill staging buffer with vertex information
-	memcpy((void*)m_Data,vertices,vsize);
+	memcpy((void*)(m_Data),vertices,vsize);
 	memcpy((void*)(m_Data+vsize),indices,isize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset,vsize+isize/*segment.range*/);
+	g_VertexBufferHeap[m_Type].upload(segment.offset,vsize+isize);
 
 #else
 	glBindVertexArray(m_VAO);

@@ -106,6 +106,7 @@ void Text::load_buffer()
 		__Cursor.x += p_Glyph.advance*scale;
 	}
 }
+// FIXME this reserves & writes memory for spaces (char ASCII val 32 0x20)! very wasteful...
 
 /**
  *	calculate horizontal character intersection
