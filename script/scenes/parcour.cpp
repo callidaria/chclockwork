@@ -96,18 +96,17 @@ void ParcourParcs::init()
 	};
 
 	// lightbulbs
-	BallIndex __BulbIndices[TEST_LIGHTBULB_COUNT] = {
-		{ vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) },
-		{ vec3(9,-9,.7f),.2f,vec3(1,1,0),vec2(0,.4f) },
-		{ vec3(-9,9,1.2f),.2f,vec3(0,1,0),vec2(0,.4f) },
-		{ vec3(-9,-9,.2f),.2f,vec3(0,1,1),vec2(0,.4f) },
-		{ vec3(5,9,.7f),.2f,vec3(0,0,1),vec2(0,.4f) },
-		{ vec3(5,-9,1.2f),.2f,vec3(1,0,1),vec2(0,.4f) },
-		{ vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) },
-		{ vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) },
-	};
 	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
-	__BulbBatch->ibo.upload(__BulbIndices,sizeof(__BulbIndices));
+	BallIndex* __BulbIndices = (BallIndex*)__BulbBatch->imem;
+	__BulbIndices[0] = { vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) };
+	__BulbIndices[1] = { vec3(9,-9,.7f),.2f,vec3(1,1,0),vec2(0,.4f) };
+	__BulbIndices[2] = { vec3(-9,9,1.2f),.2f,vec3(0,1,0),vec2(0,.4f) };
+	__BulbIndices[3] = { vec3(-9,-9,.2f),.2f,vec3(0,1,1),vec2(0,.4f) };
+	__BulbIndices[4] = { vec3(5,9,.7f),.2f,vec3(0,0,1),vec2(0,.4f) };
+	__BulbIndices[5] = { vec3(5,-9,1.2f),.2f,vec3(1,0,1),vec2(0,.4f) };
+	__BulbIndices[6] = { vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) };
+	__BulbIndices[7] = { vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) };
+	__BulbBatch->ibo.register_upload(sizeof(BallIndex)*TEST_LIGHTBULB_COUNT);
 
 	// setup lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);

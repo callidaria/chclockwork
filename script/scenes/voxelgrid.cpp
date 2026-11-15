@@ -38,7 +38,7 @@ void RoomVoxels::init(Font* font)
 
 	// grid instances
 	u32 i = 0;
-	vec3 __Instances[TEST_INSTANCE_AMOUNT_GENERAL] = {  };
+	vec3* __Instances = (vec3*)__RoomBatch->imem;
 	for (s32 z=-TEST_INSTANCE_AMOUNT_Z/2;z<(TEST_INSTANCE_AMOUNT_Z/2)+TEST_INSTANCE_AMOUNT_Z%2;z++)
 	{
 		for (s32 y=-TEST_INSTANCE_AMOUNT_Y/2;y<(TEST_INSTANCE_AMOUNT_Y/2)+TEST_INSTANCE_AMOUNT_Y%2;y++)
@@ -50,7 +50,7 @@ void RoomVoxels::init(Font* font)
 			}
 		}
 	}
-	__RoomBatch->ibo.upload(__Instances,sizeof(__Instances));
+	__RoomBatch->ibo.register_upload(sizeof(vec3)*TEST_INSTANCE_AMOUNT_GENERAL);
 
 	g_Wheel.call(this);
 }

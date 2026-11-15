@@ -3,6 +3,7 @@
 ### v0.0.2 (UNX)
 
 - porting render features to vulkan
+- performance improvements
 - architectural improvements
 - FIXED: texture atlas segmentation
 

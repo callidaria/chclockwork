@@ -45,9 +45,10 @@ inline VertexBufferHeap g_VertexBufferHeap[2] = {
 class VertexBuffer
 {
 public:
-	void allocate(size_t size,VertexBufferType type);
+	void* allocate(size_t size,VertexBufferType type);
 	void upload(void* vertices,size_t vsize,size_t ofs=0);
 	void upload(void* vertices,size_t vsize,void* indices,size_t isize);
+	void register_upload(size_t size,size_t ofs=0);
 	void free();
 
 #ifndef VKBUILD
@@ -62,8 +63,8 @@ public:
 
 private:
 #ifdef VKBUILD
-	VertexBufferType m_Type;
 	u8* m_Data;
+	VertexBufferType m_Type;
 #else
 	u32 m_VAO,m_VBO;
 #endif

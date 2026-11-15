@@ -335,6 +335,7 @@ struct ParticleBatch
 	VertexBuffer ibo;
 	lptr<ShaderPipeline> shader;
 	vector<f32> geometry;
+	void* imem;
 	vector<DescriptorSetMemory> ubo;
 	ShaderUniformUpload uniform;
 	void* pcm;

@@ -730,9 +730,9 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 void GeometryBatch::load()
 {
 	COMM_LOG("uploading geometry information to GPU");
-	vbo.allocate(geometry.size()*sizeof(f32),VERTEX_BUFFER_TYPE_STATIC);
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME geometry in-between store is irrelevant now
-	//shader->map(RENDERER_TEXTURE_UNMAPPED,&vbo);
+	size_t __Size = geometry.size()*sizeof(f32);
+	vbo.allocate(__Size,VERTEX_BUFFER_TYPE_STATIC);
+	vbo.upload(&geometry[0],__Size);
 
 	// link object data uploads
 	COMM_ERR_COND((ubo.size()!=data.size())&&(data.size()!=objects.size()),
@@ -785,15 +785,14 @@ void ParticleBatch::load(Mesh& mesh,u32 particles,size_t isize)
 void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize)
 {
 	COMM_LOG("loading particle mesh geometry information");
-	size_t size = vsize*ssize;
-	geometry.resize(size/sizeof(f32));
-	memcpy(&geometry[0],verts,size);
+	size_t __Size = vsize*ssize;
 
-	// auto-mapping particle shader pipeline
-	vbo.allocate(geometry.size()*sizeof(f32),VERTEX_BUFFER_TYPE_STATIC);
-	ibo.allocate(particles*isize,VERTEX_BUFFER_TYPE_DYNAMIC);
-	vbo.upload(&geometry[0],geometry.size()*sizeof(f32));  // FIXME duplicate!
-	//shader->map(RENDERER_TEXTURE_SPRITES,&vbo,&ibo);
+	// upload geometry
+	vbo.allocate(__Size,VERTEX_BUFFER_TYPE_STATIC);
+	vbo.upload(verts,__Size);
+
+	// acquire pointer to preallocated instance memory segment
+	imem = ibo.allocate(particles*isize,VERTEX_BUFFER_TYPE_DYNAMIC);
 
 	// vertex array
 	vao.register_buffer(vbo);
@@ -1743,15 +1742,10 @@ void Renderer::_gpu_upload()
 		p_Attachment = m_TextureAttachments.erase(p_Attachment);
 	}
 }
-// TODO wasted memory space, specialized texture structure
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots
 //		the measurement has to apply to a single update state
 // TODO skip parts of this upload based on change signals by load commands
-//		i'm afraid those uploads have to be split mid-frame (at least the "binding"), should the gpu not be
-//		capable to fulfill the texture array demands
-// TODO this also proposes the implementation of a maximum allowed texture range by the device.
-//		(also add this as a qualifier when selecting the device), then permit in-frame swapping when necessary
-//		but should this occur it has to be logged for convenience when optimizing for lower end hardware
+// TODO this also proposes the implementation of a maximum allowed texture range read for the device
 
 #else
 

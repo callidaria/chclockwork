@@ -150,8 +150,9 @@ void VertexBufferHeap::bind(u8 bfrs,size_t vofs,size_t iofs)
 /**
  *	vertex buffer allocation
  *	\param size: buffer size in bytes
+ *	\returns pointer to allocated segment in staging buffer memory
  */
-void VertexBuffer::allocate(size_t size,VertexBufferType type)
+void* VertexBuffer::allocate(size_t size,VertexBufferType type)
 {
 	m_Type = type;
 #ifdef VKBUILD
@@ -164,16 +165,21 @@ void VertexBuffer::allocate(size_t size,VertexBufferType type)
 	glGenVertexArrays(1,&m_VAO);
 	glGenBuffers(1,&m_VBO);
 #endif
+	return (void*)m_Data;
 }
+// TODO cleanup
+// TODO consider a ring buffer system for multi-frame processing for instances
 
 /**
- *	vertex buffer upload, vertices only
+ *	vertex buffer upload, vertices only. copies memory
  *	\param vertices: pointer to vertex memory
  *	\param vsize: size of vertex memory copy range in bytes
  *	\param ofs: (default 0) offset in vertex memory to start the copy from in bytes
+ *	\note should only be utilized for one-time geometry upload, it is preferred to write directly via pointer
  */
 void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 {
+	COMM_AWT("copying vertex buffer data");
 #ifdef VKBUILD
 	memcpy((void*)(m_Data+ofs),vertices,vsize);
 	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,vsize);
@@ -182,23 +188,21 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 	glBufferData(GL_ARRAY_BUFFER,vsize,vertices,GL_STATIC_DRAW);
 #endif
+	COMM_CNF();
 }
-// TODO is it possible to skip this memcpy here and to directly reference, to be able to address in cpu code?
-// TODO then also store the threshold for written vertex information, when uploading again it can be amended
-// TODO also directly write to certain segments in memory, maybe to overwrite a section of geometry or to
-//		update instance information on the fly. there are a lot of interesting use-cases for this.
-// TODO m_Data pointer can act as malloc'd data for vertex structure
-// TODO cleanup
 
 /**
- *	vertex buffer upload, vertices alongside indices
+ *	vertex buffer upload, vertices alongside indices. copies memory
  *	\param vertices: pointer to vertex memory
  *	\param vsize: size of vertex memory copy range in bytes
  *	\param indices: pointer to index memory
  *	\param isize: size of index memory copy range in bytes
+ *	\note should only be utilized for one-time geometry upload, it is preferred to write directly via pointer
  */
 void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize)
 {
+	COMM_AWT("copying vertex & index buffer data");
+	COMM_ERR("do not use index uploads, this feature is not appropriately supported yet");
 #ifdef VKBUILD
 	index_offset = vsize;
 
@@ -213,8 +217,16 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	glBufferData(GL_ARRAY_BUFFER,vsize,vertices,GL_STATIC_DRAW);
 	glBufferData(GL_ARRAY_BUFFER,isize,indices,GL_STATIC_DRAW);
 #endif
+	COMM_CNF();
 }
-// TODO consider a ring buffer system for multi-frame processing
+
+/**
+ *	TODO
+ */
+void VertexBuffer::register_upload(size_t size,size_t ofs)
+{
+	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,size);
+}
 
 /**
  *	free memory segment assigned to this vbo, should it not be needed anymore
