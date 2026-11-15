@@ -61,9 +61,8 @@ VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer,size_t size)
 	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,size,0,&mem);
 	COMM_CNF();
 }
-// TODO distiguish dynamic instance data buffers from static vertex data buffers by being HOST_VISIBLE
-//		vbos & ibo data should stay DEVICE_LOCAL
 // TODO optimize, do not rely on coherent bit and flush explicitly later
+// TODO do not stage in case the engine runs on a system with integrated graphics, it should be detremental
 
 /**
  *	queue an upload for vertex buffer heap memory
@@ -213,7 +212,6 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
 	glBufferData(GL_ARRAY_BUFFER,vsize,vertices,GL_STATIC_DRAW);
 	glBufferData(GL_ARRAY_BUFFER,isize,indices,GL_STATIC_DRAW);
-	// TODO element upload (find out if a size of 0 will be guarded and is well defined) (?on condition?)
 #endif
 }
 // TODO consider a ring buffer system for multi-frame processing
@@ -261,13 +259,6 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 {
 	m_IOfs = vb.segment.offset;
 	m_Instanced = true;
-
-	// register memory barrier for dynamic upload. this will require to transfer ownership!
-	/*
-	VkBufferMemoryBarrier __Barrier = _generate_memory_barrier_bfr();
-	__Barrier.buffer = vb.vbo;
-	m_Barriers.push_back(__Barrier);
-	*/
 }
 
 /**
@@ -277,35 +268,10 @@ void VertexArray::register_buffer_dynamic(const VertexBuffer& vb)
 void VertexArray::register_buffer_indexed(const VertexBuffer& vb)
 {
 	COMM_MSG_COND(m_IndexSource>-1,LOG_YELLOW,"WARNING: a previous buffer has already set the index component");
+	COMM_ERR("unfortunately the indexing feature is currently broken & must be fixed before usage");
 	m_IndexOffset = vb.index_offset;
 	register_buffer(vb);
 }
-
-/**
- *	transfer vertex array ownership for dynamic buffers to read (for display)
- */
-/*
-void VertexArray::transfer_ownership_read()
-{
-	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0,
-						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
-}
-*/
-// FIXME this will just do a barrier for all memory, even though most of it will be only uploaded ONCE
-//		maybe only request a barrier when uploading, it will loose out this combined barrier command though
-
-/**
- *	transfer vertex array ownership for dynamic buffers to write (for update)
- */
-/*
-void VertexArray::transfer_ownership_write()
-{
-	VkCommandBuffer cmd_buffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	vkCmdPipelineBarrier(cmd_buffer,VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,0,
-						 0,nullptr,m_Barriers.size(),&m_Barriers[0],0,nullptr);
-}
-*/
 
 /**
  *	bind vertex array

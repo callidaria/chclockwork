@@ -82,11 +82,7 @@ public:
 
 	// update
 	void bind();
-	/*
-	void transfer_ownership_read();
-	void transfer_ownership_write();
-	void bind_indexed();
-	*/
+	//void bind_indexed();
 
 private:
 	bool m_Instanced = false;

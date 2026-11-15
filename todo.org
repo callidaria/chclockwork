@@ -1,6 +1,3 @@
-HARDWARE
-- single allocation of device memory & allocate just like for uniform buffers
-
 MEMORY
 - investigation of memcpy obsoletion through vbo buffer data acquision to write into
 - vbo setup code repetition
@@ -27,3 +24,8 @@ SHADER
 BASE
 - coordinate system declaration & fixes
 - target pointer for camera view & projection transformations. in-place trafo prevents copy
+
+
+ADDITIONAL
+
+- fix multiple buffer regions for text
