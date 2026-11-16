@@ -492,8 +492,8 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 }
 
 /**
- *	upload data as subtexture to atlas on gpu based on saved x & y axis offset
- *	TODO amend
+ *	register subtexture upload data to be uploaded at a later point through gpu_upload()
+ *	\param data: texture image data
  *	\note OGL: has to be uploaded in main thread
  *	\note OGL: target texture has to be bound and allocated before uploading
  *	\note upload requires the manual calling of gpu_upload()
@@ -510,7 +510,7 @@ void Texture::register_subtexture(TextureData& data)
 }
 
 /**
- *	TODO
+ *	upload all registered subtexture uploads, this should be run for texture atlasses
  */
 void Texture::gpu_upload()
 {
@@ -525,8 +525,8 @@ void Texture::gpu_upload()
 }
 
 /**
- *	upload data to gpu
- *	TODO amend
+ *	upload texture image data directly to gpu, this should be called for singular textures
+ *	\param data: texture image data
  *	\note OGL: has to be uploaded in main thread
  *	\note OGL: target texture has to be bound before uploading
  */
@@ -805,7 +805,9 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
 #ifdef VKBUILD
 
 /**
- *	TODO
+ *	setup buffer to texture/atlas memory copy, by copying to stage. then register upload region over this memory
+ *	\param ofs: offset in staging buffer, will automatically be progressing as memory write cursor
+ *	\param data: texture dimensions & data
  */
 void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 {
