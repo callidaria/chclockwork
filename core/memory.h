@@ -126,8 +126,9 @@ class Texture
 public:
 	// data
 	void allocate(u32 wdt,u32 hgt,TextureFormat format);
+	void register_subtexture(TextureData& data);
+	void gpu_upload();
 	void gpu_upload(TextureData& data);
-	void gpu_upload_subtexture(TextureData& data,size_t& ofs);
 
 	// utility
 	void generate_mipmap();
@@ -152,9 +153,9 @@ public:
 	static void set_texture_parameter_filter_bias(float bias=.0f);
 	static void set_texture_parameter_border_colour(vec4 colour);
 
-private:
 #ifdef VKBUILD
-	void _copy_buffer(TextureData& data,size_t& ofs);
+private:
+	void _setup_buffer_copy(size_t& ofs,TextureData& data);
 #endif
 
 public:
@@ -174,6 +175,10 @@ private:
 	VkBuffer m_StagingBuffer;
 	VkDeviceMemory m_TextureMemory,m_StagingMemory;
 	TextureFormat m_Format;
+	vector<VkBufferImageCopy> m_TextureCopies;
+	size_t m_UploadCursor = 0;
+	void* m_Data;
+	bool m_ActiveAtlas = true;
 #else
 	u32 m_Memory;
 #endif

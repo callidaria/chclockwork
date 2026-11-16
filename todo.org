@@ -1,8 +1,6 @@
 MEMORY
-- investigation of memcpy obsoletion through vbo buffer data acquision to write into
-- vbo setup code repetition
 - join subtexture uploads after split
-- coherent again in texture buffer allocation
+- coherent again in vertex & texture buffer allocation
 - cleanup & document
 
 RENDERER
@@ -24,8 +22,3 @@ SHADER
 BASE
 - coordinate system declaration & fixes
 - target pointer for camera view & projection transformations. in-place trafo prevents copy
-
-
-ADDITIONAL
-
-- fix multiple buffer regions for text

@@ -5,23 +5,6 @@
 // Memory Barriers
 
 /**
- *	generate memory barrier for data buffer
- *	\returns assembled barrier info
- */
-inline static VkBufferMemoryBarrier _generate_memory_barrier_bfr()
-{
-	VkBufferMemoryBarrier __Barrier = {  };
-	__Barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-	__Barrier.srcAccessMask = 0;
-	__Barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	__Barrier.srcQueueFamilyIndex = g_GPU.device_info->transfer_queue;
-	__Barrier.dstQueueFamilyIndex = g_GPU.device_info->graphical_queue;
-	__Barrier.offset = 0;
-	__Barrier.size = VK_WHOLE_SIZE;
-	return __Barrier;
-}
-
-/**
  *	generate memory barrier for texture, image or other pixel buffer
  *	\param tex: target image
  *	\param mip: count of generated mipmap levels
@@ -167,7 +150,6 @@ void* VertexBuffer::allocate(size_t size,VertexBufferType type)
 #endif
 	return (void*)m_Data;
 }
-// TODO cleanup
 // TODO consider a ring buffer system for multi-frame processing for instances
 
 /**
@@ -504,8 +486,42 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
 #endif
 
-	// sign as ready
+	// memory correlation & sign as ready
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,width*height*_texture_formats[m_Format].size,0,&m_Data);
 	allocated = true;
+}
+
+/**
+ *	upload data as subtexture to atlas on gpu based on saved x & y axis offset
+ *	TODO amend
+ *	\note OGL: has to be uploaded in main thread
+ *	\note OGL: target texture has to be bound and allocated before uploading
+ *	\note upload requires the manual calling of gpu_upload()
+ */
+void Texture::register_subtexture(TextureData& data)
+{
+#ifdef VKBUILD
+	_setup_buffer_copy(m_UploadCursor,data);
+#else
+	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,data.width,data.height,
+					_texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
+#endif
+	data.vanish();
+}
+
+/**
+ *	TODO
+ */
+void Texture::gpu_upload()
+{
+	// upload image data
+	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
+						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+						   m_TextureCopies.size(),&m_TextureCopies[0]);
+
+	// reset
+	m_TextureCopies.clear();
+	m_UploadCursor = 0;
 }
 
 /**
@@ -517,28 +533,13 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 void Texture::gpu_upload(TextureData& data)
 {
 #ifdef VKBUILD
-	size_t __ImageSize = 0;
-	_copy_buffer(data,__ImageSize);
+	_setup_buffer_copy(m_UploadCursor,data);
+	gpu_upload();
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	m_ActiveAtlas = false;
 #else
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_format_internal[m_Format],data.width,data.height,0,
 				 _texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
-#endif
-	data.vanish();
-}
-
-/**
- *	upload data as subtexture to atlas on gpu based on saved x & y axis offset
- *	TODO amend
- *	\note OGL: has to be uploaded in main thread
- *	\note OGL: target texture has to be bound and allocated before uploading
- */
-void Texture::gpu_upload_subtexture(TextureData& data,size_t& ofs)
-{
-#ifdef VKBUILD
-	_copy_buffer(data,ofs);
-#else
-	glTexSubImage2D(GL_TEXTURE_2D,0,x,y,data.width,data.height,
-					_texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
 #endif
 	data.vanish();
 }
@@ -620,6 +621,8 @@ void Texture::generate_mipmap()
  */
 void Texture::vanish()
 {
+	if (m_ActiveAtlas) vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+
 	// staging
 	g_GPU.free(m_StagingMemory);
 	g_GPU.free(m_StagingBuffer);
@@ -703,7 +706,6 @@ void Texture::unbind()
 {
 	glBindTexture(GL_TEXTURE_2D,0);
 }
-#endif
 
 /**
  *	define trilinear texture filter for mipmap generation
@@ -712,12 +714,8 @@ void Texture::unbind()
  */
 void Texture::set_texture_parameter_linear_mipmap()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-#endif
 }
 
 /**
@@ -727,12 +725,8 @@ void Texture::set_texture_parameter_linear_mipmap()
  */
 void Texture::set_texture_parameter_nearest_mipmap()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-#endif
 }
 
 /**
@@ -741,12 +735,8 @@ void Texture::set_texture_parameter_nearest_mipmap()
  */
 void Texture::set_texture_parameter_linear_unfiltered()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-#endif
 }
 
 /**
@@ -755,12 +745,8 @@ void Texture::set_texture_parameter_linear_unfiltered()
  */
 void Texture::set_texture_parameter_nearest_unfiltered()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-#endif
 }
 
 /**
@@ -769,12 +755,8 @@ void Texture::set_texture_parameter_nearest_unfiltered()
  */
 void Texture::set_texture_parameter_clamp_to_edge()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-#endif
 }
 
 /**
@@ -783,12 +765,8 @@ void Texture::set_texture_parameter_clamp_to_edge()
  */
 void Texture::set_texture_parameter_clamp_to_border()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_BORDER);
-#endif
 }
 
 /**
@@ -797,12 +775,8 @@ void Texture::set_texture_parameter_clamp_to_border()
  */
 void Texture::set_texture_parameter_repeat()
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-#endif
 }
 
 /**
@@ -812,11 +786,7 @@ void Texture::set_texture_parameter_repeat()
  */
 void Texture::set_texture_parameter_filter_bias(float bias)
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_LOD_BIAS,bias);
-#endif
 }
 
 /**
@@ -827,35 +797,29 @@ void Texture::set_texture_parameter_filter_bias(float bias)
  */
 void Texture::set_texture_parameter_border_colour(vec4 colour)
 {
-#ifdef VKBUILD
-	// TODO
-#else
 	glTexParameterfv(GL_TEXTURE_2D,GL_TEXTURE_BORDER_COLOR,&colour.r);
-#endif
 }
 
+#endif
+
 #ifdef VKBUILD
+
 /**
- *	helper to copy image buffer to gpu memory
- *	\param data: texture data to upload
- *	\param ofs: image buffer offset is used for subtexture uploads on atlases. it describes simultaneously
- *			requested memory upload data positions, to align them alongside each other
+ *	TODO
  */
-inline void Texture::_copy_buffer(TextureData& data,size_t& ofs)
+void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 {
 	if (!data.width||!data.height)
 	{
 		COMM_ERR("texture data without width or height has been submitted");
 		return;
 	}
+
+	// copy to staging memory
 	size_t __ImageSize = data.width*data.height*_texture_formats[m_Format].size;
+	memcpy((void*)((u8*)m_Data+ofs),data.data,__ImageSize);
 
-	// stage memory
-	void* __Data;
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,ofs,__ImageSize,0,&__Data);
-	memcpy(__Data,data.data,__ImageSize);
-
-	// buffer copy
+	// insert copy region
 	VkBufferImageCopy __BufferCopy = {  };
 	__BufferCopy.bufferOffset = ofs;
 	__BufferCopy.bufferRowLength = 0;
@@ -866,16 +830,28 @@ inline void Texture::_copy_buffer(TextureData& data,size_t& ofs)
 	__BufferCopy.imageSubresource.layerCount = 1;
 	__BufferCopy.imageOffset = { (s32)data.x,(s32)data.y,0 };
 	__BufferCopy.imageExtent = { (u32)data.width,(u32)data.height,1 };
+	m_TextureCopies.push_back(__BufferCopy);
 
-	// upload image
-	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
-						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__BufferCopy);
-	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
-
-	// increase memory offset
 	ofs += __ImageSize;
 }
+
 #endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Font
+
+/**
+ *	calculate estimated word length in given font
+ *	\param word: given word for length estimation
+ *	\param offset: (default 0) wordlength character offset to exclude buffer tail
+ */
+f32 Font::estimate_wordlength(string& word,u32 offset)
+{
+	f32 out = .0f;
+	for (u32 i=0;i<word.size()-offset;i++) out += glyphs[word[i]-32].advance;
+	return out;
+}
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -905,18 +881,6 @@ inline void Texture::_copy_buffer(TextureData& data,size_t& ofs)
  *
  *	TODO sparse binding is not implemented yet, everything is managed by the fallback system for now.
  */
-
-/**
- *	calculate estimated word length in given font
- *	\param word: given word for length estimation
- *	\param offset: (default 0) wordlength character offset to exclude buffer tail
- */
-f32 Font::estimate_wordlength(string& word,u32 offset)
-{
-	f32 out = .0f;
-	for (u32 i=0;i<word.size()-offset;i++) out += glyphs[word[i]-32].advance;
-	return out;
-}
 
 /**
  *	allocate video memory to use as we, the programmers please
@@ -1192,7 +1156,6 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 {
 	if (!load_requests.size()) return;
 	mutex_texture_requests.lock();
-	size_t __MemoryOffset = 0;
 
 	// iterate waiting requests
 #ifdef VKBUILD
@@ -1204,11 +1167,10 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 #endif
 	{
 		TextureData& p_Data = load_requests.front();
-		atlas.gpu_upload_subtexture(p_Data,__MemoryOffset);
+		atlas.register_subtexture(p_Data);
 		load_requests.pop();
-		// TODO join those subtexture uploads into one, by offsetting the data in staging buffer here
-		//		this of course only works in the vulkan version, __MemoryOffset doesn't do anything in ogl
 	}
+	atlas.gpu_upload();
 	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
 
 	// controversial pixel buffer lod creation
