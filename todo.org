@@ -1,5 +1,4 @@
 MEMORY
-- join subtexture uploads after split
 - coherent again in vertex & texture buffer allocation
 - cleanup & document
 

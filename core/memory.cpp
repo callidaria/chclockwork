@@ -1177,5 +1177,4 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	mutex_texture_requests.unlock();
 	atlas.generate_mipmap();
 }
-// TODO sort into appropriate utility
 // FIXME performance will suffer when generating mipmap every time the loop condition breaks

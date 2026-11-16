@@ -367,8 +367,11 @@ public:
 #ifdef DEBUG
 			: m_Size(size)
 #endif
-		{ mem = (T*)malloc(size*sizeof(T)); }
-	~InPlaceArray() { free(mem); }
+	{
+		mem = (T*)malloc(size*sizeof(T));
+		m_Alloc = true;
+	}
+	~InPlaceArray() { if (m_Alloc) free(mem); }
 
 	/**
 	 *	get pointer to next free memory slot without segmentation and extensive range extensions
@@ -405,6 +408,7 @@ public:
 
 private:
 	queue<size_t> m_Overwrites;
+	bool m_Alloc = false;
 #ifdef DEBUG
 	s32 m_Size = -1;
 #endif
