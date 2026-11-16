@@ -362,6 +362,7 @@ private:
 template<typename T> class InPlaceArray
 {
 public:
+	InPlaceArray() {  }
 	InPlaceArray(u16 size)
 #ifdef DEBUG
 			: m_Size(size)
@@ -371,29 +372,41 @@ public:
 
 	/**
 	 *	get pointer to next free memory slot without segmentation and extensive range extensions
-	 *	\returns pointer to optimal free memory slot
+	 *	\returns index of optimal free memory slot
 	 */
-	inline T* next_free()
+	inline size_t next_free()
 	{
-		if (overwrites.size())
+		if (m_Overwrites.size())
 		{
-			T* out = &mem[overwrites.front()];
-			overwrites.pop();
+			size_t out = m_Overwrites.front();
+			m_Overwrites.pop();
 			return out;
 		}
-		COMM_ERR_COND(m_Size<active_range+1,
+		COMM_ERR_COND(m_Size!=-1&&m_Size<active_range+1,
 					  "data registration violates maximum range, consider adjusting the creation constant");
-		return &mem[active_range++];
+		return active_range++;
+	}
+
+	/**
+	 *	mark free & neutralize memory at given memory position
+	 *	\param i: index of released element
+	 *	\param val: neutralizing value for removed data
+	 */
+	inline void free_element(size_t i,T val)
+	{
+		mem[i] = val;
+		if (i==active_range-1) active_range--;
+		else m_Overwrites.push(i);
 	}
 
 public:
 	T* mem;
-	u16 active_range = 0;
-	queue<u16> overwrites;
+	size_t active_range = 0;
 
 private:
+	queue<size_t> m_Overwrites;
 #ifdef DEBUG
-	u16 m_Size;
+	s32 m_Size = -1;
 #endif
 };
 

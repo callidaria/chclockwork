@@ -182,7 +182,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,size_t ofs)
 	COMM_AWT("copying vertex buffer data");
 #ifdef VKBUILD
 	memcpy((void*)(m_Data+ofs),vertices,vsize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset+ofs,vsize);
+	register_upload(vsize,ofs);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -205,12 +205,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 	COMM_ERR("do not use index uploads, this feature is not appropriately supported yet");
 #ifdef VKBUILD
 	index_offset = vsize;
-
-	// fill staging buffer with vertex information
 	memcpy((void*)(m_Data),vertices,vsize);
 	memcpy((void*)(m_Data+vsize),indices,isize);
-	g_VertexBufferHeap[m_Type].upload(segment.offset,vsize+isize);
-
+	register_upload(vsize+isize);
 #else
 	glBindVertexArray(m_VAO);
 	glBindBuffer(GL_ARRAY_BUFFER,m_VBO);
@@ -221,7 +218,9 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 }
 
 /**
- *	TODO
+ *	register buffer memory update
+ *	\param size: memory size of updated range in bytes
+ *	\param ofs: start of memory range in bytes
  */
 void VertexBuffer::register_upload(size_t size,size_t ofs)
 {
