@@ -110,7 +110,7 @@ enum TextureFormat : u8
 struct TextureData
 {
 	// utility
-	void load_colour(vec3 colour);
+	void load(vec3 colour);
 	void load(const char* path);
 	void vanish();
 
@@ -119,6 +119,15 @@ struct TextureData
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
 	bool texture_flag = false;
+};
+
+class Texture;
+
+struct TextureDataTuple
+{
+	TextureData data;
+	Texture* texture;
+	TextureFormat format;
 };
 
 class Texture
@@ -141,8 +150,8 @@ public:
 	static void set_channel(u8 i);
 	void bind(u8 i);
 	static void unbind();
-#endif
 
+	// gl parameters
 	static void set_texture_parameter_linear_mipmap();
 	static void set_texture_parameter_nearest_mipmap();
 	static void set_texture_parameter_linear_unfiltered();
@@ -152,6 +161,7 @@ public:
 	static void set_texture_parameter_repeat();
 	static void set_texture_parameter_filter_bias(float bias=.0f);
 	static void set_texture_parameter_border_colour(vec4 colour);
+#endif
 
 #ifdef VKBUILD
 private:

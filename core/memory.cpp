@@ -326,7 +326,7 @@ s32 _texture_format_internal[TEXTURE_FORMAT_COUNT] = {
  *	generate data for single colour texture
  *	\param colour: colour vector
  */
-void TextureData::load_colour(vec3 colour)
+void TextureData::load(vec3 colour)
 {
 	width = 1;
 	height = 1;
@@ -514,6 +514,8 @@ void Texture::register_subtexture(TextureData& data)
  */
 void Texture::gpu_upload()
 {
+	COMM_LOG("registration of texture buffer upload");
+
 	// upload image data
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
 						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

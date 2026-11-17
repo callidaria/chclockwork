@@ -20,6 +20,16 @@ ThreadSignal _sprite_signal
 
 
 // ----------------------------------------------------------------------------------------------------
+// Materials
+
+Texture* Material::standards[MATERIAL_COMPONENT_CHANNEL_COUNT] = {
+	g_Renderer.register_texture(vec3(.5f,.5f,1)),
+	g_Renderer.register_texture(vec3(0,1,1)),
+	g_Renderer.register_texture(vec3(0))
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Additional Utility
 
 /**
@@ -1285,37 +1295,6 @@ void Renderer::delete_text(lptr<Text> text)
 /**
  *	TODO
  */
-void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	TextureData __Data;
-	__Data.load_colour(colour);
-	queue_mutex->lock();
-	data_queue->push(TextureDataTuple{ __Data,texture,format });
-	queue_mutex->unlock();
-}
-
-/**
- *	load texture into ram in background and register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param path: path to texture
- *	\param format: texture colour channel format
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,
-							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	TextureData __Data;
-	__Data.load(path);
-	queue_mutex->lock();
-	data_queue->push(TextureDataTuple{ __Data,texture,format });
-	queue_mutex->unlock();
-}
-
-/**
- *	TODO
- */
 Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 {
 	COMM_LOG("mesh texture register colour v(%f,%f,%f)",colour.x,colour.y,colour.z);
@@ -1351,6 +1330,25 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 /**
  *	TODO
  */
+lptr<Material> Renderer::register_material(Texture* albedo,Texture* normals,Texture* materials,
+										   Texture* emission)
+{
+	COMM_ERR_COND(albedo==nullptr,"albedo texture must be provided in material creation");
+	m_Materials.push_back({  });
+	lptr<Material> p_Material = std::prev(m_Materials.end());
+	p_Material->components[MATERIAL_COMPONENT_CHANNEL_ALBEDO] = albedo;
+	p_Material->components[MATERIAL_COMPONENT_CHANNEL_NORMAL]
+			= (normals!=nullptr) ? normals : Material::standards[MATERIAL_COMPONENT_CHANNEL_NORMAL];
+	p_Material->components[MATERIAL_COMPONENT_CHANNEL_MATERIAL]
+			= (materials!=nullptr) ? materials : Material::standards[MATERIAL_COMPONENT_CHANNEL_MATERIAL];
+	p_Material->components[MATERIAL_COMPONENT_CHANNEL_EMISSION]
+			= (emission!=nullptr) ? emission : Material::standards[MATERIAL_COMPONENT_CHANNEL_EMISSION];
+	return p_Material;
+}
+
+/**
+ *	TODO
+ */
 void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture)
 {
 	TextureAttachment __Attachment = {
@@ -1358,16 +1356,16 @@ void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* tex
 		.texture = texture,
 		.location = location,
 	};
-	m_TextureAttachments.push_back(__Attachment);
+	m_TextureAttachmentRequests.push_back(__Attachment);
 }
 
 /**
  *	TODO
  */
-void Renderer::attach_material(DescriptorSetMemory* ubo,vector<Texture*>& material)
+void Renderer::attach_material(DescriptorSetMemory* ubo,lptr<Material> material)
 {
-	for (u32 i=0;i<material.size();i++)
-		attach_texture(ubo,i,material[i]);
+	for (u32 i=0;i<MATERIAL_COMPONENT_CHANNEL_COUNT;i++)
+		attach_texture(ubo,i,material->components[i]);
 }
 // TODO this is not it unfortunately
 
@@ -1550,6 +1548,44 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
 void Renderer::animate(AnimatedMesh* mesh)
 {
 	m_AnimatingMeshes.push_back(mesh);
+}
+
+/**
+ *	TODO
+ */
+inline void _signal_texture_data_upload(TextureDataTuple tdt,
+										queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+{
+	queue_mutex->lock();
+	data_queue->push(tdt);
+	queue_mutex->unlock();
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
+							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+{
+	TextureData __Data;
+	__Data.load(colour);
+	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
+}
+
+/**
+ *	load texture into ram in background and register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param path: path to texture
+ *	\param format: texture colour channel format
+ *	\param data_queue: queue for texture vram upload
+ *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
+ */
+void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,
+							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+{
+	TextureData __Data;
+	__Data.load(path);
+	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
 }
 
 // serving _update_uniforms() & _update_batch_uniforms(*)
@@ -1754,8 +1790,8 @@ void Renderer::_gpu_upload()
 
 	// link results
 	if (!__MeshTextureUpdated) return;
-	for (lptr<TextureAttachment> p_Attachment = m_TextureAttachments.begin();
-		 p_Attachment!=m_TextureAttachments.end();)
+	for (lptr<TextureAttachment> p_Attachment = m_TextureAttachmentRequests.begin();
+		 p_Attachment!=m_TextureAttachmentRequests.end();)
 	{
 		if (!p_Attachment->texture->allocated)
 		{
@@ -1763,7 +1799,7 @@ void Renderer::_gpu_upload()
 			continue;
 		}
 		p_Attachment->ubo->link_result(p_Attachment->location,p_Attachment->texture);
-		p_Attachment = m_TextureAttachments.erase(p_Attachment);
+		p_Attachment = m_TextureAttachmentRequests.erase(p_Attachment);
 	}
 }
 // TODO when closing the program, show the maximum amount of used sprite, texture and mesh index slots

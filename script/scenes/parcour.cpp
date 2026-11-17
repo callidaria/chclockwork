@@ -60,40 +60,25 @@ void ParcourParcs::init()
 	__EnviroBatch->data[__BoxID0].texel = 4.f;
 	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
 
-	// textures
-	// standards
-	Texture* __NeutralNormalMap = g_Renderer.register_texture("./res/standard/normal.png");
-	Texture* __NeutralMaterialMap = g_Renderer.register_texture("./res/standard/material.png");
-	Texture* __NeutralEmissionTexture = g_Renderer.register_texture("./res/standard/none.png");
-	// TODO automatic fallback to neutral textures for unwiritten slots, based on their nature
-	//		meaning, that the normal texture falls back to a different neutral, than material or emission etc.
-	// TODO dont read defaults from texture, generate single pixel buffer instead
-
 	// materials
-	vector<Texture*> __FabricMaterial = {
-		g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
-		g_Renderer.register_texture("./res/test/fabric_normal.png"),
-		g_Renderer.register_texture("./res/test/fabric_material.png"),
-		__NeutralEmissionTexture,
-	};
-	vector<Texture*> __FloorMaterial = {
-		g_Renderer.register_texture("./res/test/floor_colour.png",TEXTURE_FORMAT_SRGB),
-		g_Renderer.register_texture("./res/test/floor_normal.png"),
-		g_Renderer.register_texture("./res/test/floor_material.png"),
-		__NeutralEmissionTexture,
-	};
-	vector<Texture*> __GoldMaterial = {
-		g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
-		g_Renderer.register_texture("./res/test/gold_normal.png"),
-		g_Renderer.register_texture("./res/test/gold_material.png"),
-		__NeutralEmissionTexture,
-	};
-	vector<Texture*> __DudeMaterial = {
-		g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB),
-		__NeutralNormalMap,
-		__NeutralMaterialMap,
-		__NeutralEmissionTexture,
-	};
+	lptr<Material> __FabricMaterial = g_Renderer.register_material(
+			g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
+			g_Renderer.register_texture("./res/test/fabric_normal.png"),
+			g_Renderer.register_texture("./res/test/fabric_material.png")
+		);
+	lptr<Material> __FloorMaterial = g_Renderer.register_material(
+			g_Renderer.register_texture("./res/test/floor_colour.png",TEXTURE_FORMAT_SRGB),
+			g_Renderer.register_texture("./res/test/floor_normal.png"),
+			g_Renderer.register_texture("./res/test/floor_material.png")
+		);
+	lptr<Material> __GoldMaterial = g_Renderer.register_material(
+			g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
+			g_Renderer.register_texture("./res/test/gold_normal.png"),
+			g_Renderer.register_texture("./res/test/gold_material.png")
+		);
+	lptr<Material> __DudeMaterial = g_Renderer.register_material(
+			g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB)
+		);
 
 	// lightbulbs
 	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));

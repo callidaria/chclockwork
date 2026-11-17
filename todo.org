@@ -1,11 +1,6 @@
-MEMORY
-- coherent again in vertex & texture buffer allocation
-- cleanup & document
-
 RENDERER
 - improve texture attachments
 - upload instance buffer data before draw & take care of particle ibos
-- texture registration code repetition
 - cleanup
 - document
 - cleanup draw update functions

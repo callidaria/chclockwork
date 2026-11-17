@@ -67,31 +67,6 @@ enum TextureChannelMap : u16
 
 
 // ----------------------------------------------------------------------------------------------------
-// Text
-
-enum ScreenAlignment
-{
-	SCREEN_ALIGN_BOTTOMLEFT,
-	SCREEN_ALIGN_CENTERLEFT,
-	SCREEN_ALIGN_TOPLEFT,
-	SCREEN_ALIGN_BOTTOMCENTER,
-	SCREEN_ALIGN_CENTER,
-	SCREEN_ALIGN_TOPCENTER,
-	SCREEN_ALIGN_BOTTOMRIGHT,
-	SCREEN_ALIGN_CENTERRIGHT,
-	SCREEN_ALIGN_TOPRIGHT,
-	SCREEN_ALIGN_NEUTRAL,
-};
-
-struct Alignment
-{
-	vec2 align(Rect geom);
-	Rect border = { vec2(0),vec2(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE) };
-	ScreenAlignment alignment = SCREEN_ALIGN_NEUTRAL;
-};
-
-
-// ----------------------------------------------------------------------------------------------------
 // GPU Data Structures
 
 struct Sprite
@@ -132,6 +107,25 @@ struct AnimationVertex
 
 
 // ----------------------------------------------------------------------------------------------------
+// Materials
+
+enum MaterialComponentChannel : u8
+{
+	MATERIAL_COMPONENT_CHANNEL_ALBEDO,
+	MATERIAL_COMPONENT_CHANNEL_NORMAL,
+	MATERIAL_COMPONENT_CHANNEL_MATERIAL,
+	MATERIAL_COMPONENT_CHANNEL_EMISSION,
+	MATERIAL_COMPONENT_CHANNEL_COUNT
+};
+
+struct Material
+{
+	static Texture* standards[MATERIAL_COMPONENT_CHANNEL_COUNT];
+	Texture* components[MATERIAL_COMPONENT_CHANNEL_ALBEDO];
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Animations
 
 template<typename T> struct AnimKey
@@ -160,7 +154,28 @@ struct Animation
 
 
 // ----------------------------------------------------------------------------------------------------
-// Entity Data
+// Text
+
+enum ScreenAlignment
+{
+	SCREEN_ALIGN_BOTTOMLEFT,
+	SCREEN_ALIGN_CENTERLEFT,
+	SCREEN_ALIGN_TOPLEFT,
+	SCREEN_ALIGN_BOTTOMCENTER,
+	SCREEN_ALIGN_CENTER,
+	SCREEN_ALIGN_TOPCENTER,
+	SCREEN_ALIGN_BOTTOMRIGHT,
+	SCREEN_ALIGN_CENTERRIGHT,
+	SCREEN_ALIGN_TOPRIGHT,
+	SCREEN_ALIGN_NEUTRAL,
+};
+
+struct Alignment
+{
+	vec2 align(Rect geom);
+	Rect border = { vec2(0),vec2(MATH_CARTESIAN_XRANGE,MATH_CARTESIAN_YRANGE) };
+	ScreenAlignment alignment = SCREEN_ALIGN_NEUTRAL;
+};
 
 struct Text
 {
@@ -184,6 +199,10 @@ struct Text
 	// global
 	inline static InPlaceArray<TextCharacter> characters;
 };
+
+
+// ----------------------------------------------------------------------------------------------------
+// Meshes
 
 class Mesh
 {
@@ -273,13 +292,6 @@ private:
 
 // ----------------------------------------------------------------------------------------------------
 // Batches
-
-struct TextureDataTuple
-{
-	TextureData data;
-	Texture* texture;
-	TextureFormat format;
-};
 
 struct TextureAttachment
 {
@@ -389,8 +401,10 @@ public:
 	// textures
 	Texture* register_texture(vec3 colour,TextureFormat format=TEXTURE_FORMAT_RGBA);
 	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	lptr<Material> register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
+									 Texture* emission=nullptr);
 	void attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture);
-	void attach_material(DescriptorSetMemory* ubo,vector<Texture*>& material);
+	void attach_material(DescriptorSetMemory* ubo,lptr<Material> material);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
@@ -415,12 +429,13 @@ public:
 	void animate(AnimatedMesh* mesh);
 
 private:
-	// threaded actions
+	// threaded texture actions
 	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
-	// FIXME reorder these appropriately in source. above texture registration right now
+
+	// idiotic placeholder functions, that deserve removal
 	void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory);
 
 	// pipeline steps
@@ -456,8 +471,9 @@ private:
 
 	// mesh textures
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
+	list<Material> m_Materials;
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
-	list<TextureAttachment> m_TextureAttachments;
+	list<TextureAttachment> m_TextureAttachmentRequests;
 	std::mutex m_MutexMeshTextureUpload;
 
 	// sprites
@@ -468,6 +484,8 @@ private:
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
 	list<Text> m_Texts;
+	// TODO maybe convert some of those lists to maps, so the cross script interaction & performance is enhanced.
+	//		generally get rid of the linked lists?
 
 	// animation
 	vector<AnimatedMesh*> m_AnimatingMeshes;
