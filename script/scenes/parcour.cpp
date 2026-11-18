@@ -32,18 +32,17 @@ void ParcourParcs::init()
 	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline);
 
 	// setup geometry batch
-	vector<Texture*> __Textures = {  };
 	Mesh __Sphere = Mesh::sphere();
 	Mesh __Cube = Mesh::cube();
-	u32 __FloorID = __EnviroBatch->add_geometry(__Cube,__Textures);
-	u32 __BoxID = __EnviroBatch->add_geometry(__Cube,__Textures);
-	u32 __BoxID0 = __EnviroBatch->add_geometry(__Cube,__Textures);
-	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere,__Textures);
+	u32 __FloorID = __EnviroBatch->add_geometry(__Cube);
+	u32 __BoxID = __EnviroBatch->add_geometry(__Cube);
+	u32 __BoxID0 = __EnviroBatch->add_geometry(__Cube);
+	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere);
 	__EnviroBatch->load();
 	// FIXME remove textures as they are passed right now
 
 	// setup animated character batch
-	m_DudeID = m_AnimBatch->add_geometry(m_Dude,__Textures);
+	m_DudeID = m_AnimBatch->add_geometry(m_Dude);
 	m_AnimBatch->load();
 	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
 	m_Dude.set_default_animation(3,.4f);
@@ -61,22 +60,22 @@ void ParcourParcs::init()
 	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
 
 	// materials
-	lptr<Material> __FabricMaterial = g_Renderer.register_material(
+	Material* __FabricMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/test/fabric_colour.png",TEXTURE_FORMAT_SRGB),
 			g_Renderer.register_texture("./res/test/fabric_normal.png"),
 			g_Renderer.register_texture("./res/test/fabric_material.png")
 		);
-	lptr<Material> __FloorMaterial = g_Renderer.register_material(
+	Material* __FloorMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/test/floor_colour.png",TEXTURE_FORMAT_SRGB),
 			g_Renderer.register_texture("./res/test/floor_normal.png"),
 			g_Renderer.register_texture("./res/test/floor_material.png")
 		);
-	lptr<Material> __GoldMaterial = g_Renderer.register_material(
+	Material* __GoldMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/test/gold_colour.png",TEXTURE_FORMAT_SRGB),
 			g_Renderer.register_texture("./res/test/gold_normal.png"),
 			g_Renderer.register_texture("./res/test/gold_material.png")
 		);
-	lptr<Material> __DudeMaterial = g_Renderer.register_material(
+	Material* __DudeMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB)
 		);
 
@@ -99,11 +98,11 @@ void ParcourParcs::init()
 		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,7.5f,1.f,.8f,.24f);
 
 	// register textures
-	g_Renderer.attach_material(&__EnviroBatch->ubo[__FloorID][1],__FloorMaterial);
-	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID][1],__FloorMaterial);
-	g_Renderer.attach_material(&__EnviroBatch->ubo[__BoxID0][1],__GoldMaterial);
-	g_Renderer.attach_material(&__EnviroBatch->ubo[__SphereID][1],__FabricMaterial);
-	g_Renderer.attach_material(&m_AnimBatch->ubo[m_DudeID][1],__DudeMaterial);
+	__EnviroBatch->ubos[__FloorID].attach_material(__FloorMaterial);
+	__EnviroBatch->ubos[__BoxID].attach_material(__FloorMaterial);
+	__EnviroBatch->ubos[__BoxID0].attach_material(__GoldMaterial);
+	__EnviroBatch->ubos[__SphereID].attach_material(__FabricMaterial);
+	m_AnimBatch->ubos[m_DudeID].attach_material(__DudeMaterial);
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);

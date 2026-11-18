@@ -22,10 +22,12 @@ ThreadSignal _sprite_signal
 // ----------------------------------------------------------------------------------------------------
 // Materials
 
+// standard neutral fallback materials for physical based lighting calculations
 Texture* Material::standards[MATERIAL_COMPONENT_CHANNEL_COUNT] = {
+	g_Renderer.register_texture(vec3(1.f)),
 	g_Renderer.register_texture(vec3(.5f,.5f,1)),
 	g_Renderer.register_texture(vec3(0,1,1)),
-	g_Renderer.register_texture(vec3(0))
+	g_Renderer.register_texture(vec3(.0f))
 };
 
 
@@ -692,31 +694,93 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 
 
 // ----------------------------------------------------------------------------------------------------
+// Uniform Buffer Object
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::create(lptr<ShaderPipeline> shader)
+{
+	shader->generate_ubo(dsets);
+	uniform.shader = shader;
+}
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::bind()
+{
+	g_Renderer.m_GlobalDescriptorSet.bind(uniform.shader->pipeline_layout);
+	for (DescriptorSetMemory& p_DSet : dsets) p_DSet.bind(uniform.shader->pipeline_layout);
+}
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::update()
+{
+	for (DescriptorSetMemory& p_DSet : dsets)
+		p_DSet.update_frame();
+}
+// TODO implement distiction between constantly updating descriptor set & sparsely updating descriptor set
+//		former will use update_frame(), latter should use update()
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::auto_update()
+{
+	uniform.upload();
+	update();
+}
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::attach_texture(u16 location,Texture* texture)
+{
+	TextureAttachment __Attachment = {
+		.ubo = &dsets[UBO_CHANNEL_PURPOSE_TEXTURES],
+		.texture = texture,
+		.location = location
+	};
+	g_Renderer.m_TextureAttachmentRequests.push_back(__Attachment);
+}
+
+/**
+ *	TODO
+ */
+void UniformBufferObject::attach_material(Material* material)
+{
+	for (u8 i=0;i<MATERIAL_COMPONENT_CHANNEL_COUNT;i++)
+		attach_texture(i,material->components[i]);
+}
+
+
+// ----------------------------------------------------------------------------------------------------
 // Geometry Batching
 
 /**
  *	add mesh geometry to batch
  *	\param mesh: loaded mesh for explicit geometry information
- *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(Mesh& mesh,const vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(Mesh& mesh)
 {
-	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex),tex);
+	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex));
 }
 // FIXME make this vector a Texture* with length pass default = 1 instead, this makes it way more usable
 
 /**
  *	add animated mesh geometry to batch
  *	\param mesh: animated mesh for explicit geometry information
- *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(AnimatedMesh& mesh)
 {
-	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex),tex);
-	objects[id].uniform.attach_memory_segment(&ubo[id][0],RENDERER_JOINT_ANIMATION_LOCATION,
-											  &mesh.recursive_transforms[0]);
+	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex));
+	ubos[id].uniform.attach_memory_segment(&ubos[id].dsets[0],RENDERER_JOINT_ANIMATION_LOCATION,
+										   &mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
 	return id;
 }
@@ -726,14 +790,15 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex)
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
- *	\param tex: multichannel texture data to upload
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex)
+u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
 {
 	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
 	size_t __Size = __MemSize/sizeof(f32);
+
+	// write
 	geometry.resize(geometry_cursor+__Size);
 	memcpy(&geometry[geometry_cursor],verts,__MemSize);
 
@@ -741,12 +806,14 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize,const vect
 	objects.push_back({
 			.offset = offset_cursor,
 			.vertex_count = vsize,
-			.textures = tex,
 		});
-	objects.back().uniform.shader = shader;
 	data.push_back({  });
-	ubo.push_back(vector<DescriptorSetMemory>());
-	shader->generate_ubo(ubo.back());
+
+	// uniform buffer
+	ubos.push_back({  });
+	ubos.back().create(shader);
+
+	// cursor
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
 	return objects.size()-1;
@@ -763,11 +830,11 @@ void GeometryBatch::load()
 	vbo.upload(&geometry[0],__Size);
 
 	// link object data uploads
-	COMM_ERR_COND((ubo.size()!=data.size())&&(data.size()!=objects.size()),
+	COMM_ERR_COND((ubos.size()!=data.size())&&(data.size()!=objects.size()),
 				  "length of ubo, object tuple & data storage does not correlate");
-	for (size_t i=0;i<ubo.size();i++)
+	for (size_t i=0;i<ubos.size();i++)
 	{
-		objects[i].uniform.attach_memory_segment(&ubo[i][0],RENDERER_GEOMETRY_INFO_LOCATION,&data[i]);
+		ubos[i].uniform.attach_memory_segment(&ubos[i].dsets[0],RENDERER_GEOMETRY_INFO_LOCATION,&data[i]);
 		objects[i].transform.model = &data[i].model;
 	}
 
@@ -777,6 +844,15 @@ void GeometryBatch::load()
 	// generate push constant memory
 	// FIXME optimization, generate descriptor heap manually, there are globals that only need to be updated once
 	shader->generate_pcm(pcm);  // TODO repeat per tuple
+}
+
+/**
+ *	TODO
+ */
+void GeometryBatch::update()
+{
+	for (UniformBufferObject& p_UBO : ubos)
+		p_UBO.auto_update();
 }
 
 /**
@@ -826,14 +902,23 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	vao.register_buffer(vbo);
 	vao.register_buffer_dynamic(ibo);
 
+	// uniform buffer
+	ubo.create(shader);
+
 	// generate push constant memory
-	shader->generate_ubo(ubo);
 	shader->generate_pcm(pcm);
-	uniform.shader = shader;
 
 	// store geometry information
 	vertex_count = vsize;
 	active_particles = particles;
+}
+
+/**
+ *	TODO
+ */
+void ParticleBatch::update()
+{
+	ubo.auto_update();
 }
 
 /**
@@ -933,38 +1018,45 @@ Renderer::Renderer()
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
 
-	// manual setup for UI pipelines
-	m_SpritePipeline.out_define_result_buffer();
-	m_SpritePipeline.assemble(TARGET_RESOLUTION_FULLSCREEN,
-							  "./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
-							  SPF_FLIPPED|SPF_BLENDING);
-	m_TextPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TextPipeline.assemble(TARGET_RESOLUTION_FULLSCREEN,
-							"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-							SPF_FLIPPED|SPF_BLENDING);
-	m_TargetPipeline.out_define_colour_buffer(GPU_BUFFER_FORMAT_SRGB);
-	m_TargetPipeline.assemble(TARGET_RESOLUTION_RESULT,
-							  "./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",SPF_DEFAULT);
+	// setup for UI pipelines
+	//m_SpritePipeline.out_define_result_buffer();  // FIXME do i even still practice this, or do i render atop
+	m_SpritePipeline = register_pipeline(
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
+			sformats,1,SPF_FLIPPED|SPF_BLENDING,true
+		);
+	m_TextPipeline = register_pipeline(
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
+			sformats,1,SPF_FLIPPED|SPF_BLENDING,true
+		);
+	m_TargetPipeline = register_pipeline(
+			TARGET_RESOLUTION_RESULT,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
+			sformats,1,SPF_DEFAULT,true
+		);
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
 	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
+	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing
-	m_GeometryPassPipeline = register_pipeline(TARGET_RESOLUTION_FULLSCREEN,
-											   "./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-											   gformats,5,SPF_DEFAULT,true);
-	m_ShadowPassPipeline = register_pipeline(TARGET_RESOLUTION_SHADOWPROJ,
-											 "./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-											 nullptr,0,SPF_FLIPPED,true);
+	m_GeometryPassPipeline = register_pipeline(
+			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+			gformats,5,SPF_DEFAULT,true
+		);
+	m_ShadowPassPipeline = register_pipeline(
+			TARGET_RESOLUTION_SHADOWPROJ,"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
+			nullptr,0,SPF_FLIPPED,true
+		);
+	// FIXME terrible, unreadable definition code for pipeline registration
 
 	// result target & geometry target
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(TARGET_RESOLUTION_RESULT,m_SpritePipeline,i);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,m_TargetPipeline);  // FIXME mismatch?
+		m_ResultBuffers[i].setup(TARGET_RESOLUTION_RESULT,*m_SpritePipeline,i);
+	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_TargetPipeline);  // FIXME mismatch?
 	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_GeometryPassPipeline);
 	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,*m_ShadowPassPipeline);
 	// TODO routinize
-	// TODO also check if framebuffer & related shader pipeline frame dimensions contain relevant matching values
+	// TODO also check if framebuffer & related shader pipeline frame dimensions
+	//		contain relevant matching values
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -1001,8 +1093,8 @@ Renderer::Renderer()
 	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,m_ShadowMap.components[0]);
 
 	// load ubo
-	m_SpritePipeline.generate_ubo(m_SpriteUBO);
-	m_TextPipeline.generate_ubo(m_TextUBO);
+	m_SpriteUBO.create(m_SpritePipeline);
+	m_TextUBO.create(m_TextPipeline);
 
 	// load default textures
 	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
@@ -1041,6 +1133,7 @@ void Renderer::update()
 	m_UBufferMem.camera.position = g_Camera.position;
 	// TODO dont copy over like this
 
+	_gpu_upload();
 	_update_uniforms();
 
 	// SHADOW PASS
@@ -1070,13 +1163,15 @@ void Renderer::update()
 
 	// perspective section
 	m_TargetVertexArray.bind();
-	m_TargetPipeline.enable();
-	m_GlobalDescriptorSet.bind(m_TargetPipeline.pipeline_layout);
+	m_TargetPipeline->enable();
+	m_GlobalDescriptorSet.bind(m_TargetPipeline->pipeline_layout);
+	/*
 	for (DescriptorSetMemory& p_Mem : m_TargetUBO)
 	{
 		p_Mem.update_frame();
 		p_Mem.bind(m_TargetPipeline.pipeline_layout);
 	}
+	*/
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 
 	// orthogonal section
@@ -1085,8 +1180,6 @@ void Renderer::update()
 
 	// END RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].stop();
-
-	_gpu_upload();
 
 	// transfer instance data
 	/*
@@ -1108,9 +1201,6 @@ void Renderer::vanish()
 {
 #ifdef VKBUILD
 	// clean pipelines
-	m_TargetPipeline.vanish();
-	m_SpritePipeline.vanish();
-	m_TextPipeline.vanish();
 	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
 
 	// clean framebuffers
@@ -1330,12 +1420,10 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 /**
  *	TODO
  */
-lptr<Material> Renderer::register_material(Texture* albedo,Texture* normals,Texture* materials,
-										   Texture* emission)
+Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* materials,Texture* emission)
 {
 	COMM_ERR_COND(albedo==nullptr,"albedo texture must be provided in material creation");
-	m_Materials.push_back({  });
-	lptr<Material> p_Material = std::prev(m_Materials.end());
+	Material* p_Material = &m_Materials.mem[m_Materials.next_free()];
 	p_Material->components[MATERIAL_COMPONENT_CHANNEL_ALBEDO] = albedo;
 	p_Material->components[MATERIAL_COMPONENT_CHANNEL_NORMAL]
 			= (normals!=nullptr) ? normals : Material::standards[MATERIAL_COMPONENT_CHANNEL_NORMAL];
@@ -1345,29 +1433,6 @@ lptr<Material> Renderer::register_material(Texture* albedo,Texture* normals,Text
 			= (emission!=nullptr) ? emission : Material::standards[MATERIAL_COMPONENT_CHANNEL_EMISSION];
 	return p_Material;
 }
-
-/**
- *	TODO
- */
-void Renderer::attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture)
-{
-	TextureAttachment __Attachment = {
-		.ubo = ubo,
-		.texture = texture,
-		.location = location,
-	};
-	m_TextureAttachmentRequests.push_back(__Attachment);
-}
-
-/**
- *	TODO
- */
-void Renderer::attach_material(DescriptorSetMemory* ubo,lptr<Material> material)
-{
-	for (u32 i=0;i<MATERIAL_COMPONENT_CHANNEL_COUNT;i++)
-		attach_texture(ubo,i,material->components[i]);
-}
-// TODO this is not it unfortunately
 
 /**
  *	register shader pipeline
@@ -1588,41 +1653,6 @@ void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat for
 	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
 }
 
-// serving _update_uniforms() & _update_batch_uniforms(*)
-inline void _update_descriptor_memory(vector<DescriptorSetMemory>& memory)
-{
-	for (DescriptorSetMemory& p_Mem : memory)
-		p_Mem.update_frame();
-}
-// TODO implement distiction between constantly updating descriptor set & sparsely updating descriptor set
-//		former will use update_frame(), latter should use update()
-
-// serving _update_uniforms()
-inline void _update_batch_uniforms(GeometryBatch& batch)
-{
-	for (size_t i=0;i<batch.ubo.size();i++)
-	{
-		batch.objects[i].uniform.upload();
-		_update_descriptor_memory(batch.ubo[i]);
-	}
-}
-
-// serving _update_uniforms()
-inline void _update_batch_uniforms(ParticleBatch& batch)
-{
-	batch.uniform.upload();
-	_update_descriptor_memory(batch.ubo);
-}
-
-/**
- *	TODO
- */
-void Renderer::_bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory)
-{
-	m_GlobalDescriptorSet.bind(shader.pipeline_layout);
-	for (DescriptorSetMemory& p_Mem : memory) p_Mem.bind(shader.pipeline_layout);
-}
-
 /**
  *	TODO
  */
@@ -1633,16 +1663,16 @@ void Renderer::_update_uniforms()
 	m_GlobalDescriptorSet.update_frame();
 
 	// update ui uniforms
-	_update_descriptor_memory(m_SpriteUBO);
-	_update_descriptor_memory(m_TextUBO);
+	m_SpriteUBO.update();
+	m_TextUBO.update();
 
 	// iterate registered geometry batches for uniform updates
-	for (GeometryBatch& p_Batch : m_GeometryBatches) _update_batch_uniforms(p_Batch);
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) _update_batch_uniforms(p_Batch);
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.update();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.update();
 
 	// iterate registered geometry batches for uniform updates
-	for (ParticleBatch& p_Batch : m_ParticleBatches) _update_batch_uniforms(p_Batch);
-	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) _update_batch_uniforms(p_Batch);
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.update();
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.update();
 }
 
 /**
@@ -1652,8 +1682,8 @@ void Renderer::_update_sprites()
 {
 #ifdef VKBUILD
 	m_SpriteVertexArray.bind();
-	m_SpritePipeline.enable();
-	_bind_descriptor_memory(m_SpritePipeline,m_SpriteUBO);
+	m_SpritePipeline->enable();
+	m_SpriteUBO.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,m_Sprites.active_range,0,0);
 #else
 	m_SpriteVertexArray.bind();
@@ -1671,8 +1701,8 @@ void Renderer::_update_text()
 {
 #ifdef VKBUILD
 	m_TextVertexArray.bind();
-	m_TextPipeline.enable();
-	_bind_descriptor_memory(m_TextPipeline,m_TextUBO);
+	m_TextPipeline->enable();
+	m_TextUBO.bind();
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,Text::characters.active_range,0,0);
 #else
 	m_TextVertexArray.bind();
@@ -1698,7 +1728,7 @@ void Renderer::_update_mesh(list<GeometryBatch>& batches)
 		u32 i = 0;
 		for (GeometryTuple& p_Tuple : p_Batch.objects)
 		{
-			_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo[i]);  // TODO ubo, pcm & shader are one part?
+			p_Batch.ubos[i].bind();  // TODO ubo, pcm & shader are one part?
 			i++;
 			p_Batch.shader->upload_pcm(p_Batch.pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
@@ -1716,7 +1746,7 @@ void Renderer::_update_particles(list<ParticleBatch>& batches)
 	{
 		p_Batch.vao.bind();
 		p_Batch.shader->enable();
-		_bind_descriptor_memory(*p_Batch.shader,p_Batch.ubo);
+		p_Batch.ubo.bind();
 		p_Batch.shader->upload_pcm(p_Batch.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
@@ -1737,7 +1767,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
 		{
 			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
-			_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo[i]);
+			p_Batch.batch->ubos[i].bind();
 			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
 			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 		}
@@ -1748,7 +1778,7 @@ void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticle
 	{
 		p_Batch.batch->vao.bind();
 		p_Batch.shader->enable();
-		_bind_descriptor_memory(*p_Batch.shader,p_Batch.batch->ubo);
+		p_Batch.batch->ubo.bind();
 		p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
 				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
@@ -1764,7 +1794,7 @@ void Renderer::_gpu_upload()
 	m_SpriteInstanceBuffer.register_upload(m_Sprites.active_range*sizeof(Sprite));
 	m_TextInstanceBuffer.register_upload(Text::characters.active_range*sizeof(TextCharacter));
 
-	// upload geometric information
+	// execute upload for all registered geometric data updates
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].gpu_upload();
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].gpu_upload();
 	// TODO later only regularely update dynamic component & static component only when requested
@@ -1788,7 +1818,7 @@ void Renderer::_gpu_upload()
 	}
 	m_MutexMeshTextureUpload.unlock();
 
-	// link results
+	// link results, process attachments
 	if (!__MeshTextureUpdated) return;
 	for (lptr<TextureAttachment> p_Attachment = m_TextureAttachmentRequests.begin();
 		 p_Attachment!=m_TextureAttachmentRequests.end();)

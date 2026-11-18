@@ -35,6 +35,15 @@ enum GlobalShaderEndpoint : u16
 	GSE_LIGHTING_LOCATION,
 	GSE_SHADOW_LOCATION,
 };
+
+// uniform buffer set description
+enum UBOChannelPurpose
+{
+	UBO_CHANNEL_PURPOSE_DATA,
+	UBO_CHANNEL_PURPOSE_TEXTURES,
+	UBO_CHANNEL_PURPOSE_AUTOUPDATE
+};
+
 constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // TODO check dynamic endpoint setup against possible constant violations
@@ -43,6 +52,10 @@ constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // ----------------------------------------------------------------------------------------------------
 // GBuffer Layout
 
+// standard result format array
+inline static GPUBufferFormat sformats[1] = { GPU_BUFFER_FORMAT_SRGB };
+
+// gbuffer format array
 inline static GPUBufferFormat gformats[RENDERER_GBUFFER_FORMAT_SIZE] = {
 	GPU_BUFFER_FORMAT_RGB,
 	GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
@@ -121,7 +134,7 @@ enum MaterialComponentChannel : u8
 struct Material
 {
 	static Texture* standards[MATERIAL_COMPONENT_CHANNEL_COUNT];
-	Texture* components[MATERIAL_COMPONENT_CHANNEL_ALBEDO];
+	Texture* components[MATERIAL_COMPONENT_CHANNEL_COUNT];
 };
 
 
@@ -291,7 +304,7 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
-// Batches
+// Uniform Buffer Object
 
 struct TextureAttachment
 {
@@ -300,23 +313,41 @@ struct TextureAttachment
 	u16 location;
 };
 
+struct UniformBufferObject
+{
+	// utility
+	void create(lptr<ShaderPipeline> shader);
+	void bind();
+	void update();
+	void auto_update();
+	void attach_texture(u16 location,Texture* texture);
+	void attach_material(Material* material);
+
+	// data
+	vector<DescriptorSetMemory> dsets;
+	ShaderUniformUpload uniform;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
+// Batches
+
 struct GeometryTuple
 {
 	size_t offset;
 	size_t vertex_count;
 	Transform3D transform;
-	vector<Texture*> textures;
-	ShaderUniformUpload uniform;
 };
 
 struct GeometryBatch
 {
 	// utility
 	// batch geometry loading
-	u32 add_geometry(Mesh& mesh,const vector<Texture*>& tex);
-	u32 add_geometry(AnimatedMesh& mesh,const vector<Texture*>& tex);
-	u32 add_geometry(void* verts,size_t vsize,size_t ssize,const vector<Texture*>& tex);
+	u32 add_geometry(Mesh& mesh);
+	u32 add_geometry(AnimatedMesh& mesh);
+	u32 add_geometry(void* verts,size_t vsize,size_t ssize);
 	void load();
+	void update();
 	void vanish();
 
 	// data
@@ -327,7 +358,7 @@ struct GeometryBatch
 	vector<ObjectInfo> data;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
-	vector<vector<DescriptorSetMemory>> ubo;
+	vector<UniformBufferObject> ubos;
 	void* pcm;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
@@ -343,6 +374,7 @@ struct ParticleBatch
 	// utility
 	void load(Mesh& mesh,u32 particles,size_t isize);
 	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
+	void update();
 	void vanish();
 
 	// data
@@ -352,8 +384,7 @@ struct ParticleBatch
 	lptr<ShaderPipeline> shader;
 	vector<f32> geometry;
 	void* imem;
-	vector<DescriptorSetMemory> ubo;
-	ShaderUniformUpload uniform;
+	UniformBufferObject ubo;
 	void* pcm;
 	u32 vertex_count;
 	u32 active_particles = 0;
@@ -401,10 +432,8 @@ public:
 	// textures
 	Texture* register_texture(vec3 colour,TextureFormat format=TEXTURE_FORMAT_RGBA);
 	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
-	lptr<Material> register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
+	Material* register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
 									 Texture* emission=nullptr);
-	void attach_texture(DescriptorSetMemory* ubo,u16 location,Texture* texture);
-	void attach_material(DescriptorSetMemory* ubo,lptr<Material> material);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
@@ -434,9 +463,6 @@ private:
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
-
-	// idiotic placeholder functions, that deserve removal
-	void _bind_descriptor_memory(ShaderPipeline& shader,vector<DescriptorSetMemory>& memory);
 
 	// pipeline steps
 	void _update_uniforms();
@@ -471,7 +497,7 @@ private:
 
 	// mesh textures
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
-	list<Material> m_Materials;
+	InPlaceArray<Material> m_Materials = InPlaceArray<Material>(RENDERER_MAXIMUM_MATERIAL_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
 	list<TextureAttachment> m_TextureAttachmentRequests;
 	std::mutex m_MutexMeshTextureUpload;
@@ -479,7 +505,7 @@ private:
 	// sprites
 	InPlaceArray<Sprite> m_Sprites;
 	DescriptorSetMemory m_GlobalUBO;
-	vector<DescriptorSetMemory> m_SpriteUBO,m_TextUBO,m_TargetUBO;
+	UniformBufferObject m_SpriteUBO,m_TextUBO; //,m_TargetUBO;
 
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
@@ -491,9 +517,9 @@ private:
 	vector<AnimatedMesh*> m_AnimatingMeshes;
 
 	// pipelines
-	ShaderPipeline m_SpritePipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TextPipeline = ShaderPipeline(1,true);
-	ShaderPipeline m_TargetPipeline = ShaderPipeline(1,true);
+	lptr<ShaderPipeline> m_SpritePipeline;
+	lptr<ShaderPipeline> m_TextPipeline;
+	lptr<ShaderPipeline> m_TargetPipeline;
 	lptr<ShaderPipeline> m_GeometryPassPipeline;
 	lptr<ShaderPipeline> m_ShadowPassPipeline;
 	list<ShaderPipeline> m_ShaderPipelines;
@@ -514,6 +540,9 @@ private:
 	list<ShadowGeometryBatch> m_ShadowGeometryBatches;
 	list<ShadowParticleBatch> m_ShadowParticleBatches;
 	// TODO this will be setup with lights in the future, just to test for now
+
+	// access control
+	friend struct UniformBufferObject;
 };
 
 inline Renderer g_Renderer = Renderer();

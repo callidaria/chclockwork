@@ -514,8 +514,6 @@ void Texture::register_subtexture(TextureData& data)
  */
 void Texture::gpu_upload()
 {
-	COMM_LOG("registration of texture buffer upload");
-
 	// upload image data
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
 						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
