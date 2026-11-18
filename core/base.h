@@ -201,12 +201,12 @@ void split_words(vector<string>& words,string& line);
 // text colour
 constexpr const char* LOG_WHITE = "\e[1;30m";
 constexpr const char* LOG_RED = "\e[1;31m";
-constexpr const char* LOG_GREEN = "\e[1;32m";
+constexpr const char* LOG_GREEN = "\e[0;32m";
 constexpr const char* LOG_YELLOW = "\e[1;33m";
-constexpr const char* LOG_BLUE = "\e[1;34m";
-constexpr const char* LOG_PURPLE = "\e[1;35m";
-constexpr const char* LOG_CYAN = "\e[1;36m";
-constexpr const char* LOG_GREY = "\e[1;90m";
+constexpr const char* LOG_BLUE = "\e[0;34m";
+constexpr const char* LOG_PURPLE = "\e[0;35m";
+constexpr const char* LOG_CYAN = "\e[0;36m";
+constexpr const char* LOG_GREY = "\e[0;90m";
 constexpr const char* LOG_CLEAR = "\e[0;39m";
 
 // time records

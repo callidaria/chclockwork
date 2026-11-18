@@ -1019,10 +1019,8 @@ Renderer::Renderer()
 	// TODO define this in an extern file & routinize
 
 	// setup for UI pipelines
-	//m_SpritePipeline.out_define_result_buffer();  // FIXME do i even still practice this, or do i render atop
-	m_SpritePipeline = register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
-			sformats,1,SPF_FLIPPED|SPF_BLENDING,true
+	m_SpritePipeline = register_result_pipeline(
+			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING,true
 		);
 	m_TextPipeline = register_pipeline(
 			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
@@ -1451,6 +1449,19 @@ lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
 	p_Pipeline->assemble(tr,vs,fs,feat);
+	return p_Pipeline;
+}
+
+/**
+ *	TODO
+ *	\note this pipeline needs to conform to swapchain output format & produce only !ONE! result
+ */
+lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat,bool depth)
+{
+	m_ShaderPipelines.push_back(ShaderPipeline(1,depth));
+	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
+	p_Pipeline->out_define_result_buffer();
+	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
 	return p_Pipeline;
 }
 

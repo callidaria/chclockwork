@@ -439,6 +439,7 @@ public:
 	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
 										   const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
 										   u32 feat,bool depth=false);
+	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat,bool depth);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch();
