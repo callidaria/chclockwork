@@ -369,7 +369,6 @@ void UniformBuffer::define(u8 set,u16 loc,VkDescriptorType type,VkShaderStageFla
 {
 	COMM_ERR_COND(set>=GPU_GUARANTEED_SET_COUNT,
 				  "requested definition is not allowed for set %u. support for this set is not guaranteed",set);
-
 	VkDescriptorSetLayoutBinding __Binding = {  };
 	__Binding.binding = loc;
 	__Binding.descriptorCount = 1;
@@ -413,6 +412,8 @@ void UniformBuffer::write(void* data,size_t size,size_t offset)
 //		is high and many updates occur at the same time?
 // TODO problem is: this will update the entire ubo memory, no matter what & where.
 //		copy to specific ranges at change for independent information updates? is the memcpy for all as fast?
+// TODO solve similar to ibo uploads, but maybe change the pointer on the fly depending on the active_buffer
+//		this will also solve the problem of possible multi-fif buffers for ibo uploads
 
 #endif
 

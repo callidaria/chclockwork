@@ -2,15 +2,15 @@ PUSH CONSTANTS & UBO OPT
 - SHADER: fix push constant reads & check
 - RENDERER: find a solution for push constant uploads
 - SHADER: buffer typecheck remove
-- SHADER: ibo-esque acquisition of ubo memory segments
 
 COORDINATE SYSTEM:
 - BASE: coordinate system declaration & fixes
 - BASE: target pointer for camera view & projection transformations. in-place trafo prevents copy
 
-CLEANUP
-- RENDERER: routinize the result buffer setup loop for result image views (rel BLITTER)
+PIPELINE
+- RENDERER: pipeline registration signature is horrible trash
 - RENDERER: remove the explicit colour buffer definitions for each out, also in register pipeline (rel BUFFER)
-- RENDERER: draw update functions to batch? if not, clean anyway
+
+CLEANUP
 - RENDERER: cleanup
 - RENDERER: document

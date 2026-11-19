@@ -13,6 +13,7 @@ class Framebuffer
 public:
 	Framebuffer() {  }
 	void setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffer=-1);
+	static void setup_result(vector<Framebuffer>& fbs,ShaderPipeline& sp);
 	void vanish();
 
 	// usage

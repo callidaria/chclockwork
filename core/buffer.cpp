@@ -42,6 +42,17 @@ void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffe
 };
 
 /**
+ *	setup result buffers
+ *	\param fbs: vector of result framebuffers to setup. should be non-initialized
+ *	\param sp: shader pipeline of result draw
+ */
+void Framebuffer::setup_result(vector<Framebuffer>& fbs,ShaderPipeline& sp)
+{
+	fbs.resize(g_Frame.result_image_views.size());
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++) fbs[i].setup(TARGET_RESOLUTION_RESULT,sp,i);
+}
+
+/**
  *	helper for colour component definition, allowed as many as the constructor has allocated
  *	\param i: frambuffer component index, should be i<n for n prealloc by pipeline (unlikely to break)
  *	\param desc: pipeline attachment descriptions

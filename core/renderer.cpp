@@ -126,8 +126,6 @@ void Text::load_buffer()
 		__Cursor.x += p_Glyph.advance*scale;
 	}
 }
-// FIXME this reserves & writes memory for spaces (char ASCII val 32 0x20)! very wasteful...
-//		but this also allows for custom spacebar sprites and does font appropriate spacing!
 
 /**
  *	calculate horizontal character intersection
@@ -737,6 +735,14 @@ void UniformBufferObject::auto_update()
 /**
  *	TODO
  */
+void UniformBufferObject::attach_memory(u16 location,void* data)
+{
+	uniform.attach_memory_segment(&dsets[0],location,data);
+}
+
+/**
+ *	TODO
+ */
 void UniformBufferObject::attach_texture(u16 location,Texture* texture)
 {
 	TextureAttachment __Attachment = {
@@ -842,7 +848,6 @@ void GeometryBatch::load()
 	vao.register_buffer(vbo);
 
 	// generate push constant memory
-	// FIXME optimization, generate descriptor heap manually, there are globals that only need to be updated once
 	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
 
@@ -853,6 +858,23 @@ void GeometryBatch::update()
 {
 	for (UniformBufferObject& p_UBO : ubos)
 		p_UBO.auto_update();
+}
+
+/**
+ *	TODO
+ */
+void GeometryBatch::render()
+{
+	vao.bind();
+	shader->enable();
+	for (u32 i=0;i<objects.size();i++)
+	{
+		ubos[i].bind();
+		shader->upload_pcm(pcm);  // TODO switch per union (based on shader layout)
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
+				  objects[i].vertex_count,1,objects[i].offset,0);
+	}
+	// TODO map<u32,void*> can also describe memory uploads pretty independently
 }
 
 /**
@@ -891,21 +913,17 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	COMM_LOG("loading particle mesh geometry information");
 	size_t __Size = vsize*ssize;
 
-	// upload geometry
+	// upload geometry & acquire instance memory segment
 	vbo.allocate(__Size,VERTEX_BUFFER_TYPE_STATIC);
 	vbo.upload(verts,__Size);
-
-	// acquire pointer to preallocated instance memory segment
 	imem = ibo.allocate(particles*isize,VERTEX_BUFFER_TYPE_DYNAMIC);
 
 	// vertex array
 	vao.register_buffer(vbo);
 	vao.register_buffer_dynamic(ibo);
 
-	// uniform buffer
+	// uniform buffer & push constants
 	ubo.create(shader);
-
-	// generate push constant memory
 	shader->generate_pcm(pcm);
 
 	// store geometry information
@@ -922,6 +940,18 @@ void ParticleBatch::update()
 }
 
 /**
+ *	TODO
+ */
+void ParticleBatch::render()
+{
+	vao.bind();
+	shader->enable();
+	ubo.bind();
+	shader->upload_pcm(pcm);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,vertex_count,active_particles,0,0);
+}
+
+/**
  *	clean batch memory & destroy buffers
  *	\note should not be called during final closing operations, calling free only adjusts vram heap segments
  */
@@ -929,6 +959,34 @@ void ParticleBatch::vanish()
 {
 	vbo.free();
 	ibo.free();
+}
+
+/**
+ *	TODO
+ */
+void ShadowGeometryBatch::render()
+{
+	batch->vao.bind();
+	shader->enable();
+	for (u32 i=0;i<batch->objects.size();i++)
+	{
+		GeometryTuple& p_Tuple = batch->objects[i];
+		batch->ubos[i].bind();
+		shader->upload_pcm(batch->pcm);
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
+	}
+}
+
+/**
+ *	TODO
+ */
+void ShadowParticleBatch::render()
+{
+	batch->vao.bind();
+	shader->enable();
+	batch->ubo.bind();
+	shader->upload_pcm(batch->pcm);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,batch->vertex_count,batch->active_particles,0,0);
 }
 
 
@@ -1047,14 +1105,10 @@ Renderer::Renderer()
 	// FIXME terrible, unreadable definition code for pipeline registration
 
 	// result target & geometry target
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++)
-		m_ResultBuffers[i].setup(TARGET_RESOLUTION_RESULT,*m_SpritePipeline,i);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_TargetPipeline);  // FIXME mismatch?
+	Framebuffer::setup_result(m_ResultBuffers,*m_SpritePipeline);
+	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_TargetPipeline);
 	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_GeometryPassPipeline);
 	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,*m_ShadowPassPipeline);
-	// TODO routinize
-	// TODO also check if framebuffer & related shader pipeline frame dimensions
-	//		contain relevant matching values
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -1084,9 +1138,11 @@ Renderer::Renderer()
 	// linking buffer results
 	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures.atlas);
-	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,m_Framebuffer.components[0]);
-	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,m_Framebuffer.components[1]);
-	for (u16 i=0;i<6;i++)
+	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,
+									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_COLOUR]);
+	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,
+									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_DEPTH]);
+	for (u16 i=0;i<DEFERRED_BUFFER_CHANNEL_COUNT;i++)
 		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,m_GBuffer.components[i]);
 	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,m_ShadowMap.components[0]);
 
@@ -1123,6 +1179,24 @@ void Renderer::precalculate()
 /**
  *	TODO
  */
+inline void _update_shadow(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb)
+{
+	for (ShadowGeometryBatch& p_GB : gb) p_GB.render();
+	for (ShadowParticleBatch& p_PB : pb) p_PB.render();
+}
+
+/**
+ *	TODO
+ */
+inline void _update_geometry(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
+{
+	for (GeometryBatch& p_GB : gb) p_GB.render();
+	for (ParticleBatch& p_PB : pb) p_PB.render();
+}
+
+/**
+ *	TODO
+ */
 void Renderer::update()
 {
 	// camera update
@@ -1134,63 +1208,33 @@ void Renderer::update()
 	_gpu_upload();
 	_update_uniforms();
 
-	// SHADOW PASS
+	// shadow pass
 	m_ShadowMap.record();
-	_update_shadows(m_ShadowGeometryBatches,m_ShadowParticleBatches);
+	_update_shadow(m_ShadowGeometryBatches,m_ShadowParticleBatches);
 	m_ShadowMap.stop();
 
-	// RECORD SCENE DEFERRED
+	// record scene, deferred component
 	m_GBuffer.record();
-	_update_mesh(m_DeferredGeometryBatches);
-	_update_particles(m_DeferredParticleBatches);
+	_update_geometry(m_DeferredGeometryBatches,m_DeferredParticleBatches);
 	m_GBuffer.stop();
 
-	// RECORD SCENE FORWARD
+	// record scene, forward component
 	m_Framebuffer.record();
-	_update_mesh(m_GeometryBatches);
-	_update_particles(m_ParticleBatches);
+	_update_geometry(m_GeometryBatches,m_ParticleBatches);
 	m_Framebuffer.stop();
 
-	// transition results
-	Texture::transition_depth_texture(m_Framebuffer.attachment_images[1]);
-	Texture::transition_depth_texture(m_GBuffer.attachment_images[5]);
+	// transition depth results
+	Texture::transition_depth_texture(m_Framebuffer.attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
+	Texture::transition_depth_texture(m_GBuffer.attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
 	Texture::transition_depth_texture(m_ShadowMap.attachment_images[0]);
 
-	// START RESULT ASSEMBLY
+	// result assembly
 	m_ResultBuffers[g_Frame.frame_id].record();
-
-	// perspective section
-	m_TargetVertexArray.bind();
-	m_TargetPipeline->enable();
-	m_GlobalDescriptorSet.bind(m_TargetPipeline->pipeline_layout);
-	/*
-	for (DescriptorSetMemory& p_Mem : m_TargetUBO)
-	{
-		p_Mem.update_frame();
-		p_Mem.bind(m_TargetPipeline.pipeline_layout);
-	}
-	*/
-	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
-
-	// orthogonal section
+	_update_target();
 	_update_sprites();
 	_update_text();
-
-	// END RESULT ASSEMBLY
 	m_ResultBuffers[g_Frame.frame_id].stop();
-
-	// transfer instance data
-	/*
-	m_InstanceBuffer.update();
-	m_VertexArray.transfer_ownership_read();
-	m_SpriteArray.transfer_ownership_read();
-
-	// prepare text updates
-	m_TextArray.transfer_ownership_write();
-	*/
 }
-// TODO find out when to call the ownership transfers / when those memory barriers are needed
-// TODO also use the first index feature. this can fix some bullet system issues i faced earlier
 
 /**
  *	exit renderer and end all it's subprocesses, also cleanup all resources
@@ -1728,72 +1772,14 @@ void Renderer::_update_text()
 }
 
 /**
- *	update draw of all registered batches
- */
-void Renderer::_update_mesh(list<GeometryBatch>& batches)
-{
-	for (GeometryBatch& p_Batch : batches)
-	{
-		p_Batch.vao.bind();
-		p_Batch.shader->enable();
-		u32 i = 0;
-		for (GeometryTuple& p_Tuple : p_Batch.objects)
-		{
-			p_Batch.ubos[i].bind();  // TODO ubo, pcm & shader are one part?
-			i++;
-			p_Batch.shader->upload_pcm(p_Batch.pcm);
-			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
-		}
-		// TODO map<u32,void*> can also describe memory uploads pretty independently
-	}
-}
-
-/**
- *	update draw of all particle batches
- */
-void Renderer::_update_particles(list<ParticleBatch>& batches)
-{
-	for (ParticleBatch& p_Batch : batches)
-	{
-		p_Batch.vao.bind();
-		p_Batch.shader->enable();
-		p_Batch.ubo.bind();
-		p_Batch.shader->upload_pcm(p_Batch.pcm);
-		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
-				  p_Batch.vertex_count,p_Batch.active_particles,0,0);
-	}
-}
-// TODO pack those setup steps together in batch, where it belongs
-
-/**
  *	TODO
  */
-void Renderer::_update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb)
+void Renderer::_update_target()
 {
-	// iterate static geometry
-	for (ShadowGeometryBatch& p_Batch : gb)
-	{
-		p_Batch.batch->vao.bind();
-		p_Batch.shader->enable();
-		for (u32 i=0;i<p_Batch.batch->objects.size();i++)
-		{
-			GeometryTuple& p_Tuple = p_Batch.batch->objects[i];
-			p_Batch.batch->ubos[i].bind();
-			p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
-			vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
-		}
-	}
-
-	// iterate particle geometry
-	for (ShadowParticleBatch& p_Batch : pb)
-	{
-		p_Batch.batch->vao.bind();
-		p_Batch.shader->enable();
-		p_Batch.batch->ubo.bind();
-		p_Batch.shader->upload_pcm(p_Batch.batch->pcm);
-		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
-				  p_Batch.batch->vertex_count,p_Batch.batch->active_particles,0,0);
-	}
+	m_TargetVertexArray.bind();
+	m_TargetPipeline->enable();
+	m_GlobalDescriptorSet.bind(m_TargetPipeline->pipeline_layout);
+	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
 }
 
 /**

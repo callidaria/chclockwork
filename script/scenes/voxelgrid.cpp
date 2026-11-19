@@ -32,10 +32,9 @@ void RoomVoxels::init(Font* font)
 	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
 
 	// attach transform & textures
+	__RoomBatch->ubo.attach_memory(71,&m_VoxelData);
 	__RoomBatch->ubo.attach_texture(0,__RoomTexture);
-	__RoomBatch->ubo.uniform.attach_memory_segment(&__RoomBatch->ubo.dsets[0],71,&m_VoxelData);
 	// TODO improve direct control over ubo memory just like it is done for ibos
-	// FIXME this attach_memory_segment call stands out as unusable now. fix this also
 
 	// grid instances
 	u32 i = 0;

@@ -14,6 +14,26 @@
 constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1237.f;
 constexpr u8 RENDERER_ANIMATION_INFLUENCE_RANGE = 4;
 
+// forward buffer channels
+enum ForwardBufferChannel
+{
+	FORWARD_BUFFER_CHANNEL_COLOUR,
+	FORWARD_BUFFER_CHANNEL_DEPTH,
+	FORWARD_BUFFER_CHANNEL_COUNT
+};
+
+// deferred buffer channels
+enum DeferredBufferChannel
+{
+	DEFERRED_BUFFER_CHANNEL_COLOUR,
+	DEFERRED_BUFFER_CHANNEL_POSITION,
+	DEFERRED_BUFFER_CHANNEL_NORMAL,
+	DEFERRED_BUFFER_CHANNEL_MATERIAL,
+	DEFERRED_BUFFER_CHANNEL_EMISSION,
+	DEFERRED_BUFFER_CHANNEL_DEPTH,
+	DEFERRED_BUFFER_CHANNEL_COUNT
+};
+
 // location endpoint
 enum GlobalShaderEndpoint : u16
 {
@@ -321,6 +341,7 @@ struct UniformBufferObject
 	void bind();
 	void update();
 	void auto_update();
+	void attach_memory(u16 location,void* data);
 	void attach_texture(u16 location,Texture* texture);
 	void attach_material(Material* material);
 
@@ -349,6 +370,7 @@ struct GeometryBatch
 	u32 add_geometry(void* verts,size_t vsize,size_t ssize);
 	void load();
 	void update();
+	void render();
 	void vanish();
 
 	// data
@@ -376,6 +398,7 @@ struct ParticleBatch
 	void load(Mesh& mesh,u32 particles,size_t isize);
 	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
 	void update();
+	void render();
 	void vanish();
 
 	// data
@@ -393,6 +416,7 @@ struct ParticleBatch
 
 struct ShadowGeometryBatch
 {
+	void render();
 	lptr<GeometryBatch> batch;
 	lptr<ShaderPipeline> shader;
 	vector<ShaderUniformUpload> uniform;
@@ -401,6 +425,7 @@ struct ShadowGeometryBatch
 
 struct ShadowParticleBatch
 {
+	void render();
 	lptr<ParticleBatch> batch;
 	lptr<ShaderPipeline> shader;
 };
@@ -470,9 +495,7 @@ private:
 	void _update_uniforms();
 	void _update_sprites();
 	void _update_text();
-	void _update_mesh(list<GeometryBatch>& batches);
-	void _update_particles(list<ParticleBatch>& batches);
-	void _update_shadows(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb);
+	void _update_target();
 	void _gpu_upload();
 
 private:
@@ -488,7 +511,7 @@ private:
 	VertexArray m_TargetVertexArray;
 
 	// targets
-	vector<Framebuffer> m_ResultBuffers = vector<Framebuffer>(g_Frame.result_image_views.size());
+	vector<Framebuffer> m_ResultBuffers;
 	Framebuffer m_Framebuffer;  // FIXME naming!!!!
 	Framebuffer m_GBuffer;
 	Framebuffer m_ShadowMap;
@@ -507,7 +530,7 @@ private:
 	// sprites
 	InPlaceArray<Sprite> m_Sprites;
 	DescriptorSetMemory m_GlobalUBO;
-	UniformBufferObject m_SpriteUBO,m_TextUBO; //,m_TargetUBO;
+	UniformBufferObject m_SpriteUBO,m_TextUBO;
 
 	// text
 	InPlaceArray<Font> m_Fonts = InPlaceArray<Font>(RENDERER_MAXIMUM_FONT_COUNT);
