@@ -1024,11 +1024,11 @@ Renderer::Renderer()
 		);
 	m_TextPipeline = register_pipeline(
 			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			sformats,1,SPF_FLIPPED|SPF_BLENDING,true
+			sformats,RENDERER_SBUFFER_FORMAT_SIZE,SPF_FLIPPED|SPF_BLENDING,true
 		);
 	m_TargetPipeline = register_pipeline(
 			TARGET_RESOLUTION_RESULT,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			sformats,1,SPF_DEFAULT,true
+			sformats,RENDERER_SBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
 	//		setup, when reading the shader code for interfacing & push constants!
@@ -1038,7 +1038,7 @@ Renderer::Renderer()
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(
 			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-			gformats,5,SPF_DEFAULT,true
+			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
 		);
 	m_ShadowPassPipeline = register_pipeline(
 			TARGET_RESOLUTION_SHADOWPROJ,"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",

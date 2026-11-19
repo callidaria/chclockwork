@@ -1,10 +1,8 @@
-USAGE
-- RENDERER: improve texture attachments, attachment definition method is very janky
-
 PUSH CONSTANTS & UBO OPT
 - SHADER: fix push constant reads & check
 - RENDERER: find a solution for push constant uploads
 - SHADER: buffer typecheck remove
+- SHADER: ibo-esque acquisition of ubo memory segments
 
 COORDINATE SYSTEM:
 - BASE: coordinate system declaration & fixes

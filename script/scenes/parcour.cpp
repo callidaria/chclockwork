@@ -39,7 +39,6 @@ void ParcourParcs::init()
 	u32 __BoxID0 = __EnviroBatch->add_geometry(__Cube);
 	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere);
 	__EnviroBatch->load();
-	// FIXME remove textures as they are passed right now
 
 	// setup animated character batch
 	m_DudeID = m_AnimBatch->add_geometry(m_Dude);

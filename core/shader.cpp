@@ -331,7 +331,6 @@ UniformBuffer::UniformBuffer()
 		// TODO stage this too or leave it?
 		// TODO optimize, do not rely on coherent bit and flush explicitly later
 	}
-
 	COMM_CNF();
 }
 

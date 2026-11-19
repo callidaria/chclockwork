@@ -13,7 +13,6 @@
 // range & code
 constexpr f32 RENDERER_POSITIONAL_DELETION_CODE = -1237.f;
 constexpr u8 RENDERER_ANIMATION_INFLUENCE_RANGE = 4;
-constexpr u8 RENDERER_GBUFFER_FORMAT_SIZE = 5;
 
 // location endpoint
 enum GlobalShaderEndpoint : u16
@@ -53,9 +52,11 @@ constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // GBuffer Layout
 
 // standard result format array
-inline static GPUBufferFormat sformats[1] = { GPU_BUFFER_FORMAT_SRGB };
+constexpr u8 RENDERER_SBUFFER_FORMAT_SIZE = 1;
+inline static GPUBufferFormat sformats[RENDERER_SBUFFER_FORMAT_SIZE] = { GPU_BUFFER_FORMAT_SRGB };
 
 // gbuffer format array
+constexpr u8 RENDERER_GBUFFER_FORMAT_SIZE = 5;
 inline static GPUBufferFormat gformats[RENDERER_GBUFFER_FORMAT_SIZE] = {
 	GPU_BUFFER_FORMAT_RGB,
 	GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
