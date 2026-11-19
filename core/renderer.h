@@ -71,16 +71,33 @@ constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // ----------------------------------------------------------------------------------------------------
 // GBuffer Layout
 
-// standard result format array
-constexpr u8 RENDERER_SBUFFER_FORMAT_SIZE = 1;
-inline static GPUBufferFormat sformats[RENDERER_SBUFFER_FORMAT_SIZE] = { GPU_BUFFER_FORMAT_SRGB };
+constexpr u8 RENDERER_MAXIMUM_BUFFER_FORMATS = 8;
+struct PipelineBufferFormats
+{
+	GPUBufferFormat formats[RENDERER_MAXIMUM_BUFFER_FORMATS];
+	u8 size;
+	bool depth;
+};
 
-// gbuffer format array
-constexpr u8 RENDERER_GBUFFER_FORMAT_SIZE = 5;
-inline static GPUBufferFormat gformats[RENDERER_GBUFFER_FORMAT_SIZE] = {
-	GPU_BUFFER_FORMAT_RGB,
-	GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
-	GPU_BUFFER_FORMAT_RGB
+// formats
+static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
+	.formats = { GPU_BUFFER_FORMAT_SRGB },
+	.size = 1,
+	.depth = true
+};
+static inline PipelineBufferFormats RENDERER_GEOMETRY_BUFFER_FORMAT = {
+	.formats = {
+		GPU_BUFFER_FORMAT_RGB,
+		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
+		GPU_BUFFER_FORMAT_RGB
+	},
+	.size = 5,
+	.depth = true
+};
+static inline PipelineBufferFormats RENDERER_DEPTH_BUFFER_FORMAT = {
+	.formats = {  },
+	.size = 0,
+	.depth = true
 };
 
 enum TextureChannelMap : u16
@@ -462,10 +479,9 @@ public:
 									 Texture* emission=nullptr);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,
-										   const char* vs,const char* fs,GPUBufferFormat* formats,u8 bfr_count,
-										   u32 feat,bool depth=false);
-	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat,bool depth);
+	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,const char* vs,const char* fs,
+										   PipelineBufferFormats& format,u32 feat);
+	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch();

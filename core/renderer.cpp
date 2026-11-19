@@ -1076,33 +1076,29 @@ Renderer::Renderer()
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
 
-	// setup for UI pipelines
+	// setup default pipelines
 	m_SpritePipeline = register_result_pipeline(
-			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING,true
+			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING
 		);
 	m_TextPipeline = register_pipeline(
 			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			sformats,RENDERER_SBUFFER_FORMAT_SIZE,SPF_FLIPPED|SPF_BLENDING,true
+			RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING
 		);
 	m_TargetPipeline = register_pipeline(
 			TARGET_RESOLUTION_RESULT,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			sformats,RENDERER_SBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
+			RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT
 		);
-	// TODO also all this out_define_colour_buffer should also be unnecessary, because this can be automatically
-	//		setup, when reading the shader code for interfacing & push constants!
-	//		only result must be manually defined to specify the buffer, connecting with the blitter endpoint
 	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(
 			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-			gformats,RENDERER_GBUFFER_FORMAT_SIZE,SPF_DEFAULT,true
+			RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT
 		);
 	m_ShadowPassPipeline = register_pipeline(
 			TARGET_RESOLUTION_SHADOWPROJ,"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-			nullptr,0,SPF_FLIPPED,true
+			RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
 		);
-	// FIXME terrible, unreadable definition code for pipeline registration
 
 	// result target & geometry target
 	Framebuffer::setup_result(m_ResultBuffers,*m_SpritePipeline);
@@ -1485,11 +1481,10 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
  *	\returns pointer to registered shader pipeline
  *	TODO amend
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
-												 const char* vs,const char* fs,GPUBufferFormat* formats,
-												 u8 bfr_count,u32 feat,bool depth)
+lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,const char* vs,const char* fs,
+												 PipelineBufferFormats& format,u32 feat)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(formats,bfr_count,depth));
+	m_ShaderPipelines.push_back(ShaderPipeline(format.formats,format.size,format.depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	p_Pipeline->assemble(tr,vs,fs,feat);
 	return p_Pipeline;
@@ -1499,9 +1494,9 @@ lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
  *	TODO
  *	\note this pipeline needs to conform to swapchain output format & produce only !ONE! result
  */
-lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat,bool depth)
+lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(depth));
+	m_ShaderPipelines.push_back(ShaderPipeline(true));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
 	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
 	return p_Pipeline;

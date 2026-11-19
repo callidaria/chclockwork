@@ -7,9 +7,6 @@ COORDINATE SYSTEM:
 - BASE: coordinate system declaration & fixes
 - BASE: target pointer for camera view & projection transformations. in-place trafo prevents copy
 
-PIPELINE
-- RENDERER: pipeline registration signature is horrible trash
-
 CLEANUP
 - RENDERER: cleanup
 - RENDERER: document
