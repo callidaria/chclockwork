@@ -23,8 +23,8 @@ void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffe
 
 	// pipeline attribute store
 	m_RenderPass = sp.render_pass;
-	m_ResultAttachmentMap = BitwiseWords(sp.result_attachment);
 	pm_FrameDimension = &g_Frame.fdims[res];
+	m_ResultBuffer = sp.result_pipeline;
 
 	// allocate handler memory
 	attachment_images.resize(__ComponentCount);
@@ -61,9 +61,10 @@ void Framebuffer::setup_result(vector<Framebuffer>& fbs,ShaderPipeline& sp)
 inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb)
 {
 #ifdef VKBUILD
-	if (m_ResultAttachmentMap[i])
+	if (m_ResultBuffer)
 	{
 		COMM_ERR_COND(rb<0,"result attachment defined but no buffer id given");
+		COMM_ERR_COND(i>0,"result buffer with more than one colour component is not allowed");
 		attachment_images[i] = g_Frame.result_images[rb];
 		components[i] = g_Frame.result_image_views[rb];
 		return;
@@ -228,13 +229,12 @@ void Framebuffer::vanish()
 		g_GPU.free(components[i]);
 
 		// free component memory should it have been allocated by the framebuffer
-		if (m_ResultAttachmentMap[i]) continue;
+		if (i==0&&m_ResultBuffer) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(attachment_images[i]);
 	}
 
-	// kill framebuffer and render pass information
-	m_ResultAttachmentMap.vanish();
+	// kill framebuffer
 	g_GPU.free(m_Framebuffer);
 #endif
 }

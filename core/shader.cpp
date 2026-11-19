@@ -742,43 +742,27 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 /**
+ *	construct result shader pipeline
+ *	\param depth: (default false) true if depth information will be stored
+ */
+ShaderPipeline::ShaderPipeline(bool depth)
+	: depth_channel(1),has_depth(depth),result_pipeline(true)
+{
+	_initialize(1+depth);
+	_define_colour_component(0,g_Frame.swapchain.format.format,true);
+}
+
+/**
  *	construction & allocation for render pass description
+ *	\param formats: buffer formats
  *	\param bfr_count: amount of colour components in result
  *	\param depth: (default false) true if depth information will be stored
  */
-ShaderPipeline::ShaderPipeline(u8 bfr_count,bool depth)
-	: depth_channel(bfr_count),has_depth(depth),result_attachment(bfr_count+depth)
+ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
+	: depth_channel(bfr_count),has_depth(depth)
 {
-	u8 __ComponentCount = bfr_count+depth;
-	descriptions = (VkAttachmentDescription*)malloc(__ComponentCount*sizeof(VkAttachmentDescription));
-	m_References = (VkAttachmentReference*)malloc(__ComponentCount*sizeof(VkAttachmentReference));
-}
-
-/**
- *	define a colour component
- *	\param format: buffer format
- *	\returns index of defined component
- */
-u8 ShaderPipeline::out_define_colour_buffer(GPUBufferFormat format)
-{
-	COMM_ERR_COND(!(m_Cursor<depth_channel),
-				  "colour component definition exceeds allocated range of definable components");
-	_define_colour_component(m_Cursor,g_Formats[format]);
-	return m_Cursor++;
-	// TODO overwrite framebuffer component default resolution given by construction
-}
-
-/**
- *	define a component as result of final presentation, utilizing the destination buffers
- *	\returns index of defined component
- */
-u8 ShaderPipeline::out_define_result_buffer()
-{
-	COMM_ERR_COND(!(m_Cursor<depth_channel),
-				  "result component definition exceeds allocated range of definable components");
-	_define_colour_component(m_Cursor,g_Frame.swapchain.format.format,true);
-	result_attachment.set(m_Cursor);
-	return m_Cursor++;
+	_initialize(bfr_count+depth);
+	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_Formats[formats[i]]);
 }
 
 /**
@@ -787,13 +771,12 @@ u8 ShaderPipeline::out_define_result_buffer()
  *	\param vs: vertex shader source
  *	\param fs: fragment shader source
  *	\param feat: bitwise combination of ShaderPipelineFeatures
+ *	\note either out_define_colour_buffer() or out_define_result_buffer() have to be called before assembly
  */
 void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,u32 feat)
 {
 #ifdef VKBUILD
-	COMM_MSG_COND(m_Cursor!=depth_channel,LOG_YELLOW,
-				  "render pass definition is called for finalization, but not all components were defined")
-	COMM_LOG_FALLBACK("assembly of shaders vertex: %s & fragment: %s",vs,fs);
+	COMM_LOG("assembly of shaders vertex: %s & fragment: %s",vs,fs);
 
 	// check for active depth store
 	if (has_depth)
@@ -1163,7 +1146,6 @@ void ShaderPipeline::vanish()
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
 	free(descriptions);
-	result_attachment.vanish();
 	g_GPU.free(render_pass);
 #endif
 }
@@ -1354,6 +1336,15 @@ void ShaderPipeline::upload_camera(Camera3D& c)
 
 #endif
 
+/**
+ *	initialization call for construction
+ *	\param count: combined amount of colour + depth buffer
+ */
+void ShaderPipeline::_initialize(u8 count)
+{
+	descriptions = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
+	m_References = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
+}
 
 #ifdef VKBUILD
 

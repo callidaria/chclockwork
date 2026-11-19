@@ -37,7 +37,7 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_FORMAT_COUNT
 };
 
-enum ShaderPipelineFeatures
+enum ShaderPipelineFeatures : u8
 {
 	SPF_DEFAULT = 0,
 	SPF_FLIPPED = 1<<0,
@@ -212,12 +212,8 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	ShaderPipeline(u8 bfr_count,bool depth=false);
-
-	// definition
-	u8 out_define_colour_buffer(GPUBufferFormat format);
-	u8 out_define_result_buffer();
-	// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
+	ShaderPipeline(bool depth=false);
+	ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth);
 
 	// assembly
 	void assemble(TargetResolution res,const char* vs,const char* fs,u32 feat);
@@ -253,6 +249,7 @@ public:
 #endif
 
 private:
+	void _initialize(u8 count);
 #ifdef VKBUILD
 	void _define_colour_component(u8 index,VkFormat format,bool result=false);
 #else
@@ -268,17 +265,16 @@ public:
 	VkPipelineLayout pipeline_layout;
 	VkRenderPass render_pass;
 	VkAttachmentDescription* descriptions;
-	BitwiseWords result_attachment;
 #else
 #endif
 	u8 depth_channel;
 	bool has_depth;
+	bool result_pipeline = false;
 
 private:
 #ifdef VKBUILD
 	ShaderInterface m_Interface;
 	VkAttachmentReference* m_References;
-	u8 m_Cursor = 0;
 #else
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;

@@ -9,7 +9,6 @@ COORDINATE SYSTEM:
 
 PIPELINE
 - RENDERER: pipeline registration signature is horrible trash
-- RENDERER: remove the explicit colour buffer definitions for each out, also in register pipeline (rel BUFFER)
 
 CLEANUP
 - RENDERER: cleanup

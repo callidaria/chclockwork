@@ -1489,9 +1489,8 @@ lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
 												 const char* vs,const char* fs,GPUBufferFormat* formats,
 												 u8 bfr_count,u32 feat,bool depth)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(bfr_count,depth));
+	m_ShaderPipelines.push_back(ShaderPipeline(formats,bfr_count,depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	for (u32 i=0;i<bfr_count;i++) p_Pipeline->out_define_colour_buffer(formats[i]);
 	p_Pipeline->assemble(tr,vs,fs,feat);
 	return p_Pipeline;
 }
@@ -1502,12 +1501,12 @@ lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,
  */
 lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat,bool depth)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(1,depth));
+	m_ShaderPipelines.push_back(ShaderPipeline(depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->out_define_result_buffer();
 	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
 	return p_Pipeline;
 }
+// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 /**
  *	register triangle mesh batch
