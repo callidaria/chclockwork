@@ -47,11 +47,9 @@ vec2 Alignment::align(Rect geom)
 	vec2 __BorderCenter = border.extent*vec2(.5f)+border.position;
 
 	// alignment status & coordinate flip for ogl version
-#ifdef VKBUILD
 	u8 vertical_alignment = alignment%3;
-#else
-	vertical_alignment = 2-vertical_alignment;
-	//__Position.y *= -1;
+#ifdef GLBUILD
+	2-vertical_alignment;
 #endif
 
 	// adjust vertical alignment
@@ -1195,12 +1193,6 @@ inline void _update_geometry(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
  */
 void Renderer::update()
 {
-	// camera update
-	m_UBufferMem.otrafo.view = g_Camera.view;
-	m_UBufferMem.otrafo.proj = g_Camera.proj;
-	m_UBufferMem.camera.position = g_Camera.position;
-	// TODO dont copy over like this
-
 	_gpu_upload();
 	_update_uniforms();
 
@@ -1703,28 +1695,6 @@ void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat for
 }
 
 /**
- *	TODO
- */
-void Renderer::_update_uniforms()
-{
-	// update global set
-	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
-	m_GlobalDescriptorSet.update_frame();
-
-	// update ui uniforms
-	m_SpriteUBO.update();
-	m_TextUBO.update();
-
-	// iterate registered geometry batches for uniform updates
-	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.update();
-	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.update();
-
-	// iterate registered geometry batches for uniform updates
-	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.update();
-	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.update();
-}
-
-/**
  *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1774,6 +1744,34 @@ void Renderer::_update_target()
 	m_TargetPipeline->enable();
 	m_GlobalDescriptorSet.bind(m_TargetPipeline->pipeline_layout);
 	vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,6,1,0,0);
+}
+
+/**
+ *	TODO
+ */
+void Renderer::_update_uniforms()
+{
+	// camera update
+	m_UBufferMem.otrafo.view = g_Camera.view;
+	m_UBufferMem.otrafo.proj = g_Camera.proj;
+	m_UBufferMem.camera.position = g_Camera.position;
+	// TODO dont copy over like this
+
+	// update global set
+	g_UniformBuffer.write(&m_UBufferMem,sizeof(UniformBufferMemory),m_GlobalSetOffset);
+	m_GlobalDescriptorSet.update_frame();
+
+	// update ui uniforms
+	m_SpriteUBO.update();
+	m_TextUBO.update();
+
+	// iterate registered geometry batches for uniform updates
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.update();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.update();
+
+	// iterate registered geometry batches for uniform updates
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.update();
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.update();
 }
 
 /**

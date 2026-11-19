@@ -431,9 +431,15 @@ void Transform3D::reset()
 
 // ----------------------------------------------------------------------------------------------------
 // Coordinate System
+//
+// In both versions the 2D coordinate system is in 16:9 ratio & clipped by the ranges (x: 1920, y: 720).
+// Axis orientations are following the concept of a mathematical coordinate system (+x right, +y up)!
+// 2D components can additionally sort by depth, which is clipped inside the range (near: ~0, far: 10).
+// Another left-handed coordinate system here to make +z to go along with the view direction.
+// Higher means farther!
 
 /**
- *	coordinate system setup for 2D objects
+ *	coordinate system setup for 2D objects. flipped top to bottom definition in vulkan as opposed to ogl
  *	\param xaxis: maximum range for visible geometry on x-axis
  *	\param yaxis: maximum range for visible geometry on y-axis
  */
@@ -441,8 +447,7 @@ CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 {
 	view = glm::lookAt(vec3(0,-.0001f,1),vec3(.0f),vec3(0,0,1));
 #ifdef VKBUILD
-	proj = glm::orthoLH(.0f,xaxis,.0f,yaxis,.1f,10.f);
-	//proj[1][1] *= -1;
+	proj = glm::orthoLH(.0f,xaxis,yaxis,.0f,.1f,10.f);
 #else
 	proj = glm::ortho(.0f,xaxis,.0f,yaxis,.1f,10.f);
 #endif
@@ -451,6 +456,8 @@ CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 
 // ----------------------------------------------------------------------------------------------------
 // Camera
+//
+// The camera adheres to a left-handed, z-up coordinate system (+x right side, +y view direction, +z up).
 
 /**
  *	create 3D camera

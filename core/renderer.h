@@ -508,10 +508,10 @@ private:
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 
 	// pipeline steps
-	void _update_uniforms();
 	void _update_sprites();
 	void _update_text();
 	void _update_target();
+	void _update_uniforms();
 	void _gpu_upload();
 
 private:

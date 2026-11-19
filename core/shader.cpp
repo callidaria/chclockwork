@@ -478,6 +478,7 @@ void DescriptorSetMemory::update()
 		vkUpdateDescriptorSets(g_GPU.gpu,m_Writes.size(),&m_Writes[0],0,nullptr);
 	}
 }
+// FIXME remove buffer typecheck somehow, through better architecture
 
 /**
  *	update descriptor set memory

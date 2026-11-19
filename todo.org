@@ -1,12 +1,3 @@
-PUSH CONSTANTS & UBO OPT
-- SHADER: fix push constant reads & check
-- RENDERER: find a solution for push constant uploads
-- SHADER: buffer typecheck remove
-
-COORDINATE SYSTEM:
-- BASE: coordinate system declaration & fixes
-- BASE: target pointer for camera view & projection transformations. in-place trafo prevents copy
-
 CLEANUP
 - RENDERER: cleanup
 - RENDERER: document
