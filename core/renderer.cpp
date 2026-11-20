@@ -951,7 +951,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 }
 
 /**
- *	TODO
+ *	update batch uniform buffer
  */
 void ParticleBatch::update()
 {
@@ -959,7 +959,7 @@ void ParticleBatch::update()
 }
 
 /**
- *	TODO
+ *	draw all registered batch geometry duplicates
  */
 void ParticleBatch::render()
 {
@@ -980,8 +980,12 @@ void ParticleBatch::vanish()
 	ibo.free();
 }
 
+
+// ----------------------------------------------------------------------------------------------------
+// Shadow Batches
+
 /**
- *	TODO
+ *	draw geometry with alternate shadow shader for shadow projections
  */
 void ShadowGeometryBatch::render()
 {
@@ -997,7 +1001,7 @@ void ShadowGeometryBatch::render()
 }
 
 /**
- *	TODO
+ *	draw particles with alternate shadow shader for shadow projections
  */
 void ShadowParticleBatch::render()
 {
@@ -1253,6 +1257,8 @@ void Renderer::vanish()
 #ifdef VKBUILD
 	// clean pipelines
 	for (ShaderPipeline& p_ShaderPipeline : m_ShaderPipelines) p_ShaderPipeline.vanish();
+	for (GeometryBatch& p_Batch : m_GeometryBatches) p_Batch.vanish();
+	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
 
 	// clean framebuffers
 	m_ShadowMap.vanish();

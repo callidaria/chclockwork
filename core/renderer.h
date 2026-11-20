@@ -429,6 +429,9 @@ struct GeometryBatch
 // FIXME cross-loading animations & static meshes into one geometry batch is nonsensical, due to the missing
 //		overlap in shader pipeline setup & demands. this can be ripped apart into two difference batch types
 
+// this allows for a single, static object to be loaded, but it can be duplicated many times within a single
+// draw call. the per-instance memory pointer can be acquired through imem, which is preallocated through the
+// load call, when maximum amount of particles is defined.
 struct ParticleBatch
 {
 	// utility
@@ -451,15 +454,15 @@ struct ParticleBatch
 	u32 active_particles = 0;
 };
 
+// combines previously registered geometry batch with alternate shadow shader, appropriate for geometry
 struct ShadowGeometryBatch
 {
 	void render();
 	lptr<GeometryBatch> batch;
 	lptr<ShaderPipeline> shader;
-	vector<ShaderUniformUpload> uniform;
-	// FIXME strange approach to use uniform like this. maybe find an equivalent to work with both versions
 };
 
+// combines previously registered particle batch with alternate shadow shader, appropriate for particles
 struct ShadowParticleBatch
 {
 	void render();
@@ -471,6 +474,7 @@ struct ShadowParticleBatch
 // ----------------------------------------------------------------------------------------------------
 // Renderer
 
+// global render system
 class Renderer
 {
 public:
