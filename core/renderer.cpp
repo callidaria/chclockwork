@@ -787,28 +787,40 @@ void UniformBufferObject::attach_material(Material* material)
 // Geometry Batching
 
 /**
+ *	construct & preallocate handles for geometry batch
+ *	\param sp: shader pipeline for batch draw
+ *	\param obj_capacity: amount of allowed geometry to register
+ */
+void GeometryBatch::assemble(lptr<ShaderPipeline> sp,size_t obj_capacity)
+{
+	capacity = obj_capacity;
+	objects = (GeometryTuple*)malloc(sizeof(GeometryTuple)*capacity);
+	for (size_t i=0;i<capacity;i++) new (&objects[i]) GeometryTuple();
+	shader = sp;
+}
+// TODO consider an object heap for a single allocation, then reference memory through pointers in batch
+
+/**
  *	add mesh geometry to batch
  *	\param mesh: loaded mesh for explicit geometry information
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(Mesh& mesh)
+GeometryTuple* GeometryBatch::add_geometry(Mesh& mesh)
 {
 	return add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(Vertex));
 }
-// FIXME make this vector a Texture* with length pass default = 1 instead, this makes it way more usable
 
 /**
  *	add animated mesh geometry to batch
  *	\param mesh: animated mesh for explicit geometry information
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(AnimatedMesh& mesh)
+GeometryTuple* GeometryBatch::add_geometry(AnimatedMesh& mesh)
 {
-	u32 id = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex));
-	ubos[id].uniform.attach_memory_segment(&ubos[id].dsets[0],RENDERER_JOINT_ANIMATION_LOCATION,
-										   &mesh.recursive_transforms[0]);
+	GeometryTuple* p_Tuple = add_geometry(&mesh.vertices[0],mesh.vertices.size(),sizeof(AnimationVertex));
+	p_Tuple->ubo.attach_memory(RENDERER_JOINT_ANIMATION_LOCATION,&mesh.recursive_transforms[0]);
 	anim_meshes.push_back(&mesh);
-	return id;
+	return p_Tuple;
 }
 
 /**
@@ -818,7 +830,7 @@ u32 GeometryBatch::add_geometry(AnimatedMesh& mesh)
  *	\param ssize: upload dimension !in memory width!
  *	\returns geometry id
  */
-u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
+GeometryTuple* GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
 {
 	COMM_LOG("uploading geometry to batch");
 	size_t __MemSize = vsize*ssize;
@@ -829,20 +841,19 @@ u32 GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
 	memcpy(&geometry[geometry_cursor],verts,__MemSize);
 
 	// store geometry information
-	objects.push_back({
-			.offset = offset_cursor,
-			.vertex_count = vsize,
-		});
-	data.push_back({  });
-
-	// uniform buffer
-	ubos.push_back({  });
-	ubos.back().create(shader);
+	COMM_ERR_COND(count>=capacity,"geometry addition violates maximum geometry capacity");
+	GeometryTuple* p_Tuple = &objects[count++];
+	p_Tuple->offset = offset_cursor;
+	p_Tuple->vertex_count = vsize;
+	p_Tuple->transform.model = &p_Tuple->object_uniform_data.model;
+	p_Tuple->ubo.create(shader);
+	p_Tuple->ubo.attach_memory(RENDERER_GEOMETRY_INFO_LOCATION,&p_Tuple->object_uniform_data);
+	shader->generate_pcm(p_Tuple->pcm);
 
 	// cursor
 	offset_cursor += vsize;
 	geometry_cursor += __Size;
-	return objects.size()-1;
+	return p_Tuple;
 }
 
 /**
@@ -854,45 +865,31 @@ void GeometryBatch::load()
 	size_t __Size = geometry.size()*sizeof(f32);
 	vbo.allocate(__Size,VERTEX_BUFFER_TYPE_STATIC);
 	vbo.upload(&geometry[0],__Size);
-
-	// link object data uploads
-	COMM_ERR_COND((ubos.size()!=data.size())&&(data.size()!=objects.size()),
-				  "length of ubo, object tuple & data storage does not correlate");
-	for (size_t i=0;i<ubos.size();i++)
-	{
-		ubos[i].uniform.attach_memory_segment(&ubos[i].dsets[0],RENDERER_GEOMETRY_INFO_LOCATION,&data[i]);
-		objects[i].transform.model = &data[i].model;
-	}
-
-	// vertex array
 	vao.register_buffer(vbo);
-
-	// generate push constant memory
-	shader->generate_pcm(pcm);  // TODO repeat per tuple
 }
 
 /**
- *	TODO
+ *	update batch uniform buffer
  */
 void GeometryBatch::update()
 {
-	for (UniformBufferObject& p_UBO : ubos)
-		p_UBO.auto_update();
+	for (size_t i=0;i<count;i++)
+		objects[i].ubo.auto_update();
 }
 
 /**
- *	TODO
+ *	draw registered batch geometry
  */
 void GeometryBatch::render()
 {
 	vao.bind();
 	shader->enable();
-	for (u32 i=0;i<objects.size();i++)
+	for (size_t i=0;i<count;i++)
 	{
-		ubos[i].bind();
-		shader->upload_pcm(pcm);  // TODO switch per union (based on shader layout)
-		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,
-				  objects[i].vertex_count,1,objects[i].offset,0);
+		GeometryTuple& p_Tuple = objects[i];
+		p_Tuple.ubo.bind();
+		shader->upload_pcm(p_Tuple.pcm);
+		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 	}
 	// TODO map<u32,void*> can also describe memory uploads pretty independently
 }
@@ -902,6 +899,8 @@ void GeometryBatch::render()
  */
 void GeometryBatch::vanish()
 {
+	for (size_t i=0;i<capacity;i++) objects[i].~GeometryTuple();
+	free(objects);
 	vbo.free();
 }
 
@@ -988,11 +987,11 @@ void ShadowGeometryBatch::render()
 {
 	batch->vao.bind();
 	shader->enable();
-	for (u32 i=0;i<batch->objects.size();i++)
+	for (size_t i=0;i<batch->count;i++)
 	{
 		GeometryTuple& p_Tuple = batch->objects[i];
-		batch->ubos[i].bind();
-		shader->upload_pcm(batch->pcm);
+		p_Tuple.ubo.bind();
+		shader->upload_pcm(p_Tuple.pcm);
 		vkCmdDraw(g_GPU.acquire_graphical_command_buffer()->buffer,p_Tuple.vertex_count,1,p_Tuple.offset,0);
 	}
 }
@@ -1520,12 +1519,15 @@ lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const cha
 /**
  *	register triangle mesh batch
  *	\param pipeline: shader pipeline, handling pixel output for newly created batch
+ *	\param size: amount of allowed geometry registrations
  *	\returns pointer to created triangle mesh batch
  */
-lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline)
+lptr<GeometryBatch> Renderer::register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size)
 {
-	m_GeometryBatches.push_back({ .shader = pipeline, });
-	return std::prev(m_GeometryBatches.end());
+	m_GeometryBatches.push_back({  });
+	lptr<GeometryBatch> p_Batch = std::prev(m_GeometryBatches.end());
+	p_Batch->assemble(pipeline,size);
+	return p_Batch;
 }
 
 /**
@@ -1541,25 +1543,29 @@ lptr<ParticleBatch> Renderer::register_particle_batch(lptr<ShaderPipeline> pipel
 
 /**
  *	register phyiscal mesh batch with standard geometry pass shader
+ *	\param size: amount of allowed geometry registrations
  *	\returns pointer to created physical mesh batch
  */
-lptr<GeometryBatch> Renderer::register_deferred_geometry_batch()
+lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(size_t size)
 {
-	m_DeferredGeometryBatches.push_back({
-			.shader = m_GeometryPassPipeline
-		});
-	return std::prev(m_DeferredGeometryBatches.end());
+	m_DeferredGeometryBatches.push_back({  });
+	lptr<GeometryBatch> p_Batch = std::prev(m_DeferredGeometryBatches.end());
+	p_Batch->assemble(m_GeometryPassPipeline,size);
+	return p_Batch;
 }
 
 /**
  *	register physical mesh batch
  *	\param pipeline: shader pipeline, handling physical pass for newly created batch
+ *	\param size: amount of allowed geometry registrations
  *	\returns pointer to created physical mesh batch
  */
-lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline)
+lptr<GeometryBatch> Renderer::register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size)
 {
-	m_DeferredGeometryBatches.push_back({ .shader = pipeline });
-	return std::prev(m_DeferredGeometryBatches.end());
+	m_DeferredGeometryBatches.push_back({  });
+	lptr<GeometryBatch> p_Batch = std::prev(m_DeferredGeometryBatches.end());
+	p_Batch->assemble(pipeline,size);
+	return p_Batch;
 }
 
 /**
@@ -1583,11 +1589,11 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
 			.shader = m_ShadowPassPipeline,
-			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
+			.uniform = vector<ShaderUniformUpload>(b->count),
 		});
 
 	// create uniform upload correlation
-	for (u32 i=0;i<b->objects.size();i++)
+	for (u32 i=0;i<b->count;i++)
 	{
 		m_ShadowGeometryBatches.back().uniform[i].shader = m_ShadowPassPipeline;
 		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
@@ -1605,11 +1611,11 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> 
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
 			.shader = pipeline,
-			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
+			.uniform = vector<ShaderUniformUpload>(b->count),
 		});
 
 	// create uniform upload correlation
-	for (u32 i=0;i<b->objects.size();i++)
+	for (u32 i=0;i<b->count;i++)
 	{
 		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
 		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);

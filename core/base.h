@@ -376,6 +376,7 @@ public:
 	/**
 	 *	get pointer to next free memory slot without segmentation and extensive range extensions
 	 *	\returns index of optimal free memory slot
+	 *	\note !WARNING! this requires manual construction after acquisition for non-trivial datastructures
 	 */
 	inline size_t next_free()
 	{

@@ -383,20 +383,29 @@ struct UniformBufferObject
 // ----------------------------------------------------------------------------------------------------
 // Batches
 
+// non memory critical draw information per registered object
 struct GeometryTuple
 {
+	Transform3D transform;
+	ObjectInfo object_uniform_data;
+	UniformBufferObject ubo;
+	void* pcm;
 	size_t offset;
 	size_t vertex_count;
-	Transform3D transform;
 };
+// TODO remove the gpu_interface file? or at least the non-global stuff
 
+// for geometry with different model transforms per objects, that should nevertheless be loaded & unloaded
+// at the same time. also because that load happens for an entire geometry buffer the vertex memory for all
+// registered geometry is guaranteed to be relatively local.
+// that does not diminish the fact, that !every! registered object will result in it's !!own draw call!!.
 struct GeometryBatch
 {
 	// utility
-	// batch geometry loading
-	u32 add_geometry(Mesh& mesh);
-	u32 add_geometry(AnimatedMesh& mesh);
-	u32 add_geometry(void* verts,size_t vsize,size_t ssize);
+	void assemble(lptr<ShaderPipeline> sp,size_t obj_capacity);
+	GeometryTuple* add_geometry(Mesh& mesh);
+	GeometryTuple* add_geometry(AnimatedMesh& mesh);
+	GeometryTuple* add_geometry(void* verts,size_t vsize,size_t ssize);
 	void load();
 	void update();
 	void render();
@@ -406,19 +415,18 @@ struct GeometryBatch
 	VertexArray vao;
 	VertexBuffer vbo;
 	lptr<ShaderPipeline> shader;
-	vector<GeometryTuple> objects;
-	vector<ObjectInfo> data;
+	GeometryTuple* objects;
 	vector<AnimatedMesh*> anim_meshes;
 	vector<f32> geometry;
-	vector<UniformBufferObject> ubos;
-	void* pcm;
 	//vector<u32> elements;
 	u32 geometry_cursor = 0;
-	u32 element_cursor = 0;
+	//u32 element_cursor = 0;
 	u32 offset_cursor = 0;
+	size_t count = 0,capacity;
 };
 // TODO utilize an element buffer later, careful when restructuring! anim geometry is straightforward though
-// TODO cross-loading animations & static meshes into one geometry batch is nonsensical, due to the missing
+// FIXME question: why should the geometry buffer info stay in memory after calling load()?
+// FIXME cross-loading animations & static meshes into one geometry batch is nonsensical, due to the missing
 //		overlap in shader pipeline setup & demands. this can be ripped apart into two difference batch types
 
 struct ParticleBatch
@@ -494,10 +502,10 @@ public:
 	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,const char* vs,const char* fs,
 										   PipelineBufferFormats& format,u32 feat);
 	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
-	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline);
+	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
-	lptr<GeometryBatch> register_deferred_geometry_batch();
-	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline);
+	lptr<GeometryBatch> register_deferred_geometry_batch(size_t size);
+	lptr<GeometryBatch> register_deferred_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_deferred_particle_batch(lptr<ShaderPipeline> pipeline);
 
 	// shadow projection

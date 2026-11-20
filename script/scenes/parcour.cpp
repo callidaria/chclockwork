@@ -23,34 +23,35 @@ void ParcourParcs::init()
 	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
 
 	// batches
-	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch();
+	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
-	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline);
+	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline,1);
 
 	// setup geometry batch
-	u32 __FloorID = __EnviroBatch->add_geometry(Mesh::CUBE);
-	u32 __BoxID = __EnviroBatch->add_geometry(Mesh::CUBE);
-	u32 __BoxID0 = __EnviroBatch->add_geometry(Mesh::CUBE);
-	u32 __SphereID = __EnviroBatch->add_geometry(Mesh::SPHERE);
+	GeometryTuple* __Floor = __EnviroBatch->add_geometry(Mesh::CUBE);
+	GeometryTuple* __Box15 = __EnviroBatch->add_geometry(Mesh::CUBE);
+	GeometryTuple* __Box16 = __EnviroBatch->add_geometry(Mesh::CUBE);
+	GeometryTuple* __Sphere = __EnviroBatch->add_geometry(Mesh::SPHERE);
 	__EnviroBatch->load();
 
 	// setup animated character batch
-	m_DudeID = m_AnimBatch->add_geometry(m_Dude);
+	m_Dude = m_AnimBatch->add_geometry(m_DudeMesh);
 	m_AnimBatch->load();
 	g_Frame.time_factor = 2.f;  // FIXME yes, this is bad
-	m_Dude.set_default_animation(3,.4f);
+	m_DudeMesh.set_default_animation(3,.4f);
 	m_PlayerMomentum.target = m_PlayerPosition;
-	g_Renderer.animate(&m_Dude);
-	m_SpineJointTransform = &m_Dude.find_joint("metarig_spine")->local_transform;
+	g_Renderer.animate(&m_DudeMesh);
+	m_SpineJointTransform = &m_DudeMesh.find_joint("metarig_spine")->local_transform;
 
 	// transform objects
-	__EnviroBatch->objects[__FloorID].transform.scale(vec3(10,10,.1f));
-	__EnviroBatch->objects[__FloorID].transform.translate(vec3(0,0,-1));
-	__EnviroBatch->data[__FloorID].texel = 10.f;
-	__EnviroBatch->objects[__BoxID].transform.transform(vec3(4,4,.75f),vec3(.75f),vec3(.0f));
-	__EnviroBatch->objects[__BoxID0].transform.transform(vec3(-4,4,1),vec3(.5f),vec3(.0f));
-	__EnviroBatch->data[__BoxID0].texel = 4.f;
-	__EnviroBatch->objects[__SphereID].transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
+	__Floor->transform.scale(vec3(10,10,.1f));
+	__Floor->transform.translate(vec3(0,0,-1));
+	__Floor->object_uniform_data.texel = 10.f;
+	__Floor->object_uniform_data.texel = 10.f;
+	__Box15->transform.transform(vec3(4,4,.75f),vec3(.75f),vec3(.0f));
+	__Box16->transform.transform(vec3(-4,4,1),vec3(.5f),vec3(.0f));
+	__Box16->object_uniform_data.texel = 4.f;
+	__Sphere->transform.transform(vec3(0,-4,.5f),vec3(.5f),vec3(.0f));
 
 	// materials
 	Material* __FabricMaterial = g_Renderer.register_material(
@@ -84,6 +85,7 @@ void ParcourParcs::init()
 	__BulbIndices[6] = { vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) };
 	__BulbIndices[7] = { vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) };
 	__BulbBatch->ibo.register_upload(sizeof(BallIndex)*TEST_LIGHTBULB_COUNT);
+	// TODO can be improves, just pass count, load stores bytesize
 
 	// setup lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);
@@ -91,11 +93,11 @@ void ParcourParcs::init()
 		g_Renderer.add_pointlight(__BulbIndices[i].position,__BulbIndices[i].colour,7.5f,1.f,.8f,.24f);
 
 	// register textures
-	__EnviroBatch->ubos[__FloorID].attach_material(__FloorMaterial);
-	__EnviroBatch->ubos[__BoxID].attach_material(__FloorMaterial);
-	__EnviroBatch->ubos[__BoxID0].attach_material(__GoldMaterial);
-	__EnviroBatch->ubos[__SphereID].attach_material(__FabricMaterial);
-	m_AnimBatch->ubos[m_DudeID].attach_material(__DudeMaterial);
+	__Floor->ubo.attach_material(__FloorMaterial);
+	__Box15->ubo.attach_material(__FloorMaterial);
+	__Box16->ubo.attach_material(__GoldMaterial);
+	__Sphere->ubo.attach_material(__FabricMaterial);
+	m_Dude->ubo.attach_material(__DudeMaterial);
 
 	// shadows
 	g_Renderer.register_shadow_batch(__EnviroBatch);
@@ -115,32 +117,32 @@ void ParcourParcs::update()
 										  g_Camera.target.y-g_Camera.position.y,
 										  0));
 	vec3 __OrthoAttitude = vec3(-__Attitude.y,__Attitude.x,0);
- 
+
 	// player state
 	switch (m_MoveState)
 	{
 	case MOVE_JUMPING:
 		// jumping movement
 		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
-				*vec3(m_Dude.get_progress()*(m_Dude.get_progress()<.9f)*TEST_JUMP_SPEED);
-		m_PosDelta.z = glm::sin((m_Dude.get_progress()-.5f)*2.5f*MATH_PI*2)
-				*(m_Dude.get_progress()<.9f&&m_Dude.get_progress()>.5f)*TEST_JUMP_HEIGHT;
+				*vec3(m_DudeMesh.get_progress()*(m_DudeMesh.get_progress()<.9f)*TEST_JUMP_SPEED);
+		m_PosDelta.z = glm::sin((m_DudeMesh.get_progress()-.5f)*2.5f*MATH_PI*2)
+				*(m_DudeMesh.get_progress()<.9f&&m_DudeMesh.get_progress()>.5f)*TEST_JUMP_HEIGHT;
 
 		// state machine flow
-		if (m_Dude.current_animation!=DANIM_JUMPING) m_MoveState = MOVE_STANDARD;
+		if (m_DudeMesh.current_animation!=DANIM_JUMPING) m_MoveState = MOVE_STANDARD;
 		break;
 
 	case MOVE_ROLLING:
 		// rolling movement
 		m_PosDelta = vec3(m_MoveDirection.x,m_MoveDirection.y,0)
-				*vec3((m_Dude.get_progress()<.65f&&m_Dude.get_progress()>.25f)*TEST_ROLL_SPEED);
+				*vec3((m_DudeMesh.get_progress()<.65f&&m_DudeMesh.get_progress()>.25f)*TEST_ROLL_SPEED);
 
 		// state machine flow
-		if (m_Dude.current_animation!=DANIM_ROLLING) m_MoveState = MOVE_STANDARD;
+		if (m_DudeMesh.current_animation!=DANIM_ROLLING) m_MoveState = MOVE_STANDARD;
 		break;
 
 	case MOVE_CELEBRATING:
-		if (m_Dude.current_animation!=DANIM_CELEBRATE) m_MoveState = MOVE_STANDARD;
+		if (m_DudeMesh.current_animation!=DANIM_CELEBRATE) m_MoveState = MOVE_STANDARD;
 		break;
 
 	default:
@@ -153,25 +155,25 @@ void ParcourParcs::update()
 		m_PlayerRotation = angular_relationship(vec2(0,-1),vec2(m_PosDelta.x,m_PosDelta.y));
 
 		// switch animation state
-		m_Dude.current_animation = 3-(glm::length(m_PosDelta)>.01f);
+		m_DudeMesh.current_animation = 3-(glm::length(m_PosDelta)>.01f);
 		m_MoveDirection = m_PosDelta;
 
 		// state machine flow
 		if (g_Input.keyboard.keys[SDL_SCANCODE_SPACE])
 		{
 			m_MoveState = MOVE_JUMPING;
-			m_Dude.set_animation(DANIM_JUMPING,.5f);
+			m_DudeMesh.set_animation(DANIM_JUMPING,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_LSHIFT])
 		{
 			m_MoveState = MOVE_ROLLING;
-			m_Dude.set_animation(DANIM_ROLLING,.5f);
+			m_DudeMesh.set_animation(DANIM_ROLLING,.5f);
 		}
 		else if (g_Input.keyboard.keys[SDL_SCANCODE_E])
 		{
 			m_MoveState = MOVE_CELEBRATING;
 			m_PosDelta = vec3(.0f);
-			m_Dude.set_animation(DANIM_CELEBRATE,.5f);
+			m_DudeMesh.set_animation(DANIM_CELEBRATE,.5f);
 		}
 	};
 
@@ -186,13 +188,12 @@ void ParcourParcs::update()
 	m_PlayerMomentum.update(m_PlayerPosition,g_Frame.delta_time);
 
 	// player transformation
-	m_AnimBatch->objects[m_DudeID].transform.reset();
-	m_AnimBatch->objects[m_DudeID].transform.rotate_x(90.f);
-	m_AnimBatch->objects[m_DudeID].transform.translate(-__CenteredPosition);
-	m_AnimBatch->data[m_DudeID].model =
-			glm::translate(mat4(1.f),m_PlayerPosition)
-			* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
-			* m_AnimBatch->data[m_DudeID].model;
+	m_Dude->transform.reset();
+	m_Dude->transform.rotate_x(90.f);
+	m_Dude->transform.translate(-__CenteredPosition);
+	m_Dude->object_uniform_data.model = glm::translate(mat4(1.f),m_PlayerPosition)
+		* glm::rotate(mat4(1.f),m_PlayerRotation,vec3(0,0,1))
+		* m_Dude->object_uniform_data.model;
 
 	// camera
 	g_Camera.target = m_PlayerPosition;
@@ -203,5 +204,4 @@ void ParcourParcs::update()
  */
 void ParcourParcs::vanish()
 {
-	// TODO
 }

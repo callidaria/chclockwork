@@ -59,8 +59,8 @@ public:
 private:
 	// render components
 	lptr<GeometryBatch> m_AnimBatch;
-	AnimatedMesh m_Dude = AnimatedMesh("./res/test/me.dae");  // FIXME this should not be constructor
-	u32 m_DudeID;
+	AnimatedMesh m_DudeMesh = AnimatedMesh("./res/test/me.dae");  // FIXME this should not be constructor
+	GeometryTuple* m_Dude;
 
 	// state
 	MovementState m_MoveState = MOVE_STANDARD;
