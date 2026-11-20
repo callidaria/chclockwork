@@ -503,7 +503,7 @@ public:
 									 Texture* emission=nullptr);
 
 	// scene
-	lptr<ShaderPipeline> register_pipeline(TargetResolution tr,const char* vs,const char* fs,
+	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
 										   PipelineBufferFormats& format,u32 feat);
 	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);

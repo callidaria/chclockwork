@@ -8,18 +8,17 @@ void ParcourParcs::init()
 {
 	// pipelines
 	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
-			RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+		"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
 	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
-			RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+			"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
 	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
 
 	// batches

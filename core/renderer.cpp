@@ -803,7 +803,7 @@ void GeometryBatch::assemble(lptr<ShaderPipeline> sp,size_t obj_capacity)
 /**
  *	add mesh geometry to batch
  *	\param mesh: loaded mesh for explicit geometry information
- *	\returns geometry id
+ *	\returns pointer to geometry tuple
  */
 GeometryTuple* GeometryBatch::add_geometry(Mesh& mesh)
 {
@@ -813,7 +813,7 @@ GeometryTuple* GeometryBatch::add_geometry(Mesh& mesh)
 /**
  *	add animated mesh geometry to batch
  *	\param mesh: animated mesh for explicit geometry information
- *	\returns geometry id
+ *	\returns pointer to geometry tuple
  */
 GeometryTuple* GeometryBatch::add_geometry(AnimatedMesh& mesh)
 {
@@ -828,7 +828,7 @@ GeometryTuple* GeometryBatch::add_geometry(AnimatedMesh& mesh)
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
  *	\param ssize: upload dimension !in memory width!
- *	\returns geometry id
+ *	\returns pointer to geometry tuple
  */
 GeometryTuple* GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
 {
@@ -1101,26 +1101,23 @@ Renderer::Renderer()
 
 	// setup default pipelines
 	m_SpritePipeline = register_result_pipeline(
-			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING
-		);
+			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING);
 	m_TextPipeline = register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING
-		);
+			"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING);
 	m_TargetPipeline = register_pipeline(
-			TARGET_RESOLUTION_RESULT,"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT
-		);
+			"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
+			TARGET_RESOLUTION_RESULT,RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT);
 	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(
-			TARGET_RESOLUTION_FULLSCREEN,"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-			RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT
+			"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT
 		);
 	m_ShadowPassPipeline = register_pipeline(
-			TARGET_RESOLUTION_SHADOWPROJ,"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-			RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
+			"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
+			TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
 		);
 
 	// result target & geometry target
@@ -1172,13 +1169,24 @@ Renderer::Renderer()
 	// load default textures
 	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
 				 &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
-	// TODO pbs fallback textures
+
+	/*
+	COMM_LOG("starting renderer subprocesses");
+	_sprite_signal.stall();
+	m_SpriteCollector = thread(Renderer::_collector<Sprite>,&m_Sprites,&_sprite_signal);
+	m_SpriteCollector.detach();
+	_sprite_texture_signal.stall();
+	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
+									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
+	m_SpriteTextureCollector.detach();
+	*/
 
 	COMM_SCC("render system ready.");
 }
+// TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
 
 /**
- *	precalculating setup (before wheel system setup)
+ *	precalculating setup (before wheel system update)
  */
 void Renderer::precalculate()
 {
@@ -1196,7 +1204,9 @@ void Renderer::precalculate()
 }
 
 /**
- *	TODO
+ *	draw geometry for shadow projection for both batch types
+ *	\param gb: registered geometry batches for this purpose
+ *	\param pb: registered particle batches for this purpose
  */
 inline void _update_shadow(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatch>& pb)
 {
@@ -1205,7 +1215,9 @@ inline void _update_shadow(list<ShadowGeometryBatch>& gb,list<ShadowParticleBatc
 }
 
 /**
- *	TODO
+ *	draw geometry for both batch types
+ *	\param gb: registered geometry batches for this purpose
+ *	\param pb: registered particle batches for this purpose
  */
 inline void _update_geometry(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 {
@@ -1214,7 +1226,7 @@ inline void _update_geometry(list<GeometryBatch>& gb,list<ParticleBatch>& pb)
 }
 
 /**
- *	TODO
+ *	update render system, gpu data & execute draw
  */
 void Renderer::update()
 {
@@ -1431,7 +1443,8 @@ lptr<Text> Renderer::write_text(Font* font,string data,vec3 position,f32 scale,v
 }
 
 /**
- *	TODO
+ *	remove registered text, which means free attached characters from global character presentation memory
+ *	\param text: text entity, as passed at creation
  */
 void Renderer::delete_text(lptr<Text> text)
 {
@@ -1440,7 +1453,11 @@ void Renderer::delete_text(lptr<Text> text)
 }
 
 /**
- *	TODO
+ *	register colour as texture for later attachment to meshes or particles, or for usage in material composition
+ *	this will create a subthread, that generates colour texture parallel to further program execution
+ *	\param colour: colour vector, defining texture data
+ *	\param format: (default TEXTURE_FORMAT_RGBA) texture colourspace format
+ *	\returns pointer to generated texture in ram, referencing generated colour texture in vram
  */
 Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 {
@@ -1456,9 +1473,9 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 }
 
 /**
- *	load texture into memory
+ *	register texture & load texture in a subthread, parallel to further program execution
  *	\param path: path to texture file
- *	\param format: (default TEXTURE_FORMAT_RGBA) texture colour channel format
+ *	\param format: (default TEXTURE_FORMAT_RGBA) texture colourspace format
  *	\returns pointer to texture in ram, referencing texture in vram
  */
 Texture* Renderer::register_texture(const char* path,TextureFormat format)
@@ -1475,7 +1492,15 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format)
 //		probably even though the batched texture upload will mostly use linear rgb for material formats
 
 /**
- *	TODO
+ *	register material texture composition from multiple textures
+ *	\param albedo: the only required component, surface colour information
+ *	\param normals: (default nullptr) surface normal manipulation, default results in colour vec3(.5,.5,1).
+ *			no manipulation of surface normal vectors
+ *	\param materials: (default nullptr) surface material definition for physical based shading, default results
+ *			in colour vec3(0,1,1). no metallic, full diffuse, full ao multiplication (no ambient occlusion)
+ *	\param emission: (default nullptr) surface emission map, for self irradiance without outside lighting.
+ *			default results in colour vec3(0,0,0), no self emission of light by the surface.
+ *	\returns pointer to registered material for mapping onto a object per ubo
  */
 Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* materials,Texture* emission)
 {
@@ -1495,12 +1520,12 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
  *	register shader pipeline
  *	\param vs: path to vertex shader
  *	\param fs: path to fragment shader
- *	\param bfr_count: count of output buffers, amount of channels that the shader writes to
- *	\param depth: (default false) record depth result after shader processing
- *	\returns pointer to registered shader pipeline
- *	TODO amend
+ *	\param tr: resolution of result
+ *	\param format: format of result, this includes colourspaces, count of output results & depth component spec
+ *	\param feat: enabled/active features during shader pipeline processing
+ *	\returns registered shader pipeline
  */
-lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,const char* vs,const char* fs,
+lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,TargetResolution tr,
 												 PipelineBufferFormats& format,u32 feat)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(format.formats,format.size,format.depth));
@@ -1508,10 +1533,16 @@ lptr<ShaderPipeline> Renderer::register_pipeline(TargetResolution tr,const char*
 	p_Pipeline->assemble(tr,vs,fs,feat);
 	return p_Pipeline;
 }
+// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 /**
- *	TODO
+ *	register shader pipeline, that will assemble the final result output onto the swapchain buffer
+ *	\param vs: path to vertex shader
+ *	\param fs: path to fragment shader
+ *	\param feat: enabled/active features during shader pipeline processing
+ *	\returns registered shader pipeline
  *	\note this pipeline needs to conform to swapchain output format & produce only !ONE! result
+ *	\note it is !extremely! unlikely that this is called in a script file. this is almost exclusive to renderer
  */
 lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat)
 {
@@ -1520,7 +1551,6 @@ lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const cha
 	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
 	return p_Pipeline;
 }
-// TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
 
 /**
  *	register triangle mesh batch
@@ -1594,16 +1624,8 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
 	// register geometry batch
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
-			.shader = m_ShadowPassPipeline,
-			.uniform = vector<ShaderUniformUpload>(b->count),
+			.shader = m_ShadowPassPipeline
 		});
-
-	// create uniform upload correlation
-	for (u32 i=0;i<b->count;i++)
-	{
-		m_ShadowGeometryBatches.back().uniform[i].shader = m_ShadowPassPipeline;
-		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
-	}
 }
 
 /**
@@ -1617,15 +1639,7 @@ void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> 
 	m_ShadowGeometryBatches.push_back({
 			.batch = b,
 			.shader = pipeline,
-			.uniform = vector<ShaderUniformUpload>(b->count),
 		});
-
-	// create uniform upload correlation
-	for (u32 i=0;i<b->count;i++)
-	{
-		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
-		//m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
-	}
 }
 
 /**
@@ -1642,7 +1656,12 @@ void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> 
 }
 
 /**
- *	TODO
+ *	directional light, without distance relevance, no attenuation, indiscriminately orthogonal
+ *	\param position: light position, position describes the sunlight's positional attitude towards origin
+ *	\param colour: light colour vector
+ *	\param intensity: light brightness
+ *	\param shadow_source: (default false) true if this sunlight should cast a shadow
+ *	\returns pointer to added sunlight
  */
 SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity,bool shadow_source)
 {
@@ -1666,10 +1685,17 @@ SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity,bool sh
 // TODO also shadow cascading and dynamic targeting information, attached to scene center or camera focus
 
 /**
- *	TODO
+ *	pointlight attenuates over distance, as described by a function
+ *	\param position: light source position
+ *	\param colour: light colour vector
+ *	\param intensity: light brightness
+ *	\param constant: constant component of pointlight attenuation function
+ *	\param linear: linear component of pointlight attenuation function
+ *	\param quadratic: quadratic component of pointlight attenuation function
+ *	\returns pointer to added pointlight
  */
-PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,
-									 f32 constant,f32 linear,f32 quadratic)
+PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,
+									 f32 linear,f32 quadratic)
 {
 	m_UBufferMem.lighting.pointlights[m_UBufferMem.lighting.pointlights_active] = {
 		.position = position,
@@ -1691,7 +1717,10 @@ void Renderer::animate(AnimatedMesh* mesh)
 }
 
 /**
- *	TODO
+ *	helper to register texture upload after data has been loaded
+ *	\param tdt: tuple carrying data to upload & link loaded texture data to ubo
+ *	\param data_queue: target queue to entry new upload tuple into
+ *	\param queue_mutex: mutex for parallel queue access
  */
 inline void _signal_texture_data_upload(TextureDataTuple tdt,
 										queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
@@ -1702,7 +1731,12 @@ inline void _signal_texture_data_upload(TextureDataTuple tdt,
 }
 
 /**
- *	TODO
+ *	load monocolour texture into ram in background & register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param colour: colour of generated monocoloured texture
+ *	\param format: texture colour channel format
+ *	\param data_queue: queue for texture vram upload
+ *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
 void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
 							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
@@ -1713,7 +1747,7 @@ void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
 }
 
 /**
- *	load texture into ram in background and register for vram upload when ready
+ *	load texture into ram in background & register for vram upload when ready
  *	\param texture: pointer to texture in memory
  *	\param path: path to texture
  *	\param format: texture colour channel format
@@ -1770,7 +1804,7 @@ void Renderer::_update_text()
 }
 
 /**
- *	TODO
+ *	draw final frame
  */
 void Renderer::_update_target()
 {
@@ -1781,7 +1815,7 @@ void Renderer::_update_target()
 }
 
 /**
- *	TODO
+ *	update shader uniform variables
  */
 void Renderer::_update_uniforms()
 {
@@ -1863,176 +1897,10 @@ void Renderer::_gpu_upload()
 #else
 
 
-// ----------------------------------------------------------------------------------------------------
-// Renderer Main Features
-
-/**
- *	setup renderer
- */
-Renderer::Renderer()
-{
-	// ----------------------------------------------------------------------------------------------------
-	// Start Subprocesses
-	COMM_LOG("starting renderer subprocesses");
-	/*
-	_sprite_signal.stall();
-	m_SpriteCollector = thread(Renderer::_collector<Sprite>,&m_Sprites,&_sprite_signal);
-	m_SpriteCollector.detach();
-	_sprite_texture_signal.stall();
-	m_SpriteTextureCollector = thread(Renderer::_collector<PixelBufferComponent>,
-									  &m_GPUSpriteTextures.textures,&_sprite_texture_signal);
-	m_SpriteTextureCollector.detach();
-	*/
-}
-// TODO join collector processes when exiting renderer, or maybe just let the os handle that and not care?
-
-/**
- *	register shader pipeline
- *	\param vs: vertex shader
- *	\param fs: fragment shader
- *	\returns pointer to registered shader pipeline
- */
-/*
-lptr<ShaderPipeline> Renderer::register_pipeline(VertexShader& vs,FragmentShader& fs)
-{
-	m_ShaderPipelines.push_back(ShaderPipeline());
-	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(vs,fs);
-	return p_Pipeline;
-}
-*/
-
-/**
- *	allow a geometry batch to cast shadows onto the scene
- *	\param b: pointer to casting geometry batch
- */
-void Renderer::register_shadow_batch(lptr<GeometryBatch> b)
-{
-	// register geometry batch
-	m_ShadowGeometryBatches.push_back({
-			.batch = b,
-			.shader = m_GeometryShadowPipeline,
-			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
-		});
-
-	// create uniform upload correlation
-	for (u32 i=0;i<b->objects.size();i++)
-	{
-		m_ShadowGeometryBatches.back().uniform[i].shader = m_GeometryShadowPipeline;
-		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
-	}
-}
-
-/**
- *	allow a geometry batch to cast shadows onto the scene
- *	\param b: pointer to casting geometry batch
- *	\param pipeline: pointer to custom shadow pass shader pipeline
- */
-void Renderer::register_shadow_batch(lptr<GeometryBatch> b,lptr<ShaderPipeline> pipeline)
-{
-	// register geometry batch
-	m_ShadowGeometryBatches.push_back({
-			.batch = b,
-			.shader = pipeline,
-			.uniform = vector<ShaderUniformUpload>(b->objects.size()),
-		});
-
-	// create uniform upload correlation
-	for (u32 i=0;i<b->objects.size();i++)
-	{
-		m_ShadowGeometryBatches.back().uniform[i].shader = pipeline;
-		m_ShadowGeometryBatches.back().uniform[i].correlate(b->objects[i].uniform);
-	}
-}
-
-/**
- *	allow a particle batch to cast shadows onto the scene
- *	\param b: pointer to casting particle batch
- */
-void Renderer::register_shadow_batch(lptr<ParticleBatch> b)
-{
-	m_ShadowParticleBatches.push_back({
-			.batch = b,
-			.shader = m_ParticleShadowPipeline,
-		});
-	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
-	// TODO expand the correlation when particle batch allows for uniform upload specification
-}
-
-/**
- *	allow a particle batch to cast shadows onto the scene
- *	\param b: pointer to casting particle batch
- *	\param pipeline: pointer to custom shadow pass shader pipeline
- */
-void Renderer::register_shadow_batch(lptr<ParticleBatch> b,lptr<ShaderPipeline> pipeline)
-{
-	m_ShadowParticleBatches.push_back({
-			.batch = b,
-			.shader = pipeline,
-		});
-	//m_ShadowParticleBatches.uniform.correlate(b->uniform);
-}
-
-/**
- *	create directional sunlight
- *	if there is no explicitly defined shadow projection the first sunlight will automatically create one
- *	\param position: direction to sunlight, inverted direction will be direction of emission
- *	\param colour: colour of the emission
- *	\param intensity: emission intensity, multiplying the colour influence
- */
-SunLight* Renderer::add_sunlight(vec3 position,vec3 colour,f32 intensity)
-{
-	// add sunlight
-	m_Lighting.sunlights[m_Lighting.sunlights_active] = {
-		.position = position,
-		.colour = colour*intensity,
-	};
-
-	// auto-set shadow projection
-	if (!m_Lighting.shadow_forced&&!m_Lighting.sunlights_active) add_shadow(position,false);
-	return &m_Lighting.sunlights[m_Lighting.sunlights_active++];
-}
-
-/**
- *	create pointlight
- *	\param position: position of the light emitter
- *	\param colour: colour of the emission
- *	\param intensity: emission intensity, multiplying the colour influence
- *	\param constant: constant component in attenuation
- *	\param linear: linear component in attenutation
- *	\param quadratic: quadratic component in attenuation
- *	\returns pointer to pointlight
- */
-PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,f32 constant,
-									 f32 linear,f32 quadratic)
-{
-	m_Lighting.pointlights[m_Lighting.pointlights_active] = {
-		.position = position,
-		.colour = colour*intensity,
-		.constant = constant,
-		.linear = linear,
-		.quadratic = quadratic
-	};
-	return &m_Lighting.pointlights[m_Lighting.pointlights_active++];
-}
-
-/**
- *	create a shadow projection source
- *	\param source: position of projection source
- *	\param forced: (default true) true if this shadow projection overrides incoming lighting changes
- */
-void Renderer::add_shadow(vec3 source,bool forced)
-{
-	m_Lighting.shadow_forced = forced;
-	m_Lighting.shadow_projection = Camera3D(vec3(0),source,RENDERER_SHADOW_RANGE,RENDERER_SHADOW_RANGE,
-											.1f,1000.f);
-}
-// TODO allow for multiple shadows to project at the same time
-// TODO also create support for pointlight shadows
-
 /**
  *	upload all setup lights to gpu lighting simulation processing
  */
+/*
 void Renderer::upload_lighting()
 {
 	m_CanvasPipeline.enable();
@@ -2060,17 +1928,20 @@ void Renderer::upload_lighting()
 	}
 	m_CanvasPipeline.upload("pointlights_active",m_Lighting.pointlights_active);
 }
+*/
 // TODO dynamic upload, e.g. when a single light gets updated all the lights need to be uploaded again
 
 /**
  *	deactivate all lights to fundamentally reset the lighting setup
  */
+/*
 void Renderer::reset_lighting()
 {
 	m_Lighting.sunlights_active = 0;
 	m_Lighting.pointlights_active = 0;
 	upload_lighting();
 }
+*/
 
 
 // ----------------------------------------------------------------------------------------------------
