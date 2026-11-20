@@ -28,12 +28,10 @@ void ParcourParcs::init()
 	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline);
 
 	// setup geometry batch
-	Mesh __Sphere = Mesh::sphere();
-	Mesh __Cube = Mesh::cube();
-	u32 __FloorID = __EnviroBatch->add_geometry(__Cube);
-	u32 __BoxID = __EnviroBatch->add_geometry(__Cube);
-	u32 __BoxID0 = __EnviroBatch->add_geometry(__Cube);
-	u32 __SphereID = __EnviroBatch->add_geometry(__Sphere);
+	u32 __FloorID = __EnviroBatch->add_geometry(Mesh::CUBE);
+	u32 __BoxID = __EnviroBatch->add_geometry(Mesh::CUBE);
+	u32 __BoxID0 = __EnviroBatch->add_geometry(Mesh::CUBE);
+	u32 __SphereID = __EnviroBatch->add_geometry(Mesh::SPHERE);
 	__EnviroBatch->load();
 
 	// setup animated character batch
@@ -75,7 +73,7 @@ void ParcourParcs::init()
 		);
 
 	// lightbulbs
-	__BulbBatch->load(__Sphere,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
+	__BulbBatch->load(Mesh::SPHERE,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
 	BallIndex* __BulbIndices = (BallIndex*)__BulbBatch->imem;
 	__BulbIndices[0] = { vec3(9,9,.2f),.2f,vec3(1,0,0),vec2(0,.4f) };
 	__BulbIndices[1] = { vec3(9,-9,.7f),.2f,vec3(1,1,0),vec2(0,.4f) };

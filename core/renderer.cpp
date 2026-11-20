@@ -32,7 +32,7 @@ Texture* Material::standards[MATERIAL_COMPONENT_CHANNEL_COUNT] = {
 
 
 // ----------------------------------------------------------------------------------------------------
-// Additional Utility
+// Alignment
 
 /**
  *	geometry realignment based on position
@@ -158,7 +158,13 @@ void Text::vanish()
 
 
 // ----------------------------------------------------------------------------------------------------
-// Geometry Loading
+// Meshes
+
+// basic shapes preload
+Mesh Mesh::SPHERE_LOWRES = Mesh("./res/primitive/low_sphere.obj");
+Mesh Mesh::SPHERE = Mesh("./res/primitive/sphere.obj");
+Mesh Mesh::CUBE = Mesh("./res/primitive/cube.obj");
+Mesh Mesh::APE = Mesh("./res/primitive/ape.obj");
 
 /**
  *	load mesh geometry from .obj file
@@ -261,6 +267,10 @@ Mesh::Mesh(const char* path)
 		for (u8 j=0;j<3;j++) vertices[i+j].tangent = __Tangent;
 	}
 }
+
+
+// ----------------------------------------------------------------------------------------------------
+// Animations
 
 /**
  *	request a positional change towards a target in a given time
@@ -693,7 +703,8 @@ void AnimatedMesh::_rc_transform_interpolation(MeshJoint& joint,mat4& parent_tra
 // Uniform Buffer Object
 
 /**
- *	TODO
+ *	creation of uniform buffer object abstraction
+ *	\param shader: shader pipeline, which carries the endpoint description of the draw the ubo will be bound on
  */
 void UniformBufferObject::create(lptr<ShaderPipeline> shader)
 {
@@ -702,7 +713,8 @@ void UniformBufferObject::create(lptr<ShaderPipeline> shader)
 }
 
 /**
- *	TODO
+ *	bind ubo for draw. shader pipeline, that was passed at creation or with correlating endpoint must be bound.
+ *	the latter can be helpful for alternate shader processing operations (e.g. shadows, silhouette shaders)
  */
 void UniformBufferObject::bind()
 {
@@ -711,7 +723,7 @@ void UniformBufferObject::bind()
 }
 
 /**
- *	TODO
+ *	update ubo before draw
  */
 void UniformBufferObject::update()
 {
@@ -722,7 +734,8 @@ void UniformBufferObject::update()
 //		former will use update_frame(), latter should use update()
 
 /**
- *	TODO
+ *	update ubo before draw.
+ *	this automatically updates all registered memory by attach_memory(), before calling the actual ubo update
  */
 void UniformBufferObject::auto_update()
 {
@@ -731,15 +744,22 @@ void UniformBufferObject::auto_update()
 }
 
 /**
- *	TODO
+ *	register a memory segment by pointer. this will be the correlation to a uniform value in shader at the
+ *	given location.
+ *	set is not required, due to the predefined channel purposes. for data that means set = 1 in shader.
+ *	\param location: location of the target variable in shader 
+ *	\param data: pointer to correlating host memory
  */
 void UniformBufferObject::attach_memory(u16 location,void* data)
 {
-	uniform.attach_memory_segment(&dsets[0],location,data);
+	uniform.attach_memory_segment(&dsets[UBO_CHANNEL_PURPOSE_DATA],location,data);
 }
 
 /**
- *	TODO
+ *	register a texture as accessible by a texture variable at the given location.
+ *	set is not required, for textures set = 2 in shader, here it is set = 1. see channel purposes & global dset
+ *	\param location: location of the target texture reference variable in shader
+ *	\param texture: pointer to registered or preloaded texture
  */
 void UniformBufferObject::attach_texture(u16 location,Texture* texture)
 {
@@ -752,7 +772,9 @@ void UniformBufferObject::attach_texture(u16 location,Texture* texture)
 }
 
 /**
- *	TODO
+ *	attach a material. this utilizes predefined pbs material channels to represent all necessary components.
+ *	see MaterialComponentChannel to find out about pbs material target channels
+ *	\param material: pointer to material
  */
 void UniformBufferObject::attach_material(Material* material)
 {

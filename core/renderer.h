@@ -34,7 +34,7 @@ enum DeferredBufferChannel
 	DEFERRED_BUFFER_CHANNEL_COUNT
 };
 
-// location endpoint
+// location endpoint. used in data/texture segment defintion for global descriptor set
 enum GlobalShaderEndpoint : u16
 {
 	GSE_CAMERA_TRANSFORM_LOCATION = 0,
@@ -55,7 +55,11 @@ enum GlobalShaderEndpoint : u16
 	GSE_SHADOW_LOCATION,
 };
 
-// uniform buffer set description
+// uniform buffer set description. this defines data & texture channels in descriptor set vector
+// over 4 guaranteed sets there will be 0: globals, but set 0 will be ignored when generating ubo vectors for
+// batches. which means all sets in this enum are offset by -1.
+// so in this enum (0) is data channel, (1) holds textures & materials & (2) signifies automatic updates.
+// the last one is not implemented yet, so just ignore for now, this just shows intent.
 enum UBOChannelPurpose
 {
 	UBO_CHANNEL_PURPOSE_DATA,
@@ -63,14 +67,16 @@ enum UBOChannelPurpose
 	UBO_CHANNEL_PURPOSE_AUTOUPDATE
 };
 
+// definition of descriptor set location channel constants for different purposes
 constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
-// TODO check dynamic endpoint setup against possible constant violations
+// TODO check dynamic endpoint setup against possible duplicate constant usage violations
 
 
 // ----------------------------------------------------------------------------------------------------
 // GBuffer Layout
 
+// format tuple, important information for pipeline registration
 constexpr u8 RENDERER_MAXIMUM_BUFFER_FORMATS = 8;
 struct PipelineBufferFormats
 {
@@ -79,7 +85,7 @@ struct PipelineBufferFormats
 	bool depth;
 };
 
-// formats
+// default pipeline buffer formats
 static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
 	.formats = { GPU_BUFFER_FORMAT_SRGB },
 	.size = 1,
@@ -100,25 +106,13 @@ static inline PipelineBufferFormats RENDERER_DEPTH_BUFFER_FORMAT = {
 	.depth = true
 };
 
-enum TextureChannelMap : u16
-{
-	RENDERER_TEXTURE_SPRITES,
-	RENDERER_TEXTURE_FONTS,
-	RENDERER_TEXTURE_FORWARD,
-	RENDERER_TEXTURE_DEFERRED_COLOUR,
-	RENDERER_TEXTURE_DEFERRED_POSITION,
-	RENDERER_TEXTURE_DEFERRED_NORMAL,
-	RENDERER_TEXTURE_DEFERRED_MATERIAL,
-	RENDERER_TEXTURE_DEFERRED_EMISSION,
-	RENDERER_TEXTURE_SHADOW_MAP,
-	RENDERER_TEXTURE_FORWARD_DEPTH,
-	RENDERER_TEXTURE_DEFERRED_DEPTH,
-	RENDERER_TEXTURE_UNMAPPED
-};
-
 
 // ----------------------------------------------------------------------------------------------------
 // GPU Data Structures
+//
+// 1:1 memory correlation between ram & vram upload.
+// Those structs describe a representation of gpu data on host & can be written & uploaded directly.
+//
 
 struct Sprite
 {
@@ -160,6 +154,8 @@ struct AnimationVertex
 // ----------------------------------------------------------------------------------------------------
 // Materials
 
+// material channels. each component is a texture, which will be represented as their respective channel
+// of functionality in lighting calculation
 enum MaterialComponentChannel : u8
 {
 	MATERIAL_COMPONENT_CHANNEL_ALBEDO,
@@ -169,6 +165,7 @@ enum MaterialComponentChannel : u8
 	MATERIAL_COMPONENT_CHANNEL_COUNT
 };
 
+// material, represented by an array of textures. autofilled by standards in renderer, when failed to specify
 struct Material
 {
 	static Texture* standards[MATERIAL_COMPONENT_CHANNEL_COUNT];
@@ -177,36 +174,9 @@ struct Material
 
 
 // ----------------------------------------------------------------------------------------------------
-// Animations
+// Alignment
 
-template<typename T> struct AnimKey
-{
-	T key;
-	f64 duration = .0;
-};
-
-struct AnimationJoint
-{
-	u16 id;
-	u16 crr_position = 0;
-	u16 crr_scale = 0;
-	u16 crr_rotation = 0;
-	vector<AnimKey<vec3>> position_keys;
-	vector<AnimKey<vec3>> scaling_keys;
-	vector<AnimKey<quat>> rotation_keys;
-};
-
-struct Animation
-{
-	vector<AnimationJoint> joints;
-	f64 duration;
-	f64 duration_inv;
-};
-
-
-// ----------------------------------------------------------------------------------------------------
-// Text
-
+// enumeration of possible relative positional origins for text & sprites
 enum ScreenAlignment
 {
 	SCREEN_ALIGN_BOTTOMLEFT,
@@ -221,6 +191,7 @@ enum ScreenAlignment
 	SCREEN_ALIGN_NEUTRAL,
 };
 
+// allows for alignment towards relative screen positions as described in ScreenAlignment
 struct Alignment
 {
 	vec2 align(Rect geom);
@@ -228,6 +199,11 @@ struct Alignment
 	ScreenAlignment alignment = SCREEN_ALIGN_NEUTRAL;
 };
 
+
+// ----------------------------------------------------------------------------------------------------
+// Text
+
+// text entity, but in reality it only adds necessary characters to all screen text unsorted & remembers their id
 struct Text
 {
 	// utility
@@ -255,21 +231,53 @@ struct Text
 // ----------------------------------------------------------------------------------------------------
 // Meshes
 
+// complex triangluate shapes, requires .obj file
 class Mesh
 {
 public:
 	Mesh(const char* path);
-	static inline Mesh sphere_lowres() { return Mesh("./res/primitive/low_sphere.obj"); }
-	static inline Mesh sphere() { return Mesh("./res/primitive/sphere.obj"); };
-	static inline Mesh cube() { return Mesh("./res/primitive/cube.obj"); }
-	static inline Mesh ape() { return Mesh("./res/primitive/ape.obj"); }
-	// TODO pre-store geometry and copy, this will always reload from disc when new primitive is created
+	static Mesh SPHERE_LOWRES;
+	static Mesh SPHERE;
+	static Mesh CUBE;
+	static Mesh APE;
 
 public:
 	vector<Vertex> vertices;
 };
 // TODO element draw requires an element array instead of raw vertex store (also for AnimatedMesh)
 
+
+// ----------------------------------------------------------------------------------------------------
+// Animations
+
+// animation key, uses a spacial target (e.g. vec3, quat) and a transition duration until this one and the next
+template<typename T> struct AnimKey
+{
+	T key;
+	f64 duration = .0;
+};
+
+// key transition lists & state for a single joint
+struct AnimationJoint
+{
+	u16 id;
+	u16 crr_position = 0;
+	u16 crr_scale = 0;
+	u16 crr_rotation = 0;
+	vector<AnimKey<vec3>> position_keys;
+	vector<AnimKey<vec3>> scaling_keys;
+	vector<AnimKey<quat>> rotation_keys;
+};
+
+// animation, represented by a full duration and per-joint transition information
+struct Animation
+{
+	vector<AnimationJoint> joints;
+	f64 duration;
+	f64 duration_inv;
+};
+
+// joint for animated meshes, can & should be assembled into a motion hierarchy
 struct MeshJoint
 {
 	// utility
@@ -310,6 +318,7 @@ struct MeshJoint
 };
 // TODO maybe instead of indices, pointers for children?
 
+// mesh with animation info, requires .dae file (COLLADA)
 class AnimatedMesh
 {
 public:
@@ -344,6 +353,7 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Uniform Buffer Object
 
+// tuple, combining necessary information to store an attachment request during _gpu_upload()
 struct TextureAttachment
 {
 	DescriptorSetMemory* ubo;
@@ -351,6 +361,8 @@ struct TextureAttachment
 	u16 location;
 };
 
+// abstracts the descriptor set memory vectors, that are generated during load.
+// effortlessly interprets data & texture attachments into their respective descriptor sets & handles update ops
 struct UniformBufferObject
 {
 	// utility

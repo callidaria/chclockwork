@@ -437,6 +437,7 @@ void Transform3D::reset()
 // 2D components can additionally sort by depth, which is clipped inside the range (near: ~0, far: 10).
 // Another left-handed coordinate system here to make +z to go along with the view direction.
 // Higher means farther!
+//
 
 /**
  *	coordinate system setup for 2D objects. flipped top to bottom definition in vulkan as opposed to ogl
@@ -458,6 +459,7 @@ CoordinateSystem2D::CoordinateSystem2D(f32 xaxis,f32 yaxis)
 // Camera
 //
 // The camera adheres to a left-handed, z-up coordinate system (+x right side, +y view direction, +z up).
+//
 
 /**
  *	create 3D camera

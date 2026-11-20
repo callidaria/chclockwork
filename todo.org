@@ -1,3 +1,0 @@
-CLEANUP
-- RENDERER: cleanup
-- RENDERER: document
