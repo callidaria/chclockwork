@@ -154,12 +154,12 @@ inline void Framebuffer::_define_depth_component(u8 depth_channel)
 {
 #ifdef VKBUILD
 	_generate_framebuffer_image(
-			&attachment_images[depth_channel],pm_FrameDimension,g_Formats[GPU_BUFFER_FORMAT_DEPTH],
+			&attachment_images[depth_channel],pm_FrameDimension,g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT);
 	g_GPU.allocate_vram(m_AttachmentMemory[depth_channel],attachment_images[depth_channel]);
 	vkBindImageMemory(g_GPU.gpu,attachment_images[depth_channel],m_AttachmentMemory[depth_channel],0);
 	_generate_framebuffer_image_view(&components[depth_channel],attachment_images[depth_channel],
-									 g_Formats[GPU_BUFFER_FORMAT_DEPTH],VK_IMAGE_ASPECT_DEPTH_BIT);
+									 g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],VK_IMAGE_ASPECT_DEPTH_BIT);
 #else
 	glGenTextures(1,&m_DepthComponent);
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);

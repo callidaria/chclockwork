@@ -29,7 +29,6 @@ enum GPUBufferFormat : u8
 	GPU_BUFFER_FORMAT_DEPTH,
 	GPU_BUFFER_FORMAT_COUNT
 };
-inline VkFormat g_Formats[GPU_BUFFER_FORMAT_COUNT];
 
 struct CommandBufferGFX
 {
@@ -133,6 +132,9 @@ struct GPU
 	VkQueue transfer_queue;
 	VkQueue graphical_queue;
 	VkQueue presentation_queue;
+
+	// formats
+	VkFormat formats[GPU_BUFFER_FORMAT_COUNT];
 
 	// gpu commands
 	VkCommandPool cmd_pool_gfx,cmd_pool_trf;

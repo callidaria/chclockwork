@@ -763,7 +763,7 @@ ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
 	: depth_channel(bfr_count),has_depth(depth)
 {
 	_initialize(bfr_count+depth);
-	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_Formats[formats[i]]);
+	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_GPU.formats[formats[i]]);
 }
 
 /**
@@ -784,7 +784,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	{
 		// depth component
 		descriptions[depth_channel] = {};
-		descriptions[depth_channel].format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
+		descriptions[depth_channel].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
 		descriptions[depth_channel].samples = VK_SAMPLE_COUNT_1_BIT;
 		descriptions[depth_channel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // TODO enable/disable
@@ -1238,16 +1238,8 @@ u32 ShaderPipeline::get_uniform_location(const char* uname)
 }
 
 // uniform variable upload function correlation map
+#ifdef GLBUILD
 typedef void (*uniform_upload)(u16,f32*);
-#ifdef VKBUILD
-void _uploadu(u16 uloc,f32* data) { /* TODO */ }
-void _uploadi(u16 uloc,f32* data) { /* TODO */ }
-void _upload1f(u16 uloc,f32* data) { /* TODO */ }
-void _upload2f(u16 uloc,f32* data) { /* TODO */ }
-void _upload3f(u16 uloc,f32* data) { /* TODO */ }
-void _upload4f(u16 uloc,f32* data) { /* TODO */ }
-void _upload4m(u16 uloc,f32* data) { /* TODO */ }
-#else
 void _uploadi(u16 uloc,f32* data) { glUniform1u(uloc,data[0]); }
 void _uploadui(u16 uloc,f32* data) { glUniform1i(uloc,data[0],data[1]); }
 void _upload1f(u16 uloc,f32* data) { glUniform1f(uloc,data[0]); }
@@ -1255,9 +1247,9 @@ void _upload2f(u16 uloc,f32* data) { glUniform2f(uloc,data[0],data[1]); }
 void _upload3f(u16 uloc,f32* data) { glUniform3f(uloc,data[0],data[1],data[2]); }
 void _upload4f(u16 uloc,f32* data) { glUniform4f(uloc,data[0],data[1],data[2],data[3]); }
 void _upload4m(u16 uloc,f32* data) { glUniformMatrix4fv(uloc,1,GL_FALSE,data); }
-#endif
 uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
 		= { _uploadu,_uploadi,_upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
+#endif
 
 /**
  *	upload signed integer to shader

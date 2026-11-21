@@ -20,6 +20,7 @@ bool check_file_exists(const char* path)
  *	read a binary file & return contents
  *	\param path: path to binary file
  *	\param buffer_size: variable to write size of the binary file contents to
+ *	\returns pointer to extracted byte memory on heap
  *	\note returned memory has to be freed after using
  */
 u8* read_file_binary(const char* path,u32& buffer_size)
@@ -218,7 +219,7 @@ void ThreadSignal::exit()
 
 
 // ----------------------------------------------------------------------------------------------------
-// Geometry
+// Rectangle Logic
 
 /**
  *	determines if the given point is intersecting with the rect
@@ -249,9 +250,12 @@ bool Rect::intersects(const Rect& r)
 bool Rect::contains(const Rect& r)
 {
 	return r.position.x>=position.x&&r.position.y>=position.y
-		&&(r.position.x+r.extent.x)<=(position.x+extent.x)&&(r.position.y+r.extent.y)<=(position.y+extent.y);
+			&&(r.position.x+r.extent.x)<=(position.x+extent.x)&&(r.position.y+r.extent.y)<=(position.y+extent.y);
 }
 
+
+// ----------------------------------------------------------------------------------------------------
+// 3D Transform
 
 /**
  *	transform object
