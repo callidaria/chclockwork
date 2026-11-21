@@ -437,7 +437,8 @@ struct ParticleBatch
 	// utility
 	void load(Mesh& mesh,u32 particles,size_t isize);
 	void load(void* verts,size_t vsize,size_t ssize,u32 particles,size_t isize);
-	void update();
+	void update_uniform();
+	void update_instances();
 	void render();
 	void vanish();
 
@@ -450,6 +451,7 @@ struct ParticleBatch
 	void* imem;
 	UniformBufferObject ubo;
 	void* pcm;
+	size_t ibo_data_size;
 	u32 vertex_count;
 	u32 active_particles = 0;
 };

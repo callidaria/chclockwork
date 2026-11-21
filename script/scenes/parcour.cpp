@@ -82,8 +82,7 @@ void ParcourParcs::init()
 	__BulbIndices[5] = { vec3(5,-9,1.2f),.2f,vec3(1,0,1),vec2(0,.4f) };
 	__BulbIndices[6] = { vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) };
 	__BulbIndices[7] = { vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) };
-	__BulbBatch->ibo.register_upload(sizeof(BallIndex)*TEST_LIGHTBULB_COUNT);
-	// TODO can be improved, just pass count, load stores bytesize
+	__BulbBatch->update_instances();
 
 	// setup lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);

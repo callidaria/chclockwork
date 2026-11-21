@@ -10,6 +10,7 @@ const s32 TEST_INSTANCE_AMOUNT_GENERAL
 
 /**
  *	initialize testing voxelgrid for test room instances
+ *	\param font: loading affirmation text will be written in this font
  */
 void RoomVoxels::init(Font* font)
 {
@@ -48,7 +49,7 @@ void RoomVoxels::init(Font* font)
 			}
 		}
 	}
-	__RoomBatch->ibo.register_upload(sizeof(vec3)*TEST_INSTANCE_AMOUNT_GENERAL);
+	__RoomBatch->update_instances();
 
 	g_Wheel.call(this);
 }

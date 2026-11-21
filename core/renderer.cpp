@@ -946,6 +946,7 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 	shader->generate_pcm(pcm);
 
 	// store geometry information
+	ibo_data_size = particles*isize;
 	vertex_count = vsize;
 	active_particles = particles;
 }
@@ -953,9 +954,17 @@ void ParticleBatch::load(void* verts,size_t vsize,size_t ssize,u32 particles,siz
 /**
  *	update batch uniform buffer
  */
-void ParticleBatch::update()
+void ParticleBatch::update_uniform()
 {
 	ubo.auto_update();
+}
+
+/**
+ *	update entire instance data buffer
+ */
+void ParticleBatch::update_instances()
+{
+	ibo.register_upload(ibo_data_size);
 }
 
 /**
@@ -1838,8 +1847,8 @@ void Renderer::_update_uniforms()
 	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.update();
 
 	// iterate registered geometry batches for uniform updates
-	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.update();
-	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.update();
+	for (ParticleBatch& p_Batch : m_ParticleBatches) p_Batch.update_uniform();
+	for (ParticleBatch& p_Batch : m_DeferredParticleBatches) p_Batch.update_uniform();
 }
 
 /**
