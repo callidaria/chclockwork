@@ -1,0 +1,72 @@
+#include "voxelgrid.h"
+
+
+const s32 TEST_INSTANCE_AMOUNT_X = 3;
+const s32 TEST_INSTANCE_AMOUNT_Y = 3;
+const s32 TEST_INSTANCE_AMOUNT_Z = 3;
+const s32 TEST_INSTANCE_AMOUNT_GENERAL
+			= TEST_INSTANCE_AMOUNT_X*TEST_INSTANCE_AMOUNT_Y*TEST_INSTANCE_AMOUNT_Z;
+
+
+/**
+ *	initialize testing voxelgrid for test room instances
+ *	\param font: loading affirmation text will be written in this font
+ */
+void RoomVoxels::init(Font* font)
+{
+	// load confirmation text
+	lptr<Text> __Text = g_Renderer.write_text(font,"Loading Affirmation Text",vec3(10,-10,7),15,vec4(1),
+											  Alignment{ .alignment=SCREEN_ALIGN_TOPLEFT });
+
+	// setup batch
+	GPUBufferFormat format = GPU_BUFFER_FORMAT_SRGB;
+	lptr<ShaderPipeline> __RoomShader = g_Renderer.register_pipeline(
+			"./shader/vulkan/bin/voxelgrid.vert","./shader/vulkan/bin/voxelgrid.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT);
+	lptr<ParticleBatch> __RoomBatch = g_Renderer.register_particle_batch(__RoomShader);
+
+	// load room
+	Mesh __RoomMesh = Mesh("./res/private/test.obj");
+	Texture* __RoomTexture = g_Renderer.register_texture("./res/private/test.png",TEXTURE_FORMAT_SRGB);
+	__RoomBatch->load(__RoomMesh,TEST_INSTANCE_AMOUNT_GENERAL,sizeof(vec3));
+
+	// attach transform & textures
+	__RoomBatch->ubo.attach_memory(71,&m_VoxelData);
+	__RoomBatch->ubo.attach_texture(0,__RoomTexture);
+	// TODO improve direct control over ubo memory just like it is done for ibos
+
+	// grid instances
+	u32 i = 0;
+	vec3* __Instances = (vec3*)__RoomBatch->imem;
+	for (s32 z=-TEST_INSTANCE_AMOUNT_Z/2;z<(TEST_INSTANCE_AMOUNT_Z/2)+TEST_INSTANCE_AMOUNT_Z%2;z++)
+	{
+		for (s32 y=-TEST_INSTANCE_AMOUNT_Y/2;y<(TEST_INSTANCE_AMOUNT_Y/2)+TEST_INSTANCE_AMOUNT_Y%2;y++)
+		{
+			for (s32 x=-TEST_INSTANCE_AMOUNT_X/2;x<(TEST_INSTANCE_AMOUNT_X/2)+TEST_INSTANCE_AMOUNT_Z%2;x++)
+			{
+				__Instances[i] = { .position = vec3(x*2,y*2,z*2) };
+				i++;
+			}
+		}
+	}
+	__RoomBatch->update_instances();
+
+	g_Wheel.call(this);
+}
+
+/**
+ *	rotate voxelgrid over time
+ */
+void RoomVoxels::update()
+{
+	// update grid rotation
+	m_VoxelData.model = glm::rotate(mat4(1.f),glm::radians(m_Rotation),vec3(0,0,1));
+	m_Rotation = fmod(m_Rotation-4.f*g_Frame.delta_time,360.f);
+}
+
+/**
+ *	remove voxelgrid scene
+ */
+void RoomVoxels::vanish()
+{
+}

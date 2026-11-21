@@ -11,8 +11,6 @@ in vec3 offset;
 in float scale;
 in vec3 colour;
 in vec2 material;
-// TODO which is faster, encode rotation into euler, use quaternion upload or simply upload transformation matrix
-// TODO how to map from sprite atlas with multibuffer
 
 out vec3 Position;
 out vec3 Normal;

@@ -8,36 +8,36 @@
 #ifdef DEBUG
 #include "script/clockwork.h"
 #endif
-
 #include "script/test.h"
 
 
 s32 main(s32 argc,char** argv)
 {
-	Font* __Ubuntu = g_Renderer.register_font("./res/font/ubuntu.ttf",20);
-
-	// engine components
+	// SETUP
+	Font* __EngineFont = g_Renderer.register_font("./res/font/garamond.ttf",50);
 #ifdef DEBUG
-	Clockwork __Clockwork = Clockwork(__Ubuntu);
+	Clockwork __Clockwork = Clockwork(__EngineFont);
 #endif
+	SceneListing __Test = SceneListing(__EngineFont);
 
-	// scripts
-	TestScene __Test = TestScene();
-
+	// RUN
+	g_Frame.finalize();
 	bool running = true;
 	while (running)
 	{
-		g_Frame.clear();
 		g_Input.update(running);
+		g_Camera.update();
+		g_Frame.clear();
 		g_Renderer.precalculate();
 		g_Wheel.update();
-		g_Camera.update();
 		g_UI.update();
 		g_Renderer.update();
 		g_Frame.update();
 	}
 
-	g_Renderer.exit();
+	// CLOSE
+	g_Input.vanish();
+	g_Renderer.vanish();
 	g_Frame.close();
 	return 0;
 }
