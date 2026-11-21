@@ -307,6 +307,7 @@ UniformBuffer::UniformBuffer()
 	__DescriptorPoolSize[0] = {  };
 	__DescriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	__DescriptorPoolSize[0].descriptorCount = GPU_BUFFER_COUNT*GPU_GUARANTEED_UNIFORM_COUNT;
+	__DescriptorPoolSize[1] = {  };
 	__DescriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	__DescriptorPoolSize[1].descriptorCount = GPU_BUFFER_COUNT*GPU_GUARANTEED_SAMPLER_COUNT;
 
@@ -430,6 +431,7 @@ void UniformBuffer::write(void* data,size_t size,size_t offset)
 void DescriptorSetMemory::allocate(u8 set,size_t size)
 {
 	COMM_AWT("allocating descriptor set memory");
+
 	m_Set = set;
 	m_Writes.reserve(size);
 	m_DescriptorInfos.reserve(size);
