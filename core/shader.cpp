@@ -249,9 +249,9 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			if (__Line.find("sampler2D")==string::npos)
 			{
 				size_t __Count;
-				_process_data_block_text(__File,__Count,p_Attrib.memsize);
-				p_Attrib.offset = interface.ubo_width;
-				interface.ubo_width += p_Attrib.memsize;
+				_process_data_block_text(__File,__Count,p_Attrib.range.range);
+				p_Attrib.range.offset = interface.ubo_width;
+				interface.ubo_width += p_Attrib.range.range;
 			}
 			// FIXME dont run this when repeating read from vertex in fragment source
 		}
@@ -1191,7 +1191,7 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		for (auto p_Binding = p_Set.begin();p_Binding!=p_Set.end();p_Binding++)
 		{
 			if (p_Binding->second.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-				p_DSetMemory.define_data_segment(p_Binding->first,p_Binding->second.memsize);
+				p_DSetMemory.define_data_segment(p_Binding->first,p_Binding->second.range.range);
 			else p_DSetMemory.define_texture_segment(p_Binding->first);
 		}
 	}

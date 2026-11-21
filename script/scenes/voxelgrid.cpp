@@ -9,7 +9,7 @@ const s32 TEST_INSTANCE_AMOUNT_GENERAL
 
 
 /**
- *	TODO
+ *	initialize testing voxelgrid for test room instances
  */
 void RoomVoxels::init(Font* font)
 {
@@ -54,7 +54,7 @@ void RoomVoxels::init(Font* font)
 }
 
 /**
- *	TODO
+ *	rotate voxelgrid over time
  */
 void RoomVoxels::update()
 {
@@ -64,9 +64,8 @@ void RoomVoxels::update()
 }
 
 /**
- *	TODO
+ *	remove voxelgrid scene
  */
 void RoomVoxels::vanish()
 {
-	// TODO
 }

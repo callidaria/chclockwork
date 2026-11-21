@@ -19,7 +19,6 @@ void ParcourParcs::init()
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
-	// TODO maybe solve the last parameters by type (TYPE_SHADOW,TYPE_GPASS,TYPE_FORWARD, et cetera)
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);
@@ -84,7 +83,7 @@ void ParcourParcs::init()
 	__BulbIndices[6] = { vec3(-9,5,.2f),.2f,vec3(.5f,.5f,0),vec2(0,.4f) };
 	__BulbIndices[7] = { vec3(-9,-5,.7f),.2f,vec3(0,.5f,.5f),vec2(0,.4f) };
 	__BulbBatch->ibo.register_upload(sizeof(BallIndex)*TEST_LIGHTBULB_COUNT);
-	// TODO can be improves, just pass count, load stores bytesize
+	// TODO can be improved, just pass count, load stores bytesize
 
 	// setup lighting
 	g_Renderer.add_sunlight(vec3(75,-150,100),vec3(1.f),.5f,true);

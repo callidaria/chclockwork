@@ -7,7 +7,6 @@
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
-// constexpr size_t SHADER_UPLOAD_VALUE_SIZE = sizeof(f32);
 
 
 #ifdef VKBUILD
@@ -71,9 +70,8 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
-	size_t offset = 0,memsize = 0;
+	MemoryRange range;
 };
-// FIXME offset & memsize could also be UBOMemoryRange?
 
 struct ShaderInterface
 {

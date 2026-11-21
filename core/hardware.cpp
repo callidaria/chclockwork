@@ -244,6 +244,7 @@ void Hardware::detect(VkInstance instance,VkSurfaceKHR surface)
  *	\param fs: list of requested formats, earlier formats in vector are preferred & have higher priority
  *	\param tile: image tiling, either texels laid out as optimal or linear
  *	\param feat: specifies usage & state features, required from the image
+ *	\returns first available format from format list, respecting priority order
  */
 VkFormat GPU::choose_texture_format(const vector<VkFormat>& fs,VkImageTiling tile,VkFormatFeatureFlags feat)
 {
@@ -428,6 +429,7 @@ void GPU::blank_graphics()
  *	acquire appropriate memory type, based on required properties
  *	\param props: memory properties
  *	\param type: type bits, from acquired memory requirements
+ *	\returns selected memory type index from memory_properties.memoryTypes array
  */
 u32 GPU::choose_memory_type(VkMemoryPropertyFlags props,u32 type)
 {
@@ -508,11 +510,7 @@ void GPU::generate_buffer(VkBuffer& vbo,VkDeviceMemory& mem,size_t size,
 	// analyze memory type
 	allocate_vram(mem,vbo,fproperty);
 	vkBindBufferMemory(g_GPU.gpu,vbo,mem,0);
-	// TODO iterate memory
-	// TODO optimize this away maybe. this should always be a repeat call?
-	// FIXME it is known: this is limited and not the usual way of allocating. modernize!
 }
-// FIXME performance, single allocation of device memory then all buffers use that memory
 
 /**
  *	generate binary semaphore, signaling on queue execution progress on gpu only. no usage for cpu

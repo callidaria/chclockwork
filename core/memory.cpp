@@ -31,6 +31,8 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 
 /**
  *	allocate vram heap for future vbo, ibo and instance data memory uploads
+ *	\param buffer: target buffer handle
+ *	\param size: size of preallocated heap in bytesize
  */
 VertexBufferHeap::VertexBufferHeap(VkBuffer* buffer,size_t size)
 	: m_Buffer(buffer)
@@ -133,6 +135,7 @@ void VertexBufferHeap::bind(u8 bfrs,size_t vofs,size_t iofs)
 /**
  *	vertex buffer allocation
  *	\param size: buffer size in bytes
+ *	\param type: static if this holds vertices, dynamic if it holds constantly updating ibo or similar
  *	\returns pointer to allocated segment in staging buffer memory
  */
 void* VertexBuffer::allocate(size_t size,VertexBufferType type)
@@ -202,7 +205,7 @@ void VertexBuffer::upload(void* vertices,size_t vsize,void* indices,size_t isize
 /**
  *	register buffer memory update
  *	\param size: memory size of updated range in bytes
- *	\param ofs: start of memory range in bytes
+ *	\param ofs: (default 0) start of memory range in bytes
  */
 void VertexBuffer::register_upload(size_t size,size_t ofs)
 {
@@ -453,7 +456,6 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 	};
 	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&image_view);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"image view creation failed");
-	// FIXME code repitition here, see blitter.cpp. abstract and allow for multiple images by pointer
 
 	// texture sampler
 	// decided against custom border colour extensions, due to missing reasons for higher support complexity
@@ -847,6 +849,7 @@ void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
  *	calculate estimated word length in given font
  *	\param word: given word for length estimation
  *	\param offset: (default 0) wordlength character offset to exclude buffer tail
+ *	\returns returns wordlength (on x-axis for unrotated text)
  */
 f32 Font::estimate_wordlength(string& word,u32 offset)
 {

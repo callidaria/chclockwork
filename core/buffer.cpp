@@ -31,7 +31,7 @@ void Framebuffer::setup(TargetResolution res,ShaderPipeline& sp,s16 result_buffe
 	m_AttachmentMemory.resize(__ComponentCount);
 #endif
 
-	// component definitions & combination into final framebuffer 
+	// component definitions & combination into final framebuffer
 	for (u8 i=0;i<sp.depth_channel;i++) _define_colour_component(i,sp.descriptions[i],result_buffer);
 	if (sp.has_depth) _define_depth_component(sp.depth_channel);
 	_finalize();
@@ -53,55 +53,50 @@ void Framebuffer::setup_result(vector<Framebuffer>& fbs,ShaderPipeline& sp)
 }
 
 /**
- *	helper for colour component definition, allowed as many as the constructor has allocated
- *	\param i: frambuffer component index, should be i<n for n prealloc by pipeline (unlikely to break)
- *	\param desc: pipeline attachment descriptions
- *	\param rb: passed down result buffer index, -1 if no result buffer linked at setup
+ *	setup framebuffer component image
+ *	\param img: target image
+ *	\param dim: frame dimension info, passed from framebuffer
+ *	\param format: colourspace format
+ *	\param usage: framebuffer component purpose (colour/depth)
  */
-inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb)
+inline void _generate_framebuffer_image(VkImage* img,FrameDimensions* dim,VkFormat format,
+										VkImageUsageFlags usage)
 {
-#ifdef VKBUILD
-	if (m_ResultBuffer)
-	{
-		COMM_ERR_COND(rb<0,"result attachment defined but no buffer id given");
-		COMM_ERR_COND(i>0,"result buffer with more than one colour component is not allowed");
-		attachment_images[i] = g_Frame.result_images[rb];
-		components[i] = g_Frame.result_image_views[rb];
-		return;
-	}
-
-	// allocate image
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-	__ImageInfo.extent.width = pm_FrameDimension->extent.width;
-	__ImageInfo.extent.height = pm_FrameDimension->extent.height;
+	__ImageInfo.extent.width = dim->extent.width;
+	__ImageInfo.extent.height = dim->extent.height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = 1;
 	__ImageInfo.arrayLayers = 1;
-	__ImageInfo.format = desc.format;
+	__ImageInfo.format = format;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	__ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
+	__ImageInfo.usage = usage;
 	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.flags = 0;
-	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&attachment_images[i]);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create colour attachment %d for some reason",i);
+	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,img);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create framebuffer component, image generation failed");
+}
 
-	// allocate vram
-	g_GPU.allocate_vram(m_AttachmentMemory[i],attachment_images[i]);
-	vkBindImageMemory(g_GPU.gpu,attachment_images[i],m_AttachmentMemory[i],0);
-	// FIXME repeat code chunk for vram allocation here (identical to depth buffer allocation)
-	// TODO check for allocation success (also for depth buffer
-
-	// colour buffer image view handle
+/**
+ *	setup framebuffer component image view
+ *	\param imgview: target image view
+ *	\param img: correlating component image
+ *	\param format: colourspace format
+ *	\param aspect: included image aspects
+ */
+inline void _generate_framebuffer_image_view(VkImageView* imgview,VkImage img,
+											 VkFormat format,VkImageAspectFlags aspect)
+{
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	__ImageViewInfo.image = attachment_images[i];
+	__ImageViewInfo.image = img;
 	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	__ImageViewInfo.format = desc.format;
-	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__ImageViewInfo.format = format;
+	__ImageViewInfo.subresourceRange.aspectMask = aspect;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = 1;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
@@ -112,8 +107,34 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 		.b = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.a = VK_COMPONENT_SWIZZLE_IDENTITY,
 	};
-	__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[i]);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
+	VkResult __Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,imgview);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"framebuffer component image view creation failed");
+}
+
+/**
+ *	helper for colour component definition, allowed as many as the constructor has allocated
+ *	\param i: frambuffer component index, should be i<n for n prealloc by pipeline (unlikely to break)
+ *	\param desc: pipeline attachment descriptions
+ *	\param rb: passed down result buffer index, -1 if no result buffer linked at setup
+ */
+inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& desc,s16 rb)
+{
+#ifdef VKBUILD
+	// handle case, when framebuffer result is final presentation frame
+	if (m_ResultBuffer)
+	{
+		COMM_ERR_COND(rb<0,"result attachment defined but no buffer id given");
+		attachment_images[i] = g_Frame.result_images[rb];
+		components[i] = g_Frame.result_image_views[rb];
+		return;
+	}
+
+	// allocate image, view & vram
+	_generate_framebuffer_image(&attachment_images[i],pm_FrameDimension,desc.format,
+								VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT);
+	g_GPU.allocate_vram(m_AttachmentMemory[i],attachment_images[i]);
+	vkBindImageMemory(g_GPU.gpu,attachment_images[i],m_AttachmentMemory[i],0);
+	_generate_framebuffer_image_view(&components[i],attachment_images[i],desc.format,VK_IMAGE_ASPECT_COLOR_BIT);
 
 #else
 	glBindTexture(GL_TEXTURE_2D,components[i]);
@@ -132,50 +153,13 @@ inline void Framebuffer::_define_colour_component(u8 i,VkAttachmentDescription& 
 inline void Framebuffer::_define_depth_component(u8 depth_channel)
 {
 #ifdef VKBUILD
-		// allocate image
-		VkImageCreateInfo __ImageInfo = {  };
-		__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
-		__ImageInfo.extent.width = pm_FrameDimension->extent.width;
-		__ImageInfo.extent.height = pm_FrameDimension->extent.height;
-		__ImageInfo.extent.depth = 1;
-		__ImageInfo.mipLevels = 1;
-		__ImageInfo.arrayLayers = 1;
-		__ImageInfo.format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
-		__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		__ImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT;
-		__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		__ImageInfo.flags = 0;
-		VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&attachment_images[depth_channel]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create depth buffer for some reason");
-
-		// allocate vram
-		g_GPU.allocate_vram(m_AttachmentMemory[depth_channel],attachment_images[depth_channel]);
-		vkBindImageMemory(g_GPU.gpu,attachment_images[depth_channel],m_AttachmentMemory[depth_channel],0);
-
-		// depth buffer image view handle
-		VkImageViewCreateInfo __ImageViewInfo = {  };
-		__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		__ImageViewInfo.image = attachment_images[depth_channel];
-		__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		__ImageViewInfo.format = g_Formats[GPU_BUFFER_FORMAT_DEPTH];
-		__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		__ImageViewInfo.subresourceRange.baseMipLevel = 0;
-		__ImageViewInfo.subresourceRange.levelCount = 1;
-		__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-		__ImageViewInfo.subresourceRange.layerCount = 1;
-		__ImageViewInfo.components = {
-			.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-			.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-		};
-		__Result = vkCreateImageView(g_GPU.gpu,&__ImageViewInfo,nullptr,&components[depth_channel]);
-		COMM_ERR_COND(__Result!=VK_SUCCESS,"depth buffer image view creation failed");
-		// FIXME another code repetition here, see blitter.cpp. abstract and allow for multiple images by pointer
-
+	_generate_framebuffer_image(
+			&attachment_images[depth_channel],pm_FrameDimension,g_Formats[GPU_BUFFER_FORMAT_DEPTH],
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT);
+	g_GPU.allocate_vram(m_AttachmentMemory[depth_channel],attachment_images[depth_channel]);
+	vkBindImageMemory(g_GPU.gpu,attachment_images[depth_channel],m_AttachmentMemory[depth_channel],0);
+	_generate_framebuffer_image_view(&components[depth_channel],attachment_images[depth_channel],
+									 g_Formats[GPU_BUFFER_FORMAT_DEPTH],VK_IMAGE_ASPECT_DEPTH_BIT);
 #else
 	glGenTextures(1,&m_DepthComponent);
 	glBindTexture(GL_TEXTURE_2D,m_DepthComponent);
