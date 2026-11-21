@@ -36,12 +36,16 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_FORMAT_COUNT
 };
 
-enum ShaderPipelineFeatures : u8
+enum ShaderPipelineFeatures : u32
 {
 	SPF_DEFAULT = 0,
 	SPF_FLIPPED = 1<<0,
 	SPF_BLENDING = 1<<1,
 	SPF_STENCIL = 1<<2,
+	SPF_WIREFRAME = 1<<3,
+	SPF_DOTS = 1<<4,
+	SPF_PRESTART = 1<<5,  // TODO actually use this later, converge draw calls for indexed draw after restart
+	SPF_NORASTER = 1<<6,
 };
 
 struct DescriptorInfo

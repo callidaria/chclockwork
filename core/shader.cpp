@@ -807,6 +807,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &m_References[depth_channel] : nullptr;
 
 	// subpass dependency
+	// this will prevent write hazards for WRITE_AFTER_READ so it is necessary for correct sync
 	VkSubpassDependency __SubpassDependency = {  };
 	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	__SubpassDependency.dstSubpass = 0;
@@ -817,7 +818,6 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	__SubpassDependency.dstAccessMask
 			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	// TODO feature selection based on component setup
 
 	// render pass
 	VkRenderPassCreateInfo __RPInfo = {  };
@@ -931,11 +931,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	VkPipelineInputAssemblyStateCreateInfo __AssemblyInfo = {  };
 	__AssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	__AssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	__AssemblyInfo.primitiveRestartEnable = VK_FALSE;
-	// TODO how would i even dynamically select this
-	// TODO this is a big discrepancy to the ogl implementation, that allows e.g. wireframe on the fly
-	//		cross correlate topology interpretation by definition between vulkan and ogl
-	// TODO i don't yet understand the full capabilities of primitiveRestartEnable. investigate further.
+	__AssemblyInfo.primitiveRestartEnable = (bool)(feat&SPF_PRESTART);
 
 	// fixed function dynamic state
 	VkPipelineDynamicStateCreateInfo __DynamicInfo = {  };
@@ -953,14 +949,19 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// TODO implement to allow for multiple output viewports
 
 	// fixed function rasterization
+	bool __Flipped = feat&SPF_FLIPPED;
+	bool __Wireframe = feat&SPF_WIREFRAME;
+	bool __Dots = feat&SPF_DOTS;
+	COMM_ERR_COND(__Wireframe&&__Dots,"wireframe & dots are enabled at the same time. this is not advisable");
 	VkPipelineRasterizationStateCreateInfo __RasterInfo = {  };
 	__RasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	__RasterInfo.depthClampEnable = VK_FALSE;  // TODO utilize this instead of depth clear + border colour
-	__RasterInfo.rasterizerDiscardEnable = VK_FALSE;
-	__RasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	__RasterInfo.depthClampEnable = VK_FALSE;
+	__RasterInfo.rasterizerDiscardEnable = (bool)(feat&SPF_NORASTER);
+	// TODO maybe for forward+ light culling computation? maybe other compute usecase?
+	__RasterInfo.polygonMode = (VkPolygonMode)((u32)VK_POLYGON_MODE_FILL+__Wireframe+__Dots*2);
 	__RasterInfo.lineWidth = 1.f;
 	__RasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-	__RasterInfo.frontFace = (feat&SPF_FLIPPED) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	__RasterInfo.frontFace = (__Flipped) ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	__RasterInfo.depthBiasEnable = VK_FALSE;
 	__RasterInfo.depthBiasConstantFactor = .0f;
 	__RasterInfo.depthBiasClamp = .0f;
@@ -982,6 +983,8 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 		__CBlendAttachment[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 		__CBlendAttachment[i].alphaBlendOp = VK_BLEND_OP_ADD;
 	}
+	// TODO allow for e.g. VK_FORMAT_R32 then colour write mask VK_COLOR_COMPONENT_R_BIT alone
+	//		this should be readable from the extracted shader interface
 
 	// fixed function colour blending
 	VkPipelineColorBlendStateCreateInfo __BlendingInfo = {  };
