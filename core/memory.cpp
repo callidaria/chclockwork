@@ -335,11 +335,11 @@ void TextureData::load(vec3 colour)
 	height = 1;
 
 	// write colour data
-	data = (u8*)malloc(sizeof(u32));
-	data[0] = colour.x*255;
-	data[1] = colour.y*255;
-	data[2] = colour.z*255;
-	data[3] = 255;
+	data.intbfr = (u8*)malloc(sizeof(u32));
+	data.intbfr[0] = colour.x*255;
+	data.intbfr[1] = colour.y*255;
+	data.intbfr[2] = colour.z*255;
+	data.intbfr[3] = 255;
 }
 
 /**
@@ -348,10 +348,10 @@ void TextureData::load(vec3 colour)
  */
 void TextureData::load(const char* path)
 {
-	COMM_ERR_COND(!check_file_exists(path),"texture %s could not be found",path);
+	COMM_ERR_COND(!check_file_exists(path),"texture at %s could not be found",path);
 	stbi_set_flip_vertically_on_load(true);
-	data = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
-	texture_flag = true;
+	data.intbfr = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
+	type = TEX_DATA_TYPE_INTEGER;
 }
 // FIXME that stbi_set_flip_vertically_on_load call here is due to my build setup, but should be at init
 //		the annoyance is pointing to a much bigger problem though, the entire stbi is reprocessed per tu
@@ -360,12 +360,23 @@ void TextureData::load(const char* path)
 //		and by extension must also process the stbi header. this cannot be the right solution!
 
 /**
+ *	TODO
+ */
+void TextureData::load_hdr(const char* path)
+{
+	COMM_ERR_COND(!check_file_exists(path),"hdr cubemap at %s could not be found",path);
+	stbi_set_flip_vertically_on_load(true);
+	data.floatbfr = stbi_loadf(path,&width,&height,0,STBI_rgb_alpha);
+	type = TEX_DATA_TYPE_FLOAT;
+}
+
+/**
  *	free buffer memory
  */
 void TextureData::vanish()
 {
-	if (texture_flag) stbi_image_free(data);
-	else free(data);
+	if (!type) free(data.intbfr);
+	else stbi_image_free(data.intbfr);
 }
 
 /**
@@ -821,7 +832,8 @@ void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 
 	// copy to staging memory
 	size_t __ImageSize = data.width*data.height*_texture_formats[m_Format].size;
-	memcpy((void*)((u8*)m_Data+ofs),data.data,__ImageSize);
+	if (data.type==TEX_DATA_TYPE_FLOAT) memcpy((void*)((f32*)m_Data+ofs),data.data.floatbfr,__ImageSize);
+	else memcpy((void*)((u8*)m_Data+ofs),data.data.intbfr,__ImageSize);
 
 	// insert copy region
 	VkBufferImageCopy __BufferCopy = {  };
@@ -1142,8 +1154,16 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 
 		// upload glyph as texture buffer
 		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
-		__TextureData.data = (u8*)malloc(__Mem);
-		memcpy(__TextureData.data,__Face->glyph->bitmap.buffer,__Mem);
+		if (__TextureData.type==TEX_DATA_TYPE_FLOAT)
+		{
+			__TextureData.data.floatbfr = (f32*)malloc(__Mem);
+			memcpy(__TextureData.data.floatbfr,__Face->glyph->bitmap.buffer,__Mem);
+		}
+		else
+		{
+			__TextureData.data.intbfr = (u8*)malloc(__Mem);
+			memcpy(__TextureData.data.intbfr,__Face->glyph->bitmap.buffer,__Mem);
+		}
 		_load(gpb,&font->tex[i],&__TextureData);
 	}
 	gpb->signal.proceed();

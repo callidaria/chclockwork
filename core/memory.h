@@ -107,18 +107,33 @@ enum TextureFormat : u8
 	TEXTURE_FORMAT_COUNT
 };
 
+enum TexDataType : u8
+{
+	TEX_DATA_TYPE_OVERWRITTEN,
+	TEX_DATA_TYPE_INTEGER,
+	TEX_DATA_TYPE_FLOAT,
+	TEX_DATA_TYPE_COUNT
+};
+
+union TexDataArr
+{
+	u8* intbfr;
+	f32* floatbfr;
+};
+
 struct TextureData
 {
 	// utility
 	void load(vec3 colour);
 	void load(const char* path);
+	void load_hdr(const char* path);
 	void vanish();
 
 	// data
-	u8* data;
+	TexDataArr data;
+	TexDataType type = TEX_DATA_TYPE_OVERWRITTEN;
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
-	bool texture_flag = false;
 };
 
 class Texture;

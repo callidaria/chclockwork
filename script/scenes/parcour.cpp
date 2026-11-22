@@ -19,11 +19,15 @@ void ParcourParcs::init()
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+	lptr<ShaderPipeline> __CubemapPipeline = g_Renderer.register_pipeline(
+			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED);
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
 	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline,1);
+	lptr<GeometryBatch> __CubemapBatch = g_Renderer.register_geometry_batch(__CubemapPipeline,1);
 
 	// setup geometry batch
 	GeometryTuple* __Floor = __EnviroBatch->add_geometry(Mesh::CUBE);
@@ -40,6 +44,9 @@ void ParcourParcs::init()
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Renderer.animate(&m_DudeMesh);
 	m_SpineJointTransform = &m_DudeMesh.find_joint("metarig_spine")->local_transform;
+
+	GeometryTuple* __Cubemap = __CubemapBatch->add_geometry(Mesh::CUBE);
+	__CubemapBatch->load();
 
 	// transform objects
 	__Floor->transform.scale(vec3(10,10,.1f));
@@ -70,6 +77,10 @@ void ParcourParcs::init()
 	Material* __DudeMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB)
 		);
+
+	// cubemap
+	Texture* __CubemapTexture = g_Renderer.register_texture("./res/ibl/russia.hdr");
+	__Cubemap->ubo.attach_texture(0,__CubemapTexture);
 
 	// lightbulbs
 	__BulbBatch->load(Mesh::SPHERE,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
