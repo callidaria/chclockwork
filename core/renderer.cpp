@@ -1113,10 +1113,10 @@ Renderer::Renderer()
 			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING);
 	m_TextPipeline = register_pipeline(
 			"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING);
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_RESULT_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING);
 	m_TargetPipeline = register_pipeline(
 			"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			TARGET_RESOLUTION_RESULT,RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT);
+			TARGET_RESOLUTION_RESULT,RENDERER_RESULT_BUFFER_FORMAT,SPF_DEFAULT);
 	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing

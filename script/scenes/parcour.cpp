@@ -21,7 +21,7 @@ void ParcourParcs::init()
 			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
 	lptr<ShaderPipeline> __CubemapPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDERER_FLOAT_BUFFER_FORMAT,SPF_FLIPPED);
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);
@@ -45,6 +45,7 @@ void ParcourParcs::init()
 	g_Renderer.animate(&m_DudeMesh);
 	m_SpineJointTransform = &m_DudeMesh.find_joint("metarig_spine")->local_transform;
 
+	// cubemap
 	GeometryTuple* __Cubemap = __CubemapBatch->add_geometry(Mesh::CUBE);
 	__CubemapBatch->load();
 

@@ -86,10 +86,20 @@ struct PipelineBufferFormats
 };
 
 // default pipeline buffer formats
-static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
+static inline PipelineBufferFormats RENDERER_RESULT_BUFFER_FORMAT = {
 	.formats = { GPU_BUFFER_FORMAT_SRGB },
 	.size = 1,
 	.depth = true
+};
+static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
+	.formats = { GPU_BUFFER_FORMAT_RGB },
+	.size = 1,
+	.depth = true
+};
+static inline PipelineBufferFormats RENDERER_FLOAT_BUFFER_FORMAT = {
+	.formats = { GPU_BUFFER_FORMAT_FLOAT },
+	.size = 1,
+	.depth = true,
 };
 static inline PipelineBufferFormats RENDERER_GEOMETRY_BUFFER_FORMAT = {
 	.formats = {
