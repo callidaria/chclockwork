@@ -9,19 +9,20 @@ void ParcourParcs::init()
 	// pipelines
 	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
 		"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT);
 	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED);
 	lptr<ShaderPipeline> __CubemapPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_FLOAT_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_FORWARD_DRAW,SPF_FLIPPED);
+	// TODO find out what else in the signature is obsolete
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);

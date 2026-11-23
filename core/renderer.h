@@ -72,40 +72,48 @@ constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // TODO check dynamic endpoint setup against possible duplicate constant usage violations
 
+// this describes the render stage, defined by render pass & framebuffer, a new pipeline will operate in
+enum RenderStage
+{
+	RENDER_STAGE_SHADOW_PROJECTION,
+	RENDER_STAGE_FORWARD_DRAW,
+	RENDER_STAGE_GEOMETRY_PASS,
+	RENDER_STAGE_RESULT_ASSEMBLY,
+	RENDER_STAGE_COUNT
+};
+
 
 // ----------------------------------------------------------------------------------------------------
 // GBuffer Layout
 
 // default pipeline buffer formats
-static inline RenderPassFormat RENDERER_RESULT_BUFFER_FORMAT = {
-	.formats = { GPU_BUFFER_FORMAT_SRGB },
-	.size = 1,
-	.depth = true
-};
-static inline RenderPassFormat RENDERER_STANDARD_BUFFER_FORMAT = {
-	.formats = { GPU_BUFFER_FORMAT_RGB },
-	.size = 1,
-	.depth = true
-};
-static inline RenderPassFormat RENDERER_FLOAT_BUFFER_FORMAT = {
-	.formats = { GPU_BUFFER_FORMAT_FLOAT },
-	.size = 1,
-	.depth = true,
-};
-static inline RenderPassFormat RENDERER_GEOMETRY_BUFFER_FORMAT = {
-	.formats = {
-		GPU_BUFFER_FORMAT_RGB,
-		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
-		GPU_BUFFER_FORMAT_RGB
+static inline RenderPassFormat g_RPS[RENDER_STAGE_COUNT] = {
+	{
+		.formats = {  },
+		.size = 0,
+		.depth = true
 	},
-	.size = 5,
-	.depth = true
+	{
+		.formats = { GPU_BUFFER_FORMAT_RGB },
+		.size = 1,
+		.depth = true
+	},
+	{
+		.formats = {
+			GPU_BUFFER_FORMAT_RGB,
+			GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
+			GPU_BUFFER_FORMAT_RGB
+		},
+		.size = 5,
+		.depth = true
+	},
+	{
+		.formats = { GPU_BUFFER_FORMAT_SRGB },
+		.size = 1,
+		.depth = true
+	},
 };
-static inline RenderPassFormat RENDERER_DEPTH_BUFFER_FORMAT = {
-	.formats = {  },
-	.size = 0,
-	.depth = true
-};
+// FIXME testing solution
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -507,7 +515,7 @@ public:
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-										   RenderPassFormat& format,u32 feat);
+										   RenderStage rs,u32 feat);
 	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
@@ -558,6 +566,8 @@ private:
 	Framebuffer m_Framebuffer;  // FIXME naming!!!!
 	Framebuffer m_GBuffer;
 	Framebuffer m_ShadowMap;
+	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT];
+	// FIXME this reserves for result also, even though result is stored in vector. format is a similar issue
 
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;

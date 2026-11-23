@@ -779,8 +779,9 @@ ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
  *	\param fs: fragment shader source
  *	\param feat: bitwise combination of ShaderPipelineFeatures
  *	\note either out_define_colour_buffer() or out_define_result_buffer() have to be called before assembly
+ *	TODO amend
  */
-void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,u32 feat)
+void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,Framebuffer& fb,u32 feat)
 {
 #ifdef VKBUILD
 	COMM_LOG("assembly of shaders vertex: %s & fragment: %s",vs,fs);
@@ -798,7 +799,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// vertex shader
 	__ModuleInfo.codeSize = __ShaderSizeVS;
 	__ModuleInfo.pCode = (u32*)__ShaderVS;
-	__Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	VkResult __Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
 
 	// fragment shader
@@ -1010,7 +1011,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = pipeline_layout;
-	__PipelineInfo.renderPass = render_pass;
+	__PipelineInfo.renderPass = fb.render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
@@ -1100,8 +1101,6 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
-	free(descriptions);
-	g_GPU.free(render_pass);
 #endif
 }
 

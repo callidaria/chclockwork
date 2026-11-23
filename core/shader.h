@@ -4,6 +4,7 @@
 
 #include "gpu_interface.h"
 #include "memory.h"
+#include "buffer.h"
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
@@ -214,11 +215,13 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	ShaderPipeline(bool depth=false);
+	/*
+	ShaderPipeline(bool depth);
 	ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth);
+	*/
 
 	// assembly
-	void assemble(TargetResolution res,const char* vs,const char* fs,u32 feat);
+	void assemble(TargetResolution res,const char* vs,const char* fs,Framebuffer& fb,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif
@@ -265,7 +268,6 @@ public:
 #ifdef VKBUILD
 	VkPipeline pipeline;
 	VkPipelineLayout pipeline_layout;
-	VkRenderPass render_pass;
 #else
 #endif
 	u8 depth_channel;

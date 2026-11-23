@@ -1110,29 +1110,27 @@ Renderer::Renderer()
 
 	// rendertargets
 	Framebuffer::setup_result(m_ResultBuffers);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,RENDERER_RESULT_BUFFER_FORMAT);
-	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT);
-	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT);
+	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,g_RPS[RENDER_STAGE_RESULT_ASSEMBLY]);
+	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,g_RPS[RENDER_STAGE_GEOMETRY_PASS]);
+	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,g_RPS[RENDER_STAGE_SHADOW_PROJECTION]);
 
 	// setup default pipelines
 	m_SpritePipeline = register_result_pipeline(
 			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING);
-	m_TextPipeline = register_pipeline(
-			"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_RESULT_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING);
-	m_TargetPipeline = register_pipeline(
-			"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			TARGET_RESOLUTION_RESULT,RENDERER_RESULT_BUFFER_FORMAT,SPF_DEFAULT);
+	m_TextPipeline = register_pipeline("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_RESULT_ASSEMBLY,SPF_FLIPPED|SPF_BLENDING);
+	m_TargetPipeline = register_pipeline("./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
+			TARGET_RESOLUTION_RESULT,RENDER_STAGE_RESULT_ASSEMBLY,SPF_DEFAULT);
 	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(
 			"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT
 		);
 	m_ShadowPassPipeline = register_pipeline(
 			"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
+			TARGET_RESOLUTION_SHADOWPROJ,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED
 		);
 
 	// upload 2D coordinate system
@@ -1533,13 +1531,16 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
  *	\param format: format of result, this includes colourspaces, count of output results & depth component spec
  *	\param feat: enabled/active features during shader pipeline processing
  *	\returns registered shader pipeline
+ *	TODO later also pack feature?
+ *	TODO amend
  */
 lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-												 RenderPassFormat& format,u32 feat)
+												 RenderStage rs,u32 feat)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(format.formats,format.size,format.depth));
+	RenderPassFormat& p_Format = g_RPS[rs];
+	m_ShaderPipelines.push_back(ShaderPipeline());
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(tr,vs,fs,feat);
+	p_Pipeline->assemble(tr,vs,fs,m_Framebuffers[rs],feat);
 	return p_Pipeline;
 }
 // TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
@@ -1555,9 +1556,9 @@ lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,T
  */
 lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(true));
+	m_ShaderPipelines.push_back(ShaderPipeline());
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
+	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,m_ResultBuffers[0],feat);
 	return p_Pipeline;
 }
 
