@@ -748,12 +748,14 @@ FragmentShader::FragmentShader(const char* path)
  *	construct result shader pipeline
  *	\param depth: (default false) true if depth information will be stored
  */
+/*
 ShaderPipeline::ShaderPipeline(bool depth)
 	: depth_channel(1),has_depth(depth),result_pipeline(true)
 {
 	_initialize(1+depth);
 	_define_colour_component(0,g_Frame.swapchain.format.format,true);
 }
+*/
 
 /**
  *	construction & allocation for render pass description
@@ -761,12 +763,14 @@ ShaderPipeline::ShaderPipeline(bool depth)
  *	\param bfr_count: amount of colour components in result
  *	\param depth: (default false) true if depth information will be stored
  */
+/*
 ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
 	: depth_channel(bfr_count),has_depth(depth)
 {
 	_initialize(bfr_count+depth);
 	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_GPU.formats[formats[i]]);
 }
+*/
 
 /**
  *	assemble shader pipeline from stage sources
@@ -780,61 +784,6 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 {
 #ifdef VKBUILD
 	COMM_LOG("assembly of shaders vertex: %s & fragment: %s",vs,fs);
-
-	// check for active depth store
-	if (has_depth)
-	{
-		// depth component
-		descriptions[depth_channel] = {};
-		descriptions[depth_channel].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
-		descriptions[depth_channel].samples = VK_SAMPLE_COUNT_1_BIT;
-		descriptions[depth_channel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // TODO enable/disable
-		descriptions[depth_channel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		descriptions[depth_channel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		descriptions[depth_channel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		descriptions[depth_channel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		// define as depth stencil component
-		m_References[depth_channel] = {};
-		m_References[depth_channel].attachment = depth_channel;
-		m_References[depth_channel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	}
-
-	// specify graphical subpass
-	VkSubpassDescription __SubpassDesc = {  };
-	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = depth_channel;
-	__SubpassDesc.pColorAttachments = m_References;
-	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &m_References[depth_channel] : nullptr;
-
-	// subpass dependency
-	// this will prevent write hazards for WRITE_AFTER_READ so it is necessary for correct sync
-	VkSubpassDependency __SubpassDependency = {  };
-	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	__SubpassDependency.dstStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.dstAccessMask
-			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-	// render pass
-	VkRenderPassCreateInfo __RPInfo = {  };
-	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = depth_channel+has_depth;
-	__RPInfo.pAttachments = descriptions;
-	__RPInfo.subpassCount = 1;
-	__RPInfo.pSubpasses = &__SubpassDesc;
-	__RPInfo.dependencyCount = 1;
-	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
-
-	// cleanup setup component for render pass
-	free(m_References);
 
 	// read precompiled shader binaries
 	u32 __ShaderSizeVS,__ShaderSizeFS;
@@ -1243,7 +1192,6 @@ u32 ShaderPipeline::get_uniform_location(const char* uname)
 }
 
 // uniform variable upload function correlation map
-#ifdef GLBUILD
 typedef void (*uniform_upload)(u16,f32*);
 void _uploadi(u16 uloc,f32* data) { glUniform1u(uloc,data[0]); }
 void _uploadui(u16 uloc,f32* data) { glUniform1i(uloc,data[0],data[1]); }
@@ -1254,7 +1202,6 @@ void _upload4f(u16 uloc,f32* data) { glUniform4f(uloc,data[0],data[1],data[2],da
 void _upload4m(u16 uloc,f32* data) { glUniformMatrix4fv(uloc,1,GL_FALSE,data); }
 uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
 		= { _uploadu,_uploadi,_upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
-#endif
 
 /**
  *	upload signed integer to shader
@@ -1331,48 +1278,6 @@ void ShaderPipeline::upload_camera(Camera3D& c)
 	upload("view",SHADER_UNIFORM_MAT44,glm::value_ptr(c.view));
 	upload("proj",SHADER_UNIFORM_MAT44,glm::value_ptr(c.proj));
 }
-
-#endif
-
-/**
- *	initialization call for construction
- *	\param count: combined amount of colour + depth buffer
- */
-void ShaderPipeline::_initialize(u8 count)
-{
-	descriptions = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
-	m_References = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
-}
-
-#ifdef VKBUILD
-
-/**
- *	helper to define different sorts of colour components by format and index
- *	\param index: colour component index
- *	\param format: requested colour component format, depending on usage
- *	\param result: (default false) true if component is result buffer
- */
-void ShaderPipeline::_define_colour_component(u8 index,VkFormat format,bool result)
-{
-	// specify colour component
-	descriptions[index] = {};
-	descriptions[index].format = format;
-	descriptions[index].samples = VK_SAMPLE_COUNT_1_BIT;
-	descriptions[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	descriptions[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	descriptions[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	descriptions[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	descriptions[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	descriptions[index].finalLayout
-			= (result) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	// specify fragment output location
-	m_References[index] = {};
-	m_References[index].attachment = index;
-	m_References[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-}
-
-#else
 
 /**
  *	point to attribute in vertex buffer raster

@@ -162,14 +162,6 @@ private:
 
 
 // ----------------------------------------------------------------------------------------------------
-// Render Pass
-struct RenderPass
-{
-	void assemble(size_t size);
-}
-
-
-// ----------------------------------------------------------------------------------------------------
 // Shader Pipeline
 
 #ifdef GLBUILD
@@ -274,7 +266,6 @@ public:
 	VkPipeline pipeline;
 	VkPipelineLayout pipeline_layout;
 	VkRenderPass render_pass;
-	VkAttachmentDescription* descriptions;
 #else
 #endif
 	u8 depth_channel;
@@ -284,7 +275,6 @@ public:
 private:
 #ifdef VKBUILD
 	ShaderInterface m_Interface;
-	VkAttachmentReference* m_References;
 #else
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;

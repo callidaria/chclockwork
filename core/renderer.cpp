@@ -1108,6 +1108,12 @@ Renderer::Renderer()
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
 
+	// rendertargets
+	Framebuffer::setup_result(m_ResultBuffers);
+	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,RENDERER_RESULT_BUFFER_FORMAT);
+	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT);
+	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT);
+
 	// setup default pipelines
 	m_SpritePipeline = register_result_pipeline(
 			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING);
@@ -1128,12 +1134,6 @@ Renderer::Renderer()
 			"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
 			TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
 		);
-
-	// result target & geometry target
-	Framebuffer::setup_result(m_ResultBuffers,*m_SpritePipeline);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_TargetPipeline);
-	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_GeometryPassPipeline);
-	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,*m_ShadowPassPipeline);
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -1535,7 +1535,7 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
  *	\returns registered shader pipeline
  */
 lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-												 PipelineBufferFormats& format,u32 feat)
+												 RenderPassFormat& format,u32 feat)
 {
 	m_ShaderPipelines.push_back(ShaderPipeline(format.formats,format.size,format.depth));
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());

@@ -76,32 +76,23 @@ constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // ----------------------------------------------------------------------------------------------------
 // GBuffer Layout
 
-// format tuple, important information for pipeline registration
-constexpr u8 RENDERER_MAXIMUM_BUFFER_FORMATS = 8;
-struct PipelineBufferFormats
-{
-	GPUBufferFormat formats[RENDERER_MAXIMUM_BUFFER_FORMATS];
-	u8 size;
-	bool depth;
-};
-
 // default pipeline buffer formats
-static inline PipelineBufferFormats RENDERER_RESULT_BUFFER_FORMAT = {
+static inline RenderPassFormat RENDERER_RESULT_BUFFER_FORMAT = {
 	.formats = { GPU_BUFFER_FORMAT_SRGB },
 	.size = 1,
 	.depth = true
 };
-static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
+static inline RenderPassFormat RENDERER_STANDARD_BUFFER_FORMAT = {
 	.formats = { GPU_BUFFER_FORMAT_RGB },
 	.size = 1,
 	.depth = true
 };
-static inline PipelineBufferFormats RENDERER_FLOAT_BUFFER_FORMAT = {
+static inline RenderPassFormat RENDERER_FLOAT_BUFFER_FORMAT = {
 	.formats = { GPU_BUFFER_FORMAT_FLOAT },
 	.size = 1,
 	.depth = true,
 };
-static inline PipelineBufferFormats RENDERER_GEOMETRY_BUFFER_FORMAT = {
+static inline RenderPassFormat RENDERER_GEOMETRY_BUFFER_FORMAT = {
 	.formats = {
 		GPU_BUFFER_FORMAT_RGB,
 		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
@@ -110,7 +101,7 @@ static inline PipelineBufferFormats RENDERER_GEOMETRY_BUFFER_FORMAT = {
 	.size = 5,
 	.depth = true
 };
-static inline PipelineBufferFormats RENDERER_DEPTH_BUFFER_FORMAT = {
+static inline RenderPassFormat RENDERER_DEPTH_BUFFER_FORMAT = {
 	.formats = {  },
 	.size = 0,
 	.depth = true
@@ -516,7 +507,7 @@ public:
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-										   PipelineBufferFormats& format,u32 feat);
+										   RenderPassFormat& format,u32 feat);
 	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
