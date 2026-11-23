@@ -20,7 +20,7 @@ class Framebuffer
 {
 public:
 	Framebuffer() {  }
-	void setup(TargetResolution res,RenderPassFormat& format,u8 result_buffer=-1);
+	void setup(TargetResolution res,RenderPassFormat& format,s16 result_buffer=-1);
 	static void setup_result(vector<Framebuffer>& fbs);
 	void vanish();
 

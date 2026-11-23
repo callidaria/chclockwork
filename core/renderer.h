@@ -563,9 +563,6 @@ private:
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers;
-	Framebuffer m_Framebuffer;  // FIXME naming!!!!
-	Framebuffer m_GBuffer;
-	Framebuffer m_ShadowMap;
 	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT];
 	// FIXME this reserves for result also, even though result is stored in vector. format is a similar issue
 

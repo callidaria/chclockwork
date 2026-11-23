@@ -1110,9 +1110,12 @@ Renderer::Renderer()
 
 	// rendertargets
 	Framebuffer::setup_result(m_ResultBuffers);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,g_RPS[RENDER_STAGE_RESULT_ASSEMBLY]);
-	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,g_RPS[RENDER_STAGE_GEOMETRY_PASS]);
-	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,g_RPS[RENDER_STAGE_SHADOW_PROJECTION]);
+	m_Framebuffers[RENDER_STAGE_RESULT_ASSEMBLY].setup(TARGET_RESOLUTION_FULLSCREEN,
+													   g_RPS[RENDER_STAGE_RESULT_ASSEMBLY]);
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].setup(TARGET_RESOLUTION_FULLSCREEN,
+													 g_RPS[RENDER_STAGE_GEOMETRY_PASS]);
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].setup(TARGET_RESOLUTION_SHADOWPROJ,
+														 g_RPS[RENDER_STAGE_SHADOW_PROJECTION]);
 
 	// setup default pipelines
 	m_SpritePipeline = register_result_pipeline(
@@ -1162,12 +1165,16 @@ Renderer::Renderer()
 	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,
-									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_COLOUR]);
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].components[FORWARD_BUFFER_CHANNEL_COLOUR]);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,
-									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_DEPTH]);
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].components[FORWARD_BUFFER_CHANNEL_DEPTH]);
 	for (u16 i=0;i<DEFERRED_BUFFER_CHANNEL_COUNT;i++)
-		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,m_GBuffer.components[i]);
-	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,m_ShadowMap.components[0]);
+	{
+		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,
+										  m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].components[i]);
+	}
+	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,
+									  m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].components[0]);
 
 	// load ubo
 	m_SpriteUBO.create(m_SpritePipeline);
@@ -1241,24 +1248,26 @@ void Renderer::update()
 	_update_uniforms();
 
 	// shadow pass
-	m_ShadowMap.record();
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].record();
 	_update_shadow(m_ShadowGeometryBatches,m_ShadowParticleBatches);
-	m_ShadowMap.stop();
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].stop();
 
 	// record scene, deferred component
-	m_GBuffer.record();
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].record();
 	_update_geometry(m_DeferredGeometryBatches,m_DeferredParticleBatches);
-	m_GBuffer.stop();
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].stop();
 
 	// record scene, forward component
-	m_Framebuffer.record();
+	m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].record();
 	_update_geometry(m_GeometryBatches,m_ParticleBatches);
-	m_Framebuffer.stop();
+	m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].stop();
 
 	// transition depth results
-	Texture::transition_depth_texture(m_Framebuffer.attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
-	Texture::transition_depth_texture(m_GBuffer.attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
-	Texture::transition_depth_texture(m_ShadowMap.attachment_images[0]);
+	Texture::transition_depth_texture(
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
+	Texture::transition_depth_texture(
+		m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
+	Texture::transition_depth_texture(m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].attachment_images[0]);
 
 	// result assembly
 	m_ResultBuffers[g_Frame.frame_id].record();
@@ -1280,9 +1289,7 @@ void Renderer::vanish()
 	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
 
 	// clean framebuffers
-	m_ShadowMap.vanish();
-	m_GBuffer.vanish();
-	m_Framebuffer.vanish();
+	for (u8 i=0;i<RENDER_STAGE_COUNT-1;i++) m_Framebuffers[i].vanish();
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
 
 	// clear pixel buffers

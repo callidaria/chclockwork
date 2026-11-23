@@ -11,7 +11,7 @@
  *			indexed by this variable
  *	TODO amend
  */
-void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,u8 result_buffer)
+void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result_buffer)
 {
 	m_Channels = format.size;
 	m_Depth = format.depth;
@@ -25,10 +25,11 @@ void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,u8 result_
 	m_AttachmentMemory.resize(m_ComponentCount);
 
 	// setup render pass components for buffer result channels & store attributes
-	// only generates render pass if not a result buffer (rb = -1) or the first result instance (rb = 0)
 #ifdef VKBUILD
-	if (result_buffer<1) _create_render_pass(format);
+	/*if (result_buffer<1) */_create_render_pass(format);
 	pm_FrameDimension = &g_Frame.fdims[res];
+	// TODO should do the following:
+	// only generates render pass if not a result buffer (rb = -1) or the first result instance (rb = 0)
 
 	// component definitions & combination into final framebuffer
 	for (u8 i=0;i<format.size;i++) _define_colour_component(i,result_buffer);
