@@ -13,9 +13,9 @@
  */
 void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result_buffer)
 {
-	m_Channels = format.size;
-	m_Depth = format.depth;
-	m_ComponentCount = m_Channels+m_Depth;
+	channels = format.size;
+	has_depth = format.depth;
+	m_ComponentCount = channels+has_depth;
 	m_ResultBuffer = result_buffer>-1;
 	// TODO this is not necessary anymore with passed format structure?
 
@@ -69,7 +69,7 @@ void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result
  */
 void Framebuffer::setup_result(vector<Framebuffer>& fbs)
 {
-	RenderPassFormat __Format = { .size=1,.depth=false };
+	RenderPassFormat __Format = { .size=1,.depth=true };
 	__Format.formats[0] = GPU_BUFFER_FORMAT_SRGB;  //g_Frame.swapchain.format.format;  // FIXME
 	fbs.resize(g_Frame.result_image_views.size());
 	for (u8 i=0;i<g_Frame.result_image_views.size();i++) fbs[i].setup(TARGET_RESOLUTION_RESULT,__Format,i);
@@ -82,7 +82,7 @@ void Framebuffer::_create_render_pass(RenderPassFormat& format)
 {
 	m_AttachDesc.resize(m_ComponentCount);
 	vector<VkAttachmentReference> __AttachRef = vector<VkAttachmentReference>(m_ComponentCount);
-	for (u8 i=0;i<m_Channels;i++)
+	for (u8 i=0;i<channels;i++)
 	{
 		// specify colour component
 		m_AttachDesc[i] = {  };
@@ -103,32 +103,32 @@ void Framebuffer::_create_render_pass(RenderPassFormat& format)
 	}
 
 	// setup render pass depth component
-	if (m_Depth)
+	if (has_depth)
 	{
 		// specify colour component
-		m_AttachDesc[m_Channels] = {  };
-		m_AttachDesc[m_Channels].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
-		m_AttachDesc[m_Channels].samples = VK_SAMPLE_COUNT_1_BIT;
-		m_AttachDesc[m_Channels].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		m_AttachDesc[m_Channels].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		m_AttachDesc[m_Channels].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // TODO enable/disable
-		m_AttachDesc[m_Channels].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		m_AttachDesc[m_Channels].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		m_AttachDesc[m_Channels].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		m_AttachDesc[channels] = {  };
+		m_AttachDesc[channels].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
+		m_AttachDesc[channels].samples = VK_SAMPLE_COUNT_1_BIT;
+		m_AttachDesc[channels].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		m_AttachDesc[channels].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		m_AttachDesc[channels].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // TODO enable/disable
+		m_AttachDesc[channels].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		m_AttachDesc[channels].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		m_AttachDesc[channels].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		// specify fragment output location
-		__AttachRef[m_Channels] = {  };
-		__AttachRef[m_Channels].attachment = m_Channels;
-		__AttachRef[m_Channels].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		__AttachRef[channels] = {  };
+		__AttachRef[channels].attachment = channels;
+		__AttachRef[channels].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	}
 	// TODO reduce gencode
 
 	// specify graphical subpass
 	VkSubpassDescription __SubpassDesc = {  };
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = m_Channels;
+	__SubpassDesc.colorAttachmentCount = channels;
 	__SubpassDesc.pColorAttachments = &__AttachRef[0];
-	__SubpassDesc.pDepthStencilAttachment = (m_Depth) ? &__AttachRef[m_Channels] : nullptr;
+	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &__AttachRef[channels] : nullptr;
 
 	// subpass dependency
 	// this will prevent write hazards for WRITE_AFTER_READ so it is necessary for correct sync
@@ -257,11 +257,11 @@ inline void Framebuffer::_define_depth_component()
 {
 #ifdef VKBUILD
 	_generate_framebuffer_image(
-			&attachment_images[m_Channels],pm_FrameDimension,g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],
+			&attachment_images[channels],pm_FrameDimension,g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT);
-	g_GPU.allocate_vram(m_AttachmentMemory[m_Channels],attachment_images[m_Channels]);
-	vkBindImageMemory(g_GPU.gpu,attachment_images[m_Channels],m_AttachmentMemory[m_Channels],0);
-	_generate_framebuffer_image_view(&components[m_Channels],attachment_images[m_Channels],
+	g_GPU.allocate_vram(m_AttachmentMemory[channels],attachment_images[channels]);
+	vkBindImageMemory(g_GPU.gpu,attachment_images[channels],m_AttachmentMemory[channels],0);
+	_generate_framebuffer_image_view(&components[channels],attachment_images[channels],
 									 g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],VK_IMAGE_ASPECT_DEPTH_BIT);
 #else
 	glGenTextures(1,&m_DepthComponent);

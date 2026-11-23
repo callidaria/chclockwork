@@ -40,6 +40,8 @@ public:
 	vector<__fbuffer_component> components;
 	vector<VkClearValue> m_ClearValues;
 	VkRenderPass render_pass;
+	u8 channels;
+	bool has_depth;
 
 private:
 #ifdef VKBUILD
@@ -47,9 +49,7 @@ private:
 	vector<VkAttachmentDescription> m_AttachDesc;
 	VkFramebuffer m_Framebuffer;
 	FrameDimensions* pm_FrameDimension;
-	u8 m_Channels;
 	u8 m_ComponentCount = 0;
-	bool m_Depth = false;
 	bool m_ResultBuffer = false;
 #else
 	u32 m_Buffer;

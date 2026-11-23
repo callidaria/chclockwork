@@ -270,9 +270,6 @@ public:
 	VkPipelineLayout pipeline_layout;
 #else
 #endif
-	u8 depth_channel;
-	bool has_depth;
-	bool result_pipeline = false;
 
 private:
 #ifdef VKBUILD

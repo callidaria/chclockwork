@@ -745,34 +745,6 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 /**
- *	construct result shader pipeline
- *	\param depth: (default false) true if depth information will be stored
- */
-/*
-ShaderPipeline::ShaderPipeline(bool depth)
-	: depth_channel(1),has_depth(depth),result_pipeline(true)
-{
-	_initialize(1+depth);
-	_define_colour_component(0,g_Frame.swapchain.format.format,true);
-}
-*/
-
-/**
- *	construction & allocation for render pass description
- *	\param formats: buffer formats
- *	\param bfr_count: amount of colour components in result
- *	\param depth: (default false) true if depth information will be stored
- */
-/*
-ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
-	: depth_channel(bfr_count),has_depth(depth)
-{
-	_initialize(bfr_count+depth);
-	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_GPU.formats[formats[i]]);
-}
-*/
-
-/**
  *	assemble shader pipeline from stage sources
  *	\param res: target resolution dimension type of result
  *	\param vs: vertex shader source
@@ -921,8 +893,8 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
 
 	// colour blending attachment
-	vector<VkPipelineColorBlendAttachmentState> __CBlendAttachment(depth_channel);
-	for (u8 i=0;i<depth_channel;i++)
+	vector<VkPipelineColorBlendAttachmentState> __CBlendAttachment(fb.channels);
+	for (u8 i=0;i<fb.channels;i++)
 	{
 		__CBlendAttachment[i] = {  };
 		__CBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
@@ -943,7 +915,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	__BlendingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	__BlendingInfo.logicOpEnable = VK_FALSE;
 	__BlendingInfo.logicOp = VK_LOGIC_OP_COPY;
-	__BlendingInfo.attachmentCount = depth_channel;
+	__BlendingInfo.attachmentCount = fb.channels;
 	__BlendingInfo.pAttachments = &__CBlendAttachment[0];
 	__BlendingInfo.blendConstants[0] = .0f;
 	__BlendingInfo.blendConstants[1] = .0f;
@@ -963,8 +935,8 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// depth stencil
 	VkPipelineDepthStencilStateCreateInfo __DepthStencilInfo = {  };
 	__DepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	__DepthStencilInfo.depthTestEnable = has_depth;
-	__DepthStencilInfo.depthWriteEnable = has_depth;
+	__DepthStencilInfo.depthTestEnable = fb.has_depth;
+	__DepthStencilInfo.depthWriteEnable = fb.has_depth;
 	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = (bool)(feat&SPF_STENCIL);
