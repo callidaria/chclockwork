@@ -307,6 +307,7 @@ struct TextureFormatTuple
 TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
 	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
 	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
+	{ VK_FORMAT_B10G11R11_UFLOAT_PACK32,4 },
 	{ VK_FORMAT_R8_UNORM,1 }
 };
 
@@ -366,9 +367,17 @@ void TextureData::load_hdr(const char* path)
 {
 	COMM_ERR_COND(!check_file_exists(path),"hdr cubemap at %s could not be found",path);
 	stbi_set_flip_vertically_on_load(true);
-	data.floatbfr = stbi_loadf(path,&width,&height,0,STBI_rgb_alpha);
+	f32* __ImageBfr = stbi_loadf(path,&width,&height,0,STBI_rgb_alpha);
+	data.floatbfr = (u32*)malloc(width*height*sizeof(u32));
+	for (size_t i=0;i<width*height;i++)
+	{
+		vec3 __Pixel = vec3(__ImageBfr[i*4+0],__ImageBfr[i*4+1],__ImageBfr[i*4+2]);
+		data.floatbfr[i] = glm::packF2x11_1x10(__Pixel);
+	}
+	stbi_image_free(__ImageBfr);
 	type = TEX_DATA_TYPE_FLOAT;
 }
+// TODO implement packing into 
 
 /**
  *	free buffer memory
@@ -377,6 +386,7 @@ void TextureData::vanish()
 {
 	if (!type) free(data.intbfr);
 	else stbi_image_free(data.intbfr);
+	// TODO free for floatbuffer as well
 }
 
 /**
@@ -417,6 +427,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create texture image handle");
 	// TODO as a possible late-stage optimization look into image unionization for multiple image destinations
 	//		utilizing the same memory by setting an initialLayout and an alias
 	//		this will probably just be useful for rendertarget results that do not overlap in timing
@@ -1156,8 +1167,8 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
 		if (__TextureData.type==TEX_DATA_TYPE_FLOAT)
 		{
-			__TextureData.data.floatbfr = (f32*)malloc(__Mem);
-			memcpy(__TextureData.data.floatbfr,__Face->glyph->bitmap.buffer,__Mem);
+			__TextureData.data.intbfr = (u8*)malloc(__Mem);
+			memcpy(__TextureData.data.intbfr,__Face->glyph->bitmap.buffer,__Mem);
 		}
 		else
 		{

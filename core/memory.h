@@ -103,6 +103,7 @@ enum TextureFormat : u8
 {
 	TEXTURE_FORMAT_RGBA,
 	TEXTURE_FORMAT_SRGB,
+	TEXTURE_FORMAT_RGBu11,
 	TEXTURE_FORMAT_MONOCHROME,
 	TEXTURE_FORMAT_COUNT
 };
@@ -118,7 +119,7 @@ enum TexDataType : u8
 union TexDataArr
 {
 	u8* intbfr;
-	f32* floatbfr;
+	u32* floatbfr;
 };
 
 struct TextureData

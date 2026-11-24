@@ -1761,7 +1761,8 @@ void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat for
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data;
-	__Data.load(path);
+	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
+	else __Data.load(path);
 	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
 }
 
