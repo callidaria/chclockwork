@@ -284,15 +284,16 @@ void Framebuffer::vanish()
 	for (u8 i=0;i<components.size();i++)
 	{
 		g_GPU.free(components[i]);
-		g_GPU.free(render_pass);
 
-		// free component memory should it have been allocated by the framebuffer
-		if (m_ResultBuffer) continue;
+		// free component memory should it have been allocated by the framebuffer. only continue free
+		// for the first element for byproducts & also possible depth buffer component alongside swapchain result
+		if (i==0&&m_ResultBuffer) continue;
 		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(attachment_images[i]);
 	}
 
 	// kill framebuffer
+	g_GPU.free(render_pass);
 	g_GPU.free(m_Framebuffer);
 #endif
 }

@@ -1291,8 +1291,8 @@ void Renderer::vanish()
 	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
 
 	// clean framebuffers
-	for (u8 i=0;i<RENDER_STAGE_COUNT-1;i++) m_Framebuffers[i].vanish();
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
+	for (u8 i=0;i<RENDER_STAGE_COUNT;i++) m_Framebuffers[i].vanish();
 
 	// clear pixel buffers
 	m_GPUSpriteTextures.atlas.vanish();
