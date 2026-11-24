@@ -221,7 +221,7 @@ public:
 	*/
 
 	// assembly
-	void assemble(TargetResolution res,const char* vs,const char* fs,Framebuffer& fb,u32 feat);
+	void assemble(TargetResolution res,const char* vs,const char* fs,RenderPass& rp,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif

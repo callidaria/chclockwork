@@ -11,11 +11,10 @@
  *			indexed by this variable
  *	TODO amend
  */
-void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result_buffer)
+void Framebuffer::setup(TargetResolution res,RenderPass* rp,s16 result_buffer)
 {
-	channels = format.size;
-	has_depth = format.depth;
-	m_ComponentCount = channels+has_depth;
+	pm_RenderPass = rp;
+	m_ComponentCount = rp->formats.size()+rp->depth;
 	m_ResultBuffer = result_buffer>-1;
 	// TODO this is not necessary anymore with passed format structure?
 
@@ -25,20 +24,19 @@ void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result
 	m_AttachmentMemory.resize(m_ComponentCount);
 
 	// setup render pass components for buffer result channels & store attributes
-#ifdef VKBUILD
-	/*if (result_buffer<1) */_create_render_pass(format);
-	pm_FrameDimension = &g_Frame.fdims[res];
-	// TODO should do the following:
 	// only generates render pass if not a result buffer (rb = -1) or the first result instance (rb = 0)
+#ifdef VKBUILD
+	if (result_buffer<1) _create_render_pass(rp);
+	pm_FrameDimension = &g_Frame.fdims[res];
 
 	// component definitions & combination into final framebuffer
-	for (u8 i=0;i<format.size;i++) _define_colour_component(i,result_buffer);
-	if (format.depth) _define_depth_component();
+	for (u8 i=0;i<rp->formats.size();i++) _define_colour_component(i,result_buffer);
+	if (rp->depth) _define_depth_component(rp->formats.size());
 
 	// create framebuffer
 	VkFramebufferCreateInfo __FramebufferInfo = {  };
 	__FramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	__FramebufferInfo.renderPass = render_pass;
+	__FramebufferInfo.renderPass = rp->render_pass;
 	__FramebufferInfo.attachmentCount = components.size();
 	__FramebufferInfo.width = pm_FrameDimension->extent.width;
 	__FramebufferInfo.height = pm_FrameDimension->extent.height;
@@ -49,7 +47,7 @@ void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result
 
 	// populate clear values
 	m_ClearValues = vector<VkClearValue>(components.size(),g_Frame.clear_colour[CLEAR_COLOUR_FRAME]);
-	if (format.depth) m_ClearValues.back() = g_Frame.clear_colour[CLEAR_COLOUR_DEPTH];
+	if (rp->depth) m_ClearValues.back() = g_Frame.clear_colour[CLEAR_COLOUR_DEPTH];
 
 #else
 	// join attachments
@@ -66,27 +64,27 @@ void Framebuffer::setup(TargetResolution res,RenderPassFormat& format,s16 result
 /**
  *	setup result buffers
  *	\param fbs: vector of result framebuffers to setup. should be non-initialized
+ *	TODO amend
  */
-void Framebuffer::setup_result(vector<Framebuffer>& fbs)
+void Framebuffer::setup_result(RenderPass* rp,vector<Framebuffer>& fbs)
 {
-	RenderPassFormat __Format = { .size=1,.depth=true };
-	__Format.formats[0] = GPU_BUFFER_FORMAT_SRGB;  //g_Frame.swapchain.format.format;  // FIXME
 	fbs.resize(g_Frame.result_image_views.size());
-	for (u8 i=0;i<g_Frame.result_image_views.size();i++) fbs[i].setup(TARGET_RESOLUTION_RESULT,__Format,i);
+	for (u8 i=0;i<g_Frame.result_image_views.size();i++) fbs[i].setup(TARGET_RESOLUTION_RESULT,rp,i);
 }
 
 /**
  *	TODO
  */
-void Framebuffer::_create_render_pass(RenderPassFormat& format)
+void Framebuffer::_create_render_pass(RenderPass* rp)
 {
+	u8 __Channels = rp->formats.size();
 	m_AttachDesc.resize(m_ComponentCount);
 	vector<VkAttachmentReference> __AttachRef = vector<VkAttachmentReference>(m_ComponentCount);
-	for (u8 i=0;i<channels;i++)
+	for (u8 i=0;i<__Channels;i++)
 	{
 		// specify colour component
 		m_AttachDesc[i] = {  };
-		m_AttachDesc[i].format = g_GPU.formats[format.formats[i]];
+		m_AttachDesc[i].format = g_GPU.formats[rp->formats[i]];
 		m_AttachDesc[i].samples = VK_SAMPLE_COUNT_1_BIT;
 		m_AttachDesc[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		m_AttachDesc[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -103,32 +101,32 @@ void Framebuffer::_create_render_pass(RenderPassFormat& format)
 	}
 
 	// setup render pass depth component
-	if (has_depth)
+	if (rp->depth)
 	{
 		// specify colour component
-		m_AttachDesc[channels] = {  };
-		m_AttachDesc[channels].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
-		m_AttachDesc[channels].samples = VK_SAMPLE_COUNT_1_BIT;
-		m_AttachDesc[channels].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		m_AttachDesc[channels].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		m_AttachDesc[channels].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // TODO enable/disable
-		m_AttachDesc[channels].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		m_AttachDesc[channels].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		m_AttachDesc[channels].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		m_AttachDesc[__Channels] = {  };
+		m_AttachDesc[__Channels].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
+		m_AttachDesc[__Channels].samples = VK_SAMPLE_COUNT_1_BIT;
+		m_AttachDesc[__Channels].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		m_AttachDesc[__Channels].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		m_AttachDesc[__Channels].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // TODO enable/disable
+		m_AttachDesc[__Channels].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		m_AttachDesc[__Channels].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		m_AttachDesc[__Channels].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		// specify fragment output location
-		__AttachRef[channels] = {  };
-		__AttachRef[channels].attachment = channels;
-		__AttachRef[channels].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		__AttachRef[__Channels] = {  };
+		__AttachRef[__Channels].attachment = __Channels;
+		__AttachRef[__Channels].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	}
 	// TODO reduce gencode
 
 	// specify graphical subpass
 	VkSubpassDescription __SubpassDesc = {  };
 	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = channels;
+	__SubpassDesc.colorAttachmentCount = __Channels;
 	__SubpassDesc.pColorAttachments = &__AttachRef[0];
-	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &__AttachRef[channels] : nullptr;
+	__SubpassDesc.pDepthStencilAttachment = (rp->depth) ? &__AttachRef[__Channels] : nullptr;
 
 	// subpass dependency
 	// this will prevent write hazards for WRITE_AFTER_READ so it is necessary for correct sync
@@ -152,7 +150,7 @@ void Framebuffer::_create_render_pass(RenderPassFormat& format)
 	__RPInfo.pSubpasses = &__SubpassDesc;
 	__RPInfo.dependencyCount = 1;
 	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
+	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&rp->render_pass);
 }
 
 /**
@@ -253,15 +251,15 @@ inline void Framebuffer::_define_colour_component(u8 i,s16 rb)
  *	helper for depth component definition, only a single one per framebuffer allowed for obvious reasons
  *	\param depth_channel: channel index for depth component
  */
-inline void Framebuffer::_define_depth_component()
+inline void Framebuffer::_define_depth_component(u8 depth_channel)
 {
 #ifdef VKBUILD
 	_generate_framebuffer_image(
-			&attachment_images[channels],pm_FrameDimension,g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],
+			&attachment_images[depth_channel],pm_FrameDimension,g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT|VK_IMAGE_USAGE_SAMPLED_BIT);
-	g_GPU.allocate_vram(m_AttachmentMemory[channels],attachment_images[channels]);
-	vkBindImageMemory(g_GPU.gpu,attachment_images[channels],m_AttachmentMemory[channels],0);
-	_generate_framebuffer_image_view(&components[channels],attachment_images[channels],
+	g_GPU.allocate_vram(m_AttachmentMemory[depth_channel],attachment_images[depth_channel]);
+	vkBindImageMemory(g_GPU.gpu,attachment_images[depth_channel],m_AttachmentMemory[depth_channel],0);
+	_generate_framebuffer_image_view(&components[depth_channel],attachment_images[depth_channel],
 									 g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH],VK_IMAGE_ASPECT_DEPTH_BIT);
 #else
 	glGenTextures(1,&m_DepthComponent);
@@ -293,7 +291,6 @@ void Framebuffer::vanish()
 	}
 
 	// kill framebuffer
-	g_GPU.free(render_pass);
 	g_GPU.free(m_Framebuffer);
 #endif
 }
@@ -307,7 +304,7 @@ void Framebuffer::record()
 	// setup begin draw
 	VkRenderPassBeginInfo __RPBeginInfo = {  };
 	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = render_pass;
+	__RPBeginInfo.renderPass = pm_RenderPass->render_pass;
 	__RPBeginInfo.framebuffer = m_Framebuffer;
 	__RPBeginInfo.renderArea.offset = { 0,0 };
 	__RPBeginInfo.renderArea.extent = pm_FrameDimension->extent;

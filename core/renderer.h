@@ -78,42 +78,46 @@ enum RenderStage
 	RENDER_STAGE_SHADOW_PROJECTION,
 	RENDER_STAGE_FORWARD_DRAW,
 	RENDER_STAGE_GEOMETRY_PASS,
-	RENDER_STAGE_RESULT_ASSEMBLY,
+	RENDER_STAGE_RESULT_ASSEMBLY,  // result assembly needs to be last stage in enumeration
 	RENDER_STAGE_COUNT
 };
 
 
 // ----------------------------------------------------------------------------------------------------
-// GBuffer Layout
+// Render Pass Information
 
-// default pipeline buffer formats
-static inline RenderPassFormat g_RPS[RENDER_STAGE_COUNT] = {
+// conforming to RenderStage enumerator stages. will rely on correlation during construction & pipeline
+// registration. must be inlined in header, global renderer construction needs this
+inline RenderPass RENDER_STAGES[RENDER_STAGE_COUNT] = {
+
+	// shadow projection
 	{
-		.formats = {  },
-		.size = 0,
+		.formats = vector<GPUBufferFormat> {  },
 		.depth = true
 	},
+
+	// forward draw
 	{
-		.formats = { GPU_BUFFER_FORMAT_RGB },
-		.size = 1,
+		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_RGB },
 		.depth = true
 	},
+
+	// geometry pass
 	{
-		.formats = {
+		.formats = vector<GPUBufferFormat> {
 			GPU_BUFFER_FORMAT_RGB,
 			GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
 			GPU_BUFFER_FORMAT_RGB
 		},
-		.size = 5,
 		.depth = true
 	},
+
+	// result assembly
 	{
-		.formats = { GPU_BUFFER_FORMAT_SRGB },
-		.size = 1,
+		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_SRGB },  // FIXME for device rgb fallback
 		.depth = true
 	},
 };
-// FIXME testing solution
 
 
 // ----------------------------------------------------------------------------------------------------
@@ -516,7 +520,6 @@ public:
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
 										   RenderStage rs,u32 feat);
-	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch(size_t size);
@@ -563,7 +566,7 @@ private:
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers;
-	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT];
+	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT-1];
 	// FIXME this reserves for result also, even though result is stored in vector. format is a similar issue
 
 	// textures
