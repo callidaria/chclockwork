@@ -98,7 +98,7 @@ inline RenderPass RENDER_STAGES[RENDER_STAGE_COUNT] = {
 
 	// forward draw
 	{
-		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_FLOAT },
+		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_RGB },
 		.depth = true
 	},
 

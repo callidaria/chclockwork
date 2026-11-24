@@ -377,16 +377,21 @@ void TextureData::load_hdr(const char* path)
 	stbi_image_free(__ImageBfr);
 	type = TEX_DATA_TYPE_FLOAT;
 }
-// TODO implement packing into 
 
 /**
  *	free buffer memory
  */
 void TextureData::vanish()
 {
-	if (!type) free(data.intbfr);
-	else stbi_image_free(data.intbfr);
-	// TODO free for floatbuffer as well
+	switch (type)
+	{
+	case TEX_DATA_TYPE_OVERWRITTEN: free(data.intbfr);
+		break;
+	case TEX_DATA_TYPE_INTEGER: stbi_image_free(data.intbfr);
+		break;
+	case TEX_DATA_TYPE_FLOAT: free(data.floatbfr);
+		break;
+	};
 }
 
 /**
