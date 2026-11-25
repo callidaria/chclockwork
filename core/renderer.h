@@ -513,9 +513,11 @@ public:
 
 	// textures
 	Texture* register_texture(vec3 colour,TextureFormat format=TEXTURE_FORMAT_RGBA);
-	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA,
+							  TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	Material* register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
 									 Texture* emission=nullptr);
+	Texture* register_cubemap(const char* path);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
@@ -542,7 +544,7 @@ private:
 	// threaded texture actions
 	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
-	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
+	static void _load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
 							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
 
 	// pipeline steps

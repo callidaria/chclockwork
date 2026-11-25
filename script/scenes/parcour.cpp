@@ -81,7 +81,7 @@ void ParcourParcs::init()
 		);
 
 	// cubemap
-	Texture* __CubemapTexture = g_Renderer.register_texture("./res/ibl/russia.hdr",TEXTURE_FORMAT_RGBu11);
+	Texture* __CubemapTexture = g_Renderer.register_cubemap("./res/ibl/russia.hdr");
 	__Cubemap->ubo.attach_texture(0,__CubemapTexture);
 
 	// lightbulbs

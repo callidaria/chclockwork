@@ -1494,14 +1494,15 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
  *	register texture & load texture in a subthread, parallel to further program execution
  *	\param path: path to texture file
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colourspace format
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) bitwise texture features
  *	\returns pointer to texture in ram, referencing texture in vram
  */
-Texture* Renderer::register_texture(const char* path,TextureFormat format)
+Texture* Renderer::register_texture(const char* path,TextureFormat format,TextureFeatures feat)
 {
 	COMM_LOG("mesh texture register of %s",path);
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,
+	thread __LoadThread(_load_texture,p_Texture,path,format,feat,
 						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 	__LoadThread.detach();
 	return p_Texture;
@@ -1532,6 +1533,15 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
 	p_Material->components[MATERIAL_COMPONENT_CHANNEL_EMISSION]
 			= (emission!=nullptr) ? emission : Material::standards[MATERIAL_COMPONENT_CHANNEL_EMISSION];
 	return p_Material;
+}
+
+/**
+ *	TODO
+ *	\note this requires a single .hdr irradiance map, will be packed into float format
+ */
+Texture* Renderer::register_cubemap(const char* path)
+{
+	return register_texture(path,TEXTURE_FORMAT_RGBu11,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT);
 }
 
 /**
@@ -1755,22 +1765,17 @@ void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
  *	\param texture: pointer to texture in memory
  *	\param path: path to texture
  *	\param format: texture colour channel format
+ *	\param feat: bitwise texture features
  *	\param data_queue: queue for texture vram upload
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
-void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,
+void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data;
-	TextureFeatures __Features = TEXTURE_FEATURE_STANDARD;
-	if (format==TEXTURE_FORMAT_RGBu11)
-	{
-		__Data.load_hdr(path);
-		__Features = TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT;
-		// FIXME have a real solution for this
-	}
+	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
 	else __Data.load(path);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format,__Features },data_queue,queue_mutex);
+	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format,feat },data_queue,queue_mutex);
 }
 
 /**
