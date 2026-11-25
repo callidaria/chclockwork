@@ -4,6 +4,7 @@
 
 - single & multi-texture skyboxing
 - hdr float texture support
+- improved control over mipmap generation
 - FIXED: pipelines conform their render stage, this result in a single pass for n registered pipelines
 
 

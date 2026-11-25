@@ -1078,9 +1078,10 @@ Renderer::Renderer()
 	// RESOURCE SETUP
 	// textures
 	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
-								 TEXTURE_FORMAT_SRGB,ATLAS_SPRITES_PADDING);
+								 TEXTURE_FORMAT_SRGB,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT,ATLAS_SPRITES_PADDING);
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
-							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
+							   TEXTURE_FORMAT_MONOCHROME,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT,
+							   ATLAS_FONT_PADDING);
 
 	// SHADERS
 	// setup shader endpoint
@@ -1761,9 +1762,15 @@ void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat for
 							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
 {
 	TextureData __Data;
-	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
+	TextureFeatures __Features = TEXTURE_FEATURE_STANDARD;
+	if (format==TEXTURE_FORMAT_RGBu11)
+	{
+		__Data.load_hdr(path);
+		__Features = TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT;
+		// FIXME have a real solution for this
+	}
 	else __Data.load(path);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
+	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format,__Features },data_queue,queue_mutex);
 }
 
 /**
@@ -1870,7 +1877,7 @@ void Renderer::_gpu_upload()
 	while (m_MeshTextureUploadQueue.size())
 	{
 		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
-		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format);
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format,p_Tuple.features);
 		p_Tuple.texture->transition_texture_transfer();
 		p_Tuple.texture->gpu_upload(p_Tuple.data);
 		p_Tuple.texture->generate_mipmap();

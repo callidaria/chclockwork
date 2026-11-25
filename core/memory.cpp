@@ -399,13 +399,15 @@ void TextureData::vanish()
  *	\param width: texture width
  *	\param height: texture height
  *	\param format: colourspace format of texture
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) texture features
  */
-void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
+void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat)
 {
 	width = wdt;
 	height = hgt;
-	mipcount = std::floor(std::log2(std::max(width,height)))+1;
+	mipcount = (feat&TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT) ? 1 : std::floor(std::log2(std::max(width,height)))+1;
 	m_Format = format;
+	// TODO use mip definition in allocation for ogl version as well
 
 #ifdef VKBUILD
 	// generate staging buffer
@@ -920,10 +922,11 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param width: buffer width
  *	\param height: buffer height
  *	\param format: colourspace format of pixels
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) bitwise texture feature combination
  *	\param padding: (default 0) pixel space padding in between allocated subtextures
  *	\note cannot be executed in subthread, uses context bound to main thread in ogl version
  */
-void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
+void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat,u32 padding)
 {
 	dimensions_inv = vec2(1.f/wdt,1.f/hgt);
 	subtex_padding = padding;
@@ -932,9 +935,8 @@ void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 	memory_segments.push_back({ .extent = vec2(wdt+padding,hgt+padding) });
 
 	// allocate texture memory & handles
-	atlas.allocate(wdt,hgt,format);
+	atlas.allocate(wdt,hgt,format,feat);
 }
-// TODO use mip definition in allocation for ogl version as well
 
 /**
  *	static helper to allow a subtexture segment of an atlas to merge when obsolete

@@ -108,6 +108,12 @@ enum TextureFormat : u8
 	TEXTURE_FORMAT_COUNT
 };
 
+enum TextureFeatures : u8
+{
+	TEXTURE_FEATURE_STANDARD,
+	TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT = 1,
+};
+
 enum TexDataType : u8
 {
 	TEX_DATA_TYPE_OVERWRITTEN,
@@ -137,20 +143,11 @@ struct TextureData
 	s32 width = 0,height = 0;
 };
 
-class Texture;
-
-struct TextureDataTuple
-{
-	TextureData data;
-	Texture* texture;
-	TextureFormat format;
-};
-
 class Texture
 {
 public:
 	// data
-	void allocate(u32 wdt,u32 hgt,TextureFormat format);
+	void allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	void register_subtexture(TextureData& data);
 	void gpu_upload();
 	void gpu_upload(TextureData& data);
@@ -210,6 +207,14 @@ private:
 #endif
 };
 
+struct TextureDataTuple
+{
+	TextureData data;
+	Texture* texture;
+	TextureFormat format;
+	TextureFeatures features;
+};
+
 
 // ----------------------------------------------------------------------------------------------------
 // Font
@@ -239,7 +244,8 @@ struct Font
 struct GPUPixelBuffer
 {
 	// setup
-	void allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding=0);
+	void allocate(u32 wdt,u32 hgt,TextureFormat format,
+				  TextureFeatures feat=TEXTURE_FEATURE_STANDARD,u32 padding=0);
 
 	// utilty
 	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
