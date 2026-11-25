@@ -112,6 +112,7 @@ enum TextureFeatures : u8
 {
 	TEXTURE_FEATURE_STANDARD,
 	TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT = 1,
+	TEXTURE_FEATURE_CUBEMAP_BIT = 1<<1,
 };
 
 enum TexDataType : u8
@@ -151,6 +152,7 @@ public:
 	void register_subtexture(TextureData& data);
 	void gpu_upload();
 	void gpu_upload(TextureData& data);
+	void gpu_upload(vector<TextureData>& data);
 
 	// utility
 	void generate_mipmap();
@@ -178,7 +180,7 @@ public:
 
 #ifdef VKBUILD
 private:
-	void _setup_buffer_copy(size_t& ofs,TextureData& data);
+	void _setup_buffer_copy(size_t& ofs,TextureData& data,size_t arr_index=0);
 #endif
 
 public:

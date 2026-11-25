@@ -366,14 +366,20 @@ void TextureData::load(const char* path)
 void TextureData::load_hdr(const char* path)
 {
 	COMM_ERR_COND(!check_file_exists(path),"hdr cubemap at %s could not be found",path);
+
+	// load texture
 	stbi_set_flip_vertically_on_load(true);
 	f32* __ImageBfr = stbi_loadf(path,&width,&height,0,STBI_rgb_alpha);
+
+	// package into 4-byte unsigned floatbuffer
 	data.floatbfr = (u32*)malloc(width*height*sizeof(u32));
 	for (size_t i=0;i<width*height;i++)
 	{
 		vec3 __Pixel = vec3(__ImageBfr[i*4+0],__ImageBfr[i*4+1],__ImageBfr[i*4+2]);
 		data.floatbfr[i] = glm::packF2x11_1x10(__Pixel);
 	}
+
+	// free original texture & signal type
 	stbi_image_free(__ImageBfr);
 	type = TEX_DATA_TYPE_FLOAT;
 }
@@ -405,16 +411,22 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 {
 	width = wdt;
 	height = hgt;
-	mipcount = (feat&TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT) ? 1 : std::floor(std::log2(std::max(width,height)))+1;
+	mipcount = (feat&(TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT|TEXTURE_FEATURE_CUBEMAP_BIT))
+				? 1 : std::floor(std::log2(std::max(width,height)))+1;
 	m_Format = format;
 	// TODO use mip definition in allocation for ogl version as well
+
+	// cubemap layer switching
+	u8 __ArrayLayers = 1+5*((bool)(feat&TEXTURE_FEATURE_CUBEMAP_BIT));
 
 #ifdef VKBUILD
 	// generate staging buffer
 	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,
-						  width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+						  width*height*_texture_formats[format].size*__ArrayLayers,
+						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
+	// TODO !!!!kill staging buffer after upload for all textures, except those that are used by atlasses!!!!
 
 	// image buffer
 	VkImageCreateInfo __ImageInfo = {  };
@@ -426,7 +438,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = mipcount;
-	__ImageInfo.arrayLayers = 1;
+	__ImageInfo.arrayLayers = __ArrayLayers;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	__ImageInfo.usage
@@ -470,13 +482,14 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
-	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.viewType = (feat&TEXTURE_FEATURE_CUBEMAP_BIT)
+			? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
 	__ImageViewInfo.format = _texture_formats[m_Format].format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = mipcount;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.subresourceRange.layerCount = __ArrayLayers;
 	__ImageViewInfo.components = {
 		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -573,6 +586,25 @@ void Texture::gpu_upload(TextureData& data)
 				 _texture_formats[m_Format].format,GL_UNSIGNED_BYTE,data.data);
 #endif
 	data.vanish();
+}
+
+/**
+ *	TODO
+ */
+void Texture::gpu_upload(vector<TextureData>& data)
+{
+#ifdef VKBUILD
+	for (size_t i=0;i<data.size();i++)
+	{
+		_setup_buffer_copy(m_UploadCursor,data[i],i);
+		data[i].vanish();
+	}
+	gpu_upload();
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	m_ActiveAtlas = false;
+#else
+	// TODO
+#endif
 }
 
 /**
@@ -839,8 +871,9 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
  *	setup buffer to texture/atlas memory copy, by copying to stage. then register upload region over this memory
  *	\param ofs: offset in staging buffer, will automatically be progressing as memory write cursor
  *	\param data: texture dimensions & data
+ *	\param arr_index: (default 0) array upload position index
  */
-void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
+void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data,size_t arr_index)
 {
 	if (!data.width||!data.height)
 	{
@@ -860,7 +893,7 @@ void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 	__BufferCopy.bufferImageHeight = 0;
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__BufferCopy.imageSubresource.mipLevel = 0;
-	__BufferCopy.imageSubresource.baseArrayLayer = 0;
+	__BufferCopy.imageSubresource.baseArrayLayer = arr_index;
 	__BufferCopy.imageSubresource.layerCount = 1;
 	__BufferCopy.imageOffset = { (s32)data.x,(s32)data.y,0 };
 	__BufferCopy.imageExtent = { (u32)data.width,(u32)data.height,1 };
