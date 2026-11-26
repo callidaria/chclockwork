@@ -517,7 +517,8 @@ public:
 							  TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	Material* register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
 									 Texture* emission=nullptr);
-	Texture* register_cubemap(const char* path);
+	Cubemap* register_cubemap_classical(const char* path,TextureFormat=TEXTURE_FORMAT_RGBA);
+	Texture* register_cubemap_hdr(const char* path);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
@@ -578,6 +579,7 @@ private:
 	// mesh textures
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	InPlaceArray<Material> m_Materials = InPlaceArray<Material>(RENDERER_MAXIMUM_MATERIAL_COUNT);
+	InPlaceArray<Cubemap> m_Cubemaps = InPlaceArray<Cubemap>(RENDERER_MAXIMUM_CUBEMAP_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
 	list<TextureAttachment> m_TextureAttachmentRequests;
 	std::mutex m_MutexMeshTextureUpload;

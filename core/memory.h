@@ -276,3 +276,33 @@ struct GPUPixelBuffer
 
 
 #endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Cubemap
+
+// obviously component order for classical cubemap sampler upload matters in visualization. this is the order.
+enum CubemapComponentChannel : u8
+{
+	CUBEMAP_COMPONENT_CHANNEL_POSX,
+	CUBEMAP_COMPONENT_CHANNEL_NEGX,
+	CUBEMAP_COMPONENT_CHANNEL_POSY,
+	CUBEMAP_COMPONENT_CHANNEL_NEGY,
+	CUBEMAP_COMPONENT_CHANNEL_POSZ,
+	CUBEMAP_COMPONENT_CHANNEL_NEGZ,
+	CUBEMAP_COMPONENT_CHANNEL_COUNT
+};
+
+// classical cubemap, texture to upload as samplerCube in shader
+struct Cubemap
+{
+	// utility
+	void load(const char* path,TextureFormat fmt);
+	void gpu_upload();
+	void vanish();
+
+	// data
+	Texture cubemap;
+	vector<TextureData> data;
+	TextureFormat format;
+};

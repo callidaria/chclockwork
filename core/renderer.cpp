@@ -1537,9 +1537,22 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
 
 /**
  *	TODO
+ */
+Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat format)
+{
+	Cubemap* p_Cubemap = &m_Cubemaps.mem[m_Cubemaps.next_free()];
+	new(p_Cubemap) Cubemap();
+	p_Cubemap->load(path,format);
+	p_Cubemap->gpu_upload();
+	return p_Cubemap;
+	// TODO background load
+}
+
+/**
+ *	TODO
  *	\note this requires a single .hdr irradiance map, will be packed into float format
  */
-Texture* Renderer::register_cubemap(const char* path)
+Texture* Renderer::register_cubemap_hdr(const char* path)
 {
 	return register_texture(path,TEXTURE_FORMAT_RGBu11,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT);
 }

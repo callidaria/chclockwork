@@ -19,6 +19,7 @@ const VkFormat _vertex_shader_input_formats[SHADER_UNIFORM_FORMAT_COUNT] = {
 	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
 };
 
 // dynamic state
@@ -41,6 +42,7 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "vec4",sizeof(vec4) },
 	{ "mat4",sizeof(mat4) },
 	{ "sampler2D",0 },
+	{ "samplerCube",0 },
 	{ "light_sun",sizeof(SunLight) },
 	{ "light_point",sizeof(PointLight) },
 };

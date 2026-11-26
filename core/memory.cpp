@@ -417,7 +417,8 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	// TODO use mip definition in allocation for ogl version as well
 
 	// cubemap layer switching
-	u8 __ArrayLayers = 1+5*((bool)(feat&TEXTURE_FEATURE_CUBEMAP_BIT));
+	bool __Cubemap = feat&TEXTURE_FEATURE_CUBEMAP_BIT;
+	u8 __ArrayLayers = 1+5*__Cubemap;
 
 #ifdef VKBUILD
 	// generate staging buffer
@@ -431,7 +432,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	// image buffer
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	__ImageInfo.flags = 0;
+	__ImageInfo.flags = 0|(VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT*__Cubemap);
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
 	__ImageInfo.format = _texture_formats[m_Format].format;
 	__ImageInfo.extent.width = width;
@@ -1254,3 +1255,42 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 	atlas.generate_mipmap();
 }
 // FIXME performance will suffer when generating mipmap every time the loop condition breaks
+
+
+// ----------------------------------------------------------------------------------------------------
+// Cubemap
+
+/**
+ *	TODO
+ */
+void Cubemap::load(const char* path,TextureFormat fmt)
+{
+	format = fmt;
+	std::filesystem::path __CmDir(path);
+	data.resize(CUBEMAP_COMPONENT_CHANNEL_COUNT);
+	data[CUBEMAP_COMPONENT_CHANNEL_POSX].load((__CmDir/"posx.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGX].load((__CmDir/"negx.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_POSY].load((__CmDir/"posy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGY].load((__CmDir/"negy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_POSZ].load((__CmDir/"posz.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGZ].load((__CmDir/"negz.jpg").c_str());
+}
+
+/**
+ *	TODO
+ */
+void Cubemap::gpu_upload()
+{
+	cubemap.allocate(data[0].width,data[0].height,format,TEXTURE_FEATURE_CUBEMAP_BIT);
+	cubemap.transition_texture_transfer();
+	cubemap.gpu_upload(data);
+	cubemap.generate_mipmap();  // TODO just include into gpu_upload at this point
+}
+
+/**
+ *	TODO
+ */
+void Cubemap::vanish()
+{
+	cubemap.vanish();
+}
