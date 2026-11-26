@@ -1557,10 +1557,9 @@ Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat for
 {
 	Cubemap* p_Cubemap = &m_Cubemaps.mem[m_Cubemaps.next_free()];
 	new(p_Cubemap) Cubemap();
-	p_Cubemap->load(path,format);
-	p_Cubemap->gpu_upload();
+	thread __LoadThread(Cubemap::load,p_Cubemap,path,format,&m_CubemapUploadQueue,&m_MutexCubemapUpload);
+	__LoadThread.detach();
 	return p_Cubemap;
-	// TODO background load
 }
 
 /**
@@ -1918,6 +1917,13 @@ void Renderer::_gpu_upload()
 		__MeshTextureUpdated = true;
 	}
 	m_MutexMeshTextureUpload.unlock();
+
+	while (m_CubemapUploadQueue.size())
+	{
+		Cubemap* p_Cubemap = m_CubemapUploadQueue.front();
+		p_Cubemap->gpu_upload();
+		m_CubemapUploadQueue.pop();
+	}
 
 	// link results, process attachments
 	if (!__MeshTextureUpdated) return;

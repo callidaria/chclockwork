@@ -588,8 +588,10 @@ private:
 	InPlaceArray<Material> m_Materials = InPlaceArray<Material>(RENDERER_MAXIMUM_MATERIAL_COUNT);
 	InPlaceArray<Cubemap> m_Cubemaps = InPlaceArray<Cubemap>(RENDERER_MAXIMUM_CUBEMAP_COUNT);
 	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	queue<Cubemap*> m_CubemapUploadQueue;
 	list<TextureAttachment> m_TextureAttachmentRequests;
 	std::mutex m_MutexMeshTextureUpload;
+	std::mutex m_MutexCubemapUpload;
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites;

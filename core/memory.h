@@ -297,7 +297,8 @@ enum CubemapComponentChannel : u8
 struct Cubemap
 {
 	// utility
-	void load(const char* path,TextureFormat fmt);
+	static void load(Cubemap* cubemap,const char* path,TextureFormat format,queue<Cubemap*>* q,std::mutex* qm);
+	void loadYUpLH(const char* path,TextureFormat fmt);
 	void gpu_upload();
 	void vanish();
 

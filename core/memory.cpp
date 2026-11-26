@@ -1262,7 +1262,21 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 /**
  *	TODO
  */
-void Cubemap::load(const char* path,TextureFormat fmt)
+void Cubemap::load(Cubemap* cubemap,const char* path,TextureFormat format,queue<Cubemap*>* q,std::mutex* qm)
+{
+	cubemap->loadYUpLH(path,format);
+	qm->lock();
+	q->push(cubemap);
+	qm->unlock();
+	// TODO generalize this implementation for queue <-> mutex signal behaviour
+	//		also find a possible general abstraction, that does not add a new queue for each type please
+	//_signal_upload_queue(q,qm);
+}
+
+/**
+ *	TODO
+ */
+void Cubemap::loadYUpLH(const char* path,TextureFormat fmt)
 {
 	format = fmt;
 	std::filesystem::path __CmDir(path);
