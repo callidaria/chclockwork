@@ -191,7 +191,7 @@ public:
 
 	// properties
 	u32 width,height;
-	u16 mipcount;
+	u16 layercount,mipcount;
 	bool allocated = false;
 
 private:

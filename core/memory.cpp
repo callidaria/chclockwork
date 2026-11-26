@@ -10,7 +10,7 @@
  *	\param mip: count of generated mipmap levels
  *	\returns assembled barrier info
  */
-inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 mip)
+inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 layers,u32 mip)
 {
 	VkImageMemoryBarrier __Barrier = {  };
 	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -20,7 +20,7 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__Barrier.subresourceRange.baseArrayLayer = 0;
 	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.subresourceRange.layerCount = layers;
 	__Barrier.subresourceRange.levelCount = mip;
 	return __Barrier;
 }
@@ -418,12 +418,12 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 
 	// cubemap layer switching
 	bool __Cubemap = feat&TEXTURE_FEATURE_CUBEMAP_BIT;
-	u8 __ArrayLayers = 1+5*__Cubemap;
+	layercount = 1+5*__Cubemap;
 
 #ifdef VKBUILD
 	// generate staging buffer
 	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,
-						  width*height*_texture_formats[format].size*__ArrayLayers,
+						  width*height*_texture_formats[format].size*layercount,
 						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
@@ -439,7 +439,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = mipcount;
-	__ImageInfo.arrayLayers = __ArrayLayers;
+	__ImageInfo.arrayLayers = layercount;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	__ImageInfo.usage
@@ -470,7 +470,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 #endif
 
 	// setup memory barrier to create image view
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,layercount,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -483,14 +483,13 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
-	__ImageViewInfo.viewType = (feat&TEXTURE_FEATURE_CUBEMAP_BIT)
-			? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.viewType = (__Cubemap) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
 	__ImageViewInfo.format = _texture_formats[m_Format].format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = mipcount;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = __ArrayLayers;
+	__ImageViewInfo.subresourceRange.layerCount = layercount;
 	__ImageViewInfo.components = {
 		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -615,7 +614,7 @@ void Texture::generate_mipmap()
 {
 #ifdef VKBUILD
 	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	VkImageMemoryBarrier __MMBarrier = _generate_memory_barrier_tex(m_Texture,1);
+	VkImageMemoryBarrier __MMBarrier = _generate_memory_barrier_tex(m_Texture,layercount,1);
 
 	// mipmap blit
 	VkImageBlit __MMBlit = {  };
@@ -626,7 +625,7 @@ void Texture::generate_mipmap()
 	__MMBlit.dstOffsets[0] = { 0,0,0 };
 	__MMBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__MMBlit.dstSubresource.baseArrayLayer = 0;
-	__MMBlit.dstSubresource.layerCount = 1;
+	__MMBlit.dstSubresource.layerCount = layercount;
 	// TODO maybe move this to texture preprocessing and skip the blitting at load time
 
 	// generate mipmaps
@@ -705,7 +704,7 @@ void Texture::vanish()
  */
 void Texture::transition_texture_transfer()
 {
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,layercount,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__Barrier.srcAccessMask = 0;

@@ -113,6 +113,7 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
  *	\param interface: target interface data, receiving information
  *	\param stage: source file shader stage
  */
+#define SHADER_IMAGE_ATTRIBUTE_SIGNIFIER "sampler"
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
 {
@@ -236,7 +237,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// determine type and check for disagreements with colliding definitions from prev. stages
 			// the check is only reliable, because the read does not allow write of sampler type due to the
 			// default value being 0. that value describes VK_DESCRIPTOR_TYPE_SAMPLER. the precheck would fail!
-			VkDescriptorType __Type = (__Line.find("sampler2D")==string::npos)
+			VkDescriptorType __Type = (__Line.find(SHADER_IMAGE_ATTRIBUTE_SIGNIFIER)==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
 			COMM_ERR_COND(p_Attrib.type!=0&&p_Attrib.type!=__Type,
@@ -248,7 +249,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			p_Attrib.stage |= stage;
 
 			// read data block for size estimation & save offset
-			if (__Line.find("sampler2D")==string::npos)
+			if (__Line.find(SHADER_IMAGE_ATTRIBUTE_SIGNIFIER)==string::npos)
 			{
 				size_t __Count;
 				_process_data_block_text(__File,__Count,p_Attrib.range.range);

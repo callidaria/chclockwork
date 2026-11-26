@@ -1307,6 +1307,13 @@ void Renderer::vanish()
 		m_MeshTextures.mem[i].vanish();
 	}
 
+	// clear registered cubemaps
+	for (size_t i=0;i<m_Cubemaps.active_range;i++)
+	{
+		if (!m_Cubemaps.mem[i].cubemap.allocated) continue;
+		m_Cubemaps.mem[i].vanish();
+	}
+
 	// clear vbo & ubo buffer memory
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_STATIC].vanish();
 	g_VertexBufferHeap[VERTEX_BUFFER_TYPE_DYNAMIC].vanish();

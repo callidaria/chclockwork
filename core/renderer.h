@@ -385,6 +385,7 @@ struct UniformBufferObject
 	void auto_update();
 	void attach_memory(u16 location,void* data);
 	void attach_texture(u16 location,Texture* texture);
+	void attach_cubemap(u16 location,Cubemap* cubemap);
 	void attach_material(Material* material);
 
 	// data
