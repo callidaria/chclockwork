@@ -47,7 +47,8 @@ void ParcourParcs::init()
 	m_SpineJointTransform = &m_DudeMesh.find_joint("metarig_spine")->local_transform;
 
 	// cubemap
-	GeometryTuple* __Cubemap = __CubemapBatch->add_geometry(Mesh::CUBE);
+	GeometryTuple* __Cubemap = __CubemapBatch->add_geometry(Mesh::CUBEMAP_CUBE,CUBEMAP_CUBE_VERTEX_LENGTH,
+															CUBEMAP_CUBE_FLOAT_STRIDE*sizeof(f32));
 	__CubemapBatch->load();
 
 	// transform objects

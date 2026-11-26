@@ -165,6 +165,14 @@ Mesh Mesh::SPHERE_LOWRES = Mesh("./res/primitive/low_sphere.obj");
 Mesh Mesh::SPHERE = Mesh("./res/primitive/sphere.obj");
 Mesh Mesh::CUBE = Mesh("./res/primitive/cube.obj");
 Mesh Mesh::APE = Mesh("./res/primitive/ape.obj");
+f32 Mesh::CUBEMAP_CUBE[CUBEMAP_CUBE_BUFFER_SIZE] = {
+	 1,-1,-1,  1, 1,-1,  1, 1, 1,  1,-1,-1,  1, 1, 1,  1,-1, 1,  // +x
+	-1,-1,-1, -1,-1, 1, -1, 1, 1, -1,-1,-1, -1, 1, 1, -1, 1,-1,  // -x
+	 1, 1,-1, -1, 1,-1,  1, 1, 1,  1, 1, 1, -1, 1,-1, -1, 1, 1,  // +y
+	-1,-1,-1,  1,-1,-1, -1,-1, 1, -1,-1, 1,  1,-1,-1,  1,-1, 1,  // -y
+	 1,-1, 1,  1, 1, 1, -1,-1, 1, -1,-1, 1,  1, 1, 1, -1, 1, 1,  // +z
+	 1, 1,-1,  1,-1,-1, -1, 1,-1,  1,-1,-1, -1,-1,-1, -1, 1,-1,  // -z
+};
 
 /**
  *	load mesh geometry from .obj file
@@ -827,7 +835,7 @@ GeometryTuple* GeometryBatch::add_geometry(AnimatedMesh& mesh)
  *	load geometry into batch
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
- *	\param ssize: upload dimension !in memory width!
+ *	\param ssize: upload dimension in bytesize
  *	\returns pointer to geometry tuple
  */
 GeometryTuple* GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)

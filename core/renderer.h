@@ -244,6 +244,11 @@ struct Text
 // ----------------------------------------------------------------------------------------------------
 // Meshes
 
+// some globals for static meshes
+constexpr u32 CUBEMAP_CUBE_FLOAT_STRIDE = 3;		// vec3(pos)
+constexpr u32 CUBEMAP_CUBE_VERTEX_LENGTH = 3*2*6;	// triangle*triquad*sides
+constexpr u32 CUBEMAP_CUBE_BUFFER_SIZE = CUBEMAP_CUBE_FLOAT_STRIDE*CUBEMAP_CUBE_VERTEX_LENGTH;
+
 // complex triangluate shapes, requires .obj file
 class Mesh
 {
@@ -253,6 +258,7 @@ public:
 	static Mesh SPHERE;
 	static Mesh CUBE;
 	static Mesh APE;
+	static f32 CUBEMAP_CUBE[CUBEMAP_CUBE_BUFFER_SIZE];
 
 public:
 	vector<Vertex> vertices;

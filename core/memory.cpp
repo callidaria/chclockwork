@@ -1269,8 +1269,8 @@ void Cubemap::load(const char* path,TextureFormat fmt)
 	data.resize(CUBEMAP_COMPONENT_CHANNEL_COUNT);
 	data[CUBEMAP_COMPONENT_CHANNEL_POSX].load((__CmDir/"posx.jpg").c_str());
 	data[CUBEMAP_COMPONENT_CHANNEL_NEGX].load((__CmDir/"negx.jpg").c_str());
-	data[CUBEMAP_COMPONENT_CHANNEL_POSY].load((__CmDir/"posy.jpg").c_str());
-	data[CUBEMAP_COMPONENT_CHANNEL_NEGY].load((__CmDir/"negy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGY].load((__CmDir/"posy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_POSY].load((__CmDir/"negy.jpg").c_str());
 	data[CUBEMAP_COMPONENT_CHANNEL_POSZ].load((__CmDir/"posz.jpg").c_str());
 	data[CUBEMAP_COMPONENT_CHANNEL_NEGZ].load((__CmDir/"negz.jpg").c_str());
 }

@@ -2,10 +2,6 @@
 
 
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec2 uv;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec3 tangent;
-// TODO reduce it to a more simplisting cube input data structure
 
 layout(location = 0) out vec3 Position;
 
@@ -25,7 +21,7 @@ layout(set = 1,binding = 70) uniform ObjectInfo
 
 void main()
 {
-	Position = position;
+	Position = normalize(vec3(position.x,-position.z,position.y));
 	mat4 ntrans_view = mat4(mat3(ot.view));
 	vec4 out_position = ot.proj*ntrans_view*vec4(position,1.);
 	gl_Position = out_position.xyww;
