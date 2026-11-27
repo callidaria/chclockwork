@@ -464,6 +464,27 @@ struct ThreadSignal
 
 
 // ----------------------------------------------------------------------------------------------------
+// Multithreaded Queue
+
+template<typename T> struct ThreadedQueue
+{
+	/**
+	 *	TODO
+	 */
+	inline void push(T val)
+	{
+		mut.lock();
+		tqueue.push(val);
+		mut.unlock();
+	}
+
+	// data
+	queue<T> tqueue;
+	std::mutex mut;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
 // Geometry Definition
 
 struct Rect

@@ -1109,10 +1109,10 @@ Renderer::Renderer()
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(1,RENDERER_JOINT_ANIMATION_LOCATION,
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(2,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	for (u16 i=0;i<RENDERER_TEXTURE_DESCRIPTOR_CHANNELS;i++)
+		g_UniformBuffer.define(2,i,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(2,RENDERER_CUBEMAP_DESCRIPTOR_CHANNEL,
+						   VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
 	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
@@ -1193,7 +1193,7 @@ Renderer::Renderer()
 
 	// load default textures
 	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
-				 &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+				 &m_MeshTextureUploadQueue);
 
 	/*
 	COMM_LOG("starting renderer subprocesses");
@@ -1499,8 +1499,7 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 				  "monochrome format should not be set for textures, defined by a colour vector");
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_colour,p_Texture,colour,format,
-						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	thread __LoadThread(_load_colour,p_Texture,colour,format,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1517,8 +1516,7 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format,Textur
 	COMM_LOG("mesh texture register of %s",path);
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,feat,
-						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	thread __LoadThread(_load_texture,p_Texture,path,format,feat,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1557,7 +1555,7 @@ Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat for
 {
 	Cubemap* p_Cubemap = &m_Cubemaps.mem[m_Cubemaps.next_free()];
 	new(p_Cubemap) Cubemap();
-	thread __LoadThread(Cubemap::load,p_Cubemap,path,format,&m_CubemapUploadQueue,&m_MutexCubemapUpload);
+	thread __LoadThread(Cubemap::load,p_Cubemap,path,format,&m_CubemapUploadQueue);
 	__LoadThread.detach();
 	return p_Cubemap;
 }
@@ -1758,20 +1756,6 @@ void Renderer::animate(AnimatedMesh* mesh)
 }
 
 /**
- *	helper to register texture upload after data has been loaded
- *	\param tdt: tuple carrying data to upload & link loaded texture data to ubo
- *	\param data_queue: target queue to entry new upload tuple into
- *	\param queue_mutex: mutex for parallel queue access
- */
-inline void _signal_texture_data_upload(TextureDataTuple tdt,
-										queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	queue_mutex->lock();
-	data_queue->push(tdt);
-	queue_mutex->unlock();
-}
-
-/**
  *	load monocolour texture into ram in background & register for vram upload when ready
  *	\param texture: pointer to texture in memory
  *	\param colour: colour of generated monocoloured texture
@@ -1780,11 +1764,11 @@ inline void _signal_texture_data_upload(TextureDataTuple tdt,
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
 void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+							ThreadedQueue<TextureDataTuple>* q)
 {
 	TextureData __Data;
 	__Data.load(colour);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
+	q->push(TextureDataTuple{ __Data,texture,format });
 }
 
 /**
@@ -1797,12 +1781,12 @@ void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
  *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
  */
 void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
-							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
+							 ThreadedQueue<TextureDataTuple>* q)
 {
 	TextureData __Data;
 	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
 	else __Data.load(path);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format,feat },data_queue,queue_mutex);
+	q->push(TextureDataTuple{ __Data,texture,format,feat });
 }
 
 /**
@@ -1905,25 +1889,27 @@ void Renderer::_gpu_upload()
 
 	// mesh textures
 	bool __MeshTextureUpdated = false;
-	m_MutexMeshTextureUpload.lock();
-	while (m_MeshTextureUploadQueue.size())
+	m_MeshTextureUploadQueue.mut.lock();
+	while (m_MeshTextureUploadQueue.tqueue.size())
 	{
-		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
+		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.tqueue.front();
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format,p_Tuple.features);
 		p_Tuple.texture->transition_texture_transfer();
 		p_Tuple.texture->gpu_upload(p_Tuple.data);
 		p_Tuple.texture->generate_mipmap();
-		m_MeshTextureUploadQueue.pop();
+		m_MeshTextureUploadQueue.tqueue.pop();
 		__MeshTextureUpdated = true;
 	}
-	m_MutexMeshTextureUpload.unlock();
+	m_MeshTextureUploadQueue.mut.unlock();
 
-	while (m_CubemapUploadQueue.size())
+	m_CubemapUploadQueue.mut.lock();
+	while (m_CubemapUploadQueue.tqueue.size())
 	{
-		Cubemap* p_Cubemap = m_CubemapUploadQueue.front();
+		Cubemap* p_Cubemap = m_CubemapUploadQueue.tqueue.front();
 		p_Cubemap->gpu_upload();
-		m_CubemapUploadQueue.pop();
+		m_CubemapUploadQueue.tqueue.pop();
 	}
+	m_CubemapUploadQueue.mut.unlock();
 
 	// link results, process attachments
 	if (!__MeshTextureUpdated) return;

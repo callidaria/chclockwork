@@ -150,6 +150,9 @@ public:
 	// data
 	void allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	void register_subtexture(TextureData& data);
+
+	// load
+	// static void load();
 	void gpu_upload();
 	void gpu_upload(TextureData& data);
 	void gpu_upload(vector<TextureData>& data);
@@ -297,7 +300,7 @@ enum CubemapComponentChannel : u8
 struct Cubemap
 {
 	// utility
-	static void load(Cubemap* cubemap,const char* path,TextureFormat format,queue<Cubemap*>* q,std::mutex* qm);
+	static void load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q);
 	void loadYUpLH(const char* path,TextureFormat fmt);
 	void gpu_upload();
 	void vanish();

@@ -72,6 +72,10 @@ constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
 // TODO check dynamic endpoint setup against possible duplicate constant usage violations
 
+// set 2 texture location reservations
+constexpr u16 RENDERER_TEXTURE_DESCRIPTOR_CHANNELS = 8;
+constexpr u16 RENDERER_CUBEMAP_DESCRIPTOR_CHANNEL = 74;
+
 // this describes the render stage, defined by render pass & framebuffer, a new pipeline will operate in
 enum RenderStage
 {
@@ -551,9 +555,9 @@ public:
 private:
 	// threaded texture actions
 	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+							 ThreadedQueue<TextureDataTuple>* q);
 	static void _load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
-							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
+							  ThreadedQueue<TextureDataTuple>* q);
 
 	// pipeline steps
 	void _update_sprites();
@@ -587,11 +591,9 @@ private:
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	InPlaceArray<Material> m_Materials = InPlaceArray<Material>(RENDERER_MAXIMUM_MATERIAL_COUNT);
 	InPlaceArray<Cubemap> m_Cubemaps = InPlaceArray<Cubemap>(RENDERER_MAXIMUM_CUBEMAP_COUNT);
-	queue<TextureDataTuple> m_MeshTextureUploadQueue;
-	queue<Cubemap*> m_CubemapUploadQueue;
+	ThreadedQueue<TextureDataTuple> m_MeshTextureUploadQueue;
+	ThreadedQueue<Cubemap*> m_CubemapUploadQueue;
 	list<TextureAttachment> m_TextureAttachmentRequests;
-	std::mutex m_MutexMeshTextureUpload;
-	std::mutex m_MutexCubemapUpload;
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites;

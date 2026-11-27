@@ -84,7 +84,7 @@ void ParcourParcs::init()
 	// cubemap
 	//Texture* __CubemapTexture = g_Renderer.register_cubemap_hdr("./res/ibl/russia.hdr");
 	Cubemap* __CubemapTexture = g_Renderer.register_cubemap_classical("./res/cm/yokohama",TEXTURE_FORMAT_SRGB);
-	__Cubemap->ubo.attach_texture(0,&__CubemapTexture->cubemap);
+	__Cubemap->ubo.attach_texture(RENDERER_CUBEMAP_DESCRIPTOR_CHANNEL,&__CubemapTexture->cubemap);
 
 	// lightbulbs
 	__BulbBatch->load(Mesh::SPHERE,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
