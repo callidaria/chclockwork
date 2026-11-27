@@ -176,6 +176,14 @@ vec3(0,0,1);
 vec3(0);
 #endif
 
+// default cubemap colour
+constexpr vec3 CUBEMAP_DEFAULT_COLOUR =
+#ifdef DEBUG
+vec3(.1f);
+#else
+vec3(0);
+#endif
+
 
 // ----------------------------------------------------------------------------------------------------
 // Utility

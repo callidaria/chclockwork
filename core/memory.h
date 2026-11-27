@@ -99,6 +99,13 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Texture
 
+enum TextureSourceType : u8
+{
+	TEXTURE_SOURCE_TYPE_TEXTURE,
+	TEXTURE_SOURCE_TYPE_CUBEMAP,
+	TEXTURE_SOURCE_TYPE_COUNT
+};
+
 enum TextureFormat : u8
 {
 	TEXTURE_FORMAT_RGBA,
@@ -306,7 +313,8 @@ struct Cubemap
 {
 	// utility
 	static void load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q);
-	void loadYUpLH(const char* path,TextureFormat fmt);
+	void load_colour(vec3 colour);
+	void load_YUpLH(const char* path,TextureFormat fmt);
 	void gpu_upload();
 	void vanish();
 

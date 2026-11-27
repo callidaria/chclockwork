@@ -1295,14 +1295,23 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
  */
 void Cubemap::load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q)
 {
-	cubemap->loadYUpLH(path,format);
+	cubemap->load_YUpLH(path,format);
 	q->push(cubemap);
 }
 
 /**
  *	TODO
  */
-void Cubemap::loadYUpLH(const char* path,TextureFormat fmt)
+void Cubemap::load_colour(vec3 colour)
+{
+	format = TEXTURE_FORMAT_SRGB;
+	for (u8 i=0;i<CUBEMAP_COMPONENT_CHANNEL_COUNT;i++) data[i].load(colour);
+}
+
+/**
+ *	TODO
+ */
+void Cubemap::load_YUpLH(const char* path,TextureFormat fmt)
 {
 	format = fmt;
 	std::filesystem::path __CmDir(path);

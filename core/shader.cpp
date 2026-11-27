@@ -113,7 +113,6 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
  *	\param interface: target interface data, receiving information
  *	\param stage: source file shader stage
  */
-#define SHADER_IMAGE_ATTRIBUTE_SIGNIFIER "sampler"
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
 {
@@ -237,7 +236,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// determine type and check for disagreements with colliding definitions from prev. stages
 			// the check is only reliable, because the read does not allow write of sampler type due to the
 			// default value being 0. that value describes VK_DESCRIPTOR_TYPE_SAMPLER. the precheck would fail!
-			VkDescriptorType __Type = (__Line.find(SHADER_IMAGE_ATTRIBUTE_SIGNIFIER)==string::npos)
+			size_t __Signifier = __Line.find("sampler");
+			VkDescriptorType __Type = (__Signifier==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
 			COMM_ERR_COND(p_Attrib.type!=0&&p_Attrib.type!=__Type,
@@ -249,12 +249,27 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			p_Attrib.stage |= stage;
 
 			// read data block for size estimation & save offset
-			if (__Line.find(SHADER_IMAGE_ATTRIBUTE_SIGNIFIER)==string::npos)
+			if (__Type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 			{
 				size_t __Count;
 				_process_data_block_text(__File,__Count,p_Attrib.range.range);
 				p_Attrib.range.offset = interface.ubo_width;
 				interface.ubo_width += p_Attrib.range.range;
+			}
+
+			// determine sampler type
+			else
+			{
+				switch (__Line[__Signifier+7])
+				{
+				case '2': p_Attrib.ttype = TEXTURE_SOURCE_TYPE_TEXTURE;
+					break;
+				case 'C': p_Attrib.ttype = TEXTURE_SOURCE_TYPE_CUBEMAP;
+					break;
+				default:
+					COMM_ERR("could not correlate sampler definition %c with available texture types",
+							 __Line[__Signifier]);
+				};
 			}
 			// FIXME dont run this when repeating read from vertex in fragment source
 		}
@@ -281,7 +296,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
  */
 UniformBuffer::UniformBuffer()
 {
-	// setup default sampler
+	// setup default sampler, this is mostly for render to texture buffer shader reintroduction
 	COMM_LOG("creating default sampler");
 	VkSamplerCreateInfo __SamplerInfo = {  };
 	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -302,7 +317,20 @@ UniformBuffer::UniformBuffer()
 	__SamplerInfo.maxLod = 0;
 	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
-	// TODO move to renderer instead
+
+	// default texture placeholder
+	COMM_LOG("creating default texture placeholder");
+	TextureData __DefaultColour;
+	__DefaultColour.load(TEXTURE_DEFAULT_COLOUR);
+	default_texture.allocate(__DefaultColour.width,__DefaultColour.height,TEXTURE_FORMAT_SRGB);
+	default_texture.transition_texture_transfer();
+	default_texture.gpu_upload(__DefaultColour);
+	default_texture.generate_mipmap();
+
+	// default cubemap placeholder
+	COMM_LOG("creating default cubemap placeholder");
+	default_cubemap.load_colour(CUBEMAP_DEFAULT_COLOUR);
+	default_cubemap.gpu_upload();
 
 	// entry descriptor pool sizes into configuration
 	// starting with uniform buffer type allocation, then combined image sampler
@@ -347,6 +375,7 @@ void UniformBuffer::vanish()
 	// defaults
 	g_GPU.free(default_sampler);
 	default_texture.vanish();
+	default_cubemap.vanish();
 
 	// uniform buffer memory
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -539,8 +568,9 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
 /**
  *	define pseudo-segment in set, that references a uploaded texture
  *	\param location: uniform location
+ *	TODO amend
  */
-void DescriptorSetMemory::define_texture_segment(u16 location)
+void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType type)
 {
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
@@ -551,8 +581,18 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
 	__Desc.info.image = {  };
 	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
-	__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+
+	// load default texture, based on the texture location type
+	switch (type)
+	{
+	case TEXTURE_SOURCE_TYPE_CUBEMAP:
+		__Desc.info.image.imageView = g_UniformBuffer.default_cubemap.cubemap.image_view;
+		__Desc.info.image.sampler = g_UniformBuffer.default_cubemap.cubemap.sampler;
+		break;
+	default:
+		__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
+		__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+	};
 	m_DescriptorInfos.push_back(__Desc);
 
 	// define & link info to VkWriteDescriptorSet
@@ -564,11 +604,12 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
  *	define multiple pseudo-segments in set, that reference uploaded textures
  *	\param location: first uniform location
  *	\param range: count of consecutive texture pseudo-segments
+ *	TODO amend
  */
-void DescriptorSetMemory::define_texture_segment(u16 location,u16 range)
+void DescriptorSetMemory::define_texture_segment(u16 location,u16 range,TextureSourceType type)
 {
 	for (u16 i=location;i<location+range;i++)
-		define_texture_segment(i);
+		define_texture_segment(i,type);
 }
 
 /**
@@ -1121,7 +1162,7 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		{
 			if (p_Binding->second.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 				p_DSetMemory.define_data_segment(p_Binding->first,p_Binding->second.range.range);
-			else p_DSetMemory.define_texture_segment(p_Binding->first);
+			else p_DSetMemory.define_texture_segment(p_Binding->first,p_Binding->second.ttype);
 		}
 	}
 }

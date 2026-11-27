@@ -76,6 +76,7 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
+	TextureSourceType ttype;
 	MemoryRange range;
 };
 
@@ -114,8 +115,9 @@ public:
 	MemoryChunkResource mcr = MemoryChunkResource(SHADER_UNIFORM_BUFFER_MEMSIZE);
 
 	// standards
-	Texture default_texture;
 	VkSampler default_sampler;
+	Texture default_texture;
+	Cubemap default_cubemap;
 
 private:
 	vector<VkDescriptorSetLayoutBinding> m_Bindings[GPU_GUARANTEED_SET_COUNT];
@@ -142,8 +144,8 @@ struct DescriptorSetMemory
 	// interaction
 	void define_data_segment(u16 location,size_t range);
 	void define_data_segment(u16 location,size_t offset,size_t range);
-	void define_texture_segment(u16 location);
-	void define_texture_segment(u16 location,u16 range);
+	void define_texture_segment(u16 location,TextureSourceType type);
+	void define_texture_segment(u16 location,u16 range,TextureSourceType type);
 	void write(u16 location,void* data);
 	void link_result(size_t location,Texture* texture);
 	void link_result(size_t location,VkImageView buffer);

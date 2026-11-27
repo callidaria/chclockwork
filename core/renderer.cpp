@@ -1170,7 +1170,8 @@ Renderer::Renderer()
 											  m_GlobalSetOffset+offsetof(UniformBufferMemory,orth_shadow),
 											  sizeof(OrthographicShadow));
 	m_GlobalDescriptorSet.define_texture_segment(GSE_SPRITE_ATLAS_LOCATION,
-												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1);
+												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1,
+												 TEXTURE_SOURCE_TYPE_TEXTURE);
 
 	// linking buffer results
 	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
@@ -1190,10 +1191,6 @@ Renderer::Renderer()
 	// load ubo
 	m_SpriteUBO.create(m_SpritePipeline);
 	m_TextUBO.create(m_TextPipeline);
-
-	// load default textures
-	Texture::load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
-						 &m_MeshTextureUploadQueue);
 
 	/*
 	COMM_LOG("starting renderer subprocesses");
