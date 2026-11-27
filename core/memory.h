@@ -144,6 +144,16 @@ struct TextureData
 	s32 width = 0,height = 0;
 };
 
+class Texture;
+
+struct TextureDataTuple
+{
+	TextureData data;
+	Texture* texture;
+	TextureFormat format;
+	TextureFeatures features;
+};
+
 class Texture
 {
 public:
@@ -152,10 +162,13 @@ public:
 	void register_subtexture(TextureData& data);
 
 	// load
-	// static void load();
+	static void load_colour(Texture* texture,vec3 colour,TextureFormat format,
+							ThreadedQueue<TextureDataTuple>* q);
+	static void load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
+							 ThreadedQueue<TextureDataTuple>* q);
 	void gpu_upload();
 	void gpu_upload(TextureData& data);
-	void gpu_upload(vector<TextureData>& data);
+	void gpu_upload(TextureData* data,u8 size);
 
 	// utility
 	void generate_mipmap();
@@ -210,14 +223,6 @@ private:
 #else
 	u32 m_Memory;
 #endif
-};
-
-struct TextureDataTuple
-{
-	TextureData data;
-	Texture* texture;
-	TextureFormat format;
-	TextureFeatures features;
 };
 
 
@@ -307,6 +312,6 @@ struct Cubemap
 
 	// data
 	Texture cubemap;
-	vector<TextureData> data;
+	TextureData data[CUBEMAP_COMPONENT_CHANNEL_COUNT];
 	TextureFormat format;
 };

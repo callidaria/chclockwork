@@ -554,6 +554,37 @@ void Texture::register_subtexture(TextureData& data)
 }
 
 /**
+ *	load monocolour texture into ram in background & register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param colour: colour of generated monocoloured texture
+ *	\param format: texture colour channel format
+ *	\param q: thread safe queue for texture vram upload
+ */
+void Texture::load_colour(Texture* texture,vec3 colour,TextureFormat format,ThreadedQueue<TextureDataTuple>* q)
+{
+	TextureData __Data;
+	__Data.load(colour);
+	q->push(TextureDataTuple{ __Data,texture,format });
+}
+
+/**
+ *	load texture into ram in background & register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param path: path to texture
+ *	\param format: texture colour channel format
+ *	\param feat: bitwise texture features
+ *	\param q: thread safe queue for texture vram upload
+ */
+void Texture::load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
+							 ThreadedQueue<TextureDataTuple>* q)
+{
+	TextureData __Data;
+	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
+	else __Data.load(path);
+	q->push(TextureDataTuple{ __Data,texture,format,feat });
+}
+
+/**
  *	upload all registered subtexture uploads, this should be run for texture atlasses
  */
 void Texture::gpu_upload()
@@ -591,10 +622,10 @@ void Texture::gpu_upload(TextureData& data)
 /**
  *	TODO
  */
-void Texture::gpu_upload(vector<TextureData>& data)
+void Texture::gpu_upload(TextureData* data,u8 size)
 {
 #ifdef VKBUILD
-	for (size_t i=0;i<data.size();i++)
+	for (size_t i=0;i<size;i++)
 	{
 		_setup_buffer_copy(m_UploadCursor,data[i],i);
 		data[i].vanish();
@@ -1275,7 +1306,6 @@ void Cubemap::loadYUpLH(const char* path,TextureFormat fmt)
 {
 	format = fmt;
 	std::filesystem::path __CmDir(path);
-	data.resize(CUBEMAP_COMPONENT_CHANNEL_COUNT);
 	data[CUBEMAP_COMPONENT_CHANNEL_POSX].load((__CmDir/"posx.jpg").c_str());
 	data[CUBEMAP_COMPONENT_CHANNEL_NEGX].load((__CmDir/"negx.jpg").c_str());
 	data[CUBEMAP_COMPONENT_CHANNEL_NEGY].load((__CmDir/"posy.jpg").c_str());
@@ -1291,7 +1321,7 @@ void Cubemap::gpu_upload()
 {
 	cubemap.allocate(data[0].width,data[0].height,format,TEXTURE_FEATURE_CUBEMAP_BIT);
 	cubemap.transition_texture_transfer();
-	cubemap.gpu_upload(data);
+	cubemap.gpu_upload(data,6);
 	cubemap.generate_mipmap();  // TODO just include into gpu_upload at this point
 }
 

@@ -553,12 +553,6 @@ public:
 	void animate(AnimatedMesh* mesh);
 
 private:
-	// threaded texture actions
-	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							 ThreadedQueue<TextureDataTuple>* q);
-	static void _load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
-							  ThreadedQueue<TextureDataTuple>* q);
-
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();

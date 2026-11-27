@@ -1192,8 +1192,8 @@ Renderer::Renderer()
 	m_TextUBO.create(m_TextPipeline);
 
 	// load default textures
-	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
-				 &m_MeshTextureUploadQueue);
+	Texture::load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
+						 &m_MeshTextureUploadQueue);
 
 	/*
 	COMM_LOG("starting renderer subprocesses");
@@ -1499,7 +1499,7 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 				  "monochrome format should not be set for textures, defined by a colour vector");
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_colour,p_Texture,colour,format,&m_MeshTextureUploadQueue);
+	thread __LoadThread(Texture::load_colour,p_Texture,colour,format,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1516,7 +1516,7 @@ Texture* Renderer::register_texture(const char* path,TextureFormat format,Textur
 	COMM_LOG("mesh texture register of %s",path);
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,feat,&m_MeshTextureUploadQueue);
+	thread __LoadThread(Texture::load_texture,p_Texture,path,format,feat,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1753,40 +1753,6 @@ PointLight* Renderer::add_pointlight(vec3 position,vec3 colour,f32 intensity,f32
 void Renderer::animate(AnimatedMesh* mesh)
 {
 	m_AnimatingMeshes.push_back(mesh);
-}
-
-/**
- *	load monocolour texture into ram in background & register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param colour: colour of generated monocoloured texture
- *	\param format: texture colour channel format
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							ThreadedQueue<TextureDataTuple>* q)
-{
-	TextureData __Data;
-	__Data.load(colour);
-	q->push(TextureDataTuple{ __Data,texture,format });
-}
-
-/**
- *	load texture into ram in background & register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param path: path to texture
- *	\param format: texture colour channel format
- *	\param feat: bitwise texture features
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
-							 ThreadedQueue<TextureDataTuple>* q)
-{
-	TextureData __Data;
-	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
-	else __Data.load(path);
-	q->push(TextureDataTuple{ __Data,texture,format,feat });
 }
 
 /**
