@@ -21,7 +21,7 @@ layout(set = 1,binding = 70) uniform ObjectInfo
 
 void main()
 {
-	Position = normalize(vec3(position.x,-position.z,position.y));
+	Position = position;
 	mat4 ntrans_view = mat4(mat3(ot.view));
 	vec4 out_position = ot.proj*ntrans_view*vec4(position,1.);
 	gl_Position = out_position.xyww;

@@ -19,5 +19,5 @@ void main()
 
 vec2 acquire_uv_coordinate(vec3 pos)
 {
-	return vec2(atan(pos.y,pos.x),asin(pos.z))*atan_inv+.5;
+	return vec2(atan(-pos.y,pos.x),asin(pos.z))*atan_inv+.5;
 }

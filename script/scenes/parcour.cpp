@@ -20,7 +20,8 @@ void ParcourParcs::init()
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
 			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED);
 	lptr<ShaderPipeline> __CubemapPipeline = g_Renderer.register_pipeline(
-			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/skybox.frag",
+			//"./shader/vulkan/bin/skybox.vert","./shader/vulkan/bin/skybox.frag",
+			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
 			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_FORWARD_DRAW,SPF_FLIPPED);
 	// TODO find out what else in the signature is obsolete
 
@@ -82,9 +83,9 @@ void ParcourParcs::init()
 		);
 
 	// cubemap
-	//Texture* __CubemapTexture = g_Renderer.register_cubemap_hdr("./res/ibl/russia.hdr");
-	Cubemap* __CubemapTexture = g_Renderer.register_cubemap_classical("./res/cm/yokohama",TEXTURE_FORMAT_SRGB);
-	__Cubemap->ubo.attach_texture(RENDERER_CUBEMAP_DESCRIPTOR_CHANNEL,&__CubemapTexture->cubemap);
+	Texture* __CubemapTexture = g_Renderer.register_cubemap_hdr("./res/ibl/russia.hdr");
+	//Cubemap* __CubemapTexture = g_Renderer.register_cubemap_classical("./res/cm/yokohama",TEXTURE_FORMAT_SRGB);
+	__Cubemap->ubo.attach_texture(0,__CubemapTexture);
 
 	// lightbulbs
 	__BulbBatch->load(Mesh::SPHERE,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));
