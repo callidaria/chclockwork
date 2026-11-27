@@ -1546,7 +1546,9 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
 }
 
 /**
- *	TODO
+ *	classical cubemap. directory is the source, will load a texture for each side of the skybox
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param format: texture colourspace format
  */
 Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat format)
 {
@@ -1558,8 +1560,9 @@ Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat for
 }
 
 /**
- *	TODO
- *	\note this requires a single .hdr irradiance map, will be packed into float format
+ *	single texture. this texture can be projected by cubemap_hdr.frag onto a skybox. contains irradiance data
+ *	\param path: path to single .hdr texture
+ *	\note this requires an .hdr irradiance map, will be packed into 4-byte unsigned float format
  */
 Texture* Renderer::register_cubemap_hdr(const char* path)
 {
@@ -1571,11 +1574,9 @@ Texture* Renderer::register_cubemap_hdr(const char* path)
  *	\param vs: path to vertex shader
  *	\param fs: path to fragment shader
  *	\param tr: resolution of result
- *	\param format: format of result, this includes colourspaces, count of output results & depth component spec
+ *	\param rs: render stage, the new pipeline will operate within
  *	\param feat: enabled/active features during shader pipeline processing
  *	\returns registered shader pipeline
- *	TODO later also pack feature?
- *	TODO amend
  */
 lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,TargetResolution tr,
 												 RenderStage rs,u32 feat)

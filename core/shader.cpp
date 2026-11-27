@@ -568,7 +568,7 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
 /**
  *	define pseudo-segment in set, that references a uploaded texture
  *	\param location: uniform location
- *	TODO amend
+ *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
 void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType type)
 {
@@ -604,7 +604,7 @@ void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType 
  *	define multiple pseudo-segments in set, that reference uploaded textures
  *	\param location: first uniform location
  *	\param range: count of consecutive texture pseudo-segments
- *	TODO amend
+ *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
 void DescriptorSetMemory::define_texture_segment(u16 location,u16 range,TextureSourceType type)
 {
@@ -793,9 +793,9 @@ FragmentShader::FragmentShader(const char* path)
  *	\param res: target resolution dimension type of result
  *	\param vs: vertex shader source
  *	\param fs: fragment shader source
+ *	\param rp: render pass, the pipeline runs within
  *	\param feat: bitwise combination of ShaderPipelineFeatures
  *	\note either out_define_colour_buffer() or out_define_result_buffer() have to be called before assembly
- *	TODO amend
  */
 void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,RenderPass& rp,u32 feat)
 {

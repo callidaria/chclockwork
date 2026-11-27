@@ -7,9 +7,9 @@
 /**
  *	setup output framebuffer and allocate to satisfy given shader pipeline
  *	\param res: target frame resolution dimension type
+ *	\param rp: related render pass, this defines this framebuffer as the target of the render pass result
  *	\param result_buffer: (default -1) >-1 if render pass has result defined and attaches frame
  *			indexed by this variable
- *	TODO amend
  */
 void Framebuffer::setup(TargetResolution res,RenderPass* rp,s16 result_buffer)
 {
@@ -63,8 +63,8 @@ void Framebuffer::setup(TargetResolution res,RenderPass* rp,s16 result_buffer)
 
 /**
  *	setup result buffers
+ *	\param rp: final render pass, this defines this framebuffer as the target of the result pass
  *	\param fbs: vector of result framebuffers to setup. should be non-initialized
- *	TODO amend
  */
 void Framebuffer::setup_result(RenderPass* rp,vector<Framebuffer>& fbs)
 {
@@ -73,7 +73,8 @@ void Framebuffer::setup_result(RenderPass* rp,vector<Framebuffer>& fbs)
 }
 
 /**
- *	TODO
+ *	intialize render pass
+ *	\param rp: related render pass will be generated tailored to the stored specifics
  */
 void Framebuffer::_create_render_pass(RenderPass* rp)
 {

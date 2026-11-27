@@ -476,8 +476,10 @@ struct ThreadSignal
 
 template<typename T> struct ThreadedQueue
 {
+	// utility
 	/**
-	 *	TODO
+	 *	execute a thread safe queue push, based on mutex in this structure
+	 *	\param val: value to push as a copy
 	 */
 	inline void push(T val)
 	{

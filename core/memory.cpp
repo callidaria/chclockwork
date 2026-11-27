@@ -7,6 +7,7 @@
 /**
  *	generate memory barrier for texture, image or other pixel buffer
  *	\param tex: target image
+ *	\param layers: count of elements in texture array
  *	\param mip: count of generated mipmap levels
  *	\returns assembled barrier info
  */
@@ -361,7 +362,8 @@ void TextureData::load(const char* path)
 //		and by extension must also process the stbi header. this cannot be the right solution!
 
 /**
- *	TODO
+ *	load hdr float data from .hdr file. afterwards the data will be packaged into B10G11R11 unsigned float
+ *	\param path: path to texture
  */
 void TextureData::load_hdr(const char* path)
 {
@@ -619,7 +621,10 @@ void Texture::gpu_upload(TextureData& data)
 }
 
 /**
- *	TODO
+ *	upload image data array as one texture with multiple array layers. this is compatible with samplerCubes
+ *	\param data: texture data array
+ *	\param size: length of the texture data array, size should be less or equal to the array size in allocation
+ *	\note needs to have as much array layers specified during allocation as passed as size in this call
  */
 void Texture::gpu_upload(TextureData* data,u8 size)
 {
@@ -1235,16 +1240,8 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 
 		// upload glyph as texture buffer
 		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
-		if (__TextureData.type==TEX_DATA_TYPE_FLOAT)
-		{
-			__TextureData.data.intbfr = (u8*)malloc(__Mem);
-			memcpy(__TextureData.data.intbfr,__Face->glyph->bitmap.buffer,__Mem);
-		}
-		else
-		{
-			__TextureData.data.intbfr = (u8*)malloc(__Mem);
-			memcpy(__TextureData.data.intbfr,__Face->glyph->bitmap.buffer,__Mem);
-		}
+		__TextureData.data.intbfr = (u8*)malloc(__Mem);
+		memcpy(__TextureData.data.intbfr,__Face->glyph->bitmap.buffer,__Mem);
 		_load(gpb,&font->tex[i],&__TextureData);
 	}
 	gpb->signal.proceed();
@@ -1290,7 +1287,12 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 // Cubemap
 
 /**
- *	TODO
+ *	threaded cubemap load & setup for upload to vram afterwards
+ *	\param cubemap: target cubemap
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param format: texture colourspace format
+ *	\param q: target gpu upload queue
+ *	\note this is intended to be called as a subthread, to stream in cubemap data alongside execution
  */
 void Cubemap::load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q)
 {
@@ -1299,7 +1301,8 @@ void Cubemap::load(Cubemap* cubemap,const char* path,TextureFormat format,Thread
 }
 
 /**
- *	TODO
+ *	fill entire cubemap array with a single colour
+ *	\param colour: monocolour
  */
 void Cubemap::load_colour(vec3 colour)
 {
@@ -1308,7 +1311,10 @@ void Cubemap::load_colour(vec3 colour)
 }
 
 /**
- *	TODO
+ *	load cubemap textures with intended orientation +Y up, left handed coordinate system
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param fmt: texture colourspace format
+ *	\note for single hdr texture cubemapping use texture loading & cubemap_hdr shader implementation
  */
 void Cubemap::load_YUpLH(const char* path,TextureFormat fmt)
 {
@@ -1323,7 +1329,7 @@ void Cubemap::load_YUpLH(const char* path,TextureFormat fmt)
 }
 
 /**
- *	TODO
+ *	upload cubemap texture data to vram
  */
 void Cubemap::gpu_upload()
 {
@@ -1334,7 +1340,7 @@ void Cubemap::gpu_upload()
 }
 
 /**
- *	TODO
+ *	remove cubemap texture
  */
 void Cubemap::vanish()
 {
