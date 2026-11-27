@@ -422,9 +422,8 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 
 #ifdef VKBUILD
 	// generate staging buffer
-	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,
-						  width*height*_texture_formats[format].size*layercount,
-						  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	size_t __MemoryRange = width*height*_texture_formats[format].size*layercount;
+	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,__MemoryRange,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
 	// TODO !!!!kill staging buffer after upload for all textures, except those that are used by atlasses!!!!
@@ -531,7 +530,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat
 #endif
 
 	// memory correlation & sign as ready
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,width*height*_texture_formats[m_Format].size,0,&m_Data);
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,__MemoryRange,0,&m_Data);
 	allocated = true;
 }
 
@@ -1330,7 +1329,7 @@ void Cubemap::gpu_upload()
 {
 	cubemap.allocate(data[0].width,data[0].height,format,TEXTURE_FEATURE_CUBEMAP_BIT);
 	cubemap.transition_texture_transfer();
-	cubemap.gpu_upload(data,6);
+	cubemap.gpu_upload(data,CUBEMAP_COMPONENT_CHANNEL_COUNT);
 	cubemap.generate_mipmap();  // TODO just include into gpu_upload at this point
 }
 
