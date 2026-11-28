@@ -13,10 +13,8 @@
  */
 void Framebuffer::setup(TargetResolution res,RenderPass* rp,s16 result_buffer)
 {
-	pm_RenderPass = rp;
 	m_ComponentCount = rp->formats.size()+rp->depth;
 	m_ResultBuffer = result_buffer>-1;
-	// TODO this is not necessary anymore with passed format structure?
 
 	// allocation for framebuffer local components
 	components.resize(m_ComponentCount);
@@ -48,6 +46,15 @@ void Framebuffer::setup(TargetResolution res,RenderPass* rp,s16 result_buffer)
 	// populate clear values
 	m_ClearValues = vector<VkClearValue>(components.size(),g_Frame.clear_colour[CLEAR_COLOUR_FRAME]);
 	if (rp->depth) m_ClearValues.back() = g_Frame.clear_colour[CLEAR_COLOUR_DEPTH];
+
+	// setup draw info
+	m_RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	m_RPBeginInfo.renderPass = rp->render_pass;
+	m_RPBeginInfo.framebuffer = m_Framebuffer;
+	m_RPBeginInfo.renderArea.offset = { 0,0 };
+	m_RPBeginInfo.renderArea.extent = pm_FrameDimension->extent;
+	m_RPBeginInfo.clearValueCount = components.size();
+	m_RPBeginInfo.pClearValues = &m_ClearValues[0];
 
 #else
 	// join attachments
@@ -120,7 +127,6 @@ void Framebuffer::_create_render_pass(RenderPass* rp)
 		__AttachRef[__Channels].attachment = __Channels;
 		__AttachRef[__Channels].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	}
-	// TODO reduce gencode
 
 	// specify graphical subpass
 	VkSubpassDescription __SubpassDesc = {  };
@@ -283,11 +289,11 @@ void Framebuffer::vanish()
 	for (u8 i=0;i<components.size();i++)
 	{
 		g_GPU.free(components[i]);
+		g_GPU.free(m_AttachmentMemory[i]);
 
 		// free component memory should it have been allocated by the framebuffer. only continue free
 		// for the first element for byproducts & also possible depth buffer component alongside swapchain result
 		if (i==0&&m_ResultBuffer) continue;
-		g_GPU.free(m_AttachmentMemory[i]);
 		g_GPU.free(attachment_images[i]);
 	}
 
@@ -302,21 +308,9 @@ void Framebuffer::vanish()
 void Framebuffer::record()
 {
 #ifdef VKBUILD
-	// setup begin draw
-	VkRenderPassBeginInfo __RPBeginInfo = {  };
-	__RPBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	__RPBeginInfo.renderPass = pm_RenderPass->render_pass;
-	__RPBeginInfo.framebuffer = m_Framebuffer;
-	__RPBeginInfo.renderArea.offset = { 0,0 };
-	__RPBeginInfo.renderArea.extent = pm_FrameDimension->extent;
-	__RPBeginInfo.clearValueCount = components.size();
-	__RPBeginInfo.pClearValues = &m_ClearValues[0];
 	vkCmdBeginRenderPass(g_GPU.acquire_graphical_command_buffer()->buffer,
-						 &__RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
-
-	// viewport setup
+						 &m_RPBeginInfo,VK_SUBPASS_CONTENTS_INLINE);
 	Frame::set_viewport(pm_FrameDimension);
-
 #else
 	glBindFramebuffer(GL_FRAMEBUFFER,m_Buffer);
 	Frame::clear();

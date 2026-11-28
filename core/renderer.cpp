@@ -1111,7 +1111,7 @@ Renderer::Renderer()
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	for (u16 i=0;i<RENDERER_TEXTURE_DESCRIPTOR_CHANNELS;i++)
 		g_UniformBuffer.define(2,i,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);  // voxelinfo
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
 
@@ -1123,7 +1123,6 @@ Renderer::Renderer()
 													 &RENDER_STAGES[RENDER_STAGE_GEOMETRY_PASS]);
 	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].setup(TARGET_RESOLUTION_SHADOWPROJ,
 														 &RENDER_STAGES[RENDER_STAGE_SHADOW_PROJECTION]);
-	// TODO tuple?
 
 	// setup default pipelines
 	m_SpritePipeline = register_pipeline(
@@ -1169,7 +1168,7 @@ Renderer::Renderer()
 											  sizeof(OrthographicShadow));
 	m_GlobalDescriptorSet.define_texture_segment(GSE_SPRITE_ATLAS_LOCATION,
 												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1,
-												 TEXTURE_SOURCE_TYPE_TEXTURE);
+												 TEXTURE_ATTRIBUTE_TYPE_TEXTURE);
 
 	// linking buffer results
 	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
@@ -1272,7 +1271,7 @@ void Renderer::update()
 	Texture::transition_depth_texture(
 			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
 	Texture::transition_depth_texture(
-		m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
+			m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
 	Texture::transition_depth_texture(m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].attachment_images[0]);
 
 	// result assembly
@@ -1547,6 +1546,7 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
  *	classical cubemap. directory is the source, will load a texture for each side of the skybox
  *	\param path: path to cubemap directory. this should contain posx until negz textures
  *	\param format: texture colourspace format
+ *	\returns pointer to registered cubemap for mapping onto a skybox per samplerCube
  */
 Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat format)
 {
@@ -1561,6 +1561,7 @@ Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat for
  *	single texture. this texture can be projected by cubemap_hdr.frag onto a skybox. contains irradiance data
  *	\param path: path to single .hdr texture
  *	\note this requires an .hdr irradiance map, will be packed into 4-byte unsigned float format
+ *	\returns pointer to registered cubemap for mapping onto a skybox by cubemap_hdr.frag shader
  */
 Texture* Renderer::register_cubemap_hdr(const char* path)
 {
@@ -1858,7 +1859,6 @@ void Renderer::_gpu_upload()
 		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format,p_Tuple.features);
 		p_Tuple.texture->transition_texture_transfer();
 		p_Tuple.texture->gpu_upload(p_Tuple.data);
-		p_Tuple.texture->generate_mipmap();
 		m_MeshTextureUploadQueue.tqueue.pop();
 		__MeshTextureUpdated = true;
 	}

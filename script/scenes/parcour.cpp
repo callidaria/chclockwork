@@ -23,7 +23,6 @@ void ParcourParcs::init()
 			//"./shader/vulkan/bin/skybox.vert","./shader/vulkan/bin/skybox.frag",
 			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
 			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_FORWARD_DRAW,SPF_FLIPPED);
-	// TODO find out what else in the signature is obsolete
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);

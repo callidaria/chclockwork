@@ -113,6 +113,7 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
  *	\param interface: target interface data, receiving information
  *	\param stage: source file shader stage
  */
+static constexpr std::string_view SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER = "sampler";
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
 {
@@ -236,7 +237,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// determine type and check for disagreements with colliding definitions from prev. stages
 			// the check is only reliable, because the read does not allow write of sampler type due to the
 			// default value being 0. that value describes VK_DESCRIPTOR_TYPE_SAMPLER. the precheck would fail!
-			size_t __Signifier = __Line.find("sampler");
+			size_t __Signifier = __Line.find(SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER);
 			VkDescriptorType __Type = (__Signifier==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
@@ -260,11 +261,11 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// determine sampler type
 			else
 			{
-				switch (__Line[__Signifier+7])
+				switch (__Line[__Signifier+SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER.length()])
 				{
-				case '2': p_Attrib.ttype = TEXTURE_SOURCE_TYPE_TEXTURE;
+				case '2': p_Attrib.ttype = TEXTURE_ATTRIBUTE_TYPE_TEXTURE;
 					break;
-				case 'C': p_Attrib.ttype = TEXTURE_SOURCE_TYPE_CUBEMAP;
+				case 'C': p_Attrib.ttype = TEXTURE_ATTRIBUTE_TYPE_CUBEMAP;
 					break;
 				default:
 					COMM_ERR("could not correlate sampler definition %c with available texture types",
@@ -325,7 +326,6 @@ UniformBuffer::UniformBuffer()
 	default_texture.allocate(__DefaultColour.width,__DefaultColour.height,TEXTURE_FORMAT_SRGB);
 	default_texture.transition_texture_transfer();
 	default_texture.gpu_upload(__DefaultColour);
-	default_texture.generate_mipmap();
 
 	// default cubemap placeholder
 	COMM_LOG("creating default cubemap placeholder");
@@ -570,7 +570,7 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
  *	\param location: uniform location
  *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
-void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType type)
+void DescriptorSetMemory::define_texture_segment(u16 location,TextureAttributeType type)
 {
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
@@ -585,7 +585,7 @@ void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType 
 	// load default texture, based on the texture location type
 	switch (type)
 	{
-	case TEXTURE_SOURCE_TYPE_CUBEMAP:
+	case TEXTURE_ATTRIBUTE_TYPE_CUBEMAP:
 		__Desc.info.image.imageView = g_UniformBuffer.default_cubemap.cubemap.image_view;
 		__Desc.info.image.sampler = g_UniformBuffer.default_cubemap.cubemap.sampler;
 		break;
@@ -606,7 +606,7 @@ void DescriptorSetMemory::define_texture_segment(u16 location,TextureSourceType 
  *	\param range: count of consecutive texture pseudo-segments
  *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
-void DescriptorSetMemory::define_texture_segment(u16 location,u16 range,TextureSourceType type)
+void DescriptorSetMemory::define_texture_segment(u16 location,u16 range,TextureAttributeType type)
 {
 	for (u16 i=location;i<location+range;i++)
 		define_texture_segment(i,type);

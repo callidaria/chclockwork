@@ -99,13 +99,6 @@ private:
 // ----------------------------------------------------------------------------------------------------
 // Texture
 
-enum TextureSourceType : u8
-{
-	TEXTURE_SOURCE_TYPE_TEXTURE,
-	TEXTURE_SOURCE_TYPE_CUBEMAP,
-	TEXTURE_SOURCE_TYPE_COUNT
-};
-
 enum TextureFormat : u8
 {
 	TEXTURE_FORMAT_RGBA,
@@ -124,16 +117,20 @@ enum TextureFeatures : u8
 
 enum TexDataType : u8
 {
-	TEX_DATA_TYPE_OVERWRITTEN,
-	TEX_DATA_TYPE_INTEGER,
-	TEX_DATA_TYPE_FLOAT,
-	TEX_DATA_TYPE_COUNT
+	TEXTURE_DATA_TYPE_UNSPECIFIED,
+	TEXTURE_DATA_TYPE_U8,
+	TEXTURE_DATA_TYPE_UF11,
+	TEXTURE_DATA_TYPE_COUNT
 };
 
-union TexDataArr
+struct TexDataBuffer
 {
-	u8* intbfr;
-	u32* floatbfr;
+	union TexDataPointer
+	{
+		u8* u8b;
+		u32* uf11b;
+	} buffer;
+	TexDataType type = TEXTURE_DATA_TYPE_UNSPECIFIED;
 };
 
 struct TextureData
@@ -145,8 +142,7 @@ struct TextureData
 	void vanish();
 
 	// data
-	TexDataArr data;
-	TexDataType type = TEX_DATA_TYPE_OVERWRITTEN;
+	TexDataBuffer data;
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
 };
@@ -177,9 +173,6 @@ public:
 	void gpu_upload(TextureData& data);
 	void gpu_upload(TextureData* data,u8 size);
 
-	// utility
-	void generate_mipmap();
-
 #ifdef VKBUILD
 	void vanish();
 	void transition_texture_transfer();
@@ -204,6 +197,7 @@ public:
 #ifdef VKBUILD
 private:
 	void _setup_buffer_copy(size_t& ofs,TextureData& data,size_t arr_index=0);
+	void _generate_mipmap();
 #endif
 
 public:

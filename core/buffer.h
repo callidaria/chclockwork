@@ -39,15 +39,16 @@ private:
 public:
 	vector<VkImage> attachment_images;
 	vector<__fbuffer_component> components;
-	vector<VkClearValue> m_ClearValues;
 
 private:
 #ifdef VKBUILD
+	// component attributes
 	vector<VkDeviceMemory> m_AttachmentMemory;
 	vector<VkAttachmentDescription> m_AttachDesc;
+	vector<VkClearValue> m_ClearValues;
 	VkFramebuffer m_Framebuffer;
 	FrameDimensions* pm_FrameDimension;
-	RenderPass* pm_RenderPass;
+	VkRenderPassBeginInfo m_RPBeginInfo = {  };
 	u8 m_ComponentCount = 0;
 	bool m_ResultBuffer = false;
 #else

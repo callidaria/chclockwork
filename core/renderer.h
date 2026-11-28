@@ -70,11 +70,8 @@ enum UBOChannelPurpose
 // definition of descriptor set location channel constants for different purposes
 constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
-// TODO check dynamic endpoint setup against possible duplicate constant usage violations
-
-// set 2 texture location reservations
 constexpr u16 RENDERER_TEXTURE_DESCRIPTOR_CHANNELS = 8;
-constexpr u16 RENDERER_CUBEMAP_DESCRIPTOR_CHANNEL = 74;
+// TODO check dynamic endpoint setup against possible duplicate constant usage violations
 
 // this describes the render stage, defined by render pass & framebuffer, a new pipeline will operate in
 enum RenderStage
@@ -395,7 +392,6 @@ struct UniformBufferObject
 	void auto_update();
 	void attach_memory(u16 location,void* data);
 	void attach_texture(u16 location,Texture* texture);
-	void attach_cubemap(u16 location,Cubemap* cubemap);
 	void attach_material(Material* material);
 
 	// data
@@ -575,7 +571,6 @@ private:
 	// targets
 	vector<Framebuffer> m_ResultBuffers;
 	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT-1];
-	// FIXME this reserves for result also, even though result is stored in vector. format is a similar issue
 
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;

@@ -21,6 +21,13 @@ enum DescriptorType : u8
 	DESCRIPTOR_TYPE_IMAGE
 };
 
+enum TextureAttributeType : u8
+{
+	TEXTURE_ATTRIBUTE_TYPE_TEXTURE,
+	TEXTURE_ATTRIBUTE_TYPE_CUBEMAP,
+	TEXTURE_ATTRIBUTE_TYPE_COUNT
+};
+
 enum UniformDimension : u8
 {
 	SHADER_UNIFORM_UNDEFINED,
@@ -76,7 +83,7 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
-	TextureSourceType ttype;
+	TextureAttributeType ttype;
 	MemoryRange range;
 };
 
@@ -144,8 +151,8 @@ struct DescriptorSetMemory
 	// interaction
 	void define_data_segment(u16 location,size_t range);
 	void define_data_segment(u16 location,size_t offset,size_t range);
-	void define_texture_segment(u16 location,TextureSourceType type);
-	void define_texture_segment(u16 location,u16 range,TextureSourceType type);
+	void define_texture_segment(u16 location,TextureAttributeType type);
+	void define_texture_segment(u16 location,u16 range,TextureAttributeType type);
 	void write(u16 location,void* data);
 	void link_result(size_t location,Texture* texture);
 	void link_result(size_t location,VkImageView buffer);
@@ -218,12 +225,6 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	/*
-	ShaderPipeline(bool depth);
-	ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth);
-	*/
-
-	// assembly
 	void assemble(TargetResolution res,const char* vs,const char* fs,RenderPass& rp,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
