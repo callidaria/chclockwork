@@ -19,6 +19,7 @@ const VkFormat _vertex_shader_input_formats[SHADER_UNIFORM_FORMAT_COUNT] = {
 	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_UNDEFINED,
 	VK_FORMAT_UNDEFINED,
+	VK_FORMAT_UNDEFINED,
 };
 
 // dynamic state
@@ -41,6 +42,7 @@ inline const ShaderType SHADER_TYPES[SHADER_UNIFORM_FORMAT_COUNT] = {
 	{ "vec4",sizeof(vec4) },
 	{ "mat4",sizeof(mat4) },
 	{ "sampler2D",0 },
+	{ "samplerCube",0 },
 	{ "light_sun",sizeof(SunLight) },
 	{ "light_point",sizeof(PointLight) },
 };
@@ -111,6 +113,7 @@ static inline void _process_data_block_text(std::ifstream& file,size_t& varcount
  *	\param interface: target interface data, receiving information
  *	\param stage: source file shader stage
  */
+static constexpr std::string_view SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER = "sampler";
 static inline void _shader_interface_automap(const char* path,ShaderInterface& interface,
 											 VkShaderStageFlags stage)
 {
@@ -234,7 +237,8 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			// determine type and check for disagreements with colliding definitions from prev. stages
 			// the check is only reliable, because the read does not allow write of sampler type due to the
 			// default value being 0. that value describes VK_DESCRIPTOR_TYPE_SAMPLER. the precheck would fail!
-			VkDescriptorType __Type = (__Line.find("sampler2D")==string::npos)
+			size_t __Signifier = __Line.find(SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER);
+			VkDescriptorType __Type = (__Signifier==string::npos)
 					? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			UBOAttribute& p_Attrib = interface.ubo_attribs[__Set][__Binding];
 			COMM_ERR_COND(p_Attrib.type!=0&&p_Attrib.type!=__Type,
@@ -246,12 +250,27 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
 			p_Attrib.stage |= stage;
 
 			// read data block for size estimation & save offset
-			if (__Line.find("sampler2D")==string::npos)
+			if (__Type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 			{
 				size_t __Count;
 				_process_data_block_text(__File,__Count,p_Attrib.range.range);
 				p_Attrib.range.offset = interface.ubo_width;
 				interface.ubo_width += p_Attrib.range.range;
+			}
+
+			// determine sampler type
+			else
+			{
+				switch (__Line[__Signifier+SHADER_TEXTURE_ATTRIBUTE_SIGNIFIER.length()])
+				{
+				case '2': p_Attrib.ttype = TEXTURE_ATTRIBUTE_TYPE_TEXTURE;
+					break;
+				case 'C': p_Attrib.ttype = TEXTURE_ATTRIBUTE_TYPE_CUBEMAP;
+					break;
+				default:
+					COMM_ERR("could not correlate sampler definition %c with available texture types",
+							 __Line[__Signifier]);
+				};
 			}
 			// FIXME dont run this when repeating read from vertex in fragment source
 		}
@@ -278,7 +297,7 @@ static inline void _shader_interface_automap(const char* path,ShaderInterface& i
  */
 UniformBuffer::UniformBuffer()
 {
-	// setup default sampler
+	// setup default sampler, this is mostly for render to texture buffer shader reintroduction
 	COMM_LOG("creating default sampler");
 	VkSamplerCreateInfo __SamplerInfo = {  };
 	__SamplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -299,7 +318,19 @@ UniformBuffer::UniformBuffer()
 	__SamplerInfo.maxLod = 0;
 	VkResult __Result = vkCreateSampler(g_GPU.gpu,&__SamplerInfo,nullptr,&default_sampler);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"default sampler creation failed");
-	// TODO move to renderer instead
+
+	// default texture placeholder
+	COMM_LOG("creating default texture placeholder");
+	TextureData __DefaultColour;
+	__DefaultColour.load(TEXTURE_DEFAULT_COLOUR);
+	default_texture.allocate(__DefaultColour.width,__DefaultColour.height,TEXTURE_FORMAT_SRGB);
+	default_texture.transition_texture_transfer();
+	default_texture.gpu_upload(__DefaultColour);
+
+	// default cubemap placeholder
+	COMM_LOG("creating default cubemap placeholder");
+	default_cubemap.load_colour(CUBEMAP_DEFAULT_COLOUR);
+	default_cubemap.gpu_upload();
 
 	// entry descriptor pool sizes into configuration
 	// starting with uniform buffer type allocation, then combined image sampler
@@ -344,6 +375,7 @@ void UniformBuffer::vanish()
 	// defaults
 	g_GPU.free(default_sampler);
 	default_texture.vanish();
+	default_cubemap.vanish();
 
 	// uniform buffer memory
 	for (u8 i=0;i<GPU_BUFFER_COUNT;i++)
@@ -536,8 +568,9 @@ void DescriptorSetMemory::define_data_segment(u16 location,size_t offset,size_t 
 /**
  *	define pseudo-segment in set, that references a uploaded texture
  *	\param location: uniform location
+ *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
-void DescriptorSetMemory::define_texture_segment(u16 location)
+void DescriptorSetMemory::define_texture_segment(u16 location,TextureAttributeType type)
 {
 	COMM_MSG_COND(m_DescriptorInfos.capacity()<=m_DescriptorInfos.size(),LOG_YELLOW,
 				  "image/texture: uniform buffer binding malloc not sufficient, resizing (capacity>%ld)...",
@@ -548,8 +581,18 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
 	DescriptorInfo __Desc = { .type = DESCRIPTOR_TYPE_IMAGE };
 	__Desc.info.image = {  };
 	__Desc.info.image.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
-	__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+
+	// load default texture, based on the texture location type
+	switch (type)
+	{
+	case TEXTURE_ATTRIBUTE_TYPE_CUBEMAP:
+		__Desc.info.image.imageView = g_UniformBuffer.default_cubemap.cubemap.image_view;
+		__Desc.info.image.sampler = g_UniformBuffer.default_cubemap.cubemap.sampler;
+		break;
+	default:
+		__Desc.info.image.imageView = g_UniformBuffer.default_texture.image_view;
+		__Desc.info.image.sampler = g_UniformBuffer.default_texture.sampler;
+	};
 	m_DescriptorInfos.push_back(__Desc);
 
 	// define & link info to VkWriteDescriptorSet
@@ -561,11 +604,12 @@ void DescriptorSetMemory::define_texture_segment(u16 location)
  *	define multiple pseudo-segments in set, that reference uploaded textures
  *	\param location: first uniform location
  *	\param range: count of consecutive texture pseudo-segments
+ *	\param type: source type. this distiguishes sampler2D & samplerCube
  */
-void DescriptorSetMemory::define_texture_segment(u16 location,u16 range)
+void DescriptorSetMemory::define_texture_segment(u16 location,u16 range,TextureAttributeType type)
 {
 	for (u16 i=location;i<location+range;i++)
-		define_texture_segment(i);
+		define_texture_segment(i,type);
 }
 
 /**
@@ -745,96 +789,18 @@ FragmentShader::FragmentShader(const char* path)
 // Pipelines
 
 /**
- *	construct result shader pipeline
- *	\param depth: (default false) true if depth information will be stored
- */
-ShaderPipeline::ShaderPipeline(bool depth)
-	: depth_channel(1),has_depth(depth),result_pipeline(true)
-{
-	_initialize(1+depth);
-	_define_colour_component(0,g_Frame.swapchain.format.format,true);
-}
-
-/**
- *	construction & allocation for render pass description
- *	\param formats: buffer formats
- *	\param bfr_count: amount of colour components in result
- *	\param depth: (default false) true if depth information will be stored
- */
-ShaderPipeline::ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth)
-	: depth_channel(bfr_count),has_depth(depth)
-{
-	_initialize(bfr_count+depth);
-	for (u8 i=0;i<bfr_count;i++) _define_colour_component(i,g_GPU.formats[formats[i]]);
-}
-
-/**
  *	assemble shader pipeline from stage sources
  *	\param res: target resolution dimension type of result
  *	\param vs: vertex shader source
  *	\param fs: fragment shader source
+ *	\param rp: render pass, the pipeline runs within
  *	\param feat: bitwise combination of ShaderPipelineFeatures
  *	\note either out_define_colour_buffer() or out_define_result_buffer() have to be called before assembly
  */
-void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,u32 feat)
+void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs,RenderPass& rp,u32 feat)
 {
 #ifdef VKBUILD
 	COMM_LOG("assembly of shaders vertex: %s & fragment: %s",vs,fs);
-
-	// check for active depth store
-	if (has_depth)
-	{
-		// depth component
-		descriptions[depth_channel] = {};
-		descriptions[depth_channel].format = g_GPU.formats[GPU_BUFFER_FORMAT_DEPTH];
-		descriptions[depth_channel].samples = VK_SAMPLE_COUNT_1_BIT;
-		descriptions[depth_channel].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		descriptions[depth_channel].storeOp = VK_ATTACHMENT_STORE_OP_STORE;  // TODO enable/disable
-		descriptions[depth_channel].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		descriptions[depth_channel].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		descriptions[depth_channel].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		descriptions[depth_channel].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		// define as depth stencil component
-		m_References[depth_channel] = {};
-		m_References[depth_channel].attachment = depth_channel;
-		m_References[depth_channel].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	}
-
-	// specify graphical subpass
-	VkSubpassDescription __SubpassDesc = {  };
-	__SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	__SubpassDesc.colorAttachmentCount = depth_channel;
-	__SubpassDesc.pColorAttachments = m_References;
-	__SubpassDesc.pDepthStencilAttachment = (has_depth) ? &m_References[depth_channel] : nullptr;
-
-	// subpass dependency
-	// this will prevent write hazards for WRITE_AFTER_READ so it is necessary for correct sync
-	VkSubpassDependency __SubpassDependency = {  };
-	__SubpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	__SubpassDependency.dstSubpass = 0;
-	__SubpassDependency.srcStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	__SubpassDependency.dstStageMask
-			= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT|VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	__SubpassDependency.dstAccessMask
-			= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-	// render pass
-	VkRenderPassCreateInfo __RPInfo = {  };
-	__RPInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	__RPInfo.attachmentCount = depth_channel+has_depth;
-	__RPInfo.pAttachments = descriptions;
-	__RPInfo.subpassCount = 1;
-	__RPInfo.pSubpasses = &__SubpassDesc;
-	__RPInfo.dependencyCount = 1;
-	__RPInfo.pDependencies = &__SubpassDependency;
-	VkResult __Result = vkCreateRenderPass(g_GPU.gpu,&__RPInfo,nullptr,&render_pass);
-	COMM_ERR_COND(__Result!=VK_SUCCESS,"failed to create render pass");
-
-	// cleanup setup component for render pass
-	free(m_References);
 
 	// read precompiled shader binaries
 	u32 __ShaderSizeVS,__ShaderSizeFS;
@@ -849,7 +815,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// vertex shader
 	__ModuleInfo.codeSize = __ShaderSizeVS;
 	__ModuleInfo.pCode = (u32*)__ShaderVS;
-	__Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
+	VkResult __Result = vkCreateShaderModule(g_GPU.gpu,&__ModuleInfo,nullptr,&__VertexShader);
 	COMM_ERR_COND(__Result!=VK_SUCCESS,"vertex shader %s could not be loaded",vs);
 
 	// fragment shader
@@ -971,8 +937,9 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// TODO wait, this basically does what i do for sm in ogl dynamic sloping for depth maps?? thats crazy!
 
 	// colour blending attachment
-	vector<VkPipelineColorBlendAttachmentState> __CBlendAttachment(depth_channel);
-	for (u8 i=0;i<depth_channel;i++)
+	u8 __Channels = rp.formats.size();
+	vector<VkPipelineColorBlendAttachmentState> __CBlendAttachment(__Channels);
+	for (u8 i=0;i<__Channels;i++)
 	{
 		__CBlendAttachment[i] = {  };
 		__CBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT
@@ -993,7 +960,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	__BlendingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	__BlendingInfo.logicOpEnable = VK_FALSE;
 	__BlendingInfo.logicOp = VK_LOGIC_OP_COPY;
-	__BlendingInfo.attachmentCount = depth_channel;
+	__BlendingInfo.attachmentCount = __Channels;
 	__BlendingInfo.pAttachments = &__CBlendAttachment[0];
 	__BlendingInfo.blendConstants[0] = .0f;
 	__BlendingInfo.blendConstants[1] = .0f;
@@ -1013,8 +980,8 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	// depth stencil
 	VkPipelineDepthStencilStateCreateInfo __DepthStencilInfo = {  };
 	__DepthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	__DepthStencilInfo.depthTestEnable = has_depth;
-	__DepthStencilInfo.depthWriteEnable = has_depth;
+	__DepthStencilInfo.depthTestEnable = rp.depth;
+	__DepthStencilInfo.depthWriteEnable = rp.depth;
 	__DepthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	__DepthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 	__DepthStencilInfo.stencilTestEnable = (bool)(feat&SPF_STENCIL);
@@ -1061,7 +1028,7 @@ void ShaderPipeline::assemble(TargetResolution res,const char* vs,const char* fs
 	__PipelineInfo.pColorBlendState = &__BlendingInfo;
 	__PipelineInfo.pDynamicState = &__DynamicInfo;
 	__PipelineInfo.layout = pipeline_layout;
-	__PipelineInfo.renderPass = render_pass;
+	__PipelineInfo.renderPass = rp.render_pass;
 	__PipelineInfo.subpass = 0;
 	__PipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	__PipelineInfo.basePipelineIndex = -1;
@@ -1151,8 +1118,6 @@ void ShaderPipeline::vanish()
 	g_GPU.expect_idle();
 	g_GPU.free(pipeline);
 	g_GPU.free(pipeline_layout);
-	free(descriptions);
-	g_GPU.free(render_pass);
 #endif
 }
 
@@ -1197,7 +1162,7 @@ void ShaderPipeline::generate_ubo(vector<DescriptorSetMemory>& sets)
 		{
 			if (p_Binding->second.type==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 				p_DSetMemory.define_data_segment(p_Binding->first,p_Binding->second.range.range);
-			else p_DSetMemory.define_texture_segment(p_Binding->first);
+			else p_DSetMemory.define_texture_segment(p_Binding->first,p_Binding->second.ttype);
 		}
 	}
 }
@@ -1243,7 +1208,6 @@ u32 ShaderPipeline::get_uniform_location(const char* uname)
 }
 
 // uniform variable upload function correlation map
-#ifdef GLBUILD
 typedef void (*uniform_upload)(u16,f32*);
 void _uploadi(u16 uloc,f32* data) { glUniform1u(uloc,data[0]); }
 void _uploadui(u16 uloc,f32* data) { glUniform1i(uloc,data[0],data[1]); }
@@ -1254,7 +1218,6 @@ void _upload4f(u16 uloc,f32* data) { glUniform4f(uloc,data[0],data[1],data[2],da
 void _upload4m(u16 uloc,f32* data) { glUniformMatrix4fv(uloc,1,GL_FALSE,data); }
 uniform_upload uploadf[SHADER_UNIFORM_FORMAT_COUNT]
 		= { _uploadu,_uploadi,_upload1f,_upload2f,_upload3f,_upload4f,_upload4m };
-#endif
 
 /**
  *	upload signed integer to shader
@@ -1331,48 +1294,6 @@ void ShaderPipeline::upload_camera(Camera3D& c)
 	upload("view",SHADER_UNIFORM_MAT44,glm::value_ptr(c.view));
 	upload("proj",SHADER_UNIFORM_MAT44,glm::value_ptr(c.proj));
 }
-
-#endif
-
-/**
- *	initialization call for construction
- *	\param count: combined amount of colour + depth buffer
- */
-void ShaderPipeline::_initialize(u8 count)
-{
-	descriptions = (VkAttachmentDescription*)malloc(count*sizeof(VkAttachmentDescription));
-	m_References = (VkAttachmentReference*)malloc(count*sizeof(VkAttachmentReference));
-}
-
-#ifdef VKBUILD
-
-/**
- *	helper to define different sorts of colour components by format and index
- *	\param index: colour component index
- *	\param format: requested colour component format, depending on usage
- *	\param result: (default false) true if component is result buffer
- */
-void ShaderPipeline::_define_colour_component(u8 index,VkFormat format,bool result)
-{
-	// specify colour component
-	descriptions[index] = {};
-	descriptions[index].format = format;
-	descriptions[index].samples = VK_SAMPLE_COUNT_1_BIT;
-	descriptions[index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	descriptions[index].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	descriptions[index].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	descriptions[index].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	descriptions[index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	descriptions[index].finalLayout
-			= (result) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	// specify fragment output location
-	m_References[index] = {};
-	m_References[index].attachment = index;
-	m_References[index].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-}
-
-#else
 
 /**
  *	point to attribute in vertex buffer raster

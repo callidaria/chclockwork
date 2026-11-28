@@ -65,6 +65,8 @@ layout(set = 0,binding = 42) uniform OrthographicShadow
 // constants
 const float PI = 3.141592653;
 const float shadow_intensity = 1.;
+const float shadow_slop_bias_factor = .00001;
+const float eps_forward_depth_priority = .0000001;
 
 
 // utility
@@ -130,7 +132,7 @@ void main()
 	vec2 smuv = ltp.xy*.5+.5;
 	float slut = texture(shadow_map,smuv).r;
 	float obj_depth = ltp.z;
-	float bias = tan(acos(dot(normal,shadow_dir)))*.00001;
+	float bias = tan(acos(dot(normal,shadow_dir)))*shadow_slop_bias_factor;
 	float pshadow = float(slut<(obj_depth-bias));
 	float gshadow = min(1.-dot(normal,shadow_dir),1.);
 	float shadow = max(pshadow,gshadow);
@@ -152,7 +154,7 @@ void main()
 	//	 very suspicious & needs investigating, altough the vk colours do look beautiful.
 
 	// combination with forward component
-	final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int(cmp_fdepth<cmp_gdepth));
+	final = mix(final,cmp_fcolour.rgb,cmp_fcolour.a*int((cmp_fdepth-eps_forward_depth_priority)<cmp_gdepth));
 	pixelColour = vec4(final,1.);
 }
 

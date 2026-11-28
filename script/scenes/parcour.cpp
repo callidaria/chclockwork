@@ -9,21 +9,26 @@ void ParcourParcs::init()
 	// pipelines
 	lptr<ShaderPipeline> __BulbPipeline = g_Renderer.register_pipeline(
 		"./shader/vulkan/bin/bulb.vert","./shader/vulkan/bin/bulb.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT);
 	lptr<ShaderPipeline> __AnimationPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation.vert","./shader/vulkan/bin/gpass.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT);
 	lptr<ShaderPipeline> __BulbShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/bulb_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED);
 	lptr<ShaderPipeline> __AnimationShadowPipeline = g_Renderer.register_pipeline(
 			"./shader/vulkan/bin/animation_shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED);
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED);
+	lptr<ShaderPipeline> __CubemapPipeline = g_Renderer.register_pipeline(
+			//"./shader/vulkan/bin/skybox.vert","./shader/vulkan/bin/skybox.frag",
+			"./shader/vulkan/bin/cubemap_hdr.vert","./shader/vulkan/bin/cubemap_hdr.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_FORWARD_DRAW,SPF_FLIPPED);
 
 	// batches
 	lptr<GeometryBatch> __EnviroBatch = g_Renderer.register_deferred_geometry_batch(4);
 	lptr<ParticleBatch> __BulbBatch = g_Renderer.register_deferred_particle_batch(__BulbPipeline);
 	m_AnimBatch = g_Renderer.register_deferred_geometry_batch(__AnimationPipeline,1);
+	lptr<GeometryBatch> __CubemapBatch = g_Renderer.register_geometry_batch(__CubemapPipeline,1);
 
 	// setup geometry batch
 	GeometryTuple* __Floor = __EnviroBatch->add_geometry(Mesh::CUBE);
@@ -40,6 +45,11 @@ void ParcourParcs::init()
 	m_PlayerMomentum.target = m_PlayerPosition;
 	g_Renderer.animate(&m_DudeMesh);
 	m_SpineJointTransform = &m_DudeMesh.find_joint("metarig_spine")->local_transform;
+
+	// cubemap
+	GeometryTuple* __Cubemap = __CubemapBatch->add_geometry(Mesh::CUBEMAP_CUBE,CUBEMAP_CUBE_VERTEX_LENGTH,
+															CUBEMAP_CUBE_FLOAT_STRIDE*sizeof(f32));
+	__CubemapBatch->load();
 
 	// transform objects
 	__Floor->transform.scale(vec3(10,10,.1f));
@@ -70,6 +80,11 @@ void ParcourParcs::init()
 	Material* __DudeMaterial = g_Renderer.register_material(
 			g_Renderer.register_texture("./res/private/texmex.jpg",TEXTURE_FORMAT_SRGB)
 		);
+
+	// cubemap
+	Texture* __CubemapTexture = g_Renderer.register_cubemap_hdr("./res/ibl/russia.hdr");
+	//Cubemap* __CubemapTexture = g_Renderer.register_cubemap_classical("./res/cm/yokohama",TEXTURE_FORMAT_SRGB);
+	__Cubemap->ubo.attach_texture(0,__CubemapTexture);
 
 	// lightbulbs
 	__BulbBatch->load(Mesh::SPHERE,TEST_LIGHTBULB_COUNT,sizeof(BallIndex));

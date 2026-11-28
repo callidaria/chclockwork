@@ -55,6 +55,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/packing.hpp>
 
 // texture
 #ifndef STBI_INCLUDE_STB_IMAGE_H
@@ -175,6 +176,14 @@ vec3(0,0,1);
 vec3(0);
 #endif
 
+// default cubemap colour
+constexpr vec3 CUBEMAP_DEFAULT_COLOUR =
+#ifdef DEBUG
+vec3(.1f);
+#else
+vec3(0);
+#endif
+
 
 // ----------------------------------------------------------------------------------------------------
 // Utility
@@ -203,7 +212,7 @@ constexpr const char* LOG_WHITE = "\e[1;30m";
 constexpr const char* LOG_RED = "\e[1;31m";
 constexpr const char* LOG_GREEN = "\e[0;32m";
 constexpr const char* LOG_YELLOW = "\e[1;33m";
-constexpr const char* LOG_BLUE = "\e[0;34m";
+constexpr const char* LOG_BLUE = "\e[1;34m";
 constexpr const char* LOG_PURPLE = "\e[0;35m";
 constexpr const char* LOG_CYAN = "\e[0;36m";
 constexpr const char* LOG_GREY = "\e[0;90m";
@@ -459,6 +468,29 @@ struct ThreadSignal
 	std::condition_variable cv;
 	s8 semaphore = 0;
 	bool running = true;
+};
+
+
+// ----------------------------------------------------------------------------------------------------
+// Multithreaded Queue
+
+template<typename T> struct ThreadedQueue
+{
+	// utility
+	/**
+	 *	execute a thread safe queue push, based on mutex in this structure
+	 *	\param val: value to push as a copy
+	 */
+	inline void push(T val)
+	{
+		mut.lock();
+		tqueue.push(val);
+		mut.unlock();
+	}
+
+	// data
+	queue<T> tqueue;
+	std::mutex mut;
 };
 
 

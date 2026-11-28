@@ -7,10 +7,11 @@
 /**
  *	generate memory barrier for texture, image or other pixel buffer
  *	\param tex: target image
+ *	\param layers: count of elements in texture array
  *	\param mip: count of generated mipmap levels
  *	\returns assembled barrier info
  */
-inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 mip)
+inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 layers,u32 mip)
 {
 	VkImageMemoryBarrier __Barrier = {  };
 	__Barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -20,7 +21,7 @@ inline static VkImageMemoryBarrier _generate_memory_barrier_tex(VkImage tex,u32 
 	__Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__Barrier.subresourceRange.baseArrayLayer = 0;
 	__Barrier.subresourceRange.baseMipLevel = 0;
-	__Barrier.subresourceRange.layerCount = 1;
+	__Barrier.subresourceRange.layerCount = layers;
 	__Barrier.subresourceRange.levelCount = mip;
 	return __Barrier;
 }
@@ -307,6 +308,7 @@ struct TextureFormatTuple
 TextureFormatTuple _texture_formats[TEXTURE_FORMAT_COUNT] = {
 	{ VK_FORMAT_R8G8B8A8_UNORM,4 },
 	{ VK_FORMAT_R8G8B8A8_SRGB,4 },
+	{ VK_FORMAT_B10G11R11_UFLOAT_PACK32,4 },
 	{ VK_FORMAT_R8_UNORM,1 }
 };
 
@@ -333,13 +335,14 @@ void TextureData::load(vec3 colour)
 {
 	width = 1;
 	height = 1;
+	data.type = TEXTURE_DATA_TYPE_U8;
 
 	// write colour data
-	data = (u8*)malloc(sizeof(u32));
-	data[0] = colour.x*255;
-	data[1] = colour.y*255;
-	data[2] = colour.z*255;
-	data[3] = 255;
+	data.buffer.u8b = (u8*)malloc(sizeof(u32));
+	data.buffer.u8b[0] = colour.x*255;
+	data.buffer.u8b[1] = colour.y*255;
+	data.buffer.u8b[2] = colour.z*255;
+	data.buffer.u8b[3] = 255;
 }
 
 /**
@@ -348,10 +351,10 @@ void TextureData::load(vec3 colour)
  */
 void TextureData::load(const char* path)
 {
-	COMM_ERR_COND(!check_file_exists(path),"texture %s could not be found",path);
+	COMM_ERR_COND(!check_file_exists(path),"texture at %s could not be found",path);
 	stbi_set_flip_vertically_on_load(true);
-	data = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
-	texture_flag = true;
+	data.type = TEXTURE_DATA_TYPE_U8;
+	data.buffer.u8b = stbi_load(path,&width,&height,0,STBI_rgb_alpha);
 }
 // FIXME that stbi_set_flip_vertically_on_load call here is due to my build setup, but should be at init
 //		the annoyance is pointing to a much bigger problem though, the entire stbi is reprocessed per tu
@@ -360,12 +363,40 @@ void TextureData::load(const char* path)
 //		and by extension must also process the stbi header. this cannot be the right solution!
 
 /**
+ *	load hdr float data from .hdr file. afterwards the data will be packaged into B10G11R11 unsigned float
+ *	\param path: path to texture
+ */
+void TextureData::load_hdr(const char* path)
+{
+	COMM_ERR_COND(!check_file_exists(path),"hdr cubemap at %s could not be found",path);
+
+	// load texture
+	stbi_set_flip_vertically_on_load(true);
+	f32* __ImageBfr = stbi_loadf(path,&width,&height,0,STBI_rgb_alpha);
+
+	// package into 4-byte unsigned floatbuffer
+	data.type = TEXTURE_DATA_TYPE_UF11;
+	data.buffer.uf11b = (u32*)malloc(width*height*sizeof(u32));
+	for (size_t i=0;i<width*height;i++)
+	{
+		vec3 __Pixel = vec3(__ImageBfr[i*4+0],__ImageBfr[i*4+1],__ImageBfr[i*4+2]);
+		data.buffer.uf11b[i] = glm::packF2x11_1x10(__Pixel);
+	}
+
+	// free original texture
+	stbi_image_free(__ImageBfr);
+}
+
+/**
  *	free buffer memory
  */
 void TextureData::vanish()
 {
-	if (texture_flag) stbi_image_free(data);
-	else free(data);
+	// so because free gets the same pointer for all types in union this works for all following buffers also.
+	// pointer memsize lut rules. but still this is not accounting for possible weird behaviour with stbi.
+	// in the normal case free over stbi memory should just be compatible with it's malloc, but it is not ideal.
+	free(data.buffer.u8b);
+	data.type = TEXTURE_DATA_TYPE_UNSPECIFIED;
 }
 
 /**
@@ -373,32 +404,40 @@ void TextureData::vanish()
  *	\param width: texture width
  *	\param height: texture height
  *	\param format: colourspace format of texture
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) texture features
  */
-void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
+void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat)
 {
 	width = wdt;
 	height = hgt;
-	mipcount = std::floor(std::log2(std::max(width,height)))+1;
+	mipcount = (feat&(TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT|TEXTURE_FEATURE_CUBEMAP_BIT))
+				? 1 : std::floor(std::log2(std::max(width,height)))+1;
 	m_Format = format;
+	// TODO use mip definition in allocation for ogl version as well
+
+	// cubemap layer switching
+	bool __Cubemap = feat&TEXTURE_FEATURE_CUBEMAP_BIT;
+	layercount = 1+5*__Cubemap;
 
 #ifdef VKBUILD
 	// generate staging buffer
-	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,
-						  width*height*_texture_formats[format].size,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	size_t __MemoryRange = width*height*_texture_formats[format].size*layercount;
+	g_GPU.generate_buffer(m_StagingBuffer,m_StagingMemory,__MemoryRange,VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 						  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	// TODO optimize, do not rely on coherent bit and flush explicitly later
+	// TODO !!!!kill staging buffer after upload for all textures, except those that are used by atlasses!!!!
 
 	// image buffer
 	VkImageCreateInfo __ImageInfo = {  };
 	__ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	__ImageInfo.flags = 0;
+	__ImageInfo.flags = 0|(VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT*__Cubemap);
 	__ImageInfo.imageType = VK_IMAGE_TYPE_2D;
 	__ImageInfo.format = _texture_formats[m_Format].format;
 	__ImageInfo.extent.width = width;
 	__ImageInfo.extent.height = height;
 	__ImageInfo.extent.depth = 1;
 	__ImageInfo.mipLevels = mipcount;
-	__ImageInfo.arrayLayers = 1;
+	__ImageInfo.arrayLayers = layercount;
 	__ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	__ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	__ImageInfo.usage
@@ -406,6 +445,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 	__ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	__ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	VkResult __Result = vkCreateImage(g_GPU.gpu,&__ImageInfo,nullptr,&m_Texture);
+	COMM_ERR_COND(__Result!=VK_SUCCESS,"could not create texture image handle");
 	// TODO as a possible late-stage optimization look into image unionization for multiple image destinations
 	//		utilizing the same memory by setting an initialLayout and an alias
 	//		this will probably just be useful for rendertarget results that do not overlap in timing
@@ -428,7 +468,7 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 #endif
 
 	// setup memory barrier to create image view
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,layercount,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -441,13 +481,13 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 	VkImageViewCreateInfo __ImageViewInfo = {  };
 	__ImageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	__ImageViewInfo.image = m_Texture;
-	__ImageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	__ImageViewInfo.viewType = (__Cubemap) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
 	__ImageViewInfo.format = _texture_formats[m_Format].format;
 	__ImageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__ImageViewInfo.subresourceRange.baseMipLevel = 0;
 	__ImageViewInfo.subresourceRange.levelCount = mipcount;
 	__ImageViewInfo.subresourceRange.baseArrayLayer = 0;
-	__ImageViewInfo.subresourceRange.layerCount = 1;
+	__ImageViewInfo.subresourceRange.layerCount = layercount;
 	__ImageViewInfo.components = {
 		.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 		.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -482,14 +522,16 @@ void Texture::allocate(u32 wdt,u32 hgt,TextureFormat format)
 	// TODO this will be the texture settings++ from ogl version
 	// FIXME many of this does not need to happen over and over again for each gpupixelbuffer
 	// TODO maybe no 1:1 relationship for samplers. not every texture needs its own sampler
+
+	// memory correlation & ready for load transfer
+	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,__MemoryRange,0,&m_Data);
+
 #else
 	glGenTextures(1,&m_Memory);
 	glTexImage2D(GL_TEXTURE_2D,0,_texture_formats[format].format,width,height,0,
 				 _texture_format_internal[format],GL_UNSIGNED_BYTE,0);
 #endif
 
-	// memory correlation & sign as ready
-	vkMapMemory(g_GPU.gpu,m_StagingMemory,0,width*height*_texture_formats[m_Format].size,0,&m_Data);
 	allocated = true;
 }
 
@@ -512,6 +554,37 @@ void Texture::register_subtexture(TextureData& data)
 }
 
 /**
+ *	load monocolour texture into ram in background & register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param colour: colour of generated monocoloured texture
+ *	\param format: texture colour channel format
+ *	\param q: thread safe queue for texture vram upload
+ */
+void Texture::load_colour(Texture* texture,vec3 colour,TextureFormat format,ThreadedQueue<TextureDataTuple>* q)
+{
+	TextureData __Data;
+	__Data.load(colour);
+	q->push(TextureDataTuple{ __Data,texture,format });
+}
+
+/**
+ *	load texture into ram in background & register for vram upload when ready
+ *	\param texture: pointer to texture in memory
+ *	\param path: path to texture
+ *	\param format: texture colour channel format
+ *	\param feat: bitwise texture features
+ *	\param q: thread safe queue for texture vram upload
+ */
+void Texture::load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
+							 ThreadedQueue<TextureDataTuple>* q)
+{
+	TextureData __Data;
+	if (format==TEXTURE_FORMAT_RGBu11) __Data.load_hdr(path);
+	else __Data.load(path);
+	q->push(TextureDataTuple{ __Data,texture,format,feat });
+}
+
+/**
  *	upload all registered subtexture uploads, this should be run for texture atlasses
  */
 void Texture::gpu_upload()
@@ -520,6 +593,7 @@ void Texture::gpu_upload()
 	vkCmdCopyBufferToImage(g_GPU.acquire_graphical_command_buffer()->buffer,
 						   m_StagingBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						   m_TextureCopies.size(),&m_TextureCopies[0]);
+	_generate_mipmap();
 
 	// reset
 	m_TextureCopies.clear();
@@ -547,74 +621,26 @@ void Texture::gpu_upload(TextureData& data)
 }
 
 /**
- *	generate mipmap for texture
+ *	upload image data array as one texture with multiple array layers. this is compatible with samplerCubes
+ *	\param data: texture data array
+ *	\param size: length of the texture data array, size should be less or equal to the array size in allocation
+ *	\note needs to have as much array layers specified during allocation as passed as size in this call
  */
-void Texture::generate_mipmap()
+void Texture::gpu_upload(TextureData* data,u8 size)
 {
 #ifdef VKBUILD
-	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
-	VkImageMemoryBarrier __MMBarrier = _generate_memory_barrier_tex(m_Texture,1);
-
-	// mipmap blit
-	VkImageBlit __MMBlit = {  };
-	__MMBlit.srcOffsets[0] = { 0,0,0 };
-	__MMBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__MMBlit.srcSubresource.baseArrayLayer = 0;
-	__MMBlit.srcSubresource.layerCount = 1;
-	__MMBlit.dstOffsets[0] = { 0,0,0 };
-	__MMBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__MMBlit.dstSubresource.baseArrayLayer = 0;
-	__MMBlit.dstSubresource.layerCount = 1;
-	// TODO maybe move this to texture preprocessing and skip the blitting at load time
-
-	// generate mipmaps
-	s32 __MMWidth = width;
-	s32 __MMHeight = height;
-	for (u16 i=1;i<mipcount;i++)
+	for (size_t i=0;i<size;i++)
 	{
-		// memory barrier blit
-		__MMBarrier.subresourceRange.baseMipLevel = i-1;
-		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		__MMBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
-							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
-
-		// blitting
-		__MMBlit.srcOffsets[1] = { __MMWidth,__MMHeight,1 };
-		__MMBlit.srcSubresource.mipLevel = i-1;
-		__MMWidth = (__MMWidth>1)?__MMWidth>>1:1;
-		__MMHeight = (__MMHeight>1)?__MMHeight>>1:1;
-		__MMBlit.dstOffsets[1] = { __MMWidth,__MMHeight,1 };
-		__MMBlit.dstSubresource.mipLevel = i;
-		vkCmdBlitImage(__CMDBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-					   m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__MMBlit,VK_FILTER_LINEAR);
-
-		// memory barrier to read after blit
-		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+		_setup_buffer_copy(m_UploadCursor,data[i],i);
+		data[i].vanish();
 	}
-
-	// seal final blit
-	__MMBarrier.subresourceRange.baseMipLevel = mipcount-1;
-	__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+	gpu_upload();
+	vkUnmapMemory(g_GPU.gpu,m_StagingMemory);
+	m_ActiveAtlas = false;
 #else
-	glGenerateMipmap(GL_TEXTURE_2D);
+	// TODO
 #endif
 }
-// TODO in vk when this step is skipped there needs to be a barrier, that achieves the same state
-//		as if after the mipmap generation
-// FIXME also skipping mipmap is forbidden, when miplevels get calculated automatically by dimensions at alloc
 
 #ifdef VKBUILD
 
@@ -643,7 +669,7 @@ void Texture::vanish()
  */
 void Texture::transition_texture_transfer()
 {
-	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,mipcount);
+	VkImageMemoryBarrier __Barrier = _generate_memory_barrier_tex(m_Texture,layercount,mipcount);
 	__Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	__Barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	__Barrier.srcAccessMask = 0;
@@ -810,8 +836,9 @@ void Texture::set_texture_parameter_border_colour(vec4 colour)
  *	setup buffer to texture/atlas memory copy, by copying to stage. then register upload region over this memory
  *	\param ofs: offset in staging buffer, will automatically be progressing as memory write cursor
  *	\param data: texture dimensions & data
+ *	\param arr_index: (default 0) array upload position index
  */
-void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
+void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data,size_t arr_index)
 {
 	if (!data.width||!data.height)
 	{
@@ -821,7 +848,14 @@ void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 
 	// copy to staging memory
 	size_t __ImageSize = data.width*data.height*_texture_formats[m_Format].size;
-	memcpy((void*)((u8*)m_Data+ofs),data.data,__ImageSize);
+	switch (data.data.type)
+	{
+	case TEXTURE_DATA_TYPE_U8: memcpy((void*)((u8*)m_Data+ofs),data.data.buffer.u8b,__ImageSize);
+		break;
+	case TEXTURE_DATA_TYPE_UF11: memcpy((void*)((u32*)m_Data+ofs),data.data.buffer.uf11b,__ImageSize);
+		break;
+	default: COMM_ERR("texture buffer copy does not support passed type, or type is unspecified after free");
+	};
 
 	// insert copy region
 	VkBufferImageCopy __BufferCopy = {  };
@@ -830,13 +864,80 @@ void Texture::_setup_buffer_copy(size_t& ofs,TextureData& data)
 	__BufferCopy.bufferImageHeight = 0;
 	__BufferCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	__BufferCopy.imageSubresource.mipLevel = 0;
-	__BufferCopy.imageSubresource.baseArrayLayer = 0;
+	__BufferCopy.imageSubresource.baseArrayLayer = arr_index;
 	__BufferCopy.imageSubresource.layerCount = 1;
 	__BufferCopy.imageOffset = { (s32)data.x,(s32)data.y,0 };
 	__BufferCopy.imageExtent = { (u32)data.width,(u32)data.height,1 };
 	m_TextureCopies.push_back(__BufferCopy);
 
 	ofs += __ImageSize;
+}
+
+/**
+ *	generate mipmap for texture
+ */
+void Texture::_generate_mipmap()
+{
+#ifdef VKBUILD
+	VkCommandBuffer& __CMDBuffer = g_GPU.acquire_graphical_command_buffer()->buffer;
+	VkImageMemoryBarrier __MMBarrier = _generate_memory_barrier_tex(m_Texture,layercount,1);
+
+	// mipmap blit
+	VkImageBlit __MMBlit = {  };
+	__MMBlit.srcOffsets[0] = { 0,0,0 };
+	__MMBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__MMBlit.srcSubresource.baseArrayLayer = 0;
+	__MMBlit.srcSubresource.layerCount = 1;
+	__MMBlit.dstOffsets[0] = { 0,0,0 };
+	__MMBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	__MMBlit.dstSubresource.baseArrayLayer = 0;
+	__MMBlit.dstSubresource.layerCount = layercount;
+	// TODO maybe move this to texture preprocessing and skip the blitting at load time
+
+	// generate mipmaps
+	s32 __MMWidth = width;
+	s32 __MMHeight = height;
+	for (u16 i=1;i<mipcount;i++)
+	{
+		// memory barrier blit
+		__MMBarrier.subresourceRange.baseMipLevel = i-1;
+		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		__MMBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_TRANSFER_BIT,
+							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+
+		// blitting
+		__MMBlit.srcOffsets[1] = { __MMWidth,__MMHeight,1 };
+		__MMBlit.srcSubresource.mipLevel = i-1;
+		__MMWidth = (__MMWidth>1)?__MMWidth>>1:1;
+		__MMHeight = (__MMHeight>1)?__MMHeight>>1:1;
+		__MMBlit.dstOffsets[1] = { __MMWidth,__MMHeight,1 };
+		__MMBlit.dstSubresource.mipLevel = i;
+		vkCmdBlitImage(__CMDBuffer,m_Texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					   m_Texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1,&__MMBlit,VK_FILTER_LINEAR);
+
+		// memory barrier to read after blit
+		__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+							 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+	}
+
+	// seal final blit
+	__MMBarrier.subresourceRange.baseMipLevel = mipcount-1;
+	__MMBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	__MMBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	__MMBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	__MMBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	vkCmdPipelineBarrier(__CMDBuffer,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+						 0,0,nullptr,0,nullptr,1,&__MMBarrier);
+#else
+	glGenerateMipmap(GL_TEXTURE_2D);
+#endif
 }
 
 #endif
@@ -892,10 +993,11 @@ f32 Font::estimate_wordlength(string& word,u32 offset)
  *	\param width: buffer width
  *	\param height: buffer height
  *	\param format: colourspace format of pixels
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) bitwise texture feature combination
  *	\param padding: (default 0) pixel space padding in between allocated subtextures
  *	\note cannot be executed in subthread, uses context bound to main thread in ogl version
  */
-void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
+void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat,u32 padding)
 {
 	dimensions_inv = vec2(1.f/wdt,1.f/hgt);
 	subtex_padding = padding;
@@ -904,9 +1006,8 @@ void GPUPixelBuffer::allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding)
 	memory_segments.push_back({ .extent = vec2(wdt+padding,hgt+padding) });
 
 	// allocate texture memory & handles
-	atlas.allocate(wdt,hgt,format);
+	atlas.allocate(wdt,hgt,format,feat);
 }
-// TODO use mip definition in allocation for ogl version as well
 
 /**
  *	static helper to allow a subtexture segment of an atlas to merge when obsolete
@@ -1132,6 +1233,7 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 		TextureData __TextureData;
 		__TextureData.width = __Face->glyph->bitmap.width;
 		__TextureData.height = __Face->glyph->bitmap.rows;
+		__TextureData.data.type = TEXTURE_DATA_TYPE_U8;
 
 		// glyph attributes
 		font->glyphs[i] = {
@@ -1142,8 +1244,8 @@ void GPUPixelBuffer::load_font(GPUPixelBuffer* gpb,Font* font,const char* path,u
 
 		// upload glyph as texture buffer
 		size_t __Mem = __Face->glyph->bitmap.pitch*__Face->glyph->bitmap.rows;
-		__TextureData.data = (u8*)malloc(__Mem);
-		memcpy(__TextureData.data,__Face->glyph->bitmap.buffer,__Mem);
+		__TextureData.data.buffer.u8b = (u8*)malloc(__Mem);
+		memcpy(__TextureData.data.buffer.u8b,__Face->glyph->bitmap.buffer,__Mem);
 		_load(gpb,&font->tex[i],&__TextureData);
 	}
 	gpb->signal.proceed();
@@ -1161,10 +1263,10 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 {
 	if (!load_requests.size()) return;
 	mutex_texture_requests.lock();
-
-	// iterate waiting requests
-#ifdef VKBUILD
 	atlas.transition_texture_transfer();
+
+	// iterate waiting requests & copy data
+#ifdef VKBUILD
 	while (load_requests.size())
 #else
 	atlas.bind(channel);
@@ -1175,11 +1277,75 @@ void GPUPixelBuffer::gpu_upload(u8 channel)
 		atlas.register_subtexture(p_Data);
 		load_requests.pop();
 	}
-	atlas.gpu_upload();
-	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");
+	COMM_LOG_COND(load_requests.size(),"stalling upload in pixel buffer");  // ogl only upload stall logging
 
-	// controversial pixel buffer lod creation
+	// execute upload
+	atlas.gpu_upload();
 	mutex_texture_requests.unlock();
-	atlas.generate_mipmap();
 }
-// FIXME performance will suffer when generating mipmap every time the loop condition breaks
+// FIXME performance will suffer when generating mipmap every time (the loop condition breaks) with atlasses
+//		that is, if mipmaps were not suppressed and somehow otherwise aa'd like font should also be handled
+
+
+// ----------------------------------------------------------------------------------------------------
+// Cubemap
+
+/**
+ *	threaded cubemap load & setup for upload to vram afterwards
+ *	\param cubemap: target cubemap
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param format: texture colourspace format
+ *	\param q: target gpu upload queue
+ *	\note this is intended to be called as a subthread, to stream in cubemap data alongside execution
+ */
+void Cubemap::load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q)
+{
+	cubemap->load_YUpLH(path,format);
+	q->push(cubemap);
+}
+
+/**
+ *	fill entire cubemap array with a single colour
+ *	\param colour: monocolour
+ */
+void Cubemap::load_colour(vec3 colour)
+{
+	format = TEXTURE_FORMAT_SRGB;
+	for (u8 i=0;i<CUBEMAP_COMPONENT_CHANNEL_COUNT;i++) data[i].load(colour);
+}
+
+/**
+ *	load cubemap textures with intended orientation +Y up, left handed coordinate system
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param fmt: texture colourspace format
+ *	\note for single hdr texture cubemapping use texture loading & cubemap_hdr shader implementation
+ */
+void Cubemap::load_YUpLH(const char* path,TextureFormat fmt)
+{
+	format = fmt;
+	std::filesystem::path __CmDir(path);
+	data[CUBEMAP_COMPONENT_CHANNEL_POSX].load((__CmDir/"posx.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGX].load((__CmDir/"negx.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGY].load((__CmDir/"posy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_POSY].load((__CmDir/"negy.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_POSZ].load((__CmDir/"posz.jpg").c_str());
+	data[CUBEMAP_COMPONENT_CHANNEL_NEGZ].load((__CmDir/"negz.jpg").c_str());
+}
+
+/**
+ *	upload cubemap texture data to vram
+ */
+void Cubemap::gpu_upload()
+{
+	cubemap.allocate(data[0].width,data[0].height,format,TEXTURE_FEATURE_CUBEMAP_BIT);
+	cubemap.transition_texture_transfer();
+	cubemap.gpu_upload(data,CUBEMAP_COMPONENT_CHANNEL_COUNT);
+}
+
+/**
+ *	remove cubemap texture
+ */
+void Cubemap::vanish()
+{
+	cubemap.vanish();
+}

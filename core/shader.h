@@ -4,6 +4,7 @@
 
 #include "gpu_interface.h"
 #include "memory.h"
+#include "buffer.h"
 
 
 constexpr u32 SHADER_ERROR_LOGGING_LENGTH = 512;
@@ -20,6 +21,13 @@ enum DescriptorType : u8
 	DESCRIPTOR_TYPE_IMAGE
 };
 
+enum TextureAttributeType : u8
+{
+	TEXTURE_ATTRIBUTE_TYPE_TEXTURE,
+	TEXTURE_ATTRIBUTE_TYPE_CUBEMAP,
+	TEXTURE_ATTRIBUTE_TYPE_COUNT
+};
+
 enum UniformDimension : u8
 {
 	SHADER_UNIFORM_UNDEFINED,
@@ -31,6 +39,7 @@ enum UniformDimension : u8
 	SHADER_UNIFORM_VEC4,
 	SHADER_UNIFORM_MAT44,
 	SHADER_UNIFORM_TEXTURE,
+	SHADER_UNIFORM_CUBEMAP,
 	SHADER_UNIFORM_LIGHT_SUN,
 	SHADER_UNIFORM_LIGHT_POINT,
 	SHADER_UNIFORM_FORMAT_COUNT
@@ -74,6 +83,7 @@ struct UBOAttribute
 {
 	VkDescriptorType type;
 	VkShaderStageFlags stage = 0;
+	TextureAttributeType ttype;
 	MemoryRange range;
 };
 
@@ -112,8 +122,9 @@ public:
 	MemoryChunkResource mcr = MemoryChunkResource(SHADER_UNIFORM_BUFFER_MEMSIZE);
 
 	// standards
-	Texture default_texture;
 	VkSampler default_sampler;
+	Texture default_texture;
+	Cubemap default_cubemap;
 
 private:
 	vector<VkDescriptorSetLayoutBinding> m_Bindings[GPU_GUARANTEED_SET_COUNT];
@@ -140,8 +151,8 @@ struct DescriptorSetMemory
 	// interaction
 	void define_data_segment(u16 location,size_t range);
 	void define_data_segment(u16 location,size_t offset,size_t range);
-	void define_texture_segment(u16 location);
-	void define_texture_segment(u16 location,u16 range);
+	void define_texture_segment(u16 location,TextureAttributeType type);
+	void define_texture_segment(u16 location,u16 range,TextureAttributeType type);
 	void write(u16 location,void* data);
 	void link_result(size_t location,Texture* texture);
 	void link_result(size_t location,VkImageView buffer);
@@ -214,11 +225,7 @@ struct ShaderUniformValue
 class ShaderPipeline
 {
 public:
-	ShaderPipeline(bool depth=false);
-	ShaderPipeline(GPUBufferFormat* formats,u8 bfr_count,bool depth);
-
-	// assembly
-	void assemble(TargetResolution res,const char* vs,const char* fs,u32 feat);
+	void assemble(TargetResolution res,const char* vs,const char* fs,RenderPass& rp,u32 feat);
 #ifdef GLBUILD
 	void assemble(VertexShader vs,FragmentShader fs);
 #endif
@@ -265,18 +272,12 @@ public:
 #ifdef VKBUILD
 	VkPipeline pipeline;
 	VkPipelineLayout pipeline_layout;
-	VkRenderPass render_pass;
-	VkAttachmentDescription* descriptions;
 #else
 #endif
-	u8 depth_channel;
-	bool has_depth;
-	bool result_pipeline = false;
 
 private:
 #ifdef VKBUILD
 	ShaderInterface m_Interface;
-	VkAttachmentReference* m_References;
 #else
 	VertexShader m_VertexShader;
 	FragmentShader m_FragmentShader;

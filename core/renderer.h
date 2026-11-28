@@ -70,40 +70,54 @@ enum UBOChannelPurpose
 // definition of descriptor set location channel constants for different purposes
 constexpr u16 RENDERER_GEOMETRY_INFO_LOCATION = 70;
 constexpr u16 RENDERER_JOINT_ANIMATION_LOCATION = 128;
+constexpr u16 RENDERER_TEXTURE_DESCRIPTOR_CHANNELS = 8;
 // TODO check dynamic endpoint setup against possible duplicate constant usage violations
+
+// this describes the render stage, defined by render pass & framebuffer, a new pipeline will operate in
+enum RenderStage
+{
+	RENDER_STAGE_SHADOW_PROJECTION,
+	RENDER_STAGE_FORWARD_DRAW,
+	RENDER_STAGE_GEOMETRY_PASS,
+	RENDER_STAGE_RESULT_ASSEMBLY,  // result assembly needs to be last stage in enumeration
+	RENDER_STAGE_COUNT
+};
 
 
 // ----------------------------------------------------------------------------------------------------
-// GBuffer Layout
+// Render Pass Information
 
-// format tuple, important information for pipeline registration
-constexpr u8 RENDERER_MAXIMUM_BUFFER_FORMATS = 8;
-struct PipelineBufferFormats
-{
-	GPUBufferFormat formats[RENDERER_MAXIMUM_BUFFER_FORMATS];
-	u8 size;
-	bool depth;
-};
+// conforming to RenderStage enumerator stages. will rely on correlation during construction & pipeline
+// registration. must be inlined in header, global renderer construction needs this
+inline RenderPass RENDER_STAGES[RENDER_STAGE_COUNT] = {
 
-// default pipeline buffer formats
-static inline PipelineBufferFormats RENDERER_STANDARD_BUFFER_FORMAT = {
-	.formats = { GPU_BUFFER_FORMAT_SRGB },
-	.size = 1,
-	.depth = true
-};
-static inline PipelineBufferFormats RENDERER_GEOMETRY_BUFFER_FORMAT = {
-	.formats = {
-		GPU_BUFFER_FORMAT_RGB,
-		GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
-		GPU_BUFFER_FORMAT_RGB
+	// shadow projection
+	{
+		.formats = vector<GPUBufferFormat> {  },
+		.depth = true
 	},
-	.size = 5,
-	.depth = true
-};
-static inline PipelineBufferFormats RENDERER_DEPTH_BUFFER_FORMAT = {
-	.formats = {  },
-	.size = 0,
-	.depth = true
+
+	// forward draw
+	{
+		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_RGB },
+		.depth = true
+	},
+
+	// geometry pass
+	{
+		.formats = vector<GPUBufferFormat> {
+			GPU_BUFFER_FORMAT_RGB,
+			GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,GPU_BUFFER_FORMAT_FLOAT,
+			GPU_BUFFER_FORMAT_RGB
+		},
+		.depth = true
+	},
+
+	// result assembly
+	{
+		.formats = vector<GPUBufferFormat> { GPU_BUFFER_FORMAT_SRGB },  // FIXME for device rgb fallback
+		.depth = true
+	},
 };
 
 
@@ -231,6 +245,11 @@ struct Text
 // ----------------------------------------------------------------------------------------------------
 // Meshes
 
+// some globals for static meshes
+constexpr u32 CUBEMAP_CUBE_FLOAT_STRIDE = 3;		// vec3(pos)
+constexpr u32 CUBEMAP_CUBE_VERTEX_LENGTH = 3*2*6;	// triangle*triquad*sides
+constexpr u32 CUBEMAP_CUBE_BUFFER_SIZE = CUBEMAP_CUBE_FLOAT_STRIDE*CUBEMAP_CUBE_VERTEX_LENGTH;
+
 // complex triangluate shapes, requires .obj file
 class Mesh
 {
@@ -240,6 +259,7 @@ public:
 	static Mesh SPHERE;
 	static Mesh CUBE;
 	static Mesh APE;
+	static f32 CUBEMAP_CUBE[CUBEMAP_CUBE_BUFFER_SIZE];
 
 public:
 	vector<Vertex> vertices;
@@ -500,14 +520,16 @@ public:
 
 	// textures
 	Texture* register_texture(vec3 colour,TextureFormat format=TEXTURE_FORMAT_RGBA);
-	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA);
+	Texture* register_texture(const char* path,TextureFormat format=TEXTURE_FORMAT_RGBA,
+							  TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	Material* register_material(Texture* albedo,Texture* normals=nullptr,Texture* materials=nullptr,
 									 Texture* emission=nullptr);
+	Cubemap* register_cubemap_classical(const char* path,TextureFormat=TEXTURE_FORMAT_RGBA);
+	Texture* register_cubemap_hdr(const char* path);
 
 	// scene
 	lptr<ShaderPipeline> register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-										   PipelineBufferFormats& format,u32 feat);
-	lptr<ShaderPipeline> register_result_pipeline(const char* vs,const char* fs,u32 feat);
+										   RenderStage rs,u32 feat);
 	lptr<GeometryBatch> register_geometry_batch(lptr<ShaderPipeline> pipeline,size_t size);
 	lptr<ParticleBatch> register_particle_batch(lptr<ShaderPipeline> pipeline);
 	lptr<GeometryBatch> register_deferred_geometry_batch(size_t size);
@@ -527,12 +549,6 @@ public:
 	void animate(AnimatedMesh* mesh);
 
 private:
-	// threaded texture actions
-	static void _load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
-	static void _load_texture(Texture* texture,const char* path,TextureFormat format,
-							  queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex);
-
 	// pipeline steps
 	void _update_sprites();
 	void _update_text();
@@ -554,9 +570,7 @@ private:
 
 	// targets
 	vector<Framebuffer> m_ResultBuffers;
-	Framebuffer m_Framebuffer;  // FIXME naming!!!!
-	Framebuffer m_GBuffer;
-	Framebuffer m_ShadowMap;
+	Framebuffer m_Framebuffers[RENDER_STAGE_COUNT-1];
 
 	// textures
 	GPUPixelBuffer m_GPUSpriteTextures;
@@ -565,9 +579,10 @@ private:
 	// mesh textures
 	InPlaceArray<Texture> m_MeshTextures = InPlaceArray<Texture>(RENDERER_MAXIMUM_TEXTURE_COUNT);
 	InPlaceArray<Material> m_Materials = InPlaceArray<Material>(RENDERER_MAXIMUM_MATERIAL_COUNT);
-	queue<TextureDataTuple> m_MeshTextureUploadQueue;
+	InPlaceArray<Cubemap> m_Cubemaps = InPlaceArray<Cubemap>(RENDERER_MAXIMUM_CUBEMAP_COUNT);
+	ThreadedQueue<TextureDataTuple> m_MeshTextureUploadQueue;
+	ThreadedQueue<Cubemap*> m_CubemapUploadQueue;
 	list<TextureAttachment> m_TextureAttachmentRequests;
-	std::mutex m_MutexMeshTextureUpload;
 
 	// sprites
 	InPlaceArray<Sprite> m_Sprites;

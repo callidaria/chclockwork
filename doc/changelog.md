@@ -1,5 +1,14 @@
 ## Changelog
 
+### v0.0.3 (DEV)
+
+- single & multi-texture cubemapping
+- skyboxing
+- hdr float texture support
+- improved control over mipmap generation
+- FIXED: pipelines conform to their render stage, this results in a single pass for n registered pipelines
+
+
 ### v0.0.2 (UNX)
 
 - porting render features to vulkan

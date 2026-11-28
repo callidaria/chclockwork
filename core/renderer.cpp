@@ -165,6 +165,14 @@ Mesh Mesh::SPHERE_LOWRES = Mesh("./res/primitive/low_sphere.obj");
 Mesh Mesh::SPHERE = Mesh("./res/primitive/sphere.obj");
 Mesh Mesh::CUBE = Mesh("./res/primitive/cube.obj");
 Mesh Mesh::APE = Mesh("./res/primitive/ape.obj");
+f32 Mesh::CUBEMAP_CUBE[CUBEMAP_CUBE_BUFFER_SIZE] = {
+	 1,-1,-1,  1, 1,-1,  1, 1, 1,  1,-1,-1,  1, 1, 1,  1,-1, 1,  // +x
+	-1,-1,-1, -1,-1, 1, -1, 1, 1, -1,-1,-1, -1, 1, 1, -1, 1,-1,  // -x
+	 1, 1,-1, -1, 1,-1,  1, 1, 1,  1, 1, 1, -1, 1,-1, -1, 1, 1,  // +y
+	-1,-1,-1,  1,-1,-1, -1,-1, 1, -1,-1, 1,  1,-1,-1,  1,-1, 1,  // -y
+	 1,-1, 1,  1, 1, 1, -1,-1, 1, -1,-1, 1,  1, 1, 1, -1, 1, 1,  // +z
+	 1, 1,-1,  1,-1,-1, -1, 1,-1,  1,-1,-1, -1,-1,-1, -1, 1,-1,  // -z
+};
 
 /**
  *	load mesh geometry from .obj file
@@ -827,7 +835,7 @@ GeometryTuple* GeometryBatch::add_geometry(AnimatedMesh& mesh)
  *	load geometry into batch
  *	\param verts: single precision floats, explicitly defining geometry
  *	\param vsize: amount of vertices (this is the pointer length divided by the upload dimension)
- *	\param ssize: upload dimension !in memory width!
+ *	\param ssize: upload dimension in bytesize
  *	\returns pointer to geometry tuple
  */
 GeometryTuple* GeometryBatch::add_geometry(void* verts,size_t vsize,size_t ssize)
@@ -1078,9 +1086,10 @@ Renderer::Renderer()
 	// RESOURCE SETUP
 	// textures
 	m_GPUSpriteTextures.allocate(RENDERER_SPRITE_MEMORY_WIDTH,RENDERER_SPRITE_MEMORY_HEIGHT,
-								 TEXTURE_FORMAT_SRGB,ATLAS_SPRITES_PADDING);
+								 TEXTURE_FORMAT_SRGB,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT,ATLAS_SPRITES_PADDING);
 	m_GPUFontTextures.allocate(RENDERER_FONT_MEMORY_WIDTH,RENDERER_FONT_MEMORY_HEIGHT,
-							   TEXTURE_FORMAT_MONOCHROME,ATLAS_FONT_PADDING);
+							   TEXTURE_FORMAT_MONOCHROME,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT,
+							   ATLAS_FONT_PADDING);
 
 	// SHADERS
 	// setup shader endpoint
@@ -1100,40 +1109,40 @@ Renderer::Renderer()
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
 	g_UniformBuffer.define(1,RENDERER_JOINT_ANIMATION_LOCATION,
 						   VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
-	g_UniformBuffer.define(2,0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,1,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,2,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(2,3,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
-	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);
+	for (u16 i=0;i<RENDERER_TEXTURE_DESCRIPTOR_CHANNELS;i++)
+		g_UniformBuffer.define(2,i,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,VK_SHADER_STAGE_FRAGMENT_BIT);
+	g_UniformBuffer.define(1,71,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,VK_SHADER_STAGE_VERTEX_BIT);  // voxelinfo
 	g_UniformBuffer.generate_layouts();
 	// TODO define this in an extern file & routinize
 
+	// rendertargets
+	Framebuffer::setup_result(&RENDER_STAGES[RENDER_STAGE_RESULT_ASSEMBLY],m_ResultBuffers);
+	m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].setup(TARGET_RESOLUTION_FULLSCREEN,
+													&RENDER_STAGES[RENDER_STAGE_FORWARD_DRAW]);
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].setup(TARGET_RESOLUTION_FULLSCREEN,
+													 &RENDER_STAGES[RENDER_STAGE_GEOMETRY_PASS]);
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].setup(TARGET_RESOLUTION_SHADOWPROJ,
+														 &RENDER_STAGES[RENDER_STAGE_SHADOW_PROJECTION]);
+
 	// setup default pipelines
-	m_SpritePipeline = register_result_pipeline(
-			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",SPF_FLIPPED|SPF_BLENDING);
-	m_TextPipeline = register_pipeline(
-			"./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_STANDARD_BUFFER_FORMAT,SPF_FLIPPED|SPF_BLENDING);
-	m_TargetPipeline = register_pipeline(
-			"./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
-			TARGET_RESOLUTION_RESULT,RENDERER_STANDARD_BUFFER_FORMAT,SPF_DEFAULT);
+	m_SpritePipeline = register_pipeline(
+			"./shader/vulkan/bin/sprite.vert","./shader/vulkan/bin/sprite.frag",
+			TARGET_RESOLUTION_RESULT,RENDER_STAGE_RESULT_ASSEMBLY,SPF_FLIPPED|SPF_BLENDING);
+	m_TextPipeline = register_pipeline("./shader/vulkan/bin/text.vert","./shader/vulkan/bin/text.frag",
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_RESULT_ASSEMBLY,SPF_FLIPPED|SPF_BLENDING);
+	m_TargetPipeline = register_pipeline("./shader/vulkan/bin/pbs.vert","./shader/vulkan/bin/pbs.frag",
+			TARGET_RESOLUTION_RESULT,RENDER_STAGE_RESULT_ASSEMBLY,SPF_DEFAULT);
 	// FIXME target depth recording should be unnecessary
 
 	// pipelines, setup for deferred scene processing
 	m_GeometryPassPipeline = register_pipeline(
 			"./shader/vulkan/bin/gpass.vert","./shader/vulkan/bin/gpass.frag",
-			TARGET_RESOLUTION_FULLSCREEN,RENDERER_GEOMETRY_BUFFER_FORMAT,SPF_DEFAULT
+			TARGET_RESOLUTION_FULLSCREEN,RENDER_STAGE_GEOMETRY_PASS,SPF_DEFAULT
 		);
 	m_ShadowPassPipeline = register_pipeline(
 			"./shader/vulkan/bin/shadow.vert","./shader/vulkan/bin/shadow.frag",
-			TARGET_RESOLUTION_SHADOWPROJ,RENDERER_DEPTH_BUFFER_FORMAT,SPF_FLIPPED
+			TARGET_RESOLUTION_SHADOWPROJ,RENDER_STAGE_SHADOW_PROJECTION,SPF_FLIPPED
 		);
-
-	// result target & geometry target
-	Framebuffer::setup_result(m_ResultBuffers,*m_SpritePipeline);
-	m_Framebuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_TargetPipeline);
-	m_GBuffer.setup(TARGET_RESOLUTION_FULLSCREEN,*m_GeometryPassPipeline);
-	m_ShadowMap.setup(TARGET_RESOLUTION_SHADOWPROJ,*m_ShadowPassPipeline);
 
 	// upload 2D coordinate system
 	m_UBufferMem.strafo.view = g_CoordinateSystem.view;
@@ -1158,26 +1167,27 @@ Renderer::Renderer()
 											  m_GlobalSetOffset+offsetof(UniformBufferMemory,orth_shadow),
 											  sizeof(OrthographicShadow));
 	m_GlobalDescriptorSet.define_texture_segment(GSE_SPRITE_ATLAS_LOCATION,
-												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1);
+												 GSE_SHADOW_MAP_LOCATION-GSE_SPRITE_ATLAS_LOCATION+1,
+												 TEXTURE_ATTRIBUTE_TYPE_TEXTURE);
 
 	// linking buffer results
 	m_GlobalDescriptorSet.link_result(GSE_SPRITE_ATLAS_LOCATION,&m_GPUSpriteTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FONT_ATLAS_LOCATION,&m_GPUFontTextures.atlas);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_COLOUR_LOCATION,
-									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_COLOUR]);
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].components[FORWARD_BUFFER_CHANNEL_COLOUR]);
 	m_GlobalDescriptorSet.link_result(GSE_FORWARD_DEPTH_LOCATION,
-									  m_Framebuffer.components[FORWARD_BUFFER_CHANNEL_DEPTH]);
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].components[FORWARD_BUFFER_CHANNEL_DEPTH]);
 	for (u16 i=0;i<DEFERRED_BUFFER_CHANNEL_COUNT;i++)
-		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,m_GBuffer.components[i]);
-	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,m_ShadowMap.components[0]);
+	{
+		m_GlobalDescriptorSet.link_result(GSE_GBUFFER_COLOUR_LOCATION+i,
+										  m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].components[i]);
+	}
+	m_GlobalDescriptorSet.link_result(GSE_SHADOW_MAP_LOCATION,
+									  m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].components[0]);
 
 	// load ubo
 	m_SpriteUBO.create(m_SpritePipeline);
 	m_TextUBO.create(m_TextPipeline);
-
-	// load default textures
-	_load_colour(&g_UniformBuffer.default_texture,TEXTURE_DEFAULT_COLOUR,TEXTURE_FORMAT_SRGB,
-				 &m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
 
 	/*
 	COMM_LOG("starting renderer subprocesses");
@@ -1243,24 +1253,26 @@ void Renderer::update()
 	_update_uniforms();
 
 	// shadow pass
-	m_ShadowMap.record();
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].record();
 	_update_shadow(m_ShadowGeometryBatches,m_ShadowParticleBatches);
-	m_ShadowMap.stop();
+	m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].stop();
 
 	// record scene, deferred component
-	m_GBuffer.record();
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].record();
 	_update_geometry(m_DeferredGeometryBatches,m_DeferredParticleBatches);
-	m_GBuffer.stop();
+	m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].stop();
 
 	// record scene, forward component
-	m_Framebuffer.record();
+	m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].record();
 	_update_geometry(m_GeometryBatches,m_ParticleBatches);
-	m_Framebuffer.stop();
+	m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].stop();
 
 	// transition depth results
-	Texture::transition_depth_texture(m_Framebuffer.attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
-	Texture::transition_depth_texture(m_GBuffer.attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
-	Texture::transition_depth_texture(m_ShadowMap.attachment_images[0]);
+	Texture::transition_depth_texture(
+			m_Framebuffers[RENDER_STAGE_FORWARD_DRAW].attachment_images[FORWARD_BUFFER_CHANNEL_DEPTH]);
+	Texture::transition_depth_texture(
+			m_Framebuffers[RENDER_STAGE_GEOMETRY_PASS].attachment_images[DEFERRED_BUFFER_CHANNEL_DEPTH]);
+	Texture::transition_depth_texture(m_Framebuffers[RENDER_STAGE_SHADOW_PROJECTION].attachment_images[0]);
 
 	// result assembly
 	m_ResultBuffers[g_Frame.frame_id].record();
@@ -1282,10 +1294,9 @@ void Renderer::vanish()
 	for (GeometryBatch& p_Batch : m_DeferredGeometryBatches) p_Batch.vanish();
 
 	// clean framebuffers
-	m_ShadowMap.vanish();
-	m_GBuffer.vanish();
-	m_Framebuffer.vanish();
 	for (Framebuffer& p_ResultBuffer : m_ResultBuffers) p_ResultBuffer.vanish();
+	for (u8 i=0;i<RENDER_STAGE_COUNT-1;i++) m_Framebuffers[i].vanish();
+	for (u8 i=0;i<RENDER_STAGE_COUNT;i++) g_GPU.free(RENDER_STAGES[i].render_pass);
 
 	// clear pixel buffers
 	m_GPUSpriteTextures.atlas.vanish();
@@ -1296,6 +1307,13 @@ void Renderer::vanish()
 	{
 		if (!m_MeshTextures.mem[i].allocated) continue;
 		m_MeshTextures.mem[i].vanish();
+	}
+
+	// clear registered cubemaps
+	for (size_t i=0;i<m_Cubemaps.active_range;i++)
+	{
+		if (!m_Cubemaps.mem[i].cubemap.allocated) continue;
+		m_Cubemaps.mem[i].vanish();
 	}
 
 	// clear vbo & ubo buffer memory
@@ -1475,8 +1493,7 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
 				  "monochrome format should not be set for textures, defined by a colour vector");
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_colour,p_Texture,colour,format,
-						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	thread __LoadThread(Texture::load_colour,p_Texture,colour,format,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1485,15 +1502,15 @@ Texture* Renderer::register_texture(vec3 colour,TextureFormat format)
  *	register texture & load texture in a subthread, parallel to further program execution
  *	\param path: path to texture file
  *	\param format: (default TEXTURE_FORMAT_RGBA) texture colourspace format
+ *	\param feat: (default TEXTURE_FEATURE_STANDARD) bitwise texture features
  *	\returns pointer to texture in ram, referencing texture in vram
  */
-Texture* Renderer::register_texture(const char* path,TextureFormat format)
+Texture* Renderer::register_texture(const char* path,TextureFormat format,TextureFeatures feat)
 {
 	COMM_LOG("mesh texture register of %s",path);
 	Texture* p_Texture = &m_MeshTextures.mem[m_MeshTextures.next_free()];
 	new(p_Texture) Texture();
-	thread __LoadThread(_load_texture,p_Texture,path,format,
-						&m_MeshTextureUploadQueue,&m_MutexMeshTextureUpload);
+	thread __LoadThread(Texture::load_texture,p_Texture,path,format,feat,&m_MeshTextureUploadQueue);
 	__LoadThread.detach();
 	return p_Texture;
 }
@@ -1526,40 +1543,50 @@ Material* Renderer::register_material(Texture* albedo,Texture* normals,Texture* 
 }
 
 /**
+ *	classical cubemap. directory is the source, will load a texture for each side of the skybox
+ *	\param path: path to cubemap directory. this should contain posx until negz textures
+ *	\param format: texture colourspace format
+ *	\returns pointer to registered cubemap for mapping onto a skybox per samplerCube
+ */
+Cubemap* Renderer::register_cubemap_classical(const char* path,TextureFormat format)
+{
+	Cubemap* p_Cubemap = &m_Cubemaps.mem[m_Cubemaps.next_free()];
+	new(p_Cubemap) Cubemap();
+	thread __LoadThread(Cubemap::load,p_Cubemap,path,format,&m_CubemapUploadQueue);
+	__LoadThread.detach();
+	return p_Cubemap;
+}
+
+/**
+ *	single texture. this texture can be projected by cubemap_hdr.frag onto a skybox. contains irradiance data
+ *	\param path: path to single .hdr texture
+ *	\note this requires an .hdr irradiance map, will be packed into 4-byte unsigned float format
+ *	\returns pointer to registered cubemap for mapping onto a skybox by cubemap_hdr.frag shader
+ */
+Texture* Renderer::register_cubemap_hdr(const char* path)
+{
+	return register_texture(path,TEXTURE_FORMAT_RGBu11,TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT);
+}
+
+/**
  *	register shader pipeline
  *	\param vs: path to vertex shader
  *	\param fs: path to fragment shader
  *	\param tr: resolution of result
- *	\param format: format of result, this includes colourspaces, count of output results & depth component spec
+ *	\param rs: render stage, the new pipeline will operate within
  *	\param feat: enabled/active features during shader pipeline processing
  *	\returns registered shader pipeline
  */
 lptr<ShaderPipeline> Renderer::register_pipeline(const char* vs,const char* fs,TargetResolution tr,
-												 PipelineBufferFormats& format,u32 feat)
+												 RenderStage rs,u32 feat)
 {
-	m_ShaderPipelines.push_back(ShaderPipeline(format.formats,format.size,format.depth));
+	COMM_LOG_COND(rs>=RENDER_STAGE_COUNT,"no custom pipelines for this stage allowed");
+	m_ShaderPipelines.push_back(ShaderPipeline());
 	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(tr,vs,fs,feat);
+	p_Pipeline->assemble(tr,vs,fs,RENDER_STAGES[rs],feat);
 	return p_Pipeline;
 }
 // TODO somehow autodefine those by shader analysis? but there is a problem with result specification!
-
-/**
- *	register shader pipeline, that will assemble the final result output onto the swapchain buffer
- *	\param vs: path to vertex shader
- *	\param fs: path to fragment shader
- *	\param feat: enabled/active features during shader pipeline processing
- *	\returns registered shader pipeline
- *	\note this pipeline needs to conform to swapchain output format & produce only !ONE! result
- *	\note it is !extremely! unlikely that this is called in a script file. this is almost exclusive to renderer
- */
-lptr<ShaderPipeline> Renderer::register_result_pipeline(const char* vs,const char* fs,u32 feat)
-{
-	m_ShaderPipelines.push_back(ShaderPipeline(true));
-	lptr<ShaderPipeline> p_Pipeline = std::prev(m_ShaderPipelines.end());
-	p_Pipeline->assemble(TARGET_RESOLUTION_RESULT,vs,fs,feat);
-	return p_Pipeline;
-}
 
 /**
  *	register triangle mesh batch
@@ -1726,52 +1753,6 @@ void Renderer::animate(AnimatedMesh* mesh)
 }
 
 /**
- *	helper to register texture upload after data has been loaded
- *	\param tdt: tuple carrying data to upload & link loaded texture data to ubo
- *	\param data_queue: target queue to entry new upload tuple into
- *	\param queue_mutex: mutex for parallel queue access
- */
-inline void _signal_texture_data_upload(TextureDataTuple tdt,
-										queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	queue_mutex->lock();
-	data_queue->push(tdt);
-	queue_mutex->unlock();
-}
-
-/**
- *	load monocolour texture into ram in background & register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param colour: colour of generated monocoloured texture
- *	\param format: texture colour channel format
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void Renderer::_load_colour(Texture* texture,vec3 colour,TextureFormat format,
-							queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	TextureData __Data;
-	__Data.load(colour);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
-}
-
-/**
- *	load texture into ram in background & register for vram upload when ready
- *	\param texture: pointer to texture in memory
- *	\param path: path to texture
- *	\param format: texture colour channel format
- *	\param data_queue: queue for texture vram upload
- *	\param queue_mutex: mutual exclusion for data queue to prevent race conditions
- */
-void Renderer::_load_texture(Texture* texture,const char* path,TextureFormat format,
-							 queue<TextureDataTuple>* data_queue,std::mutex* queue_mutex)
-{
-	TextureData __Data;
-	__Data.load(path);
-	_signal_texture_data_upload(TextureDataTuple{ __Data,texture,format },data_queue,queue_mutex);
-}
-
-/**
  *	update draw of all registered sprites
  */
 void Renderer::_update_sprites()
@@ -1871,18 +1852,26 @@ void Renderer::_gpu_upload()
 
 	// mesh textures
 	bool __MeshTextureUpdated = false;
-	m_MutexMeshTextureUpload.lock();
-	while (m_MeshTextureUploadQueue.size())
+	m_MeshTextureUploadQueue.mut.lock();
+	while (m_MeshTextureUploadQueue.tqueue.size())
 	{
-		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.front();
-		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format);
+		TextureDataTuple& p_Tuple = m_MeshTextureUploadQueue.tqueue.front();
+		p_Tuple.texture->allocate(p_Tuple.data.width,p_Tuple.data.height,p_Tuple.format,p_Tuple.features);
 		p_Tuple.texture->transition_texture_transfer();
 		p_Tuple.texture->gpu_upload(p_Tuple.data);
-		p_Tuple.texture->generate_mipmap();
-		m_MeshTextureUploadQueue.pop();
+		m_MeshTextureUploadQueue.tqueue.pop();
 		__MeshTextureUpdated = true;
 	}
-	m_MutexMeshTextureUpload.unlock();
+	m_MeshTextureUploadQueue.mut.unlock();
+
+	m_CubemapUploadQueue.mut.lock();
+	while (m_CubemapUploadQueue.tqueue.size())
+	{
+		Cubemap* p_Cubemap = m_CubemapUploadQueue.tqueue.front();
+		p_Cubemap->gpu_upload();
+		m_CubemapUploadQueue.tqueue.pop();
+	}
+	m_CubemapUploadQueue.mut.unlock();
 
 	// link results, process attachments
 	if (!__MeshTextureUpdated) return;

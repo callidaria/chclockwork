@@ -103,8 +103,34 @@ enum TextureFormat : u8
 {
 	TEXTURE_FORMAT_RGBA,
 	TEXTURE_FORMAT_SRGB,
+	TEXTURE_FORMAT_RGBu11,
 	TEXTURE_FORMAT_MONOCHROME,
 	TEXTURE_FORMAT_COUNT
+};
+
+enum TextureFeatures : u8
+{
+	TEXTURE_FEATURE_STANDARD,
+	TEXTURE_FEATURE_SUPPRESS_MIPMAP_BIT = 1,
+	TEXTURE_FEATURE_CUBEMAP_BIT = 1<<1,
+};
+
+enum TexDataType : u8
+{
+	TEXTURE_DATA_TYPE_UNSPECIFIED,
+	TEXTURE_DATA_TYPE_U8,
+	TEXTURE_DATA_TYPE_UF11,
+	TEXTURE_DATA_TYPE_COUNT
+};
+
+struct TexDataBuffer
+{
+	union TexDataPointer
+	{
+		u8* u8b;
+		u32* uf11b;
+	} buffer;
+	TexDataType type = TEXTURE_DATA_TYPE_UNSPECIFIED;
 };
 
 struct TextureData
@@ -112,13 +138,13 @@ struct TextureData
 	// utility
 	void load(vec3 colour);
 	void load(const char* path);
+	void load_hdr(const char* path);
 	void vanish();
 
 	// data
-	u8* data;
+	TexDataBuffer data;
 	u32 x = 0,y = 0;
 	s32 width = 0,height = 0;
-	bool texture_flag = false;
 };
 
 class Texture;
@@ -128,19 +154,24 @@ struct TextureDataTuple
 	TextureData data;
 	Texture* texture;
 	TextureFormat format;
+	TextureFeatures features;
 };
 
 class Texture
 {
 public:
 	// data
-	void allocate(u32 wdt,u32 hgt,TextureFormat format);
+	void allocate(u32 wdt,u32 hgt,TextureFormat format,TextureFeatures feat=TEXTURE_FEATURE_STANDARD);
 	void register_subtexture(TextureData& data);
+
+	// load
+	static void load_colour(Texture* texture,vec3 colour,TextureFormat format,
+							ThreadedQueue<TextureDataTuple>* q);
+	static void load_texture(Texture* texture,const char* path,TextureFormat format,TextureFeatures feat,
+							 ThreadedQueue<TextureDataTuple>* q);
 	void gpu_upload();
 	void gpu_upload(TextureData& data);
-
-	// utility
-	void generate_mipmap();
+	void gpu_upload(TextureData* data,u8 size);
 
 #ifdef VKBUILD
 	void vanish();
@@ -165,7 +196,8 @@ public:
 
 #ifdef VKBUILD
 private:
-	void _setup_buffer_copy(size_t& ofs,TextureData& data);
+	void _setup_buffer_copy(size_t& ofs,TextureData& data,size_t arr_index=0);
+	void _generate_mipmap();
 #endif
 
 public:
@@ -176,7 +208,7 @@ public:
 
 	// properties
 	u32 width,height;
-	u16 mipcount;
+	u16 layercount,mipcount;
 	bool allocated = false;
 
 private:
@@ -223,7 +255,8 @@ struct Font
 struct GPUPixelBuffer
 {
 	// setup
-	void allocate(u32 wdt,u32 hgt,TextureFormat format,u32 padding=0);
+	void allocate(u32 wdt,u32 hgt,TextureFormat format,
+				  TextureFeatures feat=TEXTURE_FEATURE_STANDARD,u32 padding=0);
 
 	// utilty
 	static void load_texture(GPUPixelBuffer* gpb,Rect* pbc,const char* path);
@@ -252,3 +285,35 @@ struct GPUPixelBuffer
 
 
 #endif
+
+
+// ----------------------------------------------------------------------------------------------------
+// Cubemap
+
+// obviously component order for classical cubemap sampler upload matters in visualization. this is the order.
+enum CubemapComponentChannel : u8
+{
+	CUBEMAP_COMPONENT_CHANNEL_POSX,
+	CUBEMAP_COMPONENT_CHANNEL_NEGX,
+	CUBEMAP_COMPONENT_CHANNEL_POSY,
+	CUBEMAP_COMPONENT_CHANNEL_NEGY,
+	CUBEMAP_COMPONENT_CHANNEL_POSZ,
+	CUBEMAP_COMPONENT_CHANNEL_NEGZ,
+	CUBEMAP_COMPONENT_CHANNEL_COUNT
+};
+
+// classical cubemap, texture to upload as samplerCube in shader
+struct Cubemap
+{
+	// utility
+	static void load(Cubemap* cubemap,const char* path,TextureFormat format,ThreadedQueue<Cubemap*>* q);
+	void load_colour(vec3 colour);
+	void load_YUpLH(const char* path,TextureFormat fmt);
+	void gpu_upload();
+	void vanish();
+
+	// data
+	Texture cubemap;
+	TextureData data[CUBEMAP_COMPONENT_CHANNEL_COUNT];
+	TextureFormat format;
+};
